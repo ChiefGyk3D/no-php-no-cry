@@ -169,12 +169,6 @@ jobs:
           fi
           echo "egress canary: allowed hosts accept TCP 443"
 
-      - name: Download the build
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: site
-          path: site
-
       # Only deploy/ (a package.json and its lockfile) and one script are
       # checked out. The script, ensure-pages-project.sh, is the only repository
       # code that runs after the credentials are fetched: it makes two curl
@@ -202,6 +196,21 @@ jobs:
           set -euo pipefail
           npm ci --ignore-scripts --no-audit --no-fund
           node_modules/.bin/wrangler --version
+
+      # After the checkout above: actions/checkout cleans the workspace, so a
+      # build downloaded before it is deleted and `wrangler pages deploy site`
+      # fails with ENOENT. Still before any secret exists.
+      - name: Download the build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: site
+
+      - name: Check the build is present
+        run: |
+          set -euo pipefail
+          test -f site/index.html || { echo "::error title=Deploy::site/index.html is missing: the build artifact was not downloaded or was cleaned"; exit 1; }
+          echo "build present: $(find site -type f | wc -l) files"
 
       - name: Fetch Cloudflare credentials from Doppler
         uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@6f40107c2e05483f485452991e422f7f63886000 # v1.25.1
