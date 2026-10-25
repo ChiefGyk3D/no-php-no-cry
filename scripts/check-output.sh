@@ -11,7 +11,7 @@
 # Rules: inline-script, script-element-present, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
 # xml-stylesheet, bad-xml, missing-robots, bad-robots, env-mismatch,
-# noindex-mismatch, missing-redirects, missing-alias, missing-feed,
+# noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
 #
 # Environment:
@@ -26,6 +26,11 @@
 # sitemap, and every page carries noindex. Production allows everything, names
 # the sitemap on the site's own host, and no page carries noindex (alias pages
 # are meta refresh stubs and always carry one). A tree that mixes the two fails.
+#
+# Head: the home page and every post and journal entry carry a description,
+# canonical and icon links, Open Graph and Twitter card tags (og:url and
+# og:image absolute on the site's own host); entries are og:type article with
+# article:published_time, the home page is a website.
 #
 # Every alias in the build is also checked: each meta-refresh page Hugo wrote
 # for an alias must have a 301 line in _redirects (directory-style aliases need
@@ -140,6 +145,65 @@ while IFS= read -r -d '' f; do
         fi
     fi
 done < <(find "$dir" -type f -name '*.html' -print0 | sort -z)
+
+# head_meta <file> <attribute> <value>: the content of the first
+# <meta attribute=value ...>, quoted or not as the minifier wrote it. Empty when
+# the tag or its content is missing.
+head_meta() {
+    local tag
+    tag="$(grep -oEi "<meta[^>]*[[:space:]]$2=[\"']?$3[\"']?([[:space:]/][^>]*)?>" "$1" | head -n1 || true)"
+    [[ -z "$tag" ]] && return 0
+    sed -nE -e 's/.*[[:space:]]content="([^"]*)".*/\1/p' \
+        -e "s/.*[[:space:]]content='([^']*)'.*/\\1/p" \
+        -e 's/.*[[:space:]]content=([^[:space:]"'"'"'>]+).*/\1/p' <<<"$tag" | head -n1
+}
+
+# head_link <file> <rel>: succeeds when the page has <link rel=...>.
+head_link() {
+    grep -qEi "<link[^>]*[[:space:]]rel=[\"']?$2[\"']?([[:space:]/][^>]*)?>" "$1"
+}
+
+# check_head <file> <website|article>
+check_head() {
+    local f="$1" kind="$2" rel="${1#"$dir"/}" pair attr name val
+    for pair in name:description name:twitter:card property:og:title property:og:description \
+        property:og:type property:og:url property:og:image property:og:site_name; do
+        attr="${pair%%:*}"
+        name="${pair#*:}"
+        val="$(head_meta "$f" "$attr" "$name")"
+        [[ -z "$val" ]] && report missing-head-tag "$rel (${name})"
+    done
+    for name in canonical icon; do
+        head_link "$f" "$name" || report missing-head-tag "$rel (link rel=${name})"
+    done
+    for name in og:url og:image; do
+        val="$(head_meta "$f" property "$name")"
+        if [[ -n "$val" && ! "$val" =~ ^https://${site_host//./\\.}/ ]]; then
+            report bad-head-value "$rel (${name} must be an absolute URL on ${site_host})"
+        fi
+    done
+    val="$(head_meta "$f" property og:type)"
+    if [[ -n "$val" && "$val" != "$kind" ]]; then
+        report bad-head-value "$rel (og:type must be ${kind})"
+    fi
+    if [[ "$kind" == article ]]; then
+        val="$(head_meta "$f" property article:published_time)"
+        if [[ -z "$val" ]]; then
+            report missing-head-tag "$rel (article:published_time)"
+        elif [[ ! "$val" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+ ]]; then
+            report bad-head-value "$rel (article:published_time is not a timestamp)"
+        fi
+    fi
+}
+
+is_alias_page() { grep -qEi 'http-equiv=["'"'"']?refresh' "$1"; }
+
+if [[ -f "$dir/index.html" ]] && ! is_alias_page "$dir/index.html"; then
+    check_head "$dir/index.html" website
+fi
+while IFS= read -r -d '' f; do
+    is_alias_page "$f" || check_head "$f" article
+done < <(find "$dir/posts" "$dir/journal" -mindepth 2 -maxdepth 2 -name index.html -print0 2>/dev/null | sort -z)
 
 # Stylesheets and SVG: no @import or url() that leaves the site, and no
 # scheme-relative (//host) form either. Feeds and SVG: no stylesheet processing

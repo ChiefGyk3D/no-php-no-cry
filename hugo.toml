@@ -58,3 +58,14 @@ timeZone = "America/New_York"
   # The deploy workflow's build job does this while the site lives on test-blog;
   # docs/cutover.md has the steps for the apex.
   environment = "production"
+
+  # Default Open Graph image, a path under static/. Use only a file listed in
+  # brand/approved-assets.txt (star-free).
+  ogImage = "brand/penguin-color.png"
+
+  # Identity links, rendered in the footer as <a rel="me"> (Mastodon and
+  # similar verify a profile link this way). None until the accounts are set,
+  # one table per account:
+  #   [[params.me]]
+  #     name = "Mastodon"
+  #     url = "https://social.example/@name"

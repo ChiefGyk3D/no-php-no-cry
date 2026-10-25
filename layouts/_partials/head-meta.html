@@ -1,0 +1,19 @@
+{{- /* Description, Open Graph, Twitter card and favicons. Every URL is absolute from the site's baseURL. The default image is an approved, star-free brand asset (brand/approved-assets.txt). No structured data script: script-src is 'none' (static/_headers) and scripts are banned by scripts/check-output.sh. */ -}}
+{{- $desc := partial "description.html" . -}}
+{{- $image := site.Params.ogImage | default "brand/penguin-color.png" | absURL -}}
+{{- $title := cond .IsHome site.Title .Title -}}
+{{- $article := and .IsPage (in (slice "posts" "journal") .Section) -}}
+<meta name="description" content="{{ $desc }}">
+<meta property="og:site_name" content="{{ site.Title }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $desc }}">
+<meta property="og:type" content="{{ cond $article "article" "website" }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:image" content="{{ $image }}">
+<meta name="twitter:card" content="summary">
+{{- if $article }}
+<meta property="article:published_time" content="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">
+{{- end }}
+<link rel="icon" href="{{ "brand/penguin-glyph.svg" | relURL }}" type="image/svg+xml">
+<link rel="icon" href="{{ "brand/penguin-color.png" | relURL }}" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="{{ "brand/penguin-color.png" | relURL }}">

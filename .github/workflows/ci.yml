@@ -77,6 +77,9 @@ jobs:
       - name: Test the output checker (negative cases)
         run: scripts/test-check-output.sh
 
+      - name: Test the page head and footer links (hostile front matter)
+        run: scripts/test-head.sh
+
       - name: Test the Hugo version check
         run: scripts/test-check-hugo-version.sh
 

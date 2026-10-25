@@ -19,10 +19,11 @@ make_good() {
     local dir="$1"
     rm -rf "$dir"
     mkdir -p "$dir/posts/sample-post"
-    cat >"$dir/index.html" <<'HTML'
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>t</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>
-HTML
-    cp "$dir/index.html" "$dir/posts/sample-post/index.html"
+    # Heads as Hugo's minifier writes them (attribute quotes dropped where legal).
+    # Home is a website page; a post is an article with a published time.
+    local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>" >"$dir/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>" >"$dir/posts/sample-post/index.html"
     # Hugo's meta-refresh alias pages: one directory-style, one ending in .html.
     mkdir -p "$dir/2023/02/10/sample-post" "$dir/css"
     alias_page='<!doctype html><html lang=en-us><head><title>https://test-blog.chiefgyk3d.com/posts/sample-post/</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/><meta name=robots content=noindex><meta http-equiv=refresh content="0; url=https://test-blog.chiefgyk3d.com/posts/sample-post/"></head></html>'
@@ -170,6 +171,23 @@ else
     failures=$((failures + 1))
 fi
 EXPECT_ENV=bogus expect_fail bad-expect-env env-mismatch "$good"
+
+# Head tags (issue 30): required on the home page and on every post and journal
+# entry; each one removed in turn must be reported by name.
+drop_tag() { sed -i -E "s#<(meta|link)[^>]*$TAG[^>]*>##" "$1/$PAGE"; }
+for tag in 'name=description' 'rel=canonical' 'rel=icon' 'property=og:title' 'property=og:description' 'property=og:type' 'property=og:url' 'property=og:image ' 'property=og:site_name' 'name=twitter:card'; do
+    TAG="$tag" PAGE=index.html variant "home-without-${tag//[^a-z:]/}" missing-head-tag drop_tag
+    TAG="$tag" PAGE=posts/sample-post/index.html variant "post-without-${tag//[^a-z:]/}" missing-head-tag drop_tag
+done
+TAG='property=article:published_time' PAGE=posts/sample-post/index.html variant post-without-published-time missing-head-tag drop_tag
+relative_og_image() { sed -i -E 's#(property=og:image content=)https://test-blog.chiefgyk3d.com#\1#' "$1/index.html"; }
+variant relative-og-image bad-head-value relative_og_image
+foreign_og_url() { sed -i -E 's#(property=og:url content=)https://test-blog.chiefgyk3d.com#\1https://example.org#' "$1/index.html"; }
+variant foreign-og-url bad-head-value foreign_og_url
+home_as_article() { sed -i 's#property=og:type content=website#property=og:type content=article#' "$1/index.html"; }
+variant home-typed-article bad-head-value home_as_article
+post_as_website() { sed -i 's#property=og:type content=article#property=og:type content=website#' "$1/posts/sample-post/index.html"; }
+variant post-typed-website bad-head-value post_as_website
 
 if [[ -f "$root/public/index.html" ]]; then
     if "$checker" "$root/public" >/dev/null 2>&1; then
