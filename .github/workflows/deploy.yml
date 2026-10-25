@@ -159,7 +159,7 @@ jobs:
           set -u
           bad=""
           for name in github.com api.github.com api.cloudflare.com; do
-            if ! timeout 8 bash -c 'exec 3<>"/dev/tcp/$0/443"' "$name" 2>/dev/null; then
+            if ! timeout 8 bash -c "exec 3<>/dev/tcp/${name}/443" 2>/dev/null; then
               bad="$bad $name"
             fi
           done
