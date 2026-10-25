@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Only GitHub Actions: the site has no package manager. Hugo itself is pinned
+  # in .hugo-version and bumped by hand.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

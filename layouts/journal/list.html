@@ -1,0 +1,16 @@
+{{ define "main" }}
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+<p class="meta">Work journal. Not syndicated unless an entry says so.</p>
+<ol class="post-list" reversed>
+  {{- range .Pages.ByDate.Reverse }}
+  <li>
+    <h2><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+    <p class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></p>
+    {{ .Summary }}
+  </li>
+  {{- else }}
+  <li>No entries yet.</li>
+  {{- end }}
+</ol>
+{{ end }}
