@@ -18,8 +18,10 @@ a secret.
 3. `deploy` needs `build` and `gate`, and runs on the default branch only. It downloads the artifact, installs
    Wrangler from the lockfile in `deploy/` (`npm ci --ignore-scripts`, on Node
    22, which Wrangler requires) before any secret exists, fetches the
-   credentials, and runs `wrangler pages deploy`. Only `deploy/` is checked out
-   and no repository script runs. Dependabot bumps the lockfile weekly. It is the only job with `id-token: write`.
+   credentials, and runs `wrangler pages deploy`. Only `deploy/` and the one script
+   `scripts/ensure-pages-project.sh` are checked out. That script is the only
+   repository code that runs after the credentials load (two curl calls, inputs
+   validated first, no package loaded). Dependabot bumps the lockfile weekly. It is the only job with `id-token: write`.
 4. `smoke` runs `scripts/smoke-site.sh` against `SITE_URL`: HTTP 200, the
    Content-Security-Policy from `static/_headers`, and one 301 from the built
    `_redirects`.

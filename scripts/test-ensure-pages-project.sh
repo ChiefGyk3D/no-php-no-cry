@@ -63,7 +63,10 @@ srv.serve_forever()
         [[ -s "$work/port" ]] && break
         sleep 0.1
     done
-    [[ -s "$work/port" ]] || { echo "fake API did not start" >&2; exit 1; }
+    [[ -s "$work/port" ]] || {
+        echo "fake API did not start" >&2
+        exit 1
+    }
     api="http://127.0.0.1:$(cat "$work/port")"
     : >"$work/requests"
 }

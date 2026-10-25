@@ -175,18 +175,20 @@ jobs:
           name: site
           path: site
 
-      # Only deploy/ (a package.json and its lockfile) is checked out; no repo
-      # script runs in this job. Everything installs before any secret exists,
-      # from the lockfile with install scripts off, so a package never sees the
-      # token.
-      - name: Check out the Wrangler lockfile only
+      # Only deploy/ (a package.json and its lockfile) and one script are
+      # checked out. The script, ensure-pages-project.sh, is the only repository
+      # code that runs after the credentials are fetched: it makes two curl
+      # calls, validates its inputs first, and loads no package. Everything
+      # installs before any secret exists, from the lockfile with install
+      # scripts off, so a package never sees the token.
+      - name: Check out the Wrangler lockfile and the project check
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: |
-            deploy
-            scripts
-          sparse-checkout-cone-mode: true
+            /deploy/
+            /scripts/ensure-pages-project.sh
+          sparse-checkout-cone-mode: false
 
       - name: Set up Node.js (Wrangler needs 22 or newer)
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
