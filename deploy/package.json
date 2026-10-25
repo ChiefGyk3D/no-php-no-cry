@@ -1,0 +1,8 @@
+{
+  "name": "no-php-no-cry-deploy",
+  "private": true,
+  "description": "Pinned Wrangler for the Cloudflare Pages deploy job. Installed with npm ci --ignore-scripts.",
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  }
+}

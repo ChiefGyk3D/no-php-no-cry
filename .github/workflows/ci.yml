@@ -66,6 +66,12 @@ jobs:
       - name: Test the Hugo version check
         run: scripts/test-check-hugo-version.sh
 
+      - name: Test the post-deploy smoke check (local fake server)
+        run: scripts/test-smoke-site.sh
+
+      - name: Test the deploy gate wait (stubbed gh, no network)
+        run: scripts/test-wait-for-ci-green.sh
+
       - name: Test the WordPress converter
         run: scripts/test-wxr2hugo.sh
 
