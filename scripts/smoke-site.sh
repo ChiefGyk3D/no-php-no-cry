@@ -9,14 +9,16 @@
 #                 with the expected Location
 # The expectations are read from the build artifact, so they follow the site.
 #
-# Environment: SMOKE_RETRIES (default 5) retries each request with a delay, for
-# edge propagation after a deploy. SMOKE_ALLOW_HTTP=1 permits a non-https URL
-# (tests only).
+# Environment: SMOKE_RETRIES (default 5) re-runs the WHOLE set of checks, up to
+# that many more times, until all pass, for edge propagation after a deploy.
+# SMOKE_RETRY_SLEEP (default 3) is the delay in seconds between attempts.
+# SMOKE_ALLOW_HTTP=1 permits a non-https URL (tests only).
 set -euo pipefail
 
 base="${1:?usage: smoke-site.sh <site-url> <public-dir>}"
 dir="${2:?usage: smoke-site.sh <site-url> <public-dir>}"
 retries="${SMOKE_RETRIES:-5}"
+retry_sleep="${SMOKE_RETRY_SLEEP:-3}"
 base="${base%/}"
 
 if [[ "$base" != https://* && "${SMOKE_ALLOW_HTTP:-}" != 1 ]]; then
@@ -44,51 +46,64 @@ fi
 
 # fetch <path>: prints the status line and headers, fails if no response.
 fetch() {
-    curl -sS -o /dev/null -D - --max-time 20 \
-        --retry "$retries" --retry-delay 3 --retry-all-errors \
-        "${base}$1"
+    curl -sS -o /dev/null -D - --max-time 20 "${base}$1"
 }
 
-failed=0
+status_of() { printf '%s' "$1" | tr -d '\r' | awk 'NR == 1 { print $2 }'; }
 
-home="$(fetch /)" || {
-    echo "status: no response from ${base}/"
-    exit 1
+# attempt: runs every check once, printing one line per check. Returns 0 only
+# if all passed.
+attempt() {
+    local failed=0 home code csp_actual redir rcode loc loc_path
+
+    if home="$(fetch /)"; then
+        code="$(status_of "$home")"
+        if [[ "$code" == 200 ]]; then
+            echo "ok: ${base}/ answers 200"
+        else
+            echo "status: ${base}/ answered '${code}', wanted 200"
+            failed=1
+        fi
+    else
+        home=""
+        echo "status: no response from ${base}/"
+        failed=1
+    fi
+
+    csp_actual="$(printf '%s' "$home" | tr -d '\r' | sed -n 's/^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]-[Pp][Oo][Ll][Ii][Cc][Yy]:[[:space:]]*//p' | head -n 1)"
+    if [[ "$csp_actual" == "$csp_expected" ]]; then
+        echo "ok: Content-Security-Policy matches _headers"
+    else
+        echo "missing-csp: Content-Security-Policy is '${csp_actual}', wanted '${csp_expected}'"
+        failed=1
+    fi
+
+    redir="$(fetch "$from")" || redir=""
+    rcode="$(status_of "$redir")"
+    loc="$(printf '%s' "$redir" | tr -d '\r' | sed -n 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//p' | head -n 1)"
+    loc_path="${loc#"$base"}"
+    if [[ "$rcode" == 301 && "$loc_path" == "$to" ]]; then
+        echo "ok: ${from} redirects 301 to ${to}"
+    else
+        echo "redirect: ${from} answered '${rcode}' Location '${loc}', wanted 301 to ${to}"
+        failed=1
+    fi
+
+    return "$failed"
 }
-code="$(printf '%s' "$home" | tr -d '\r' | awk 'NR == 1 { print $2 }')"
-# An edge that has not caught up yet can serve a stale or empty page; retry
-# the whole check on a non-200 before failing.
-attempt=0
-while [[ "$code" != 200 && $attempt -lt "$retries" ]]; do
-    sleep 3
-    attempt=$((attempt + 1))
-    home="$(fetch /)" || true
-    code="$(printf '%s' "$home" | tr -d '\r' | awk 'NR == 1 { print $2 }')"
+
+n=0
+while :; do
+    if out="$(attempt)"; then
+        printf '%s\n' "$out"
+        exit 0
+    fi
+    if [[ $n -ge $retries ]]; then
+        printf '%s\n' "$out"
+        echo "smoke: still failing after $((n + 1)) attempt(s)"
+        exit 1
+    fi
+    n=$((n + 1))
+    echo "retry ${n}/${retries}: not ready, waiting ${retry_sleep} s"
+    sleep "$retry_sleep"
 done
-if [[ "$code" == 200 ]]; then
-    echo "ok: ${base}/ answers 200"
-else
-    echo "status: ${base}/ answered '${code}', wanted 200"
-    failed=1
-fi
-
-csp_actual="$(printf '%s' "$home" | tr -d '\r' | sed -n 's/^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]-[Pp][Oo][Ll][Ii][Cc][Yy]:[[:space:]]*//p' | head -n 1)"
-if [[ "$csp_actual" == "$csp_expected" ]]; then
-    echo "ok: Content-Security-Policy matches _headers"
-else
-    echo "missing-csp: Content-Security-Policy is '${csp_actual}', wanted '${csp_expected}'"
-    failed=1
-fi
-
-redir="$(fetch "$from")" || redir=""
-rcode="$(printf '%s' "$redir" | tr -d '\r' | awk 'NR == 1 { print $2 }')"
-loc="$(printf '%s' "$redir" | tr -d '\r' | sed -n 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//p' | head -n 1)"
-loc_path="${loc#"$base"}"
-if [[ "$rcode" == 301 && "$loc_path" == "$to" ]]; then
-    echo "ok: ${from} redirects 301 to ${to}"
-else
-    echo "redirect: ${from} answered '${rcode}' Location '${loc}', wanted 301 to ${to}"
-    failed=1
-fi
-
-exit "$failed"

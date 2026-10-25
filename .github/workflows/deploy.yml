@@ -3,10 +3,13 @@
 # the two secret paths (Doppler, or plain GitHub Actions secrets) are in
 # docs/deploy.md.
 #
-# Three jobs, each with only the permissions it needs:
+# Four jobs, each with only the permissions it needs:
 #   build   builds and checks the site, uploads the public directory.
+#   gate    waits for the `CI green` check run (ci.yml) on this commit and
+#           fails unless it succeeds. Reads checks; holds no secret.
 #   deploy  the only job that holds credentials. Runs no repository code: it
 #           downloads the build artifact and runs a pinned Wrangler on it.
+#           Needs build and gate.
 #   smoke   checks the live site. No credentials.
 name: Deploy
 
@@ -76,9 +79,45 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # Deploy only a commit CI has passed. ci.yml runs on every push to main (and
+  # on a manual run), so a `CI green` check run exists for the SHA this
+  # workflow runs on. A push trigger, not workflow_run, so no code from an
+  # untrusted branch is ever checked out here. Skipped (so deploy is skipped)
+  # in the same cases as deploy, to avoid waiting for a SHA that never deploys.
+  gate:
+    name: CI green on this commit
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          # audit: this job holds no secret and its output is only a pass or
+          # fail; the deploy job is the one that blocks.
+          egress-policy: audit
+
+      - name: Check out the wait script only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/wait-for-ci-green.sh
+          sparse-checkout-cone-mode: false
+
+      # WAIT_TIMEOUT_SECONDS (default 1500) and POLL_INTERVAL_SECONDS (default
+      # 20) can be overridden here.
+      - name: Wait for CI green
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: scripts/wait-for-ci-green.sh "$REPO" "$SHA"
+
   deploy:
     name: Deploy to Cloudflare Pages
-    needs: build
+    needs: [build, gate]
     # Default branch only; a manual run from another branch builds but stops here.
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
@@ -92,13 +131,43 @@ jobs:
     steps:
       - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          # audit, not block, for the same unmeasurable artifact host as the
-          # build job. This is the job that holds credentials, so tightening it
-          # is the first thing to do after the first run: issue #10.
-          # Expected so far: api.cloudflare.com:443 registry.npmjs.org:443
-          # api.doppler.com:443 api.github.com:443 github.com:443
-          # results-receiver.actions.githubusercontent.com:443
-          egress-policy: audit
+          # block, with an explicit list (no wildcards). The runner's own
+          # infrastructure hosts are allowed by the agent. This list is
+          # UNMEASURED: it comes from what each step is known to reach. If a
+          # host is missing, the first run blocks that connection and the log
+          # names the host. That is a safe failure: nothing was sent. Add the
+          # host here and see docs/deploy.md (Egress hardening), then re-run.
+          # The build job stays in audit: it uploads to a blob host whose name
+          # varies per run.
+          egress-policy: block
+          allowed-endpoints: >-
+            api.cloudflare.com:443
+            api.doppler.com:443
+            api.github.com:443
+            github.com:443
+            registry.npmjs.org:443
+            release-assets.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            raw.githubusercontent.com:443
+            results-receiver.actions.githubusercontent.com:443
+
+      # Egress canary, as in git-your-ship-together (EX-0001): a runner with
+      # broken DNS makes block mode fail confusingly, so say which it is first.
+      - name: Egress canary
+        timeout-minutes: 2
+        run: |
+          set -u
+          bad=""
+          for name in github.com api.github.com api.cloudflare.com; do
+            if ! timeout 8 bash -c 'exec 3<>"/dev/tcp/$0/443"' "$name" 2>/dev/null; then
+              bad="$bad $name"
+            fi
+          done
+          if [ -n "$bad" ]; then
+            echo "::error title=egress canary::cannot reach:${bad}. Either the runner network is broken (rerun the job) or the allow-list is wrong (docs/deploy.md)."
+            exit 1
+          fi
+          echo "egress canary: allowed hosts accept TCP 443"
 
       - name: Download the build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -133,10 +202,10 @@ jobs:
       - name: Fetch Cloudflare credentials from Doppler
         uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@6f40107c2e05483f485452991e422f7f63886000 # v1.25.1
         with:
-          project: ci
-          config: ci
-          identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          token: ${{ secrets.DOPPLER_TOKEN }}
+          project: cloudflare
+          config: prd
+          identity-id: ${{ vars.DOPPLER_CLOUDFLARE_IDENTITY_ID }}
+          token: ${{ secrets.DOPPLER_CLOUDFLARE_TOKEN }}
 
       # Doppler exports the two names when it is configured. Otherwise the same
       # names come from GitHub Actions secrets. Neither: fail, never skip.
@@ -150,7 +219,7 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
           if [ -n "$missing" ]; then
-            echo "::error title=Deploy::missing:${missing}. Neither Doppler (project ci, config ci) nor GitHub Actions secrets supplied it. See docs/deploy.md."
+            echo "::error title=Deploy::missing:${missing}. Neither Doppler (project cloudflare, config prd) nor GitHub Actions secrets supplied it. See docs/deploy.md."
             exit 1
           fi
           echo "Cloudflare credentials present (values not shown)."

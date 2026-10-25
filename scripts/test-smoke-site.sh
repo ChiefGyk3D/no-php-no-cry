@@ -28,12 +28,16 @@ printf '# generated\n/2023/02/10/sample-post/ /posts/sample-post/ 301\n/2023/02/
 # start_server <mode>: sets $url
 start_server() {
     stop_server
-    rm -f "$work/port"
+    rm -f "$work/port" "$work/port.count"
     MODE="$1" CSP="$csp" PORTFILE="$work/port" python3 -I -c '
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 mode, csp = os.environ["MODE"], os.environ["CSP"]
+# "stale-N" answers the first N requests with wrong data (a 404 page without
+# the CSP header, a 200 where the 301 belongs), then answers correctly.
+stale = int(mode.split("-")[1]) if mode.startswith("stale-") else 0
+seen = 0
 
 
 class H(BaseHTTPRequestHandler):
@@ -41,6 +45,15 @@ class H(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        global seen
+        seen += 1
+        with open(os.environ["PORTFILE"] + ".count", "w") as f:
+            f.write(str(seen))
+        if seen <= stale:
+            self.send_response(404 if self.path == "/" else 200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if self.path == "/2023/02/10/sample-post/":
             if mode == "no-redirect":
                 self.send_response(200)
@@ -85,7 +98,7 @@ failures=0
 expect() {
     local name="$1" want="$2" mode="$3" dir="${4:-$pub}" out rc=0
     start_server "$mode"
-    out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" "$url" "$dir" 2>&1)" || rc=$?
+    out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 SMOKE_RETRY_SLEEP=0 "$smoke" "$url" "$dir" 2>&1)" || rc=$?
     if [[ "$want" == pass ]]; then
         if [[ $rc -eq 0 ]]; then
             echo "ok: $name"
@@ -109,6 +122,44 @@ expect no-csp missing-csp no-csp
 expect weak-csp missing-csp weak-csp
 expect no-redirect redirect no-redirect
 expect wrong-redirect redirect wrong-redirect
+
+# Edge propagation: wrong answers first, correct ones later. The first four
+# requests are two full attempts (home page, then redirect), so the third
+# attempt is the first good one: three retries pass, none fail.
+start_server stale-4
+rc=0
+out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=3 SMOKE_RETRY_SLEEP=0.1 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: stale edge passes with retries"
+else
+    echo "FAIL: stale edge did not pass with retries (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
+start_server stale-4
+rc=0
+out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
+if [[ $rc -ne 0 && "$out" == *"status:"* ]]; then
+    echo "ok: stale edge fails without retries"
+else
+    echo "FAIL: stale edge passed without retries (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
+
+# A site that never becomes correct fails after the bounded retries, fast, and
+# the retries re-ran the whole set (2 requests per attempt, 4 attempts).
+start_server bad-status
+rc=0
+began=$SECONDS
+out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=3 SMOKE_RETRY_SLEEP=0.1 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
+if [[ $rc -ne 0 && "$out" == *"status:"* && $((SECONDS - began)) -lt 5 && "$(cat "$work/port.count")" == 8 ]]; then
+    echo "ok: never-correct site fails after bounded retries"
+else
+    echo "FAIL: never-correct site (rc=$rc, took $((SECONDS - began)) s, requests $(cat "$work/port.count"))"
+    echo "$out"
+    failures=$((failures + 1))
+fi
 
 # The expectations come from the build, so a build without them must fail.
 mkdir -p "$work/nohdr" "$work/noredir"
