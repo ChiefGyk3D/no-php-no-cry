@@ -94,7 +94,7 @@ repository, and the tool refuses a path inside it.
 
 ```sh
 python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR \
-    [--scrub-terms FILE] [--require-terms] [--site-url URL] [--media DIR]
+    [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR]
 ```
 
 It writes `posts/<slug>/index.md` for posts and `<slug>/index.md` for pages, at
@@ -122,5 +122,20 @@ need a terms file. The `employer`, `hostname` and `serial` terms come from
 positive). The run prints which categories ran and prints `NOT RUN` for each
 term category without terms, so a missing terms file cannot look like a clean
 pass; `--require-terms` turns a missing file into exit 2. A finding prints its
-category, file and line only, exits 3 and writes nothing. Exit 2 is a refused
+category, file and line only, exits 3 and writes nothing.
+
+`--scrub-terms -` reads the same lines from stdin, so the terms can live only in
+a Doppler secret and never touch disk:
+
+```sh
+doppler secrets get SCRUB_TERMS --plain | python3 -I tools/wxr2hugo/convert.py \
+    --wxr PATH/export.xml --out DIR --scrub-terms - --require-terms
+```
+
+`-` skips the path checks (inside the repository, readable file), which apply to
+file paths only. A missing or unreadable terms file exits 2. With
+`--require-terms`, a file or stdin with no `employer`, `hostname` or `serial`
+term (empty, comments only, or `allow:` lines only) exits 2. The status lines
+still show a term category as `ran` only when stdin supplied terms for it.
+Terms are never echoed, logged or written. Exit 2 is a refused
 path, a bad terms file or a slug collision.
