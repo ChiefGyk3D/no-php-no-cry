@@ -360,10 +360,6 @@ class UnexpectedErrorTests(unittest.TestCase):
         self.assertFalse((work / "out").exists())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class MediaConfinementTests(unittest.TestCase):
     def _run_with_target(self, make_target):
         work = scratch()
@@ -394,3 +390,7 @@ class MediaConfinementTests(unittest.TestCase):
 
         make.ref = lambda media, secret: "2023/02/link.png"
         self.assertEqual(self._run_with_target(make), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
