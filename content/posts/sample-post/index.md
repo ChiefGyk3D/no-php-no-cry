@@ -8,6 +8,7 @@ tags: ["lorem", "placeholder"]
 syndicate: true
 aliases:
   - /2023/02/10/sample-post/
+  - /sample-post.html
 ---
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod

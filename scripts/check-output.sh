@@ -8,10 +8,19 @@
 # deliverable is missing. Findings are printed as "[rule] file"; page content
 # is never printed.
 #
+# Rules: inline-script, script-element-present, style-element, style-attribute,
+# event-handler, http-reference, external-asset, external-css-reference,
+# xml-stylesheet, missing-redirects, missing-alias, missing-feed,
+# missing-headers, weak-csp, missing-output.
+#
 # Environment:
 #   SITE_HOST     host that counts as first party (default: test-blog.chiefgyk3d.com)
 #   EXPECT_ALIAS  an alias that must have a 301 line in _redirects
 #                 (default: /2023/02/10/sample-post/, from the sample post)
+#
+# Every alias in the build is also checked: each meta-refresh page Hugo wrote
+# for an alias must have a 301 line in _redirects (directory-style aliases need
+# the slash and the no-slash line; an alias ending in .html needs its one line).
 set -euo pipefail
 
 dir="${1:-public}"
@@ -30,6 +39,12 @@ report() {
     findings=$((findings + 1))
 }
 
+# has_redirect <path>: _redirects holds a 301 line whose source is <path>.
+has_redirect() {
+    [[ -f "$dir/_redirects" ]] &&
+        awk -v p="$1" '$1 == p && $3 == "301" { found = 1 } END { exit !found }' "$dir/_redirects"
+}
+
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
 asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>]*>'
 
@@ -39,6 +54,12 @@ while IFS= read -r -d '' f; do
     # Inline script: a <script> tag with no src attribute.
     if grep -oEi '<script([ >][^>]*)?>' "$f" | grep -qiv 'src='; then
         report inline-script "$rel"
+    fi
+    # script-src is 'none' in static/_headers: any script element would be
+    # blocked in production, so a script needs a CSP change and a reviewed
+    # allow-list first.
+    if grep -qEi '<script([ >]|$)' "$f"; then
+        report script-element-present "$rel"
     fi
     if grep -qEi '<style[ >]' "$f"; then
         report style-element "$rel"
@@ -60,11 +81,49 @@ while IFS= read -r -d '' f; do
             report external-asset "$rel"
         fi
     fi
+
+    # Alias pages (Hugo's meta refresh) name an old URL by their location.
+    if grep -qEi 'http-equiv=["'"'"']?refresh' "$f"; then
+        if [[ "$rel" == index.html ]]; then
+            continue
+        elif [[ "$rel" == */index.html ]]; then
+            base="/${rel%/index.html}"
+            for want in "$base" "$base/"; do
+                has_redirect "$want" || report missing-alias "_redirects (no 301 line for ${want}, from ${rel})"
+            done
+        else
+            has_redirect "/$rel" || report missing-alias "_redirects (no 301 line for /${rel})"
+        fi
+    fi
 done < <(find "$dir" -type f -name '*.html' -print0 | sort -z)
+
+# Stylesheets and SVG: no @import or url() that leaves the site, and no
+# scheme-relative (//host) form either. Feeds and SVG: no stylesheet processing
+# instruction (it would load a file the CSP does not cover).
+css_ref='(@import[[:space:]]*(url\()?|url\()[[:space:]]*["'"'"']?(https?:)?//[^"'"'"') ;]*'
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    refs="$(grep -oEi "$css_ref" "$f" || true)"
+    if [[ -n "$refs" ]] &&
+        grep -Evi "//${site_host}([/:\"' );]|\$)" <<<"$refs" | grep -qE .; then
+        report external-css-reference "$rel"
+    fi
+    if [[ "$f" == *.svg ]] &&
+        grep -oEi '(xlink:)?href=["'"'"']?(https?:)?//[^"'"'"' >]*' "$f" |
+        grep -Evi "//${site_host}([/:\"' >]|\$)" | grep -qE .; then
+        report external-css-reference "$rel"
+    fi
+done < <(find "$dir" -type f \( -name '*.css' -o -name '*.svg' \) -print0 | sort -z)
+
+while IFS= read -r -d '' f; do
+    if grep -qF '<?xml-stylesheet' "$f"; then
+        report xml-stylesheet "${f#"$dir"/}"
+    fi
+done < <(find "$dir" -type f \( -name '*.xml' -o -name '*.svg' -o -name '*.xsl' \) -print0 | sort -z)
 
 if [[ ! -s "$dir/_redirects" ]]; then
     report missing-redirects "_redirects"
-elif ! grep -qE "^${expect_alias//./\\.}[[:space:]]+/[^[:space:]]*[[:space:]]+301([[:space:]]|\$)" "$dir/_redirects"; then
+elif ! has_redirect "$expect_alias"; then
     report missing-alias "_redirects (no 301 line for ${expect_alias})"
 fi
 

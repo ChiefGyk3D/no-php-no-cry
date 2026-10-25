@@ -52,19 +52,7 @@ jobs:
           echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
 
       - name: Hugo is the pinned standard edition
-        run: |
-          set -euo pipefail
-          version="$(tr -d '[:space:]' < .hugo-version)"
-          out="$(hugo version)"
-          echo "$out"
-          case "$out" in
-            "hugo v${version}-"*) ;;
-            *) echo "unexpected Hugo version"; exit 1 ;;
-          esac
-          case "$out" in
-            *extended*) echo "extended edition is not allowed"; exit 1 ;;
-            *) ;;
-          esac
+        run: scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
 
       - name: Build
         run: hugo --minify --gc
@@ -75,12 +63,15 @@ jobs:
       - name: Test the output checker (negative cases)
         run: scripts/test-check-output.sh
 
+      - name: Test the Hugo version check
+        run: scripts/test-check-hugo-version.sh
+
   shell:
     uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@e5c6ec3251cf3a6eea100a1c21736f1818d5efc7 # v1.23.0
     permissions:
       contents: read
     with:
-      test-command: ./scripts/test-check-output.sh   # needs no Hugo; the build job also runs it against the real build
+      test-command: ./scripts/test-check-output.sh && ./scripts/test-check-hugo-version.sh   # needs no Hugo; the build job also runs it against the real build
       egress-policy: block
 
   security:
