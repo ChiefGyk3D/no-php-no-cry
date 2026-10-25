@@ -20,7 +20,7 @@ stop_server() {
 trap 'stop_server; rm -rf "$work"' EXIT
 
 account="0123456789abcdef0123456789abcdef"
-token="test-token-value"
+token="synthetic-token_0123456789.AB-cd"
 
 # start_server <get-status> <post-status>: sets $api and clears the request log.
 start_server() {
@@ -132,5 +132,44 @@ run CLOUDFLARE_PAGES_PROJECT="Bad Name"
 [[ "$rc" -ne 0 ]] || fail "bad project name must fail"
 [[ ! -s "$work/requests" ]] || fail "no request may be made for bad input"
 echo "ok: bad input rejected before any request"
+
+# Hostile or malformed tokens must fail with NO request and without echoing
+# the value. A quote plus a newline is the curl-config injection shape.
+start_server 200 200
+good20="abcdefghij0123456789"
+n=0
+for bad in \
+    "${good20}\"" \
+    "${good20}"$'\r' \
+    "${good20}"$'\n' \
+    "${good20}"$'\n''url = "http://127.0.0.1:1/x"' \
+    "${good20}\"
+header = \"X-Evil: 1" \
+    "${good20} more" \
+    "${good20:0:19}" \
+    "${good20}/slash" \
+    "$(printf 'a%.0s' $(seq 1 301))"; do
+    n=$((n + 1))
+    run CLOUDFLARE_API_TOKEN="$bad"
+    [[ "$rc" -ne 0 ]] || fail "hostile token case $n must fail"
+    [[ ! -s "$work/requests" ]] || fail "hostile token case $n made a request"
+    grep -q "token" "$work/out" || fail "hostile token case $n should say the token is invalid"
+    # grep -F treats a newline as two patterns, so check each line of the
+    # value on its own (an empty piece would match everything).
+    while IFS= read -r piece; do
+        piece="${piece%$'\r'}"
+        [[ ${#piece} -ge 8 ]] || continue
+        ! grep -qF -- "$piece" "$work/out" || fail "hostile token case $n was echoed"
+    done <<<"$bad"
+done
+echo "ok: $n hostile tokens rejected with no request and no echo"
+
+# Boundary lengths are accepted (20 and 300 characters).
+start_server 200 200
+run CLOUDFLARE_API_TOKEN="$good20"
+[[ "$rc" -eq 0 ]] || fail "a 20-character token should pass"
+run CLOUDFLARE_API_TOKEN="$(printf 'a%.0s' $(seq 1 300))"
+[[ "$rc" -eq 0 ]] || fail "a 300-character token should pass"
+echo "ok: boundary token lengths accepted"
 
 echo "all ensure-pages-project tests passed"

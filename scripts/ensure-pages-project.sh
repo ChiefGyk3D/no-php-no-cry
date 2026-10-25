@@ -2,8 +2,9 @@
 # Make sure the Cloudflare Pages project exists, creating it when it is missing.
 #
 # Idempotent: an existing project is left alone. Reads the token from the
-# environment and gives it to curl on stdin, so it never appears in a process
-# list or a log.
+# environment, checks its characters, and gives curl only an Authorization
+# header line on stdin (-H @-), so the token never appears in a process list or
+# a log and is never parsed as curl configuration.
 #
 # Environment:
 #   CLOUDFLARE_API_TOKEN    token with Account > Cloudflare Pages > Edit
@@ -19,6 +20,12 @@ set -euo pipefail
 branch="${PRODUCTION_BRANCH:-main}"
 base="${CF_API_BASE:-https://api.cloudflare.com/client/v4}"
 
+# Checked before any use. The message never echoes the value. A token with a
+# quote, space, CR or LF could otherwise change what curl is told to do.
+[[ "$CLOUDFLARE_API_TOKEN" =~ ^[A-Za-z0-9_.-]{20,300}$ ]] || {
+    echo "::error title=Pages project::the API token is not 20 to 300 characters of letters, digits, underscore, dot and hyphen"
+    exit 1
+}
 [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]] || {
     echo "::error title=Pages project::CLOUDFLARE_ACCOUNT_ID is not 32 hex characters"
     exit 1
@@ -39,11 +46,11 @@ trap 'rm -f "$body"' EXIT
 # api <method> <url> [json]: prints the HTTP status, leaves the response in $body.
 api() {
     local method="$1" target="$2" data="${3:-}"
-    local args=(-sS -K - -o "$body" -w '%{http_code}' -X "$method" --max-time 30)
+    local args=(-sS -H @- -o "$body" -w '%{http_code}' -X "$method" --max-time 30)
     if [[ -n "$data" ]]; then
         args+=(-H 'Content-Type: application/json' --data "$data")
     fi
-    printf 'header = "Authorization: Bearer %s"\n' "$CLOUDFLARE_API_TOKEN" |
+    printf 'Authorization: Bearer %s\n' "$CLOUDFLARE_API_TOKEN" |
         curl "${args[@]}" "$target"
 }
 
