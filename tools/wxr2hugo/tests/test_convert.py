@@ -130,6 +130,19 @@ class BasicConversionTests(unittest.TestCase):
         self.assertTrue(by_id[14]["draft"])
 
 
+class EscapingTests(unittest.TestCase):
+    def test_markdown_specials_in_text_are_escaped(self):
+        text = only_items("basic.xml", {"13"}).replace(
+            "<p>About this fixture site.</p>",
+            "<p>2 * 3 [not a link] _x_ &lt;b&gt;</p><p># not a heading</p>",
+        )
+        proc, out, _ = convert(text)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        body = (out / "pages/about/index.md").read_text().split("---\n")[2]
+        self.assertIn("2 \\* 3 \\[not a link\\] \\_x\\_ \\<b>", body)
+        self.assertIn("\\# not a heading", body)
+
+
 class MediaWarningTests(unittest.TestCase):
     def test_unsupported_and_missing_images_are_logged(self):
         text = only_items("basic.xml", {"10", "11"}).replace("pic.png", "pic.webp")
