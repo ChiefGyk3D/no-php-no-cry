@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Synthetic fixture: a page built with a block builder. Invented content only. -->
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+  <title>Fixture Blog</title>
+  <link>https://example.invalid</link>
+  <wp:wxr_version>1.2</wp:wxr_version>
+  <wp:base_site_url>https://example.invalid</wp:base_site_url>
+
+  <item>
+    <title>Builder Page</title>
+    <link>https://example.invalid/builder-page/</link>
+    <wp:post_id>21</wp:post_id>
+    <wp:post_date><![CDATA[2023-04-01 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-04-01 12:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[builder-page]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+    <content:encoded><![CDATA[<div data-colibri-id="1-c1" class="h-section"><div class="template-markup">TEMPLATE_MARKUP_SENTINEL</div></div>]]></content:encoded>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[extend_builder]]></wp:meta_key>
+      <wp:meta_value><![CDATA[a:2:{s:4:"json";i:22;s:4:"meta";a:1:{s:9:"styleRefs";a:1:{i:0;i:30;}}}]]></wp:meta_value>
+    </wp:postmeta>
+  </item>
+
+  <item>
+    <title>22</title>
+    <link>https://example.invalid/?extb_post_json=22</link>
+    <wp:post_id>22</wp:post_id>
+    <wp:post_date><![CDATA[2023-04-01 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-04-01 12:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[22]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[extb_post_json]]></wp:post_type>
+    <content:encoded><![CDATA[{"name":"hop-content","id":"a","type":"content","children":[{"name":"hop-section","type":"content","props":{"unrelated":"STYLE_SENTINEL"},"children":[{"name":"hop-row","type":"content","children":[{"name":"hop-column","type":"content","children":[{"name":"hop-heading","type":"content","props":{"content":"Welcome &amp; hello"},"children":[]},{"name":"hop-text","type":"content","props":{"content":"<p>Some <strong>builder</strong> text with <a href=\"https://example.invalid/x\">a link</a>.</p>"},"children":[]},{"name":"hop-heading","type":"content","props":{"content":"Linked heading","link":{"value":"https://example.invalid/target"}},"children":[]},{"name":"hop-button","type":"content","props":{"text":"Press me","link":{"value":"https://example.invalid/button"}},"children":[]},{"name":"hop-social-icons","type":"content","props":{"icons":[{"text":"Elsewhere","link":{"value":"https://example.invalid/elsewhere"}}]},"children":[]},{"name":"hop-contact-form","type":"content","props":{},"children":[]}]}]}]}]}]]></content:encoded>
+  </item>
+
+  <item>
+    <title>Header template</title>
+    <link>https://example.invalid/?extb_post_header=23</link>
+    <wp:post_id>23</wp:post_id>
+    <wp:post_date><![CDATA[2023-04-01 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-04-01 12:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[header-template]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[extb_post_header]]></wp:post_type>
+    <content:encoded><![CDATA[<header>TEMPLATE_MARKUP_SENTINEL</header>]]></content:encoded>
+  </item>
+</channel>
+</rss>

@@ -34,6 +34,7 @@ scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition
 scripts/check-output.sh public   # see the rules below
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-check-hugo-version.sh
+scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 ```
 
 `check-output.sh` fails the build output on any of: a `<script>` element at all
@@ -59,6 +60,7 @@ layouts/_markup/         image render hook (srcset, width/height, lazy, alt requ
 layouts/home.redirects   builds public/_redirects from page aliases
 static/_headers          Cloudflare Pages headers (strict CSP)
 scripts/                 check-output.sh, check-hugo-version.sh and their tests
+tools/wxr2hugo/         WordPress export to Hugo page bundles, with a scrub pass
 .github/workflows/ci.yml build job, shared shell and security workflows, CI green gate
 ```
 
@@ -81,3 +83,27 @@ data stay outside the repository. `.gitignore` blocks the usual names
 (`import/`, `raw/`, `*.wxr`, `*.sql`, archives), but the rule is the rule even
 where the ignore list has no pattern: only scrubbed, reviewed content is added
 under `content/`.
+
+## Converting the WordPress export
+
+`tools/wxr2hugo/` turns a WXR export into page bundles (Python 3 standard
+library only). The export, the terms file and the output stay outside the
+repository, and the tool refuses a path inside it.
+
+```sh
+python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR \
+    [--scrub-terms FILE] [--site-url URL] [--media DIR]
+```
+
+It writes `posts/<slug>/index.md`, `pages/<slug>/index.md` (images and
+`comments.json` beside them), `permalink-map.json` and `decision-log.json`
+(every `amzn.to` link, kept, no disclosure added). Drafts get `draft: true`.
+Only approved comments are kept, and ActivityPub items are dropped. Links to the
+old temporary Bluehost domain are rewritten to `--site-url`; builder pages take
+their text from the builder JSON.
+
+The scrub pass checks the output for callsign and grid-square shapes, plus the
+`employer`, `hostname` and `serial` terms from `--scrub-terms` (one
+`category:term` per line; `allow:TOKEN` exempts a false positive). A finding
+prints its category, file and line only, exits 3 and writes nothing. Exit 2 is a
+refused path or bad terms file.

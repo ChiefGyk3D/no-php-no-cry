@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Synthetic fixture for the scrub pass. Placeholders only: N0CALL, N0TST, FN31pr. -->
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+  <title>Fixture Blog</title>
+  <link>https://example.invalid</link>
+  <wp:wxr_version>1.2</wp:wxr_version>
+  <wp:base_site_url>https://example.invalid</wp:base_site_url>
+
+  <item>
+    <title>Near Misses</title>
+    <link>https://example.invalid/near-misses/</link>
+    <wp:post_id>31</wp:post_id>
+    <wp:post_date><![CDATA[2023-05-01 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-05-01 12:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[near-misses]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <content:encoded><![CDATA[<p>ChiefGyk3D wrote about CVE-2023-1234, AES256, MP3, X86_64, PS5 and IPv6.</p>]]></content:encoded>
+  </item>
+
+  <item>
+    <title>Tripwire</title>
+    <link>https://example.invalid/tripwire/</link>
+    <wp:post_id>32</wp:post_id>
+    <wp:post_date><![CDATA[2023-05-02 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-05-02 12:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[tripwire]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <content:encoded><![CDATA[<p>First line is clean.</p>
+
+<p>Calling CQ as N0CALL and also N0TST today.</p>
+
+<p>Grid FN31pr and FN31 here.</p>
+
+<p>Works at Acme Fixture Corp, on host box01.lab.invalid, unit SN-0000-TEST.</p>]]></content:encoded>
+    <wp:comment>
+      <wp:comment_id>9</wp:comment_id>
+      <wp:comment_author><![CDATA[Reader]]></wp:comment_author>
+      <wp:comment_date><![CDATA[2023-05-03 10:00:00]]></wp:comment_date>
+      <wp:comment_date_gmt><![CDATA[2023-05-03 14:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[I am in FN31pr too.]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+  </item>
+
+  <item>
+    <title>H2O</title>
+    <link>https://example.invalid/water/</link>
+    <wp:post_id>33</wp:post_id>
+    <wp:post_date><![CDATA[2023-05-04 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-05-04 12:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[water]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <content:encoded><![CDATA[<p>Water is H2O.</p>]]></content:encoded>
+  </item>
+</channel>
+</rss>
