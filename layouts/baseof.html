@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="{{ site.Language.Locale | default "en-us" }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+  <link rel="canonical" href="{{ .Permalink }}">
+  {{- range .AlternativeOutputFormats }}
+  {{- if eq .Name "rss" }}
+  <link rel="alternate" type="application/rss+xml" title="{{ site.Title }}" href="{{ .Permalink }}">
+  {{- end }}
+  {{- end }}
+  {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css")) | minify | fingerprint }}
+  <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
+  {{- end }}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="site-title" href="{{ "/" | relURL }}">{{ site.Title }}</a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="{{ "/posts/" | relURL }}">Posts</a></li>
+          <li><a href="{{ "/journal/" | relURL }}">Journal</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <div class="wrap">
+      {{- block "main" . }}{{ end }}
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Placeholder footer. <a href="{{ "/index.xml" | relURL }}">RSS</a></p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,46 @@
+baseURL = "https://test-blog.chiefgyk3d.com/"
+locale = "en-us"   # Hugo >= 0.158 name for languageCode
+title = "no-php-no-cry"
+
+# Kinds this site does not use. The taxonomy index (/tags/, /categories/) is
+# not linked anywhere; term pages (one tag, one category) are used.
+# robots.txt is left to the owner (static/ when wanted).
+disableKinds = ["taxonomy", "robotsTXT"]
+
+# Nothing in the site talks to a third party: no analytics, no embeds.
+disableHugoGeneratorInject = true
+enableGitInfo = false
+timeZone = "America/New_York"
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+# Home, posts and journal publish a feed. Home also publishes _redirects.
+[outputs]
+  home = ["html", "rss", "redirects"]
+  section = ["html", "rss"]
+  page = ["html"]
+  term = ["html"]
+
+# Cloudflare Pages redirects file, built from every page's front-matter
+# aliases (layouts/home.redirects). A file named _redirects has no extension.
+[mediaTypes."text/x-cloudflare-redirects"]
+  suffixes = [""]
+  delimiter = ""
+
+[outputFormats.redirects]
+  mediaType = "text/x-cloudflare-redirects"
+  baseName = "_redirects"
+  isPlainText = true
+  notAlternative = true
+
+[minify]
+  minifyOutput = true
+
+[markup.goldmark.renderer]
+  # Content is the owner's own; raw HTML in Markdown stays off until needed.
+  unsafe = false
+
+[params]
+  description = "Placeholder site description."
