@@ -72,8 +72,18 @@ Doppler service account, the identity, or any token.
    config `ci` only.
 3. On that service account add an OIDC identity (Service Account Identities):
    issuer `https://token.actions.githubusercontent.com`, audience as Doppler
-   shows it, and a subject limited to the default branch:
-   `repo:ChiefGyk3D/no-php-no-cry:ref:refs/heads/main`. No wildcard subject.
+   shows it, and subjects limited to the default branch. GitHub sends one of two
+   forms, and a repository created after mid-2026 sends the second, so list
+   both (Doppler accepts several subjects per identity):
+   - `repo:<owner>/<repo>:ref:refs/heads/main`
+   - `repo:<owner>@<owner-id>/<repo>@<repo-id>:ref:refs/heads/main`
+
+   Find which form yours sends with
+   `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`
+   (`use_immutable_subject`), and the ids with `gh api repos/<owner>/<repo>
+   --jq .id` and `gh api users/<owner> --jq .id`. A mismatch fails every fetch
+   with `claim "sub" does not match identity auth config`. No wildcard subject,
+   and never one that matches `:pull_request`.
 4. Copy the identity UUID (not a secret) into the repository variable
    `DOPPLER_IDENTITY_ID`.
 5. Leave the `DOPPLER_TOKEN` secret unset, or set a read-only service token for
