@@ -1,37 +1,89 @@
 /*
- * Design tokens: PLACEHOLDERS ONLY.
- * The real brand spec (colors, type, logo) is tracked in issue #2; replace the
- * values here when it lands. Nothing else in the CSS hard-codes a color or a font.
- * No font file ships: Jost is used only if the reader already has it, otherwise
- * the system stack. Nothing is fetched from a third party.
+ * Design tokens. Dark first: :root is the dark palette, the light palette is
+ * the override at the bottom. Values come from Reach Around (docs/design.md,
+ * examples/themes/dark-hero.yaml): brand amber #FBB03B, text on amber #1A1A1A,
+ * off-white #F0F0F0, near-black page.
+ *
+ * Every text color pair is checked for WCAG AA (4.5:1) in both modes by
+ * scripts/check-contrast.py; keep colors as 6-digit hex so the check can read
+ * them. Nothing else in the CSS hard-codes a color or a font. Specification:
+ * brand/README.md.
+ *
+ * Jost is self-hosted from /fonts (SIL OFL 1.1, license text beside it); no
+ * font host is contacted. The wordmark font is undecided: the wordmark is only
+ * ever used as an image, never typeset.
  */
-:root {
-  color-scheme: light dark;
-
-  --accent: #FBB03B;
-  --on-accent: #1A1A1A;
-
-  --bg: #FAF7F2;
-  --surface: #F0EBE3;
-  --text: #1A1A1A;
-  --muted: #5C554C;
-  --link: #8A5A00;
-  --border: #D9D1C5;
-
-  --font-body: Jost, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-
-  --measure: 42rem;
-  --space: 1rem;
+@font-face {
+  font-family: Jost;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fonts/jost-latin-wght-normal.woff2") format("woff2");
 }
 
-@media (prefers-color-scheme: dark) {
+:root {
+  color-scheme: dark light;
+
+  /* Color: dark palette (default). */
+  --accent: #FBB03B;
+  --on-accent: #1A1A1A;
+  --bg: #0E0E0E;
+  --surface: #181716;
+  --text: #F0F0F0;
+  --muted: #B5ADA2;
+  --link: #FBB03B;
+  --focus: #FBB03B;
+  --rule: #3A3530;
+  --border: #3A3530;
+
+  /* Effects: amber glow. Alpha values, so they are not contrast-checked. */
+  --glow: rgb(251 176 59 / 0.16);
+  --glow-strong: rgb(251 176 59 / 0.35);
+  --shadow: rgb(0 0 0 / 0.5);
+
+  /* Type. */
+  --font-body: Jost, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-sm: 0.875rem;
+  --text-base: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+  --line-height: 1.6;
+
+  /* Space (4-point rhythm) and layout. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space: var(--space-4);
+  --space-5: 1.5rem;
+  --space-6: 2.5rem;
+  --measure: 42rem;
+  --radius: 0.5rem;
+  --tap: 2.75rem;
+
+  /* UI elements: rules and chevrons. */
+  --rule-width: 1px;
+  --rule-accent-width: 3px;
+  --chevron-size: 0.5rem;
+  --chevron-width: 2px;
+  --duration: 150ms;
+}
+
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #141210;
-    --surface: #1E1B18;
-    --text: #F3EEE7;
-    --muted: #B5ADA2;
-    --link: #FBB03B;
-    --border: #3A352F;
+    --bg: #FAF7F2;
+    --surface: #F0EBE3;
+    --text: #1A1A1A;
+    --muted: #5C554C;
+    --link: #8A5A00;
+    --focus: #8A5A00;
+    --rule: #D9D1C5;
+    --border: #D9D1C5;
+
+    --glow: rgb(251 176 59 / 0.22);
+    --glow-strong: rgb(251 176 59 / 0.45);
+    --shadow: rgb(26 26 26 / 0.15);
   }
 }

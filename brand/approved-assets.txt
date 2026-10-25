@@ -1,0 +1,18 @@
+# Approved brand assets: every file committed under static/brand/ and static/fonts/.
+# Checked by scripts/check-brand-assets.sh (a file not listed here, or changed
+# after it was listed, fails the build gate). Excluded files: brand/EXCLUDED.md.
+#
+# Format, one per line, fields separated by " | ":
+#   path | sha256 of the committed file | source | verification
+#
+# Source paths are relative to the local import folder (brand art is kept
+# outside the repository). Every image was opened and inspected by eye at full
+# size, on a dark and (for the glyph) a light background, on 2026-10-25.
+# Verification means: no Star of David anywhere in the image, no third-party
+# mark, no text, no personal identifier.
+static/brand/penguin-color.png | 0f34d05fe06348bb158190269cb85f28693a2f37b789c3d6808e0259d72fc4d8 | brand/Personal Logo/512x512.png (lossless optipng -o5 only; 512x512 RGBA, transparent, white sticker edge) | star-free, inspected by eye on a dark background; use on dark
+static/brand/penguin-glyph.svg | ab9b961a48021e99120f57a67dad967ddb9c156c49b45cda8cea50b605794138 | brand/Personal Logo/Branding Concepts/Linux.svg (Illustrator header and <style> block removed, class replaced by a fill attribute so no inline style remains; paths unchanged) | star-free, rendered and inspected by eye on a light background; use on light
+
+# Font (not an image): Jost, variable weight, Latin subset, SIL Open Font License 1.1.
+static/fonts/jost-latin-wght-normal.woff2 | 7726a5cd6f3c0e876c028ea2a643d45f7aad4b0f164b70966c669f4a4668f4b9 | npm package @fontsource-variable/jost 5.3.0, files/jost-latin-wght-normal.woff2 (hash matches the copy shipped in the Reach Around repo) | OFL permits bundling and self-hosting; license text beside it
+static/fonts/OFL.txt | 1af3438a4d5f0ed2bdbc5751a5a67ebf6d537334161184b7fbb68503ef0ea0c5 | same package and the Reach Around copy; Jost project OFL text | license text for the font above
