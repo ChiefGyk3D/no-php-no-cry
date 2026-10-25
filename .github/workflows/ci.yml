@@ -69,6 +69,15 @@ jobs:
       - name: Test the WordPress converter
         run: scripts/test-wxr2hugo.sh
 
+      - name: Check design-token contrast (WCAG AA)
+        run: python3 -I scripts/check-contrast.py assets/css/tokens.css
+
+      - name: Check the brand asset manifest
+        run: scripts/check-brand-assets.sh
+
+      - name: Test the brand checks (negative cases)
+        run: scripts/test-brand.sh
+
   shell:
     uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@b9db99287236b19f0249f83b54acc5cc41126e42 # v1.25.0
     permissions:

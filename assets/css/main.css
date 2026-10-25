@@ -7,10 +7,12 @@
 body {
   margin: 0;
   background: var(--bg);
+  background-image: radial-gradient(60rem 28rem at 50% 0, var(--glow), transparent 70%);
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 1.125rem;
-  line-height: 1.6;
+  font-size: var(--text-base);
+  line-height: var(--line-height);
 }
 
 .wrap {
@@ -24,7 +26,7 @@ a {
 }
 
 a:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: var(--rule-accent-width) solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -32,7 +34,7 @@ a:focus-visible {
   position: absolute;
   left: var(--space);
   top: -4rem;
-  padding: 0.5rem 1rem;
+  padding: var(--space-2) var(--space);
   background: var(--accent);
   color: var(--on-accent);
   z-index: 10;
@@ -43,7 +45,7 @@ a:focus-visible {
 }
 
 .site-header {
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--rule-width) solid var(--rule);
   padding: var(--space) 0;
 }
 
@@ -70,19 +72,19 @@ a:focus-visible {
 }
 
 main {
-  padding: calc(var(--space) * 2) 0;
+  padding: var(--space-6) 0;
 }
 
 .site-footer {
-  border-top: 1px solid var(--border);
+  border-top: var(--rule-width) solid var(--rule);
   padding: var(--space) 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .meta {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .post-list {
@@ -92,7 +94,7 @@ main {
 
 .post-list li {
   padding: var(--space) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--rule-width) solid var(--rule);
 }
 
 .tag-list {
@@ -103,7 +105,7 @@ main {
 
 .tag-list li {
   display: inline;
-  margin-right: 0.5rem;
+  margin-right: var(--space-2);
 }
 
 img {
@@ -120,4 +122,38 @@ code {
 pre {
   padding: var(--space);
   overflow-x: auto;
+}
+
+/* Accent rule: a short amber bar for headings and section breaks. */
+.rule-accent {
+  border: 0;
+  border-top: var(--rule-accent-width) solid var(--accent);
+  width: 3rem;
+  margin: var(--space-5) 0;
+  box-shadow: 0 0 1rem var(--glow-strong);
+}
+
+/* Chevron: a small right-pointing arrow drawn with borders; rotate for others. */
+.chevron {
+  display: inline-block;
+  width: var(--chevron-size);
+  height: var(--chevron-size);
+  border-top: var(--chevron-width) solid currentColor;
+  border-right: var(--chevron-width) solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--duration) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+/* Penguin mark: full color on dark, black glyph on light (both sources are
+ * static/brand/*; the page picks one with <picture>). */
+.brand-mark {
+  height: var(--tap);
+  width: auto;
+  filter: drop-shadow(0 0 0.75rem var(--glow-strong));
 }
