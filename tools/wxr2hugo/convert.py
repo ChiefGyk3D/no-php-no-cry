@@ -2,13 +2,16 @@
 """Convert a WordPress WXR export into Hugo page bundles.
 
     python3 -I tools/wxr2hugo/convert.py --wxr PATH --out DIR \
-        [--scrub-terms FILE] [--site-url URL] [--media DIR]
+        [--scrub-terms FILE] [--require-terms] [--site-url URL] [--media DIR]
 
 Stdlib only. The export, the terms file and the output all live outside the
 repository; the tool refuses paths inside it. Same input, same bytes out.
 
+Posts go to posts/<slug>/, pages to <slug>/ at the site root (with a url key).
 Exit codes: 0 done, 1 unexpected error (class name only, never the input),
-2 usage or refused path, 3 scrub findings (nothing written).
+2 usage or refused path (including --require-terms with no terms file, or a
+page slug that collides with an existing section), 3 scrub findings (nothing
+written).
 """
 
 import argparse
@@ -29,6 +32,9 @@ REPO = HERE.parents[1]
 MARKER = ".wxr2hugo-out"
 DEFAULT_SITE_URL = "https://test-blog.chiefgyk3d.com"
 OWN_DOMAIN = "chiefgyk3d.com"
+DISCLOSURE = "As an Amazon Associate I earn from qualifying purchases."
+# Top-level paths a root page must never take (sections, taxonomies, feeds).
+RESERVED_ROOTS = {"posts", "journal", "categories", "tags", "page", "index.xml", "_headers", "_redirects"}
 
 WP = "{http://wordpress.org/export/1.2/}"
 CONTENT = "{http://purl.org/rss/1.0/modules/content/}encoded"
@@ -208,6 +214,7 @@ class PageCtx:
         self.site = site
         self.page_path = page_path
         self.bundle = {}  # file name -> source path
+        self.affiliate_links = 0
 
     def _bundle_name(self, path):
         name = path.name
@@ -227,6 +234,7 @@ class PageCtx:
         parts = urlsplit(href)
         host = (parts.hostname or "").lower()
         if host == "amzn.to" or host.endswith(".amzn.to"):
+            self.affiliate_links += 1
             self.site.affiliate.append(
                 {
                     "file": self.page_path,
@@ -702,6 +710,7 @@ def convert(wxr_path, site_url, media_root):
                 }
 
     site = Site(site_url, temp_hosts, own_hosts, media_root, attachments)
+    taken_roots = existing_roots() | RESERVED_ROOTS
     dropped = {}
     wanted = []
     for item in items:
@@ -713,18 +722,28 @@ def convert(wxr_path, site_url, media_root):
 
     files, media, pmap = {}, {}, []
     used = {"post": set(), "page": set()}
-    counts = {"posts": 0, "pages": 0, "drafts": 0, "comments": 0, "comments_dropped": 0, "aliases": 0, "builder_pages": 0}
+    counts = {
+        "posts": 0,
+        "pages": 0,
+        "drafts": 0,
+        "comments": 0,
+        "comments_dropped": 0,
+        "aliases": 0,
+        "builder_pages": 0,
+        "pages_skipped_empty": 0,
+        "disclosures_added": 0,
+    }
+    skipped, disclosures = [], []
 
     for item in wanted:
         kind = item["type"]
-        section = "posts" if kind == "post" else "pages"
+        section = "posts" if kind == "post" else ""
         slug = safe_slug(item["slug"]) or slugify(html_text(item["title"])) or "%s-%d" % (kind, item["id"])
         base, n = slug, 1
         while slug in used[kind]:
             n += 1
             slug = "%s-%d" % (base, n)
-        used[kind].add(slug)
-        bundle = "%s/%s" % (section, slug)
+        bundle = "%s/%s" % (section, slug) if section else slug
         page_path = bundle + "/index.md"
         ctx = PageCtx(site, page_path)
         draft = item["status"] == "draft"
@@ -742,8 +761,31 @@ def convert(wxr_path, site_url, media_root):
         if body is None:
             body = html_to_md(item["content"], ctx)
 
+        if kind == "page" and not body.strip():
+            skipped.append({"id": item["id"], "type": kind, "file": page_path, "reason": "empty body"})
+            counts["pages_skipped_empty"] += 1
+            continue
+        used[kind].add(slug)
+        if kind == "page" and slug.lower() in taken_roots:
+            raise UsageError("page slug collides with an existing top-level path (id %d); rename it in the export or the site" % item["id"])
+        if kind == "page":
+            taken_roots.add(slug.lower())
+
+        if kind == "post" and ctx.affiliate_links:
+            # Once per post: a body that already carries the sentence is left alone.
+            disclosed = DISCLOSURE not in body
+            if disclosed:
+                body = (body + "\n\n" if body else "") + DISCLOSURE
+                counts["disclosures_added"] += 1
+            disclosures.append({"file": page_path, "id": item["id"], "links": ctx.affiliate_links, "added": disclosed})
+            for entry in site.affiliate:
+                if entry["file"] == page_path:
+                    entry["disclosure"] = "added" if disclosed else "already present"
+
+        new_url = "/%s/%s/" % (section, slug) if section else "/%s/" % slug
         old = None if draft else old_permalink(item["link"])
-        aliases = [old] if old else []
+        # An alias equal to the page's own URL would overwrite the page.
+        aliases = [old] if old and old.rstrip("/") != new_url.rstrip("/") else []
         counts["aliases"] += len(aliases)
         fields = [
             ("title", html_text(item["title"])),
@@ -753,6 +795,7 @@ def convert(wxr_path, site_url, media_root):
             ("categories", item["categories"]),
             ("tags", item["tags"]),
             ("syndicate", kind == "post" and item["meta"].get("_share_on_mastodon") == "1"),
+            ("url", new_url if kind == "page" else None),
             ("aliases", aliases),
         ]
         text = front_matter(fields) + ("\n" + body + "\n" if body else "")
@@ -782,7 +825,7 @@ def convert(wxr_path, site_url, media_root):
             files[bundle + "/comments.json"] = dump_json(data).encode("utf-8")
             counts["comments"] += len(approved)
 
-        counts[section] += 1
+        counts["posts" if kind == "post" else "pages"] += 1
         counts["drafts"] += 1 if draft else 0
         pmap.append(
             {
@@ -791,7 +834,7 @@ def convert(wxr_path, site_url, media_root):
                 "draft": draft,
                 "slug": slug,
                 "old": old,
-                "new": "/%s/%s/" % (section, slug),
+                "new": new_url,
                 "file": page_path,
             }
         )
@@ -808,11 +851,23 @@ def convert(wxr_path, site_url, media_root):
     log = {
         "summary": counts,
         "affiliate_links": site.affiliate,
+        "disclosures": disclosures,
+        "skipped": skipped,
         "warnings": site.warnings,
         "dropped_item_types": dropped,
     }
     files["decision-log.json"] = dump_json(log).encode("utf-8")
     return files, media, counts
+
+
+def existing_roots():
+    """Lower-cased top-level names the site already publishes (content/ and static/ directories)."""
+    names = set()
+    for base in ("content", "static"):
+        root = REPO / base
+        if root.is_dir():
+            names.update(p.name.lower() for p in root.iterdir() if p.is_dir())
+    return names
 
 
 def html_text(markup):
@@ -863,6 +918,8 @@ def run(args):
     out = Path(args.out).expanduser() if args.out else wxr.resolve().parent / "out"
     if inside_repo(out):
         raise UsageError("--out is inside the repository; write generated content elsewhere")
+    if args.require_terms and not args.scrub_terms:
+        raise UsageError("--require-terms was given but there is no --scrub-terms file")
     if args.scrub_terms and inside_repo(args.scrub_terms):
         raise UsageError("--scrub-terms is inside the repository; keep the terms file outside it")
 
@@ -874,6 +931,13 @@ def run(args):
 
     media_root = Path(args.media).expanduser() if args.media else find_media_root(wxr)
     files, media, counts = convert(wxr, args.site_url, media_root)
+    status = scrub.status(rules)
+    counts["scrub"] = status
+    log = json.loads(files["decision-log.json"])
+    log["summary"]["scrub"] = status
+    files["decision-log.json"] = dump_json(log).encode("utf-8")
+    for category, state in status.items():
+        print("scrub %s: %s" % (category, state), file=sys.stderr)
 
     listing = dict(files)
     listing.update({rel: None for rel in media})
@@ -893,6 +957,7 @@ def main(argv=None):
     parser.add_argument("--wxr", required=True, help="WXR export (outside the repo)")
     parser.add_argument("--out", help="output directory (outside the repo; default: out/ beside the export)")
     parser.add_argument("--scrub-terms", help="file of category:term lines (outside the repo)")
+    parser.add_argument("--require-terms", action="store_true", help="exit 2 unless --scrub-terms is given")
     parser.add_argument("--site-url", default=DEFAULT_SITE_URL, help="current site URL for rewritten links")
     parser.add_argument("--media", help="wp-content/uploads directory (default: found under raw/ beside the export)")
     args = parser.parse_args(argv)

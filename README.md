@@ -92,18 +92,33 @@ repository, and the tool refuses a path inside it.
 
 ```sh
 python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR \
-    [--scrub-terms FILE] [--site-url URL] [--media DIR]
+    [--scrub-terms FILE] [--require-terms] [--site-url URL] [--media DIR]
 ```
 
-It writes `posts/<slug>/index.md`, `pages/<slug>/index.md` (images and
-`comments.json` beside them), `permalink-map.json` and `decision-log.json`
-(every `amzn.to` link, kept, no disclosure added). Drafts get `draft: true`.
-Only approved comments are kept, and ActivityPub items are dropped. Links to the
-old temporary Bluehost domain are rewritten to `--site-url`; builder pages take
+It writes `posts/<slug>/index.md` for posts and `<slug>/index.md` for pages, at
+the site root with a `url: /<slug>/` front-matter key (images and
+`comments.json` beside them), plus `permalink-map.json` and `decision-log.json`.
+A page slug that collides with `posts`, `journal` or any other top-level
+directory stops the run with exit 2 and nothing is overwritten. A page with an
+empty body (the old front page) is skipped and listed under `skipped` in the
+log. An old permalink that equals the page's own URL is not written as an alias.
+Drafts get `draft: true`. `syndicate` mirrors the old Mastodon share flag for
+posts (so old posts are not re-announced) and is always false for pages. Only
+approved comments are kept, and ActivityPub items are dropped. Links to the old
+temporary Bluehost domain are rewritten to `--site-url`; builder pages take
 their text from the builder JSON.
 
-The scrub pass checks the output for callsign and grid-square shapes, plus the
-`employer`, `hostname` and `serial` terms from `--scrub-terms` (one
-`category:term` per line; `allow:TOKEN` exempts a false positive). A finding
-prints its category, file and line only, exits 3 and writes nothing. Exit 2 is a
-refused path or bad terms file.
+Every post with an `amzn.to` link gets one line, "As an Amazon Associate I earn
+from qualifying purchases.", appended once. The log records it per post under
+`disclosures` and on each `affiliate_links` entry.
+
+The scrub pass checks the output for callsign and grid-square shapes and for
+generic private-network hostnames (10/8, 172.16/12 and 192.168/16 addresses,
+and names ending `.local`, `.lan`, `.internal` or `.home.arpa`), none of which
+need a terms file. The `employer`, `hostname` and `serial` terms come from
+`--scrub-terms` (one `category:term` per line; `allow:TOKEN` exempts a false
+positive). The run prints which categories ran and prints `NOT RUN` for each
+term category without terms, so a missing terms file cannot look like a clean
+pass; `--require-terms` turns a missing file into exit 2. A finding prints its
+category, file and line only, exits 3 and writes nothing. Exit 2 is a refused
+path, a bad terms file or a slug collision.
