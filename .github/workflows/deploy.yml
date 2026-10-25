@@ -65,10 +65,17 @@ jobs:
       - name: Hugo is the pinned standard edition
         run: scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
 
+      # test-blog is the staging site: noindex on every page and a robots.txt
+      # that disallows everything. At the apex cutover set this to production
+      # (docs/cutover.md).
       - name: Build
+        env:
+          HUGO_PARAMS_ENVIRONMENT: staging
         run: hugo --minify --gc
 
       - name: Check the generated output
+        env:
+          EXPECT_ENV: staging
         run: scripts/check-output.sh public
 
       - name: Upload the build

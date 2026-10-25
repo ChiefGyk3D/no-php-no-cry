@@ -60,6 +60,7 @@ assets/css/              tokens.css (placeholders) and main.css, via Hugo Pipes
 layouts/                 templates written from scratch
 layouts/_markup/         image render hook (srcset, width/height, lazy, alt required)
 layouts/home.redirects   builds public/_redirects from page aliases
+layouts/robots.txt       environment-aware robots.txt (docs/cutover.md)
 static/_headers          Cloudflare Pages headers (strict CSP)
 scripts/                 check-output.sh, check-hugo-version.sh and their tests
 tools/wxr2hugo/         WordPress export to Hugo page bundles, with a scrub pass

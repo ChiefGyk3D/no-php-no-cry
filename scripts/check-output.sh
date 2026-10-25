@@ -10,13 +10,22 @@
 #
 # Rules: inline-script, script-element-present, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# xml-stylesheet, bad-xml, missing-redirects, missing-alias, missing-feed,
+# xml-stylesheet, bad-xml, missing-robots, bad-robots, env-mismatch,
+# noindex-mismatch, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
 #
 # Environment:
 #   SITE_HOST     host that counts as first party (default: test-blog.chiefgyk3d.com)
+#   EXPECT_ENV    staging or production: the environment this build must be.
+#                 Unset, the environment is read from robots.txt and every page
+#                 is checked against it.
 #   EXPECT_ALIAS  an alias that must have a 301 line in _redirects
 #                 (default: /2023/02/10/sample-post/, from the sample post)
+#
+# Environment: robots.txt decides it. Staging disallows everything, names no
+# sitemap, and every page carries noindex. Production allows everything, names
+# the sitemap on the site's own host, and no page carries noindex (alias pages
+# are meta refresh stubs and always carry one). A tree that mixes the two fails.
 #
 # Every alias in the build is also checked: each meta-refresh page Hugo wrote
 # for an alias must have a 301 line in _redirects (directory-style aliases need
@@ -44,6 +53,30 @@ has_redirect() {
     [[ -f "$dir/_redirects" ]] &&
         awk -v p="$1" '$1 == p && $3 == "301" { found = 1 } END { exit !found }' "$dir/_redirects"
 }
+
+# Environment, from robots.txt.
+env=""
+if [[ ! -s "$dir/robots.txt" ]]; then
+    report missing-robots "robots.txt"
+elif grep -qE '^Disallow:[[:space:]]*/[[:space:]]*$' "$dir/robots.txt"; then
+    env=staging
+    if grep -qiE '^(Allow|Sitemap):' "$dir/robots.txt"; then
+        report bad-robots "robots.txt (staging must disallow all and name no sitemap)"
+    fi
+elif grep -qE "^Sitemap:[[:space:]]*https://${site_host}/[^[:space:]]*[[:space:]]*\$" "$dir/robots.txt"; then
+    env=production
+else
+    report bad-robots "robots.txt (neither disallow-all nor allow-all with a Sitemap line on ${site_host})"
+fi
+case "${EXPECT_ENV:-}" in
+'') ;;
+staging | production)
+    if [[ -n "$env" && "$env" != "$EXPECT_ENV" ]]; then
+        report env-mismatch "robots.txt (expected ${EXPECT_ENV}, found ${env})"
+    fi
+    ;;
+*) report env-mismatch "EXPECT_ENV must be staging or production" ;;
+esac
 
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
 asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>]*>'
@@ -87,6 +120,13 @@ while IFS= read -r -d '' f; do
     fi
 
     # Alias pages (Hugo's meta refresh) name an old URL by their location.
+    if ! grep -qEi 'http-equiv=["'"'"']?refresh' "$f" && [[ -n "$env" ]]; then
+        if grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f"; then
+            [[ "$env" == production ]] && report noindex-mismatch "$rel (noindex in a production build)"
+        else
+            [[ "$env" == staging ]] && report noindex-mismatch "$rel (no noindex in a staging build)"
+        fi
+    fi
     if grep -qEi 'http-equiv=["'"'"']?refresh' "$f"; then
         if [[ "$rel" == index.html ]]; then
             continue

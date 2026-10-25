@@ -1,0 +1,6 @@
+{{- /* The build environment: "production" (default) or "staging". Set params.environment in hugo.toml or, per build, with the HUGO_PARAMS_ENVIRONMENT environment variable. Anything else fails the build, so a typo cannot publish a staging site as indexable. */ -}}
+{{- $env := site.Params.environment | default "production" -}}
+{{- if not (in (slice "staging" "production") $env) -}}
+  {{- errorf "params.environment must be \"staging\" or \"production\", got %q" $env -}}
+{{- end -}}
+{{- return $env -}}

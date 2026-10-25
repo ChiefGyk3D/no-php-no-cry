@@ -30,6 +30,7 @@ HTML
     printf '%s\n' "$alias_page" >"$dir/sample-post.html"
     printf 'body{background:url(data:image/png;base64,AAAA);color:red}\n' >"$dir/css/site.min.css"
     printf '<?xml version="1.0"?><rss version="2.0"></rss>\n' >"$dir/index.xml"
+    printf 'User-agent: *\nAllow: /\n\nSitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >"$dir/robots.txt"
     cat >"$dir/_redirects" <<'RED'
 # generated
 /2023/02/10/sample-post /posts/sample-post/ 301
@@ -128,6 +129,47 @@ variant slash-variant-missing missing-alias no_slash_variant
 
 weak_csp() { sed -i "s/script-src 'none'/script-src 'unsafe-inline'/" "$1/_headers"; }
 variant weak-csp weak-csp weak_csp
+
+# Environment rules. The good fixture is a production tree (robots.txt allows
+# all and names the sitemap; pages carry no noindex).
+robots_staging() { printf 'User-agent: *\nDisallow: /\n' >"$1/robots.txt"; }
+add_noindex() { sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html" "$1/posts/sample-post/index.html"; }
+staging_tree() { robots_staging "$1"; add_noindex "$1"; }
+
+variant no-robots missing-robots rm_file robots.txt
+variant staging-robots-in-production-pages noindex-mismatch robots_staging
+variant noindex-in-production-pages noindex-mismatch add_noindex
+only_one_noindex() { robots_staging "$1"; sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html"; }
+variant staging-page-without-noindex noindex-mismatch only_one_noindex
+no_sitemap_line() { printf 'User-agent: *\nAllow: /\n' >"$1/robots.txt"; }
+variant production-robots-without-sitemap bad-robots no_sitemap_line
+sitemap_in_staging() { staging_tree "$1"; printf 'Sitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >>"$1/robots.txt"; }
+variant staging-robots-names-sitemap bad-robots sitemap_in_staging
+empty_robots() { : >"$1/robots.txt"; }
+variant empty-robots missing-robots empty_robots
+foreign_sitemap() { printf 'User-agent: *\nAllow: /\nSitemap: https://example.org/sitemap.xml\n' >"$1/robots.txt"; }
+variant sitemap-on-another-host bad-robots foreign_sitemap
+
+# A consistent staging tree passes, and EXPECT_ENV pins which environment a
+# build must be: a staging tree fails when production is expected, and back.
+d="$work/staging-ok"
+make_good "$d"
+staging_tree "$d"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: consistent staging tree passes"
+else
+    echo "FAIL: consistent staging tree was rejected"
+    failures=$((failures + 1))
+fi
+EXPECT_ENV=staging expect_fail expect-staging-got-production env-mismatch "$good"
+EXPECT_ENV=production expect_fail expect-production-got-staging env-mismatch "$d"
+if EXPECT_ENV=staging "$checker" "$d" >/dev/null 2>&1 && EXPECT_ENV=production "$checker" "$good" >/dev/null 2>&1; then
+    echo "ok: EXPECT_ENV accepts the matching environment"
+else
+    echo "FAIL: EXPECT_ENV rejected the matching environment"
+    failures=$((failures + 1))
+fi
+EXPECT_ENV=bogus expect_fail bad-expect-env env-mismatch "$good"
 
 if [[ -f "$root/public/index.html" ]]; then
     if "$checker" "$root/public" >/dev/null 2>&1; then
