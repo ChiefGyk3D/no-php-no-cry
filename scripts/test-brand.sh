@@ -62,6 +62,10 @@ expect_fail "amber link on light bg is caught" "FAIL.*light.*link on bg" python3
 grep -v -e '--muted:' "$tokens" >"$work/no-muted.css"
 expect_fail "missing token is caught" "missing" python3 -I "$contrast" "$work/no-muted.css"
 
+# A token that survives only inside a comment must not count as declared.
+sed 's#^\( *\)--muted: \(.*\);#\1/* --muted: \2; */#' "$tokens" >"$work/commented-muted.css"
+expect_fail "token left only in a comment is caught" "missing" python3 -I "$contrast" "$work/commented-muted.css"
+
 # --- no hard-coded colors outside tokens.css ------------------------------
 if grep -n -E '#[0-9A-Fa-f]{3,8}\b|rgba?\(' "$root/assets/css/main.css" >"$work/hard.txt"; then
     bad "main.css hard-codes a color (use a token)"

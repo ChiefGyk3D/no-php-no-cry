@@ -30,7 +30,8 @@ REQUIRED = sorted({name for pair in PAIRS for name in pair[:2]})
 
 
 def parse(css):
-    """Return {token: '#RRGGBB'} for a block of CSS."""
+    """Return {token: '#RRGGBB'} for a block of CSS; comments never count."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
     return {
         m.group(1): m.group(2).upper()
         for m in re.finditer(r"--([a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;", css)

@@ -37,7 +37,7 @@ catches a bad value.
 
 ## Spacing, type, UI elements
 
-- Space: `--space-1` to `--space-6` on a 4-point rhythm (`--space` is 1rem),
+- Space: `--space-1` to `--space-6` on a 4-point rhythm (`--space` is an alias for `--space-4`, 1rem),
   `--measure` 42rem, `--radius`, `--tap` 44 px minimum target.
 - Type scale: `--text-sm` to `--text-2xl`; body is `--text-base` (1.125rem) with
   `--line-height` 1.6.
