@@ -187,9 +187,13 @@ class Site:
             return None, None
         rel = unquote(found.group(1))
         if self.media_root:
+            root = self.media_root.resolve()
             for candidate in (rel, SIZE_SUFFIX.sub("", rel)):
-                path = (self.media_root / candidate)
-                if ".." not in Path(candidate).parts and path.is_file():
+                cpath = Path(candidate)
+                if cpath.is_absolute() or ".." in cpath.parts:
+                    continue
+                path = (root / cpath).resolve()
+                if path.is_relative_to(root) and path.is_file():
                     return path, rel
         return None, rel
 

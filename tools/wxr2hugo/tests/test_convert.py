@@ -362,3 +362,35 @@ class UnexpectedErrorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MediaConfinementTests(unittest.TestCase):
+    def _run_with_target(self, make_target):
+        work = scratch()
+        media = make_media(work / "media")
+        secret = work / "secret.png"
+        secret.write_bytes(PNG)
+        make_target(media, secret)
+        text = only_items("basic.xml", {"10", "11"}).replace(
+            "uploads/2023/02/pic.png", "uploads/" + make_target.ref(media, secret)
+        )
+        wxr = work / "export.xml"
+        wxr.write_text(text, encoding="utf-8")
+        out = work / "out"
+        proc = run(["--wxr", wxr, "--out", out, "--media", media])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        return [p.name for p in out.rglob("*.png")]
+
+    def test_absolute_path_after_uploads_is_not_followed(self):
+        def make(media, secret):
+            pass
+
+        make.ref = lambda media, secret: "/" + str(secret).lstrip("/")
+        self.assertEqual(self._run_with_target(make), [])
+
+    def test_symlink_leaving_the_media_root_is_not_followed(self):
+        def make(media, secret):
+            (media / "2023" / "02" / "link.png").symlink_to(secret)
+
+        make.ref = lambda media, secret: "2023/02/link.png"
+        self.assertEqual(self._run_with_target(make), [])
