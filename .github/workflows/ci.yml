@@ -72,6 +72,9 @@ jobs:
       - name: Test the deploy gate wait (stubbed gh, no network)
         run: scripts/test-wait-for-ci-green.sh
 
+      - name: Test the Pages project check (local fake API)
+        run: scripts/test-ensure-pages-project.sh
+
       - name: Test the WordPress converter
         run: scripts/test-wxr2hugo.sh
 

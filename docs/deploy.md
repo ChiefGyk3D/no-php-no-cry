@@ -18,8 +18,10 @@ a secret.
 3. `deploy` needs `build` and `gate`, and runs on the default branch only. It downloads the artifact, installs
    Wrangler from the lockfile in `deploy/` (`npm ci --ignore-scripts`, on Node
    22, which Wrangler requires) before any secret exists, fetches the
-   credentials, and runs `wrangler pages deploy`. Only `deploy/` is checked out
-   and no repository script runs. Dependabot bumps the lockfile weekly. It is the only job with `id-token: write`.
+   credentials, and runs `wrangler pages deploy`. Only `deploy/` and the one script
+   `scripts/ensure-pages-project.sh` are checked out. That script is the only
+   repository code that runs after the credentials load (two curl calls, inputs
+   validated first, no package loaded). Dependabot bumps the lockfile weekly. It is the only job with `id-token: write`.
 4. `smoke` runs `scripts/smoke-site.sh` against `SITE_URL`: HTTP 200, the
    Content-Security-Policy from `static/_headers`, and one 301 from the built
    `_redirects`.
@@ -41,23 +43,23 @@ both, the job fails with a message naming what is missing. Once
 
 ## Cloudflare setup (both paths)
 
-Create the Pages project once, as a Direct Upload project (no Git connection):
+The Pages project is created for you. The deploy job runs
+`scripts/ensure-pages-project.sh` before publishing: it looks the project up by
+name and creates it (a Direct Upload project, production branch `main`) when it
+is missing, and does nothing when it exists. The token below already carries
+the permission for this (Pages: Edit). To use another name, set
+`CLOUDFLARE_PAGES_PROJECT`.
 
-1. Cloudflare dashboard, Workers & Pages, Create, Pages, Upload assets.
-2. Name it `no-php-no-cry` (or set `CLOUDFLARE_PAGES_PROJECT` to your name).
-3. Set the production branch to `main`. Upload anything to finish creation;
-   the first workflow run replaces it.
-4. Custom domain (once, by the owner): in the project, Custom domains, Set up
-   a domain, enter `test-blog.chiefgyk3d.com`. If the zone is on Cloudflare
-   the CNAME is created for you.
+The custom domain is the one step done by hand, once, by the owner: in the
+project, open Custom domains and add `test-blog.chiefgyk3d.com`. If the zone is
+on Cloudflare, it adds the CNAME itself. The dashboard layout changes, so
+follow what you see rather than a fixed path.
 
 Account id: dashboard, Workers & Pages overview, right-hand column, Account ID.
 It is not a secret by itself, but the workflow reads it as a credential value
 so it stays out of the repository.
 
-DNS and the custom domain are set up once by the owner in the Cloudflare
-dashboard (the Pages project, Custom domains), outside CI. When the zone is on
-Cloudflare, Cloudflare adds the CNAME itself. CI never touches DNS.
+CI never touches DNS or custom domains.
 
 API token (Manage account, Account API tokens, Create token, Custom token).
 Exactly one permission, limited to the one account:
