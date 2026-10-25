@@ -18,3 +18,19 @@ tempor incididunt ut labore et dolore magna aliqua. This text is synthetic.
 
 Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
 aliquip ex ea commodo consequat.
+
+A fenced block with a language, including one long line that must scroll:
+
+```python
+def greet(name):
+    # A comment, a string and a number.
+    message = "Hello, " + name + "! This is a deliberately long line of synthetic sample text that should scroll sideways instead of wrapping."
+    return message, 42
+```
+
+A fenced block with no language:
+
+```
+plain text block
+with no language set
+```

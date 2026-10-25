@@ -6,7 +6,8 @@ Usage: python3 -I scripts/check-contrast.py [tokens.css]
 Reads the hex colors from the dark base (:root) and the light override
 (@media (prefers-color-scheme: light)), then checks each pair below in both
 modes. Text pairs need 4.5:1 (WCAG AA); the focus ring needs 3:1
-(non-text contrast). Prints one line per pair; exits 1 on any failure or any
+(non-text contrast). Highlight colors (--code-*) are text on --surface, the
+code-block background. Prints one line per pair; exits 1 on any failure or any
 missing token.
 """
 import re
@@ -24,6 +25,15 @@ PAIRS = [
     ("link", "surface", 4.5),
     ("on-accent", "accent", 4.5),
     ("focus", "bg", 3.0),
+    ("focus", "surface", 3.0),
+    # Syntax highlighting is drawn on the code-block background (--surface).
+    ("code-keyword", "surface", 4.5),
+    ("code-string", "surface", 4.5),
+    ("code-number", "surface", 4.5),
+    ("code-function", "surface", 4.5),
+    ("code-comment", "surface", 4.5),
+    ("code-deleted", "surface", 4.5),
+    ("code-inserted", "surface", 4.5),
 ]
 
 REQUIRED = sorted({name for pair in PAIRS for name in pair[:2]})

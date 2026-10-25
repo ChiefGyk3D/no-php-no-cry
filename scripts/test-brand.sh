@@ -59,6 +59,16 @@ expect_fail "white on amber is caught" "FAIL.*on-accent on accent" python3 -I "$
 sed 's/--link: #8A5A00;/--link: #FBB03B;/' "$tokens" >"$work/low-link.css"
 expect_fail "amber link on light bg is caught" "FAIL.*light.*link on bg" python3 -I "$contrast" "$work/low-link.css"
 
+# Highlight colors: a comment color too faint on the code background, in each mode.
+sed 's/--code-comment: #A8A093;/--code-comment: #3A3530;/' "$tokens" >"$work/low-code-dark.css"
+expect_fail "faint dark highlight color is caught" "FAIL.*dark.*code-comment on surface" python3 -I "$contrast" "$work/low-code-dark.css"
+
+sed 's/--code-keyword: #8A5A00;/--code-keyword: #FBB03B;/' "$tokens" >"$work/low-code-light.css"
+expect_fail "faint light highlight color is caught" "FAIL.*light.*code-keyword on surface" python3 -I "$contrast" "$work/low-code-light.css"
+
+grep -v -e '--code-string:' "$tokens" >"$work/no-code-string.css"
+expect_fail "missing highlight token is caught" "missing" python3 -I "$contrast" "$work/no-code-string.css"
+
 grep -v -e '--muted:' "$tokens" >"$work/no-muted.css"
 expect_fail "missing token is caught" "missing" python3 -I "$contrast" "$work/no-muted.css"
 
@@ -67,11 +77,11 @@ sed 's#^\( *\)--muted: \(.*\);#\1/* --muted: \2; */#' "$tokens" >"$work/commente
 expect_fail "token left only in a comment is caught" "missing" python3 -I "$contrast" "$work/commented-muted.css"
 
 # --- no hard-coded colors outside tokens.css ------------------------------
-if grep -n -E '#[0-9A-Fa-f]{3,8}\b|rgba?\(' "$root/assets/css/main.css" >"$work/hard.txt"; then
-    bad "main.css hard-codes a color (use a token)"
+if grep -n -E '#[0-9A-Fa-f]{3,8}\b|rgba?\(' "$root/assets/css/main.css" "$root/assets/css/highlight.css" >"$work/hard.txt"; then
+    bad "main.css or highlight.css hard-codes a color (use a token)"
     cat "$work/hard.txt"
 else
-    ok "main.css hard-codes no color"
+    ok "main.css and highlight.css hard-code no color"
 fi
 
 # --- asset manifest -------------------------------------------------------

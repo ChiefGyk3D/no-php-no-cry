@@ -70,6 +70,10 @@ while IFS= read -r -d '' f; do
     if grep -qEi '[[:space:]]on[a-z]+=' "$f"; then
         report event-handler "$rel"
     fi
+    # pre-not-focusable: a scrollable code block must be reachable by keyboard.
+    if grep -oEi '<pre([ >][^>]*)?>' "$f" | grep -qiv 'tabindex='; then
+        report pre-not-focusable "$rel"
+    fi
 
     # Absolute URLs inside tags that load something (anchors are not assets).
     urls="$(grep -oEi "$asset_tag" "$f" | grep -oEi "$url_attr" || true)"

@@ -42,5 +42,12 @@ timeZone = "America/New_York"
   # Content is the owner's own; raw HTML in Markdown stays off until needed.
   unsafe = false
 
+[markup.highlight]
+  # Class-based output: inline style= attributes are blocked by the CSP
+  # (style-src 'self') and rejected by scripts/check-output.sh. The colors live
+  # in assets/css/highlight.css, on the brand tokens.
+  noClasses = false
+  guessSyntax = false
+
 [params]
   description = "Placeholder site description."
