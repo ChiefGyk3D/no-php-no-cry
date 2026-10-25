@@ -183,7 +183,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: deploy
+          sparse-checkout: |
+            deploy
+            scripts
           sparse-checkout-cone-mode: true
 
       - name: Set up Node.js (Wrangler needs 22 or newer)
@@ -223,6 +225,15 @@ jobs:
             exit 1
           fi
           echo "Cloudflare credentials present (values not shown)."
+
+      # The token has Account > Cloudflare Pages > Edit, which includes creating
+      # a project. Idempotent: an existing project is left alone.
+      - name: Ensure the Pages project exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
+        run: scripts/ensure-pages-project.sh
 
       - name: Publish with Wrangler
         env:
