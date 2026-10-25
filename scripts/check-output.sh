@@ -59,28 +59,67 @@ has_redirect() {
         awk -v p="$1" '$1 == p && $3 == "301" { found = 1 } END { exit !found }' "$dir/_redirects"
 }
 
-# Environment, from robots.txt.
+# Environment, from robots.txt. Only the wildcard (User-agent: *) group decides
+# it: a rule under another crawler's group, or before any User-agent line, says
+# nothing about everyone else. Consecutive User-agent lines share one group.
+# robots_wildcard prints "<has-group> <disallow-all> <allow> <other-disallow>"
+# as 0/1 flags for the wildcard group(s); comments and CRLF are ignored.
+robots_wildcard() {
+    awk '
+        { sub(/#.*/, ""); gsub(/\r/, ""); gsub(/^[ \t]+|[ \t]+$/, "") }
+        $0 == "" { next }
+        {
+            i = index($0, ":")
+            if (i == 0) next
+            key = tolower(substr($0, 1, i - 1)); val = substr($0, i + 1)
+            gsub(/^[ \t]+|[ \t]+$/, "", key); gsub(/^[ \t]+|[ \t]+$/, "", val)
+        }
+        key == "user-agent" {
+            if (!prev_ua) wild = 0
+            if (val == "*") { wild = 1; has = 1 }
+            prev_ua = 1; seen_ua = 1
+            next
+        }
+        { prev_ua = 0 }
+        !seen_ua { next }
+        !wild { next }
+        key == "disallow" && val == "/" { dis_all = 1 }
+        key == "disallow" && val != "" && val != "/" { dis_other = 1 }
+        key == "allow" && val != "" { allow = 1 }
+        END { printf "%d %d %d %d\n", has, dis_all, allow, dis_other }
+    ' "$1"
+}
+
 env=""
 if [[ ! -s "$dir/robots.txt" ]]; then
     report missing-robots "robots.txt"
-elif grep -qE '^Disallow:[[:space:]]*/[[:space:]]*$' "$dir/robots.txt"; then
-    env=staging
-    if grep -qiE '^(Allow|Sitemap):' "$dir/robots.txt"; then
-        report bad-robots "robots.txt (staging must disallow all and name no sitemap)"
-    fi
-elif grep -qE "^Sitemap:[[:space:]]*https://${site_host}/[^[:space:]]*[[:space:]]*\$" "$dir/robots.txt"; then
-    env=production
 else
-    report bad-robots "robots.txt (neither disallow-all nor allow-all with a Sitemap line on ${site_host})"
+    read -r has_wild dis_all allow_any dis_other < <(robots_wildcard "$dir/robots.txt")
+    sitemap_ok=0
+    grep -qiE "^Sitemap:[[:space:]]*https://${site_host}/[^[:space:]]*[[:space:]]*\r?\$" "$dir/robots.txt" && sitemap_ok=1
+    sitemap_any=0
+    grep -qiE '^Sitemap:' "$dir/robots.txt" && sitemap_any=1
+    if [[ $has_wild -eq 0 ]]; then
+        report bad-robots "robots.txt (no User-agent: * group)"
+    elif [[ $dis_all -eq 1 ]]; then
+        env=staging
+        if [[ $allow_any -eq 1 || $sitemap_any -eq 1 ]]; then
+            report bad-robots "robots.txt (staging must disallow all for User-agent: *, re-open nothing and name no sitemap)"
+        fi
+    elif [[ $dis_other -eq 1 || $sitemap_ok -eq 0 ]]; then
+        report bad-robots "robots.txt (production must allow everything for User-agent: * and name a Sitemap on ${site_host})"
+    else
+        env=production
+    fi
 fi
 case "${EXPECT_ENV:-}" in
-'') ;;
-staging | production)
-    if [[ -n "$env" && "$env" != "$EXPECT_ENV" ]]; then
-        report env-mismatch "robots.txt (expected ${EXPECT_ENV}, found ${env})"
-    fi
-    ;;
-*) report env-mismatch "EXPECT_ENV must be staging or production" ;;
+    '') ;;
+    staging | production)
+        if [[ -n "$env" && "$env" != "$EXPECT_ENV" ]]; then
+            report env-mismatch "robots.txt (expected ${EXPECT_ENV}, found ${env})"
+        fi
+        ;;
+    *) report env-mismatch "EXPECT_ENV must be staging or production" ;;
 esac
 
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
@@ -173,9 +212,13 @@ check_head() {
         val="$(head_meta "$f" "$attr" "$name")"
         [[ -z "$val" ]] && report missing-head-tag "$rel (${name})"
     done
-    for name in canonical icon; do
+    for name in canonical apple-touch-icon; do
         head_link "$f" "$name" || report missing-head-tag "$rel (link rel=${name})"
     done
+    # Two rel=icon links (the SVG and the PNG).
+    if [[ "$(grep -oEi "<link[^>]*[[:space:]]rel=[\"']?icon[\"']?([[:space:]/][^>]*)?>" "$f" | wc -l)" -lt 2 ]]; then
+        report missing-head-tag "$rel (two link rel=icon)"
+    fi
     for name in og:url og:image; do
         val="$(head_meta "$f" property "$name")"
         if [[ -n "$val" && ! "$val" =~ ^https://${site_host//./\\.}/ ]]; then
