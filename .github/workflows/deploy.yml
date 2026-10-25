@@ -1,0 +1,184 @@
+# Deploy to Cloudflare Pages. Runs on a push to the default branch or by hand;
+# never on a pull request, and it is not part of the `CI green` gate. Setup and
+# the two secret paths (Doppler, or plain GitHub Actions secrets) are in
+# docs/deploy.md.
+#
+# Three jobs, each with only the permissions it needs:
+#   build   builds and checks the site, uploads the public directory.
+#   deploy  the only job that holds credentials. Runs no repository code: it
+#           downloads the build artifact and runs a pinned Wrangler on it.
+#   smoke   checks the live site. No credentials.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          # audit, not block: artifact upload goes to GitHub's blob storage,
+          # whose host name varies per run and cannot be listed without a
+          # wildcard (unsupported), so no allow-list can be measured here.
+          # Tighten with the first run's report: issue #10.
+          # Expected so far: github.com:443 api.github.com:443
+          # release-assets.githubusercontent.com:443 objects.githubusercontent.com:443
+          # results-receiver.actions.githubusercontent.com:443
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Hugo (pinned, checksum verified)
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < .hugo-version)"
+          base="https://github.com/gohugoio/hugo/releases/download/v${version}"
+          tarball="hugo_${version}_linux-amd64.tar.gz"
+          mkdir -p "$RUNNER_TEMP/hugo"
+          cd "$RUNNER_TEMP/hugo"
+          curl -fsSL --retry 3 -O "${base}/${tarball}"
+          curl -fsSL --retry 3 -O "${base}/hugo_${version}_checksums.txt"
+          grep " ${tarball}\$" "hugo_${version}_checksums.txt" | sha256sum -c -
+          tar -xzf "$tarball" hugo
+          echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
+
+      - name: Hugo is the pinned standard edition
+        run: scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
+
+      - name: Build
+        run: hugo --minify --gc
+
+      - name: Check the generated output
+        run: scripts/check-output.sh public
+
+      - name: Upload the build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: public
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: build
+    # Default branch only; a manual run from another branch builds but stops here.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Doppler OIDC; the only job that holds it
+    env:
+      WRANGLER_VERSION: 4.152.0
+      WRANGLER_SEND_METRICS: "false"
+      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'no-php-no-cry' }}
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          # audit, not block, for the same unmeasurable artifact host as the
+          # build job. This is the job that holds credentials, so tightening it
+          # is the first thing to do after the first run: issue #10.
+          # Expected so far: api.cloudflare.com:443 registry.npmjs.org:443
+          # api.doppler.com:443 api.github.com:443 github.com:443
+          # results-receiver.actions.githubusercontent.com:443
+          egress-policy: audit
+
+      - name: Download the build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: site
+
+      # Installed before any secret exists in the environment, so a package
+      # install script never sees the token. Exact version, no range.
+      - name: Install Wrangler (pinned)
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/wrangler" --no-audit --no-fund --save-exact "wrangler@${WRANGLER_VERSION}"
+          "$RUNNER_TEMP/wrangler/node_modules/.bin/wrangler" --version
+
+      - name: Fetch Cloudflare credentials from Doppler
+        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@6f40107c2e05483f485452991e422f7f63886000 # v1.25.1
+        with:
+          project: ci
+          config: ci
+          identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          token: ${{ secrets.DOPPLER_TOKEN }}
+
+      # Doppler exports the two names when it is configured. Otherwise the same
+      # names come from GitHub Actions secrets. Neither: fail, never skip.
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=Deploy::missing:${missing}. Neither Doppler (project ci, config ci) nor GitHub Actions secrets supplied it. See docs/deploy.md."
+            exit 1
+          fi
+          echo "Cloudflare credentials present (values not shown)."
+
+      - name: Publish with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/wrangler/node_modules/.bin/wrangler" pages deploy site \
+            --project-name "$CLOUDFLARE_PAGES_PROJECT" \
+            --branch "$BRANCH" \
+            --commit-hash "$COMMIT_SHA" \
+            --commit-message "Deploy ${COMMIT_SHA}"
+
+  smoke:
+    name: Smoke test the live site
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      SITE_URL: ${{ vars.SITE_URL || 'https://test-blog.chiefgyk3d.com' }}
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          # audit, not block: unmeasured (artifact host, and the site host
+          # depends on SITE_URL). Tighten after the first run: issue #10.
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: site
+
+      - name: Smoke test
+        run: scripts/smoke-site.sh "$SITE_URL" site

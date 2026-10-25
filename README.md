@@ -4,6 +4,8 @@ chiefgyk3d.com without WordPress: a static site and work journal built with Hugo
 
 Staging at test-blog.chiefgyk3d.com until it replaces the apex domain.
 
+Deploys to Cloudflare Pages: see [docs/deploy.md](docs/deploy.md).
+
 Status: scaffold. Content is synthetic placeholder text; design tokens are
 placeholders (brand spec: issue #2). See issue #1 for the plan.
 
