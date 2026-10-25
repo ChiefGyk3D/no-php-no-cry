@@ -2,7 +2,8 @@
 {{- $pages := .Pages -}}
 {{- if .IsHome }}{{ $pages = where site.RegularPages "Section" "in" (slice "posts" "journal") }}{{ end -}}
 {{- $limit := 20 -}}
-<?xml version="1.0" encoding="utf-8"?>
+{{- /* The declaration goes through safeHTML: the template is escaped as HTML, which turns a literal <?xml into &lt;?xml and makes the feed invalid XML. */ -}}
+{{ `<?xml version="1.0" encoding="utf-8"?>` | safeHTML }}
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>

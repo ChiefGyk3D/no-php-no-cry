@@ -100,6 +100,15 @@ FILE=css/site.min.css APPEND='a{background:url(http://cdn.example.org/a.png)}' v
 FILE=logo.svg APPEND='<svg xmlns="http://www.w3.org/2000/svg"><image href="https://cdn.example.org/a.png"/></svg>' variant svg-external external-css-reference append_file
 FILE=index.xml APPEND='<?xml-stylesheet type="text/xsl" href="/feed.xsl"?>' variant feed-stylesheet xml-stylesheet append_file
 
+# Malformed XML: the bug that shipped (an HTML-escaped declaration), a truncated
+# feed, and a bad file outside the feeds (every *.xml is parsed).
+escaped_decl() { printf '&lt;?xml version="1.0" encoding="utf-8"?><rss version="2.0"></rss>\n' >"$1/index.xml"; }
+variant escaped-xml-declaration bad-xml escaped_decl
+truncated_feed() { printf '<?xml version="1.0"?><rss version="2.0"><channel>\n' >"$1/index.xml"; }
+variant truncated-feed bad-xml truncated_feed
+other_bad_xml() { printf 'not xml\n' >"$1/posts/sample-post/index.xml"; }
+variant other-bad-xml bad-xml other_bad_xml
+
 rm_file() { rm -f "$2/$1"; }
 variant no-redirects missing-redirects rm_file _redirects
 variant no-feed missing-feed rm_file index.xml

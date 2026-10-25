@@ -10,7 +10,7 @@
 #
 # Rules: inline-script, script-element-present, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# xml-stylesheet, missing-redirects, missing-alias, missing-feed,
+# xml-stylesheet, bad-xml, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
 #
 # Environment:
@@ -124,6 +124,28 @@ while IFS= read -r -d '' f; do
         report xml-stylesheet "${f#"$dir"/}"
     fi
 done < <(find "$dir" -type f \( -name '*.xml' -o -name '*.svg' -o -name '*.xsl' \) -print0 | sort -z)
+
+# Every *.xml must parse (a feed that starts with an escaped declaration is
+# not XML). Python's stdlib parser, isolated mode; file names go in as
+# arguments and only the path is reported, never the content.
+xml_files=()
+while IFS= read -r -d '' f; do
+    xml_files+=("$f")
+done < <(find "$dir" -type f -name '*.xml' -print0 | sort -z)
+if [[ ${#xml_files[@]} -gt 0 ]]; then
+    while IFS= read -r bad; do
+        [[ -n "$bad" ]] && report bad-xml "${bad#"$dir"/}"
+    done < <(python3 -I -c '
+import sys
+import xml.etree.ElementTree as ET
+
+for path in sys.argv[1:]:
+    try:
+        ET.parse(path)
+    except (ET.ParseError, OSError):
+        print(path)
+' "${xml_files[@]}")
+fi
 
 if [[ ! -s "$dir/_redirects" ]]; then
     report missing-redirects "_redirects"
