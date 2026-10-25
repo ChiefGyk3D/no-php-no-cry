@@ -1,8 +1,13 @@
 import json
+import os
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 from helpers import (
+    CONVERT,
     FIXTURES,
     PNG,
     REPO,
@@ -418,6 +423,93 @@ class SafetyTests(unittest.TestCase):
         proc = run(["--wxr", wxr])
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertTrue((work / "out" / "about/index.md").exists())
+
+
+class ScrubStdinTests(unittest.TestCase):
+    """--scrub-terms - reads the terms from stdin (placeholder terms only)."""
+
+    TERMS = "employer:ACME-PLACEHOLDER\nhostname:box01.lab.invalid\nserial:SN-0000-TEST\n"
+
+    def run_stdin(self, wxr_text, stdin, extra=()):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(wxr_text, encoding="utf-8")
+        out = work / "out"
+        proc = subprocess.run(
+            [sys.executable, "-I", str(CONVERT), "--wxr", str(wxr), "--out", str(out), "--scrub-terms", "-"]
+            + [str(a) for a in extra],
+            input=stdin,
+            capture_output=True,
+            text=True,
+            cwd=tempfile.gettempdir(),
+            check=False,
+        )
+        return proc, out
+
+    def test_finding_from_stdin_terms_exits_3_and_writes_nothing(self):
+        text = only_items("scrub_edge.xml", {"31"}).replace("near-misses", "acme-placeholder-news")
+        proc, out = self.run_stdin(text, self.TERMS)
+        self.assertEqual(proc.returncode, 3, proc.stderr)
+        self.assertFalse(out.exists())
+        self.assertIn("category=employer", proc.stderr)
+
+    def test_terms_never_appear_in_any_output(self):
+        text = only_items("scrub_edge.xml", {"31"}).replace("near-misses", "acme-placeholder-news")
+        proc, out = self.run_stdin(text, self.TERMS)
+        combined = proc.stdout + proc.stderr
+        for value in ("ACME-PLACEHOLDER", "acme-placeholder", "box01", "SN-0000"):
+            self.assertNotIn(value, combined)
+        self.assertFalse(out.exists())
+
+    def test_unmatched_stdin_terms_exit_0_mark_ran_and_leak_nowhere(self):
+        proc, out = self.run_stdin(only_items("scrub_edge.xml", {"31"}), self.TERMS, ["--require-terms"])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        for category in ("employer", "hostname", "serial"):
+            self.assertIn("scrub %s: ran" % category, proc.stderr)
+        self.assertNotIn("NOT RUN", proc.stderr)
+        self.assertTrue(out.is_dir())
+        for base, _, names in os.walk(out):
+            for name in names:
+                data = (Path(base) / name).read_bytes().lower()
+                for value in (b"acme-placeholder", b"box01", b"sn-0000"):
+                    self.assertNotIn(value, data, name)
+        self.assertNotIn("ACME-PLACEHOLDER", proc.stdout + proc.stderr)
+
+    def test_only_supplied_categories_are_marked_ran(self):
+        proc, _ = self.run_stdin(only_items("scrub_edge.xml", {"31"}), "employer:ACME-PLACEHOLDER\n")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("scrub employer: ran", proc.stderr)
+        self.assertIn("scrub hostname: NOT RUN", proc.stderr)
+        self.assertIn("scrub serial: NOT RUN", proc.stderr)
+
+    def test_allow_lines_work_from_stdin(self):
+        proc, _ = self.run_stdin(only_items("scrub_edge.xml", {"33"}), "allow:H2O\n")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_require_terms_with_empty_stdin_exits_2(self):
+        for stdin in ("", "  \n\t\n\n", "# only a comment\n"):
+            proc, out = self.run_stdin(only_items("scrub_edge.xml", {"31"}), stdin, ["--require-terms"])
+            self.assertEqual(proc.returncode, 2, repr(stdin))
+            self.assertFalse(out.exists())
+
+    def test_empty_stdin_without_require_terms_runs_with_not_run(self):
+        proc, _ = self.run_stdin(only_items("scrub_edge.xml", {"31"}), "")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("scrub employer: NOT RUN", proc.stderr)
+
+    def test_bad_stdin_line_exits_2_without_echoing_it(self):
+        proc, out = self.run_stdin(only_items("scrub_edge.xml", {"31"}), "bogus:SECRETTERM\n")
+        self.assertEqual(proc.returncode, 2)
+        self.assertNotIn("SECRETTERM", proc.stdout + proc.stderr)
+        self.assertFalse(out.exists())
+
+    def test_repo_guard_still_applies_to_real_paths(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text((FIXTURES / "basic.xml").read_text(encoding="utf-8"))
+        proc = run(["--wxr", wxr, "--out", work / "out", "--scrub-terms", REPO / "README.md"])
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("inside the repository", proc.stderr)
 
 
 class ScrubIntegrationTests(unittest.TestCase):

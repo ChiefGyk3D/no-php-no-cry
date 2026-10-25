@@ -2,14 +2,15 @@
 """Convert a WordPress WXR export into Hugo page bundles.
 
     python3 -I tools/wxr2hugo/convert.py --wxr PATH --out DIR \
-        [--scrub-terms FILE] [--require-terms] [--site-url URL] [--media DIR]
+        [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR]
 
 Stdlib only. The export, the terms file and the output all live outside the
-repository; the tool refuses paths inside it. Same input, same bytes out.
+repository; the tool refuses paths inside it. `--scrub-terms -` reads the
+terms from stdin instead, so they never touch disk. Same input, same bytes out.
 
 Posts go to posts/<slug>/, pages to <slug>/ at the site root (with a url key).
 Exit codes: 0 done, 1 unexpected error (class name only, never the input),
-2 usage or refused path (including --require-terms with no terms file, or a
+2 usage or refused path (including --require-terms with no terms file or empty stdin, or a
 page slug that collides with an existing section), 3 scrub findings (nothing
 written).
 """
@@ -918,13 +919,22 @@ def run(args):
     out = Path(args.out).expanduser() if args.out else wxr.resolve().parent / "out"
     if inside_repo(out):
         raise UsageError("--out is inside the repository; write generated content elsewhere")
+    from_stdin = args.scrub_terms == "-"
     if args.require_terms and not args.scrub_terms:
         raise UsageError("--require-terms was given but there is no --scrub-terms file")
-    if args.scrub_terms and inside_repo(args.scrub_terms):
+    # The path checks apply to real paths only; "-" is stdin and never touches disk.
+    if args.scrub_terms and not from_stdin and inside_repo(args.scrub_terms):
         raise UsageError("--scrub-terms is inside the repository; keep the terms file outside it")
 
     try:
-        rules = scrub.load_terms(args.scrub_terms) if args.scrub_terms else scrub.Rules()
+        if from_stdin:
+            rules = scrub.read_terms(sys.stdin.buffer)
+            if args.require_terms and rules.is_empty():
+                raise UsageError("--require-terms was given but stdin supplied no terms")
+        elif args.scrub_terms:
+            rules = scrub.load_terms(args.scrub_terms)
+        else:
+            rules = scrub.Rules()
     except scrub.TermsError as err:
         raise UsageError(str(err))
     prepare_out(out)
@@ -956,7 +966,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Convert a WordPress WXR export to Hugo page bundles.")
     parser.add_argument("--wxr", required=True, help="WXR export (outside the repo)")
     parser.add_argument("--out", help="output directory (outside the repo; default: out/ beside the export)")
-    parser.add_argument("--scrub-terms", help="file of category:term lines (outside the repo)")
+    parser.add_argument("--scrub-terms", help="file of category:term lines (outside the repo), or - to read them from stdin")
     parser.add_argument("--require-terms", action="store_true", help="exit 2 unless --scrub-terms is given")
     parser.add_argument("--site-url", default=DEFAULT_SITE_URL, help="current site URL for rewritten links")
     parser.add_argument("--media", help="wp-content/uploads directory (default: found under raw/ beside the export)")

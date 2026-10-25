@@ -10,7 +10,7 @@ Categories:
              or .home.arpa
   serial     terms from the --scrub-terms file only
 
-The terms file (kept outside the repository) holds one `category:term` per
+The terms file (kept outside the repository, or piped on stdin with `--scrub-terms -`) holds one `category:term` per
 line. Blank lines and lines starting with `#` are ignored. A line
 `allow:TOKEN` exempts that exact token from the callsign and grid shape
 checks (for a false positive such as a chemical formula) and from the generic
@@ -62,26 +62,45 @@ class Rules:
         self.allow = set(allow or ())
 
 
-def load_terms(path):
-    """Read a terms file into Rules. Errors name the line, never its content."""
+    def is_empty(self):
+        """True when no term and no allow entry was supplied."""
+        return not self.allow and not any(self.terms.values())
+
+
+def parse_terms(lines):
+    """Parse category:term lines into Rules. Errors name the line, never its content."""
     terms, allow = [], []
-    with open(path, encoding="utf-8") as handle:
-        for number, raw in enumerate(handle, 1):
-            line = raw.strip()
-            if not line or line.startswith("#"):
-                continue
-            category, sep, term = line.partition(":")
-            category = category.strip().casefold()
-            term = term.strip()
-            if not sep or not term:
-                raise TermsError("terms file line %d: expected category:term" % number)
-            if category == "allow":
-                allow.append(term)
-            elif category in TERM_CATEGORIES:
-                terms.append((category, term))
-            else:
-                raise TermsError("terms file line %d: unknown category" % number)
+    for number, raw in enumerate(lines, 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        category, sep, term = line.partition(":")
+        category = category.strip().casefold()
+        term = term.strip()
+        if not sep or not term:
+            raise TermsError("terms line %d: expected category:term" % number)
+        if category == "allow":
+            allow.append(term)
+        elif category in TERM_CATEGORIES:
+            terms.append((category, term))
+        else:
+            raise TermsError("terms line %d: unknown category" % number)
     return Rules(terms, allow)
+
+
+def load_terms(path):
+    """Read a terms file into Rules."""
+    with open(path, encoding="utf-8") as handle:
+        return parse_terms(handle)
+
+
+def read_terms(stream):
+    """Read terms from a binary stream such as stdin. Decode errors name no content."""
+    try:
+        text = stream.read().decode("utf-8")
+    except UnicodeDecodeError:
+        raise TermsError("terms input is not valid UTF-8") from None
+    return parse_terms(text.splitlines())
 
 
 def _line_categories(line, rules):
