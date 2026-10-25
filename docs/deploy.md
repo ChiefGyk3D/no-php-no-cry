@@ -20,10 +20,11 @@ a secret.
    Only check runs of the GitHub Actions app count, and the newest one (by
    start time, then id) decides: success lets the deploy continue, any other
    conclusion fails at once, a newest run still queued or running keeps
-   waiting, and an older success never outweighs a newer failure. Once the newest run is
-   complete, its check suite must be the default branch's own (branch name,
-   no pull request, same commit); otherwise the gate fails without falling
-   back to an older run. No result
+   waiting, and an older success never outweighs a newer failure. A run counts only if its
+   check suite is the default branch's own (branch name, no pull request, same
+   commit). Runs from any other suite are ignored entirely, so a newer run from
+   a pull request or another ref can neither fail nor rescue the gate; with no
+   trusted run the gate times out and fails. No result
    within 25 minutes fails. Override with `WAIT_TIMEOUT_SECONDS` and
    `POLL_INTERVAL_SECONDS` (defaults 1500 and 20). It needs only
    `checks: read`.

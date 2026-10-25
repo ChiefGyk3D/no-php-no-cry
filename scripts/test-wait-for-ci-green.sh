@@ -20,10 +20,11 @@ cat >"$work/gh-stub" <<'STUB'
 #!/usr/bin/env bash
 # Replays line N of $STUB_SEQ on each check-runs call N (the last line
 # repeats). A line is check runs separated by "|", each
-# "name~app-slug~id~started_at~status~conclusion[~suite]" ("G" stands for the
+# "name~app-slug~id~started_at~status~conclusion[~suite[~suite-id]]" ("G" stands for the
 # name `CI green`). The optional suite says where the run's check suite came
 # from: main (default), pr (pull request on main), other (another branch),
-# sha (another commit). "ERR" makes the call fail; an empty line means no check
+# sha (another commit). The optional suite-id (default: the run id) lets two
+# runs share one suite. "ERR" makes the call fail; an empty line means no check
 # runs. A check-suites/<id> call answers for the run with that id on the
 # current line (suite id = run id) and does not advance the counter.
 url=""
@@ -47,8 +48,9 @@ line="$(sed -n "${n}p" "$STUB_SEQ")"
 [[ "$line" == ERR ]] && exit 1
 if [[ "$url" == */check-suites/* ]]; then
     id="${url##*/}"
+    [[ -z "${STUB_SUITE_LOG:-}" ]] || echo "$id" >>"$STUB_SUITE_LOG"
     json="$(printf '%s\n' "$line" | tr '|' '\n' | jq -R -s --argjson id "$id" '
-      [split("\n")[] | select(length > 0) | split("~") | select((.[2] | tonumber) == $id)][0] as $r
+      [split("\n")[] | select(length > 0) | split("~") | select(((.[7] // .[2]) | tonumber) == $id)][0] as $r
       | ($r[6] // "main") as $k
       | {id: $id, app: {slug: "github-actions"},
          head_branch: (if $k == "other" then "feature-x" else "main" end),
@@ -60,7 +62,7 @@ else
         name: (if .[0] == "G" then "CI green" else .[0] end),
         app: {slug: .[1]},
         id: (.[2] | tonumber),
-        check_suite: {id: (.[2] | tonumber)},
+        check_suite: {id: ((.[7] // .[2]) | tonumber)},
         started_at: (if .[3] == "" then null else .[3] end),
         status: .[4],
         conclusion: (if .[5] == "" then null else .[5] end)}]}')"
@@ -134,26 +136,72 @@ run_case other-app-success-alone 1 "timed out" 2 "G~some-other-app~3~$t1~complet
 # A newer other-app run neither hides nor replaces the Actions result.
 run_case other-app-newer-success-ignored 1 "concluded failure" 5 \
     "$ga~1~$t1~completed~failure|G~some-other-app~3~$t2~completed~success"
-# The newest run's check suite must be the default branch's push suite for this
-# commit: not a pull request, not another branch, not another commit. A failed
-# binding is "not green"; it never falls back to an older run.
-run_case suite-pr-newest 1 "suite binding (pull-request)" 5 \
-    "$ga~1~$t1~completed~success|$ga~2~$t2~completed~success~pr"
-run_case suite-other-branch 1 "suite binding (branch)" 5 \
-    "$ga~1~$t1~completed~success~other"
-run_case suite-other-branch-newest 1 "suite binding (branch)" 5 \
-    "$ga~1~$t1~completed~failure|$ga~2~$t2~completed~success~other"
-run_case suite-other-sha 1 "suite binding (sha)" 5 \
-    "$ga~1~$t1~completed~success~sha"
+# Suite binding. Each run's check suite must be the default branch's push
+# suite for this commit (not a pull request, not another branch, not another
+# commit). A run whose suite is not bound is untrusted and IGNORED: it is never
+# decisive in either direction. (An earlier version failed the gate when the
+# newest run was untrusted; that let any newer run from another suite deny a
+# deploy, so those cases changed meaning on purpose.)
 run_case suite-default-branch 0 "is green" 5 "$ga~1~$t1~completed~success~main"
-run_case suite-pr-older-main-success-newer-pr 1 "suite binding" 5 \
-    "$ga~1~$t1~completed~success~main|$ga~2~$t2~completed~success~pr"
-# A newer in-progress run still waits; the binding is judged once it finishes.
-run_case suite-pr-in-progress-waits 1 "timed out" 2 \
+# Availability: a newer untrusted FAILURE does not deny a trusted success.
+run_case untrusted-newer-failure-pr 0 "is green" 5 \
+    "$ga~1~$t1~completed~success~main|$ga~2~$t2~completed~failure~pr"
+run_case untrusted-newer-failure-branch 0 "is green" 5 \
+    "$ga~1~$t1~completed~success~main|$ga~2~$t2~completed~failure~other"
+run_case untrusted-newer-failure-sha 0 "is green" 5 \
+    "$ga~1~$t1~completed~success~main|$ga~2~$t2~completed~failure~sha"
+# An untrusted SUCCESS never rescues a trusted failure.
+run_case untrusted-newer-success-pr 1 "concluded failure" 5 \
+    "$ga~1~$t1~completed~failure~main|$ga~2~$t2~completed~success~pr"
+run_case untrusted-newer-success-branch 1 "concluded failure" 5 \
+    "$ga~1~$t1~completed~failure~main|$ga~2~$t2~completed~success~other"
+run_case untrusted-newer-success-sha 1 "concluded failure" 5 \
+    "$ga~1~$t1~completed~failure~main|$ga~2~$t2~completed~success~sha"
+# Only untrusted runs: wait, then fail without naming run content.
+run_case only-untrusted-pr 1 "no trusted 'CI green' run" 2 "$ga~1~$t1~completed~success~pr"
+run_case only-untrusted-branch 1 "no trusted 'CI green' run" 2 "$ga~1~$t1~completed~success~other"
+run_case only-untrusted-sha 1 "no trusted 'CI green' run" 2 "$ga~1~$t1~completed~success~sha"
+# A trusted run that appears later is still found.
+run_case trusted-appears-later 0 "is green" 10 \
+    "$ga~1~$t1~completed~success~pr" \
+    "$ga~1~$t1~completed~success~pr|$ga~2~$t2~completed~success~main"
+# A trusted newest run in progress waits, even over an older untrusted success.
+run_case trusted-in-progress-untrusted-older-success 1 "timed out" 2 \
+    "$ga~1~$t1~completed~success~pr|$ga~2~$t2~in_progress~~main"
+# An untrusted run still running does not make the gate wait.
+run_case untrusted-in-progress-ignored 0 "is green" 5 \
     "$ga~1~$t1~completed~success~main|$ga~2~$t2~in_progress~~pr"
-# A newer failure on the default branch still fails.
-run_case suite-default-branch-failure-still-fails 1 "concluded failure" 5 \
-    "$ga~1~$t1~completed~success|$ga~2~$t2~completed~failure~main"
+# Among trusted runs the newest decides, as before.
+run_case trusted-older-success-newer-failure 1 "concluded failure" 5 \
+    "$ga~1~$t1~completed~success~main|$ga~2~$t2~completed~failure~main"
+run_case trusted-older-failure-newer-success 0 "is green" 5 \
+    "$ga~1~$t1~completed~failure~main|$ga~2~$t2~completed~success~main"
+
+# Two runs in one suite: the suite is looked up once, not once per run and not
+# once per poll.
+printf '%s\n' "$ga~1~$t1~completed~success~main~77|$ga~2~$t2~completed~success~main~77" >"$work/seq"
+rm -f "$work/count" "$work/suite-log"
+rc=0
+GH_BIN="$work/gh-stub" STUB_SEQ="$work/seq" STUB_COUNT="$work/count" STUB_SUITE_LOG="$work/suite-log" \
+    WAIT_TIMEOUT_SECONDS=5 POLL_INTERVAL_SECONDS=1 "$script" owner/repo 0123abc >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 && "$(wc -l <"$work/suite-log")" -eq 1 ]]; then
+    echo "ok: one suite lookup for two runs in the same suite"
+else
+    echo "FAIL: suite lookups: rc=$rc, calls=$(wc -l <"$work/suite-log" 2>/dev/null || echo none), wanted rc=0 and 1 call"
+    failures=$((failures + 1))
+fi
+# The cache holds across polls: still running for three polls, one lookup.
+printf '%s\n' "$ga~1~$t1~in_progress~~main" "$ga~1~$t1~in_progress~~main" "$ga~1~$t1~in_progress~~main" "$ga~1~$t1~completed~success~main" >"$work/seq"
+rm -f "$work/count" "$work/suite-log"
+rc=0
+GH_BIN="$work/gh-stub" STUB_SEQ="$work/seq" STUB_COUNT="$work/count" STUB_SUITE_LOG="$work/suite-log" \
+    WAIT_TIMEOUT_SECONDS=10 POLL_INTERVAL_SECONDS=1 "$script" owner/repo 0123abc >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 && "$(wc -l <"$work/suite-log")" -eq 1 ]]; then
+    echo "ok: the suite answer is cached across polls"
+else
+    echo "FAIL: cache across polls: rc=$rc, calls=$(wc -l <"$work/suite-log" 2>/dev/null || echo none)"
+    failures=$((failures + 1))
+fi
 # Branch names are validated.
 rc=0
 DEFAULT_BRANCH='bad branch' "$script" owner/repo 0123abc >/dev/null 2>&1 || rc=$?
