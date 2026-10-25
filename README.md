@@ -9,8 +9,8 @@ placeholders (brand spec: issue #2). See issue #1 for the plan.
 
 ## Build locally
 
-Hugo version: the one in `.hugo-version` (standard edition, not extended; no
-WebP). CI installs the same release and verifies its sha256 first.
+Hugo version: the one in `.hugo-version` (standard edition, not extended).
+CI installs the same release and verifies its sha256 first.
 
 Install it once under `~/.local/share/no-php-no-cry-dev/` (not as root):
 

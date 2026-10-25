@@ -250,8 +250,8 @@ class PageCtx:
             alt = re.sub(r"[-_]+", " ", SIZE_SUFFIX.sub("", stem + ".x")[:-2]).strip() or "image"
         if path is not None:
             name = self._bundle_name(path)
-            if path.suffix.lower() not in (".png", ".jpg", ".jpeg"):
-                # layouts/_markup/render-image.html only accepts JPEG and PNG
+            if path.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+                # layouts/_markup/render-image.html only accepts JPEG, PNG and WebP
                 self.site.warnings.append({"file": self.page_path, "kind": "unsupported-image-format", "detail": name})
             self.site.image_files.add((self.page_path, name))
             if self.site.temp_re and self.site.temp_re.match(src):

@@ -145,12 +145,12 @@ class EscapingTests(unittest.TestCase):
 
 class MediaWarningTests(unittest.TestCase):
     def test_unsupported_and_missing_images_are_logged(self):
-        text = only_items("basic.xml", {"10", "11"}).replace("pic.png", "pic.webp")
+        text = only_items("basic.xml", {"10", "11"}).replace("pic.png", "pic.gif")
         work = scratch()
         wxr = work / "export.xml"
         wxr.write_text(text, encoding="utf-8")
         media = make_media(work / "media")
-        (media / "2023" / "02" / "pic.webp").write_bytes(PNG)
+        (media / "2023" / "02" / "pic.gif").write_bytes(PNG)
         out = work / "out"
         proc = run(["--wxr", wxr, "--out", out, "--media", media])
         self.assertEqual(proc.returncode, 0, proc.stderr)
