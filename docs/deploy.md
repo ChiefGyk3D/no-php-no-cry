@@ -10,9 +10,10 @@ a secret.
 1. `build` installs the pinned Hugo (sha256 verified), builds, runs
    `scripts/check-output.sh`, and uploads `public/` as the `site` artifact.
 2. `deploy` runs on the default branch only. It downloads the artifact, installs
-   a pinned Wrangler (exact version in the workflow) before any secret exists,
-   fetches the credentials, and runs `wrangler pages deploy`. It runs no code
-   from the repository. It is the only job with `id-token: write`.
+   Wrangler from the lockfile in `deploy/` (`npm ci --ignore-scripts`, on Node
+   22, which Wrangler requires) before any secret exists, fetches the
+   credentials, and runs `wrangler pages deploy`. Only `deploy/` is checked out
+   and no repository script runs. Dependabot bumps the lockfile weekly. It is the only job with `id-token: write`.
 3. `smoke` runs `scripts/smoke-site.sh` against `SITE_URL`: HTTP 200, the
    Content-Security-Policy from `static/_headers`, and one 301 from the built
    `_redirects`.

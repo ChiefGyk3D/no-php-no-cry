@@ -1,7 +1,8 @@
 version: 2
 updates:
-  # Only GitHub Actions: the site has no package manager. Hugo itself is pinned
-  # in .hugo-version and bumped by hand.
+  # GitHub Actions, plus the one lockfile that pins Wrangler for the deploy job.
+  # The site itself has no package manager. Hugo is pinned in .hugo-version and
+  # bumped by hand.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -11,3 +12,10 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /deploy
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
