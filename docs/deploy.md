@@ -22,14 +22,15 @@ Repository variables (Settings, Secrets and variables, Actions, Variables):
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `CLOUDFLARE_PAGES_PROJECT` | `no-php-no-cry` | Pages project name |
+| `DEPLOY_ENABLED` | unset (deploy skipped) | Set to `true` once credentials and the Pages project exist; until then pushes build but do not deploy |
 | `SITE_URL` | `https://test-blog.chiefgyk3d.com` | URL the smoke test checks |
 | `DOPPLER_IDENTITY_ID` | none | Doppler OIDC identity UUID (Doppler path only) |
 
 The deploy job needs two values: `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID`. It takes them from Doppler when that is configured,
 otherwise from GitHub Actions secrets of the same names. If neither supplies
-both, the job fails with a message naming what is missing. It never skips
-silently.
+both, the job fails with a message naming what is missing. Once
+`DEPLOY_ENABLED` is `true` it never skips silently.
 
 ## Cloudflare setup (both paths)
 
