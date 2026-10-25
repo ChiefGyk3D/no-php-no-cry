@@ -15,6 +15,9 @@ from helpers import (
 )
 
 
+DISCLOSURE = "As an Amazon Associate I earn from qualifying purchases."
+
+
 def basic():
     return convert((FIXTURES / "basic.xml").read_text(encoding="utf-8"))
 
@@ -42,7 +45,7 @@ class BasicConversionTests(unittest.TestCase):
         names = sorted(p.parent.relative_to(self.out).as_posix() for p in self.out.rglob("index.md"))
         self.assertEqual(
             names,
-            ["pages/about", "pages/hidden-draft", "posts/first-post", "posts/second-post"],
+            ["about", "hidden-draft", "posts/first-post", "posts/second-post"],
         )
 
     def test_front_matter(self):
@@ -66,12 +69,14 @@ class BasicConversionTests(unittest.TestCase):
         self.assertNotIn('"/second-post.html/"', second)
 
     def test_draft_page(self):
-        draft = (self.out / "pages/hidden-draft/index.md").read_text()
+        draft = (self.out / "hidden-draft/index.md").read_text()
         self.assertIn("draft: true\n", draft)
         self.assertNotIn("aliases", draft)
-        about = (self.out / "pages/about/index.md").read_text()
+        about = (self.out / "about/index.md").read_text()
         self.assertIn("draft: false\n", about)
-        self.assertIn('  - "/about/"\n', about)
+        self.assertIn('url: "/about/"\n', about)
+        # The old permalink equals the new URL: an alias would overwrite the page.
+        self.assertNotIn("aliases", about)
 
     def test_body_markdown(self):
         self.assertIn("## A heading & more", self.post)
@@ -98,9 +103,9 @@ class BasicConversionTests(unittest.TestCase):
         self.assertEqual(len(entries), 3)
         for entry in entries:
             self.assertEqual(entry["decision"], "kept")
-            self.assertEqual(entry["disclosure"], "not added")
+            self.assertEqual(entry["disclosure"], "added")
         self.assertEqual(entries[0]["file"], "posts/first-post/index.md")
-        self.assertNotIn("Disclosure", self.post)
+        self.assertEqual(self.post.count(DISCLOSURE), 1)
 
     def test_only_approved_comments(self):
         comments = json.loads((self.out / "posts/first-post/comments.json").read_text())
@@ -125,9 +130,162 @@ class BasicConversionTests(unittest.TestCase):
         self.assertEqual(by_id[11]["old"], "/2023/02/10/first-post/")
         self.assertEqual(by_id[11]["new"], "/posts/first-post/")
         self.assertEqual(by_id[12]["old"], "/second-post.html")
-        self.assertEqual(by_id[13]["new"], "/pages/about/")
+        self.assertEqual(by_id[13]["new"], "/about/")
         self.assertEqual(by_id[14]["old"], None)
         self.assertTrue(by_id[14]["draft"])
+
+
+class RootPageTests(unittest.TestCase):
+    def page_text(self, **changes):
+        text = only_items("basic.xml", {"13"})
+        for old, new in changes.items():
+            text = text.replace(old, new)
+        return text
+
+    def test_page_with_a_different_old_permalink_keeps_its_alias(self):
+        text = only_items("basic.xml", {"13"}).replace("example.invalid/about/", "example.invalid/old/about-us/")
+        proc, out, _ = convert(text)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        page = (out / "about/index.md").read_text()
+        self.assertIn('url: "/about/"\n', page)
+        self.assertIn('  - "/old/about-us/"\n', page)
+        pmap = json.loads((out / "permalink-map.json").read_text())
+        self.assertEqual(pmap[0]["old"], "/old/about-us/")
+        self.assertEqual(pmap[0]["new"], "/about/")
+        self.assertEqual(pmap[0]["file"], "about/index.md")
+
+    def test_posts_stay_under_posts_without_a_url_key(self):
+        proc, out, _ = basic()
+        post = (out / "posts/first-post/index.md").read_text()
+        self.assertNotIn("\nurl:", post)
+
+    def test_page_slug_colliding_with_a_section_is_refused(self):
+        for slug in ("posts", "journal"):
+            text = only_items("basic.xml", {"13"}).replace("<![CDATA[about]]>", "<![CDATA[%s]]>" % slug)
+            proc, out, _ = convert(text)
+            self.assertEqual(proc.returncode, 2, slug)
+            self.assertIn("collides", proc.stderr)
+            self.assertFalse(out.exists())
+
+    def test_page_slug_colliding_with_a_repo_top_level_directory_is_refused(self):
+        # static/ and content/ both publish top-level paths.
+        names = sorted(
+            p.name for base in ("content", "static") for p in (REPO / base).iterdir() if p.is_dir()
+        )
+        self.assertTrue(names, "no top-level directories found to test against")
+        text = only_items("basic.xml", {"13"}).replace("<![CDATA[about]]>", "<![CDATA[%s]]>" % names[0])
+        proc, out, _ = convert(text)
+        self.assertEqual(proc.returncode, 2)
+        self.assertFalse(out.exists())
+
+    def test_non_colliding_slug_still_converts(self):
+        proc, out, _ = convert(only_items("basic.xml", {"13"}))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+
+class EmptyPageTests(unittest.TestCase):
+    def test_empty_body_page_is_skipped_and_logged(self):
+        text = only_items("basic.xml", {"13", "14"}).replace("<p>About this fixture site.</p>", "")
+        proc, out, _ = convert(text)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertFalse((out / "about").exists())
+        self.assertTrue((out / "hidden-draft/index.md").exists())
+        log = json.loads((out / "decision-log.json").read_text())
+        self.assertEqual(len(log["skipped"]), 1)
+        entry = log["skipped"][0]
+        self.assertEqual(entry["id"], 13)
+        self.assertEqual(entry["reason"], "empty body")
+        self.assertEqual(log["summary"]["pages_skipped_empty"], 1)
+        self.assertEqual(log["summary"]["pages"], 1)
+        pmap = json.loads((out / "permalink-map.json").read_text())
+        self.assertEqual([e["id"] for e in pmap], [14])
+
+    def test_whitespace_only_conversion_counts_as_empty(self):
+        text = only_items("basic.xml", {"13"}).replace("<p>About this fixture site.</p>", "<p> </p><div></div>")
+        proc, out, _ = convert(text)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertFalse((out / "about").exists())
+
+    def test_empty_post_is_not_skipped(self):
+        text = only_items("basic.xml", {"12"}).replace(
+            '<p>Two links: <a href="https://amzn.to/xyz789">one</a> and <a href="https://amzn.to/xyz789">again</a>. Tom &amp; Jerry.</p>',
+            "",
+        )
+        proc, out, _ = convert(text)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue((out / "posts/second-post/index.md").exists())
+
+    def test_no_skips_gives_empty_list(self):
+        proc, out, _ = basic()
+        self.assertEqual(json.loads((out / "decision-log.json").read_text())["skipped"], [])
+
+
+class DisclosureTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.proc, cls.out, _ = basic()
+        cls.first = (cls.out / "posts/first-post/index.md").read_text()
+        cls.second = (cls.out / "posts/second-post/index.md").read_text()
+        cls.log = json.loads((cls.out / "decision-log.json").read_text())
+
+    def test_once_per_post_even_with_several_links(self):
+        self.assertEqual(self.first.count(DISCLOSURE), 1)
+        self.assertEqual(self.second.count(DISCLOSURE), 1)
+        self.assertTrue(self.second.rstrip().endswith(DISCLOSURE))
+
+    def test_post_without_an_affiliate_link_gets_none(self):
+        text = only_items("basic.xml", {"12"}).replace("https://amzn.to/xyz789", "https://example.invalid/x")
+        proc, out, _ = convert(text)
+        self.assertNotIn(DISCLOSURE, (out / "posts/second-post/index.md").read_text())
+        log = json.loads((out / "decision-log.json").read_text())
+        self.assertEqual(log["disclosures"], [])
+
+    def test_pages_never_get_it(self):
+        text = only_items("basic.xml", {"13"}).replace(
+            "<p>About this fixture site.</p>", '<p><a href="https://amzn.to/pg">x</a></p>'
+        )
+        proc, out, _ = convert(text)
+        self.assertNotIn(DISCLOSURE, (out / "about/index.md").read_text())
+
+    def test_decision_log_records_each_post(self):
+        files = [d["file"] for d in self.log["disclosures"]]
+        self.assertEqual(files, ["posts/first-post/index.md", "posts/second-post/index.md"])
+        self.assertTrue(all(d["added"] is True for d in self.log["disclosures"]))
+        self.assertEqual(self.log["summary"]["disclosures_added"], 2)
+
+    def test_already_disclosed_body_is_not_doubled(self):
+        text = only_items("basic.xml", {"12"}).replace(
+            "Tom &amp; Jerry.</p>", "Tom &amp; Jerry.</p><p>%s</p>" % DISCLOSURE
+        )
+        proc, out, _ = convert(text)
+        self.assertEqual((out / "posts/second-post/index.md").read_text().count(DISCLOSURE), 1)
+
+    def test_rerun_does_not_double(self):
+        text = (FIXTURES / "basic.xml").read_text(encoding="utf-8")
+        _, out1, _ = convert(text)
+        _, out2, _ = convert(text)
+        self.assertEqual(tree_digest(out1), tree_digest(out2))
+
+
+class SyndicateTests(unittest.TestCase):
+    def flags(self, out, rel):
+        head = (out / rel).read_text().split("---\n")[1]
+        return [l for l in head.splitlines() if l.startswith("syndicate:")]
+
+    def test_post_mirrors_the_old_share_flag_and_pages_are_false(self):
+        proc, out, _ = basic()
+        self.assertEqual(self.flags(out, "posts/first-post/index.md"), ["syndicate: true"])
+        self.assertEqual(self.flags(out, "posts/second-post/index.md"), ["syndicate: false"])
+        self.assertEqual(self.flags(out, "about/index.md"), ["syndicate: false"])
+
+    def test_page_with_the_share_flag_stays_false(self):
+        text = only_items("basic.xml", {"13"}).replace(
+            "</item>",
+            "<wp:postmeta><wp:meta_key><![CDATA[_share_on_mastodon]]></wp:meta_key>"
+            "<wp:meta_value><![CDATA[1]]></wp:meta_value></wp:postmeta></item>",
+        )
+        proc, out, _ = convert(text)
+        self.assertEqual(self.flags(out, "about/index.md"), ["syndicate: false"])
 
 
 class EscapingTests(unittest.TestCase):
@@ -138,7 +296,7 @@ class EscapingTests(unittest.TestCase):
         )
         proc, out, _ = convert(text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        body = (out / "pages/about/index.md").read_text().split("---\n")[2]
+        body = (out / "about/index.md").read_text().split("---\n")[2]
         self.assertIn("2 \\* 3 \\[not a link\\] \\_x\\_ \\<b>", body)
         self.assertIn("\\# not a heading", body)
 
@@ -202,7 +360,7 @@ class ColibriTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.proc, cls.out, _ = convert((FIXTURES / "colibri.xml").read_text(), media=False)
-        cls.page = (cls.out / "pages/builder-page/index.md").read_text()
+        cls.page = (cls.out / "builder-page/index.md").read_text()
 
     def test_text_comes_from_the_builder_json(self):
         self.assertEqual(self.proc.returncode, 0, self.proc.stderr)
@@ -216,8 +374,8 @@ class ColibriTests(unittest.TestCase):
         everything = "\n".join(p.read_text() for p in self.out.rglob("*.md"))
         self.assertNotIn("TEMPLATE_MARKUP_SENTINEL", everything)
         self.assertNotIn("STYLE_SENTINEL", everything)
-        self.assertFalse((self.out / "pages/header-template").exists())
-        self.assertFalse((self.out / "pages/22").exists())
+        self.assertFalse((self.out / "header-template").exists())
+        self.assertFalse((self.out / "22").exists())
 
     def test_counted_as_builder_page(self):
         self.assertEqual(json.loads(self.proc.stdout)["builder_pages"], 1)
@@ -259,7 +417,7 @@ class SafetyTests(unittest.TestCase):
         wxr.write_text(only_items("basic.xml", {"13"}))
         proc = run(["--wxr", wxr])
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertTrue((work / "out" / "pages/about/index.md").exists())
+        self.assertTrue((work / "out" / "about/index.md").exists())
 
 
 class ScrubIntegrationTests(unittest.TestCase):
@@ -314,6 +472,75 @@ class ScrubIntegrationTests(unittest.TestCase):
         proc = run(["--wxr", wxr, "--out", work / "out"])
         self.assertEqual(proc.returncode, 3)
         self.assertFalse((work / "out").exists())
+
+    def test_summary_says_which_categories_ran_without_terms(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("basic.xml", {"13"}), encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out"])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        for c in ("callsign", "grid", "hostname-generic"):
+            self.assertIn("scrub %s: ran" % c, proc.stderr)
+        for c in ("employer", "hostname", "serial"):
+            self.assertIn("scrub %s: NOT RUN" % c, proc.stderr)
+        status = json.loads(proc.stdout)["scrub"]
+        self.assertEqual(status["employer"], "NOT RUN")
+        log = json.loads((work / "out" / "decision-log.json").read_text())
+        self.assertEqual(log["summary"]["scrub"]["serial"], "NOT RUN")
+
+    def test_summary_with_a_terms_file_marks_only_given_categories(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("basic.xml", {"13"}), encoding="utf-8")
+        terms = work / "terms.txt"
+        terms.write_text("employer:Acme Fixture\n", encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out", "--scrub-terms", terms])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("scrub employer: ran", proc.stderr)
+        self.assertIn("scrub hostname: NOT RUN", proc.stderr)
+        self.assertIn("scrub serial: NOT RUN", proc.stderr)
+        self.assertNotIn("Acme", proc.stdout + proc.stderr)
+
+    def test_summary_printed_when_findings_fail_the_run(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("scrub_edge.xml", {"32"}), encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out"])
+        self.assertEqual(proc.returncode, 3)
+        self.assertIn("scrub employer: NOT RUN", proc.stderr)
+
+    def test_require_terms_exits_2_without_a_terms_file(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("basic.xml", {"13"}), encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out", "--require-terms"])
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("--require-terms", proc.stderr)
+        self.assertFalse((work / "out").exists())
+
+    def test_require_terms_passes_with_a_terms_file(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("basic.xml", {"13"}), encoding="utf-8")
+        terms = work / "terms.txt"
+        terms.write_text("employer:Acme Fixture\n", encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out", "--require-terms", "--scrub-terms", terms])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_generic_private_host_is_caught_without_terms(self):
+        work = scratch()
+        text = only_items("basic.xml", {"13"}).replace("About this fixture site.", "Reach it at 192.168.7.7 or box.lan.")
+        wxr = work / "export.xml"
+        wxr.write_text(text, encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out"])
+        self.assertEqual(proc.returncode, 3)
+        self.assertIn("category=hostname", proc.stderr)
+        self.assertNotIn("192.168", proc.stdout + proc.stderr)
+        self.assertNotIn("box.lan", proc.stdout + proc.stderr)
+        terms = work / "terms.txt"
+        terms.write_text("allow:192.168.7.7\nallow:box.lan\n", encoding="utf-8")
+        ok = run(["--wxr", wxr, "--out", work / "out2", "--scrub-terms", terms])
+        self.assertEqual(ok.returncode, 0, ok.stderr)
 
     def test_allow_line_clears_a_false_positive(self):
         work = scratch()

@@ -9,6 +9,48 @@ def rules(*terms, allow=()):
     return scrub.Rules(list(terms), allow)
 
 
+class GenericHostTests(unittest.TestCase):
+    def cats(self, text, r=None):
+        return [f.category for f in scrub.scan_text(text, "f", r or rules())]
+
+    def test_private_ipv4_ranges_match(self):
+        for text in ("10.0.0.1", "ssh 10.255.1.20 now", "172.16.0.5", "172.31.255.254", "192.168.1.1", "(192.168.50.2)", "at 192.168.0.1."):
+            self.assertEqual(self.cats(text), ["hostname"], text)
+
+    def test_public_and_malformed_addresses_do_not_match(self):
+        for text in ("8.8.8.8", "172.15.0.1", "172.32.0.1", "192.169.1.1", "11.0.0.1", "10.0.0", "10.0.0.256", "1.10.0.0.1", "10.0.0.1.5", "192.0.2.7"):
+            self.assertEqual(self.cats(text), [], text)
+
+    def test_private_name_suffixes_match(self):
+        for text in ("box.local", "http://wiki.lan/x", "a.b.internal", "nas.home.arpa", "BOX.LOCAL:8080", "see host.lan."):
+            self.assertEqual(self.cats(text), ["hostname"], text)
+
+    def test_near_misses_do_not_match(self):
+        for text in ("local", "the .local suffix", "localhost", "lan party", "internal.example.com", "box.localhost", "box.landing", "x.local.example.com", "example.invalid"):
+            self.assertEqual(self.cats(text), [], text)
+
+    def test_allow_exempts_the_exact_token(self):
+        self.assertEqual(self.cats("10.0.0.1", rules(allow=["10.0.0.1"])), [])
+        self.assertEqual(self.cats("box.local", rules(allow=["box.local"])), [])
+        self.assertEqual(self.cats("other.local", rules(allow=["box.local"])), ["hostname"])
+
+    def test_finding_never_carries_the_value(self):
+        found = scrub.scan_text("ssh 10.1.2.3", "f", rules())
+        self.assertEqual(found, [scrub.Finding("hostname", "f", 1)])
+
+    def test_status_reports_which_categories_ran(self):
+        none = scrub.status(rules())
+        self.assertEqual(none["callsign"], "ran")
+        self.assertEqual(none["grid"], "ran")
+        self.assertEqual(none["hostname-generic"], "ran")
+        for c in ("employer", "hostname", "serial"):
+            self.assertEqual(none[c], "NOT RUN")
+        some = scrub.status(rules(("employer", "x")))
+        self.assertEqual(some["employer"], "ran")
+        self.assertEqual(some["hostname"], "NOT RUN")
+        self.assertEqual(some["serial"], "NOT RUN")
+
+
 class ShapeTests(unittest.TestCase):
     def cats(self, text, r=None):
         return [f.category for f in scrub.scan_text(text, "f", r or rules())]
