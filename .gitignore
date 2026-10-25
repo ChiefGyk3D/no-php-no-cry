@@ -1,0 +1,44 @@
+# Raw WordPress material: never commit (credentials, drafts, commenter emails, unscrubbed text)
+no-php-no-cry-import/
+import/
+crawl/
+raw/
+db/
+*.tar.gz
+*.tgz
+*.zip
+*.sql
+*.sql.gz
+*.wpress
+*.wxr
+*WordPress.*.xml
+wp-config*
+error_log
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+secrets/
+.doppler.yaml
+
+# Generator output and caches
+public/
+resources/_gen/
+.hugo_build.lock
+node_modules/
+.astro/
+dist/
+_site/
+
+# Syndication runtime scratch (durable state lives in state/, which IS tracked)
+*.log
+.cache/
+
+# Editor and OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
