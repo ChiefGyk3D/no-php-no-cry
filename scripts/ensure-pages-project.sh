@@ -49,15 +49,15 @@ api() {
 
 status="$(api GET "$url/$CLOUDFLARE_PAGES_PROJECT")"
 case "$status" in
-200)
-    echo "Pages project $CLOUDFLARE_PAGES_PROJECT already exists."
-    exit 0
-    ;;
-404) ;;
-*)
-    echo "::error title=Pages project::looking up the project returned HTTP $status (check the token has Account > Cloudflare Pages > Edit)"
-    exit 1
-    ;;
+    200)
+        echo "Pages project $CLOUDFLARE_PAGES_PROJECT already exists."
+        exit 0
+        ;;
+    404) ;;
+    *)
+        echo "::error title=Pages project::looking up the project returned HTTP $status (check the token has Account > Cloudflare Pages > Edit)"
+        exit 1
+        ;;
 esac
 
 echo "Pages project $CLOUDFLARE_PAGES_PROJECT is missing; creating it."
