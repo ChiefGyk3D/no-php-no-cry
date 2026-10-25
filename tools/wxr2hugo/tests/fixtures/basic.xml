@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Synthetic fixture. Every name, host and address here is invented. -->
+<rss version="2.0"
+  xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+  <title>Fixture Blog</title>
+  <link>https://example.invalid</link>
+  <wp:wxr_version>1.2</wp:wxr_version>
+  <wp:base_site_url>https://example.invalid</wp:base_site_url>
+  <wp:base_blog_url>https://example.invalid</wp:base_blog_url>
+
+  <item>
+    <title>pic</title>
+    <link>https://example.invalid/pic/</link>
+    <wp:post_id>10</wp:post_id>
+    <wp:post_date><![CDATA[2023-02-10 09:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-02-10 14:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[pic]]></wp:post_name>
+    <wp:status><![CDATA[inherit]]></wp:status>
+    <wp:post_parent>11</wp:post_parent>
+    <wp:post_type><![CDATA[attachment]]></wp:post_type>
+    <wp:attachment_url><![CDATA[https://tmp-demo.mybluehost.invalid/wp-content/uploads/2023/02/pic.png]]></wp:attachment_url>
+    <content:encoded><![CDATA[]]></content:encoded>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_wp_attachment_image_alt]]></wp:meta_key>
+      <wp:meta_value><![CDATA[A striped test pattern]]></wp:meta_value>
+    </wp:postmeta>
+  </item>
+
+  <item>
+    <title>First Post</title>
+    <link>https://example.invalid/2023/02/10/first-post/</link>
+    <wp:post_id>11</wp:post_id>
+    <wp:post_date><![CDATA[2023-02-10 09:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-02-10 14:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[first-post]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <category domain="category" nicename="reviews"><![CDATA[Reviews]]></category>
+    <category domain="post_tag" nicename="alpha"><![CDATA[alpha]]></category>
+    <content:encoded><![CDATA[<!-- wp:heading -->
+<h2>A heading &amp; more</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Buy it <a href="https://amzn.to/abc123">here</a> or read <a href="https://tmp-demo.mybluehost.invalid/about/">about</a>. Use <strong>bold</strong>, <em>italic</em> and snake_case.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:image -->
+<figure class="wp-block-image"><img src="https://tmp-demo.mybluehost.invalid/wp-content/uploads/2023/02/pic.png" alt=""/></figure>
+<!-- /wp:image -->
+
+<!-- wp:list -->
+<ul><li>one</li><li>two</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>echo "hi"
+exit 0</code></pre>
+<!-- /wp:code -->]]></content:encoded>
+    <wp:comment_status><![CDATA[open]]></wp:comment_status>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_share_on_mastodon]]></wp:meta_key>
+      <wp:meta_value><![CDATA[1]]></wp:meta_value>
+    </wp:postmeta>
+    <wp:comment>
+      <wp:comment_id>1</wp:comment_id>
+      <wp:comment_author><![CDATA[Reader One]]></wp:comment_author>
+      <wp:comment_author_email><![CDATA[reader@example.invalid]]></wp:comment_author_email>
+      <wp:comment_author_url></wp:comment_author_url>
+      <wp:comment_author_IP><![CDATA[192.0.2.7]]></wp:comment_author_IP>
+      <wp:comment_date><![CDATA[2023-02-11 10:00:00]]></wp:comment_date>
+      <wp:comment_date_gmt><![CDATA[2023-02-11 15:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Nice post.]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+    <wp:comment>
+      <wp:comment_id>2</wp:comment_id>
+      <wp:comment_author><![CDATA[Pending Person]]></wp:comment_author>
+      <wp:comment_author_email><![CDATA[pending@example.invalid]]></wp:comment_author_email>
+      <wp:comment_date><![CDATA[2023-02-12 10:00:00]]></wp:comment_date>
+      <wp:comment_date_gmt><![CDATA[2023-02-12 15:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Still waiting for review.]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[0]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+    <wp:comment>
+      <wp:comment_id>3</wp:comment_id>
+      <wp:comment_author><![CDATA[Spam Bot]]></wp:comment_author>
+      <wp:comment_date><![CDATA[2023-02-13 10:00:00]]></wp:comment_date>
+      <wp:comment_date_gmt><![CDATA[2023-02-13 15:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Cheap pills.]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[spam]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+    <wp:comment>
+      <wp:comment_id>4</wp:comment_id>
+      <wp:comment_author><![CDATA[Pingback Site]]></wp:comment_author>
+      <wp:comment_date><![CDATA[2023-02-14 10:00:00]]></wp:comment_date>
+      <wp:comment_date_gmt><![CDATA[2023-02-14 15:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[A pingback.]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[pingback]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+  </item>
+
+  <item>
+    <title>Second Post</title>
+    <link>https://example.invalid/second-post.html</link>
+    <wp:post_id>12</wp:post_id>
+    <wp:post_date><![CDATA[2023-03-01 12:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-03-01 17:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[second-post]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Two links: <a href="https://amzn.to/xyz789">one</a> and <a href="https://amzn.to/xyz789">again</a>. Tom &amp; Jerry.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+  </item>
+
+  <item>
+    <title>About</title>
+    <link>https://example.invalid/about/</link>
+    <wp:post_id>13</wp:post_id>
+    <wp:post_date><![CDATA[2023-01-05 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-01-05 13:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[about]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+    <content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>About this fixture site.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+  </item>
+
+  <item>
+    <title>Hidden Draft</title>
+    <link>https://example.invalid/?page_id=14</link>
+    <wp:post_id>14</wp:post_id>
+    <wp:post_date><![CDATA[2023-01-06 08:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[0000-00-00 00:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[]]></wp:post_name>
+    <wp:status><![CDATA[draft]]></wp:status>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+    <content:encoded><![CDATA[<p>Not ready.</p>]]></content:encoded>
+  </item>
+
+  <item>
+    <title>Outbox entry</title>
+    <link>https://example.invalid/?post_type=ap_outbox&amp;p=15</link>
+    <wp:post_id>15</wp:post_id>
+    <wp:post_date><![CDATA[2023-02-10 09:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-02-10 14:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[outbox-entry]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[ap_outbox]]></wp:post_type>
+    <content:encoded><![CDATA[{"type":"Note"}]]></content:encoded>
+  </item>
+
+  <item>
+    <title>Trashed</title>
+    <link>https://example.invalid/trashed/</link>
+    <wp:post_id>16</wp:post_id>
+    <wp:post_date><![CDATA[2023-02-10 09:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2023-02-10 14:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[trashed]]></wp:post_name>
+    <wp:status><![CDATA[trash]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <content:encoded><![CDATA[<p>Gone.</p>]]></content:encoded>
+  </item>
+</channel>
+</rss>

@@ -43,3 +43,5 @@ _site/
 *.swp
 *~
 tmp/
+__pycache__/
+*.pyc

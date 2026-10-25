@@ -1,7 +1,7 @@
 {{- /*
   Markdown image render hook. Only page-bundle images are accepted (a file
-  beside index.md), so the page never requests a third-party image. Only JPEG
-  and PNG are processed; no WebP. Alt text is required and the build fails
+  beside index.md), so the page never requests a third-party image. Only JPEG, PNG
+  and WebP are processed. Alt text is required and the build fails
   without it. Output carries srcset, sizes, width, height and lazy loading.
 */ -}}
 {{- $alt := .PlainText | strings.TrimSpace -}}
@@ -12,8 +12,8 @@
 {{- if not $img -}}
   {{- errorf "image %q on page %q is not a page-bundle resource (remote and site-wide images are not allowed)" .Destination .Page.File.Path -}}
 {{- end -}}
-{{- if not (in (slice "image/jpeg" "image/png") $img.MediaType.Type) -}}
-  {{- errorf "image %q on page %q is %s; only image/jpeg and image/png are supported" .Destination .Page.File.Path $img.MediaType.Type -}}
+{{- if not (in (slice "image/jpeg" "image/png" "image/webp") $img.MediaType.Type) -}}
+  {{- errorf "image %q on page %q is %s; only JPEG, PNG and WebP are supported" .Destination .Page.File.Path $img.MediaType.Type -}}
 {{- end -}}
 {{- $widths := slice 480 800 1200 -}}
 {{- $fallback := $img -}}
