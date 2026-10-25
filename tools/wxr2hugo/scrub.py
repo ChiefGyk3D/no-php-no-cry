@@ -63,8 +63,8 @@ class Rules:
 
 
     def is_empty(self):
-        """True when no term and no allow entry was supplied."""
-        return not self.allow and not any(self.terms.values())
+        """True when no employer, hostname or serial term was supplied (allow lines do not count)."""
+        return not any(self.terms.values())
 
 
 def parse_terms(lines):
@@ -89,9 +89,14 @@ def parse_terms(lines):
 
 
 def load_terms(path):
-    """Read a terms file into Rules."""
-    with open(path, encoding="utf-8") as handle:
-        return parse_terms(handle)
+    """Read a terms file into Rules. Open and decode errors carry no path or content."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return parse_terms(handle)
+    except OSError as err:
+        raise TermsError("cannot read the terms file (%s)" % type(err).__name__) from None
+    except UnicodeDecodeError:
+        raise TermsError("terms input is not valid UTF-8") from None
 
 
 def read_terms(stream):
@@ -100,7 +105,9 @@ def read_terms(stream):
         text = stream.read().decode("utf-8")
     except UnicodeDecodeError:
         raise TermsError("terms input is not valid UTF-8") from None
-    return parse_terms(text.splitlines())
+    # Same newline set as a text-mode file read: CR, LF and CRLF only. str.splitlines()
+    # would also split on U+2028, U+0085 and form feed, so a term would parse differently.
+    return parse_terms(re.split(r"\r\n|\r|\n", text))
 
 
 def _line_categories(line, rules):

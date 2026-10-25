@@ -456,6 +456,7 @@ class ScrubStdinTests(unittest.TestCase):
     def test_terms_never_appear_in_any_output(self):
         text = only_items("scrub_edge.xml", {"31"}).replace("near-misses", "acme-placeholder-news")
         proc, out = self.run_stdin(text, self.TERMS)
+        self.assertEqual(proc.returncode, 3, proc.stderr)
         combined = proc.stdout + proc.stderr
         for value in ("ACME-PLACEHOLDER", "acme-placeholder", "box01", "SN-0000"):
             self.assertNotIn(value, combined)
@@ -503,6 +504,26 @@ class ScrubStdinTests(unittest.TestCase):
         self.assertNotIn("SECRETTERM", proc.stdout + proc.stderr)
         self.assertFalse(out.exists())
 
+    def test_allow_only_stdin_counts_as_empty_with_require_terms(self):
+        for stdin in ("allow:H2O\n", "# c\nallow:H2O\n"):
+            proc, out = self.run_stdin(only_items("scrub_edge.xml", {"31"}), stdin, ["--require-terms"])
+            self.assertEqual(proc.returncode, 2, repr(stdin))
+            self.assertFalse(out.exists())
+
+    def test_unicode_line_separators_stay_inside_a_stdin_term(self):
+        for sep in ("\u2028", "\u0085", "\x0c"):
+            terms = "employer:ACME%sPLACEHOLDER\n" % sep
+            proc, _ = self.run_stdin(only_items("scrub_edge.xml", {"31"}), terms, ["--require-terms"])
+            self.assertEqual(proc.returncode, 0, (repr(sep), proc.stderr))
+            self.assertIn("scrub employer: ran", proc.stderr)
+
+    def test_cr_and_crlf_still_split_stdin_lines(self):
+        proc, _ = self.run_stdin(
+            only_items("scrub_edge.xml", {"31"}), "employer:ACME-PLACEHOLDER\rhostname:box01.lab.invalid\r\n"
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("scrub hostname: ran", proc.stderr)
+
     def test_repo_guard_still_applies_to_real_paths(self):
         work = scratch()
         wxr = work / "export.xml"
@@ -510,6 +531,49 @@ class ScrubStdinTests(unittest.TestCase):
         proc = run(["--wxr", wxr, "--out", work / "out", "--scrub-terms", REPO / "README.md"])
         self.assertEqual(proc.returncode, 2)
         self.assertIn("inside the repository", proc.stderr)
+
+
+class ScrubTermsFileTests(unittest.TestCase):
+    def run_file(self, content, extra=()):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("scrub_edge.xml", {"31"}), encoding="utf-8")
+        terms = work / "terms.txt"
+        terms.write_text(content, encoding="utf-8")
+        return run(["--wxr", wxr, "--out", work / "out", "--scrub-terms", terms] + list(extra)), work
+
+    def test_empty_comment_or_allow_only_file_fails_require_terms(self):
+        for content in ("", "\n  \n", "# c\n", "allow:H2O\n"):
+            proc, work = self.run_file(content, ["--require-terms"])
+            self.assertEqual(proc.returncode, 2, repr(content))
+            self.assertFalse((work / "out").exists())
+
+    def test_allow_only_file_still_runs_without_require_terms(self):
+        proc, _ = self.run_file("allow:H2O\n")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_unicode_line_separators_stay_inside_a_file_term(self):
+        proc, _ = self.run_file("employer:ACME\u2028PLACEHOLDER\n", ["--require-terms"])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("scrub employer: ran", proc.stderr)
+
+    def test_missing_terms_file_exits_2_without_echoing_the_path(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("scrub_edge.xml", {"31"}), encoding="utf-8")
+        missing = work / "ACME-PLACEHOLDER-terms.txt"
+        proc = run(["--wxr", wxr, "--out", work / "out", "--scrub-terms", missing])
+        self.assertEqual(proc.returncode, 2, proc.stderr)
+        self.assertNotIn("ACME-PLACEHOLDER", proc.stdout + proc.stderr)
+        self.assertNotIn("unexpected", proc.stderr)
+        self.assertFalse((work / "out").exists())
+
+    def test_unreadable_terms_path_exits_2(self):
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(only_items("scrub_edge.xml", {"31"}), encoding="utf-8")
+        proc = run(["--wxr", wxr, "--out", work / "out", "--scrub-terms", work])
+        self.assertEqual(proc.returncode, 2, proc.stderr)
 
 
 class ScrubIntegrationTests(unittest.TestCase):

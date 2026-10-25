@@ -152,3 +152,21 @@ class TermsFileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TermsReaderParityTests(unittest.TestCase):
+    def test_stdin_and_file_parse_identically(self):
+        import io
+
+        text = "employer:ACME\u2028X\nhostname:a\x0cb\rserial:S\u0085T\r\nallow:Q\n"
+        path = scratch() / "t.txt"
+        path.write_bytes(text.encode("utf-8"))
+        from_file = scrub.load_terms(path)
+        from_stdin = scrub.read_terms(io.BytesIO(text.encode("utf-8")))
+        self.assertEqual(from_file.terms, from_stdin.terms)
+        self.assertEqual(from_file.allow, from_stdin.allow)
+        self.assertEqual(from_stdin.terms["employer"], ["acme\u2028x"])
+
+    def test_is_empty_ignores_allow_lines(self):
+        self.assertTrue(scrub.Rules(allow=["H2O"]).is_empty())
+        self.assertFalse(scrub.Rules(terms=[("serial", "x")]).is_empty())

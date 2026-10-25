@@ -10,8 +10,9 @@ terms from stdin instead, so they never touch disk. Same input, same bytes out.
 
 Posts go to posts/<slug>/, pages to <slug>/ at the site root (with a url key).
 Exit codes: 0 done, 1 unexpected error (class name only, never the input),
-2 usage or refused path (including --require-terms with no terms file or empty stdin, or a
-page slug that collides with an existing section), 3 scrub findings (nothing
+2 usage or refused path (including --require-terms with no terms file or no
+category terms in it, an unreadable terms file, or a page slug that collides
+with an existing section), 3 scrub findings (nothing
 written).
 """
 
@@ -929,14 +930,14 @@ def run(args):
     try:
         if from_stdin:
             rules = scrub.read_terms(sys.stdin.buffer)
-            if args.require_terms and rules.is_empty():
-                raise UsageError("--require-terms was given but stdin supplied no terms")
         elif args.scrub_terms:
             rules = scrub.load_terms(args.scrub_terms)
         else:
             rules = scrub.Rules()
     except scrub.TermsError as err:
         raise UsageError(str(err))
+    if args.require_terms and rules.is_empty():
+        raise UsageError("--require-terms was given but the terms input has no employer, hostname or serial terms")
     prepare_out(out)
 
     media_root = Path(args.media).expanduser() if args.media else find_media_root(wxr)
@@ -967,7 +968,7 @@ def main(argv=None):
     parser.add_argument("--wxr", required=True, help="WXR export (outside the repo)")
     parser.add_argument("--out", help="output directory (outside the repo; default: out/ beside the export)")
     parser.add_argument("--scrub-terms", help="file of category:term lines (outside the repo), or - to read them from stdin")
-    parser.add_argument("--require-terms", action="store_true", help="exit 2 unless --scrub-terms is given")
+    parser.add_argument("--require-terms", action="store_true", help="exit 2 unless --scrub-terms is given and the file or stdin holds at least one employer, hostname or serial term")
     parser.add_argument("--site-url", default=DEFAULT_SITE_URL, help="current site URL for rewritten links")
     parser.add_argument("--media", help="wp-content/uploads directory (default: found under raw/ beside the export)")
     args = parser.parse_args(argv)

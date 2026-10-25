@@ -132,8 +132,10 @@ doppler secrets get SCRUB_TERMS --plain | python3 -I tools/wxr2hugo/convert.py \
     --wxr PATH/export.xml --out DIR --scrub-terms - --require-terms
 ```
 
-The inside-the-repository and existence checks apply to file paths only. With
-`--require-terms`, empty or whitespace-only stdin exits 2. The status lines
+`-` skips the path checks (inside the repository, readable file), which apply to
+file paths only. A missing or unreadable terms file exits 2. With
+`--require-terms`, a file or stdin with no `employer`, `hostname` or `serial`
+term (empty, comments only, or `allow:` lines only) exits 2. The status lines
 still show a term category as `ran` only when stdin supplied terms for it.
 Terms are never echoed, logged or written. Exit 2 is a refused
 path, a bad terms file or a slug collision.
