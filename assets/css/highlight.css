@@ -1,0 +1,94 @@
+/*
+ * Syntax highlighting for Hugo's class-based Chroma output
+ * (markup.highlight noClasses = false in hugo.toml). Served from the site's own
+ * origin as part of the fingerprinted stylesheet, so the CSP (style-src 'self')
+ * holds with no inline styles.
+ *
+ * Hand-written on the brand tokens instead of `hugo gen chromastyles`: a
+ * generated Chroma theme hard-codes its own hex colors and needs a separate
+ * dark and light file, which would sit outside tokens.css and outside the
+ * contrast check. Here every color is a --code-* token (dark default, light
+ * override), and scripts/check-contrast.py checks each against --surface at
+ * WCAG AA. The Chroma class names below are Pygments-style short names.
+ * Anything not listed keeps the block's text color. Do not write a color value
+ * here; scripts/test-brand.sh rejects one.
+ */
+
+/* Keywords: k, kc, kd, kn, kp, kr, kt. */
+.chroma .k,
+.chroma .kc,
+.chroma .kd,
+.chroma .kn,
+.chroma .kp,
+.chroma .kr,
+.chroma .kt {
+  color: var(--code-keyword);
+}
+
+/* Functions, classes, decorators, built-ins: nf, nc, nd, nb, bp. */
+.chroma .nf,
+.chroma .fm,
+.chroma .nc,
+.chroma .nd,
+.chroma .nb,
+.chroma .bp {
+  color: var(--code-function);
+}
+
+/* Strings and their escapes: s, sa, sb, sc, dl, sd, s2, se, sh, si, sx, sr, s1, ss. */
+.chroma .s,
+.chroma .sa,
+.chroma .sb,
+.chroma .sc,
+.chroma .dl,
+.chroma .sd,
+.chroma .s2,
+.chroma .se,
+.chroma .sh,
+.chroma .si,
+.chroma .sx,
+.chroma .sr,
+.chroma .s1,
+.chroma .ss {
+  color: var(--code-string);
+}
+
+/* Numbers: m, mb, mf, mh, mi, il, mo. */
+.chroma .m,
+.chroma .mb,
+.chroma .mf,
+.chroma .mh,
+.chroma .mi,
+.chroma .il,
+.chroma .mo {
+  color: var(--code-number);
+}
+
+/* Comments: c, ch, cm, c1, cs, cp, cpf. */
+.chroma .c,
+.chroma .ch,
+.chroma .cm,
+.chroma .c1,
+.chroma .cs,
+.chroma .cp,
+.chroma .cpf {
+  color: var(--code-comment);
+  font-style: italic;
+}
+
+/* Diffs. */
+.chroma .gd {
+  color: var(--code-deleted);
+}
+
+.chroma .gi {
+  color: var(--code-inserted);
+}
+
+.chroma .ge {
+  font-style: italic;
+}
+
+.chroma .gs {
+  font-weight: 700;
+}

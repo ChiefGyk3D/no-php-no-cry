@@ -11,7 +11,7 @@
   <link rel="alternate" type="application/rss+xml" title="{{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}
   {{- end }}
-  {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css")) | minify | fingerprint }}
+  {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css")) | minify | fingerprint }}
   <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
   {{- end }}
 </head>

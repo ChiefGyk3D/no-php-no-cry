@@ -82,6 +82,7 @@ append_html() { printf '%s\n' "$APPEND" >>"$1/index.html"; }
 APPEND='<script>alert(1)</script>' variant inline-script inline-script append_html
 APPEND='<style>body{color:red}</style>' variant style-element style-element append_html
 APPEND='<p style="color:red">x</p>' variant style-attribute style-attribute append_html
+APPEND='<pre><code>x</code></pre>' variant pre-not-focusable pre-not-focusable append_html
 APPEND='<button onclick="go()">x</button>' variant event-handler event-handler append_html
 APPEND='<img src="http://example.org/a.png" alt=x>' variant http-reference http-reference append_html
 APPEND='<link rel=stylesheet href=https://fonts.example.org/css>' variant external-asset external-asset append_html

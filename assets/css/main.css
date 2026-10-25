@@ -119,9 +119,25 @@ code {
   background: var(--surface);
 }
 
+/* Code blocks scroll sideways; long lines never wrap or push the page wider.
+ * Hugo renders every <pre> with tabindex="0" (scripts/check-output.sh enforces
+ * it), so a keyboard user can focus the block and scroll it with the arrows. */
 pre {
   padding: var(--space);
   overflow-x: auto;
+  max-width: 100%;
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 4;
+}
+
+pre code {
+  white-space: inherit;
+}
+
+pre:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 2px;
 }
 
 /* Accent rule: a short amber bar for headings and section breaks. */

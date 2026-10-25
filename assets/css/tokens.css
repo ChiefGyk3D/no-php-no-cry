@@ -36,6 +36,15 @@
   --rule: #3A3530;
   --border: #3A3530;
 
+  /* Code highlighting, drawn on --surface (the code-block background). */
+  --code-keyword: #FBB03B;
+  --code-string: #9ED28A;
+  --code-number: #7FC8E8;
+  --code-function: #C9A8F0;
+  --code-comment: #A8A093;
+  --code-deleted: #F4968D;
+  --code-inserted: #9ED28A;
+
   /* Effects: amber glow. Alpha values, so they are not contrast-checked. */
   --glow: rgb(251 176 59 / 0.16);
   --glow-strong: rgb(251 176 59 / 0.35);
@@ -81,6 +90,14 @@
     --focus: #8A5A00;
     --rule: #D9D1C5;
     --border: #D9D1C5;
+
+    --code-keyword: #8A5A00;
+    --code-string: #2F6B1F;
+    --code-number: #0B5C80;
+    --code-function: #6A3FA0;
+    --code-comment: #5C554C;
+    --code-deleted: #A3271C;
+    --code-inserted: #2F6B1F;
 
     --glow: rgb(251 176 59 / 0.22);
     --glow-strong: rgb(251 176 59 / 0.45);
