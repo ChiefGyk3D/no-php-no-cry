@@ -35,6 +35,7 @@ H="$HOME/.local/share/no-php-no-cry-dev/hugo"
 scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition only
 scripts/check-output.sh public   # see the rules below
 scripts/test-check-output.sh     # negative tests for the checker
+scripts/test-head.sh             # head tags and rel=me links against hostile front matter
 scripts/test-check-hugo-version.sh
 scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 ```
@@ -44,8 +45,14 @@ scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 allow-list first; inline scripts are also reported separately), `<style>`,
 `style=` attributes, `on*=` handlers, `http://` references, external assets in
 HTML, an external `@import` or `url()` (including `//host`) in CSS or SVG, an
-`xml-stylesheet` instruction in a feed or SVG, a missing `_redirects`, feed or
-`_headers`, a weak CSP, and any alias in the build without its 301 line.
+`xml-stylesheet` instruction in a feed or SVG, any `*.xml` that does not parse,
+a missing `_redirects`, feed or `_headers`, a weak CSP, any alias in the build
+without its 301 line, a `robots.txt` and noindex tags that disagree (staging
+versus production, `EXPECT_ENV` pins which), and a home page, post or journal
+entry missing its description, canonical, icon, Open Graph or Twitter card tags.
+
+No JSON-LD: it needs a `<script>`, which the CSP and `check-output.sh` both
+ban. Structured data is skipped rather than weakening either.
 
 `shellcheck` and `shfmt -i 4 -ci` must pass on `scripts/*.sh`.
 
@@ -60,6 +67,7 @@ assets/css/              tokens.css (placeholders) and main.css, via Hugo Pipes
 layouts/                 templates written from scratch
 layouts/_markup/         image render hook (srcset, width/height, lazy, alt required)
 layouts/home.redirects   builds public/_redirects from page aliases
+layouts/robots.txt       environment-aware robots.txt (docs/cutover.md)
 static/_headers          Cloudflare Pages headers (strict CSP)
 scripts/                 check-output.sh, check-hugo-version.sh and their tests
 tools/wxr2hugo/         WordPress export to Hugo page bundles, with a scrub pass

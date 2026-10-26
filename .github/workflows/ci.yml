@@ -57,11 +57,28 @@ jobs:
       - name: Build
         run: hugo --minify --gc
 
-      - name: Check the generated output
+      - name: Check the generated output (production)
+        env:
+          EXPECT_ENV: production
         run: scripts/check-output.sh public
+
+      # The staging variant: same site, params.environment = staging (noindex on
+      # every page, robots.txt disallows all). Built outside the repository.
+      - name: Build the staging variant
+        env:
+          HUGO_PARAMS_ENVIRONMENT: staging
+        run: hugo --minify --gc --destination "$RUNNER_TEMP/public-staging"
+
+      - name: Check the generated output (staging)
+        env:
+          EXPECT_ENV: staging
+        run: scripts/check-output.sh "$RUNNER_TEMP/public-staging"
 
       - name: Test the output checker (negative cases)
         run: scripts/test-check-output.sh
+
+      - name: Test the page head and footer links (hostile front matter)
+        run: scripts/test-head.sh
 
       - name: Test the Hugo version check
         run: scripts/test-check-hugo-version.sh

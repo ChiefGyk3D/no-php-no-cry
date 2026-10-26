@@ -19,10 +19,11 @@ make_good() {
     local dir="$1"
     rm -rf "$dir"
     mkdir -p "$dir/posts/sample-post"
-    cat >"$dir/index.html" <<'HTML'
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>t</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>
-HTML
-    cp "$dir/index.html" "$dir/posts/sample-post/index.html"
+    # Heads as Hugo's minifier writes them (attribute quotes dropped where legal).
+    # Home is a website page; a post is an article with a published time.
+    local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>" >"$dir/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>" >"$dir/posts/sample-post/index.html"
     # Hugo's meta-refresh alias pages: one directory-style, one ending in .html.
     mkdir -p "$dir/2023/02/10/sample-post" "$dir/css"
     alias_page='<!doctype html><html lang=en-us><head><title>https://test-blog.chiefgyk3d.com/posts/sample-post/</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/><meta name=robots content=noindex><meta http-equiv=refresh content="0; url=https://test-blog.chiefgyk3d.com/posts/sample-post/"></head></html>'
@@ -30,6 +31,7 @@ HTML
     printf '%s\n' "$alias_page" >"$dir/sample-post.html"
     printf 'body{background:url(data:image/png;base64,AAAA);color:red}\n' >"$dir/css/site.min.css"
     printf '<?xml version="1.0"?><rss version="2.0"></rss>\n' >"$dir/index.xml"
+    printf 'User-agent: *\nAllow: /\n\nSitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >"$dir/robots.txt"
     cat >"$dir/_redirects" <<'RED'
 # generated
 /2023/02/10/sample-post /posts/sample-post/ 301
@@ -100,6 +102,15 @@ FILE=css/site.min.css APPEND='a{background:url(http://cdn.example.org/a.png)}' v
 FILE=logo.svg APPEND='<svg xmlns="http://www.w3.org/2000/svg"><image href="https://cdn.example.org/a.png"/></svg>' variant svg-external external-css-reference append_file
 FILE=index.xml APPEND='<?xml-stylesheet type="text/xsl" href="/feed.xsl"?>' variant feed-stylesheet xml-stylesheet append_file
 
+# Malformed XML: the bug that shipped (an HTML-escaped declaration), a truncated
+# feed, and a bad file outside the feeds (every *.xml is parsed).
+escaped_decl() { printf '&lt;?xml version="1.0" encoding="utf-8"?><rss version="2.0"></rss>\n' >"$1/index.xml"; }
+variant escaped-xml-declaration bad-xml escaped_decl
+truncated_feed() { printf '<?xml version="1.0"?><rss version="2.0"><channel>\n' >"$1/index.xml"; }
+variant truncated-feed bad-xml truncated_feed
+other_bad_xml() { printf 'not xml\n' >"$1/posts/sample-post/index.xml"; }
+variant other-bad-xml bad-xml other_bad_xml
+
 rm_file() { rm -f "$2/$1"; }
 variant no-redirects missing-redirects rm_file _redirects
 variant no-feed missing-feed rm_file index.xml
@@ -119,6 +130,107 @@ variant slash-variant-missing missing-alias no_slash_variant
 
 weak_csp() { sed -i "s/script-src 'none'/script-src 'unsafe-inline'/" "$1/_headers"; }
 variant weak-csp weak-csp weak_csp
+
+# Environment rules. The good fixture is a production tree (robots.txt allows
+# all and names the sitemap; pages carry no noindex).
+robots_staging() { printf 'User-agent: *\nDisallow: /\n' >"$1/robots.txt"; }
+add_noindex() { sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html" "$1/posts/sample-post/index.html"; }
+staging_tree() {
+    robots_staging "$1"
+    add_noindex "$1"
+}
+
+variant no-robots missing-robots rm_file robots.txt
+variant staging-robots-in-production-pages noindex-mismatch robots_staging
+variant noindex-in-production-pages noindex-mismatch add_noindex
+only_one_noindex() {
+    robots_staging "$1"
+    sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html"
+}
+variant staging-page-without-noindex noindex-mismatch only_one_noindex
+no_sitemap_line() { printf 'User-agent: *\nAllow: /\n' >"$1/robots.txt"; }
+variant production-robots-without-sitemap bad-robots no_sitemap_line
+sitemap_in_staging() {
+    staging_tree "$1"
+    printf 'Sitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >>"$1/robots.txt"
+}
+variant staging-robots-names-sitemap bad-robots sitemap_in_staging
+empty_robots() { : >"$1/robots.txt"; }
+variant empty-robots missing-robots empty_robots
+foreign_sitemap() { printf 'User-agent: *\nAllow: /\nSitemap: https://example.org/sitemap.xml\n' >"$1/robots.txt"; }
+variant sitemap-on-another-host bad-robots foreign_sitemap
+
+# The robots policy is the wildcard group's. A rule under another crawler's
+# group, or before any User-agent line, says nothing about everyone else.
+host=https://test-blog.chiefgyk3d.com
+robots_file() { printf '%b' "$ROBOTS" >"$1/robots.txt"; }
+ROBOTS='User-agent: Googlebot\nDisallow: /\n' variant robots-named-crawler-only bad-robots robots_file
+ROBOTS='Disallow: /\n' variant robots-disallow-before-user-agent bad-robots robots_file
+ROBOTS='User-agent: *\nDisallow: /\nAllow: /private\n' variant robots-wildcard-disallow-allow-reopens bad-robots robots_file
+ROBOTS="User-agent: Googlebot\nDisallow: /\n\nSitemap: $host/sitemap.xml\n" variant robots-production-named-crawler-only bad-robots robots_file
+ROBOTS="User-agent: *\nDisallow: /drafts/\n\nSitemap: $host/sitemap.xml\n" variant robots-production-wildcard-partial-disallow bad-robots robots_file
+# Comments, CRLF line endings and a second group for another crawler are fine.
+d="$work/robots-ok"
+make_good "$d"
+printf 'User-agent: Googlebot\r\nDisallow: /nothing-here/ # a named crawler\r\n\r\n# everyone else\r\nUser-agent: *\r\nAllow: /\r\n\r\nSitemap: %s/sitemap.xml\r\n' "$host" >"$d/robots.txt"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: production robots with comments, CRLF and a named-crawler group passes"
+else
+    echo "FAIL: production robots with comments, CRLF and a named-crawler group was rejected"
+    failures=$((failures + 1))
+fi
+d="$work/robots-stg-ok"
+make_good "$d"
+staging_tree "$d"
+printf 'User-agent: Googlebot\nUser-agent: *\nDisallow: /\n' >"$d/robots.txt"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: staging robots with a shared User-agent group passes"
+else
+    echo "FAIL: staging robots with a shared User-agent group was rejected"
+    failures=$((failures + 1))
+fi
+
+# A consistent staging tree passes, and EXPECT_ENV pins which environment a
+# build must be: a staging tree fails when production is expected, and back.
+d="$work/staging-ok"
+make_good "$d"
+staging_tree "$d"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: consistent staging tree passes"
+else
+    echo "FAIL: consistent staging tree was rejected"
+    failures=$((failures + 1))
+fi
+EXPECT_ENV=staging expect_fail expect-staging-got-production env-mismatch "$good"
+EXPECT_ENV=production expect_fail expect-production-got-staging env-mismatch "$d"
+if EXPECT_ENV=staging "$checker" "$d" >/dev/null 2>&1 && EXPECT_ENV=production "$checker" "$good" >/dev/null 2>&1; then
+    echo "ok: EXPECT_ENV accepts the matching environment"
+else
+    echo "FAIL: EXPECT_ENV rejected the matching environment"
+    failures=$((failures + 1))
+fi
+EXPECT_ENV=bogus expect_fail bad-expect-env env-mismatch "$good"
+
+# Head tags (issue 30): required on the home page and on every post and journal
+# entry; each one removed in turn must be reported by name.
+drop_tag() { sed -i -E "s#<(meta|link)[^>]*${TAG}[^>]*>##" "$1/$PAGE"; }
+for tag in 'name=description' 'rel=canonical' 'rel=icon' 'rel=apple-touch-icon' 'property=og:title' 'property=og:description' 'property=og:type' 'property=og:url' 'property=og:image ' 'property=og:site_name' 'name=twitter:card'; do
+    TAG="$tag" PAGE=index.html variant "home-without-${tag//[^a-z:]/}" missing-head-tag drop_tag
+    TAG="$tag" PAGE=posts/sample-post/index.html variant "post-without-${tag//[^a-z:]/}" missing-head-tag drop_tag
+done
+# Both rel=icon links are required: dropping only the PNG one must fail too.
+drop_png_icon() { sed -i -E 's#<link rel=icon href=/brand/penguin-color.png[^>]*>##' "$1/$PAGE"; }
+PAGE=index.html variant home-without-png-icon missing-head-tag drop_png_icon
+PAGE=posts/sample-post/index.html variant post-without-png-icon missing-head-tag drop_png_icon
+TAG='property=article:published_time' PAGE=posts/sample-post/index.html variant post-without-published-time missing-head-tag drop_tag
+relative_og_image() { sed -i -E 's#(property=og:image content=)https://test-blog.chiefgyk3d.com#\1#' "$1/index.html"; }
+variant relative-og-image bad-head-value relative_og_image
+foreign_og_url() { sed -i -E 's#(property=og:url content=)https://test-blog.chiefgyk3d.com#\1https://example.org#' "$1/index.html"; }
+variant foreign-og-url bad-head-value foreign_og_url
+home_as_article() { sed -i 's#property=og:type content=website#property=og:type content=article#' "$1/index.html"; }
+variant home-typed-article bad-head-value home_as_article
+post_as_website() { sed -i 's#property=og:type content=article#property=og:type content=website#' "$1/posts/sample-post/index.html"; }
+variant post-typed-website bad-head-value post_as_website
 
 if [[ -f "$root/public/index.html" ]]; then
     if "$checker" "$root/public" >/dev/null 2>&1; then

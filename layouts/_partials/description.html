@@ -1,0 +1,2 @@
+{{- /* The page description: front matter "description", else the site description, as plain text (markup stripped). The caller puts it in an attribute through html/template, which escapes quotes and angle brackets and collapses whitespace; scripts/test-head.sh holds that to hostile front matter. */ -}}
+{{- return (.Description | default site.Params.description | plainify | strings.TrimSpace) -}}

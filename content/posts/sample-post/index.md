@@ -2,6 +2,7 @@
 title: "Sample post"
 date: 2023-02-10T09:00:00-05:00
 draft: false
+description: "A synthetic sample post used to test the layouts, feeds and redirects."
 slug: "sample-post"
 categories: ["Sample"]
 tags: ["lorem", "placeholder"]

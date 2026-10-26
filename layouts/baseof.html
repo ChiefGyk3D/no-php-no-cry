@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
-  <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+  {{- partial "head-meta.html" . }}
+  {{- if eq (partial "environment.html" .) "staging" }}
+  <meta name="robots" content="noindex, nofollow">
+  {{- end }}
   <link rel="canonical" href="{{ .Permalink }}">
   {{- range .AlternativeOutputFormats }}
   {{- if eq .Name "rss" }}
@@ -36,6 +39,12 @@
   <footer class="site-footer">
     <div class="wrap">
       <p>Placeholder footer. <a href="{{ "/index.xml" | relURL }}">RSS</a></p>
+      {{- with site.Params.me }}
+      <p class="me-links">
+        {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. */ -}}
+        {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }} <a rel="me" href="{{ $l.url }}">{{ $l.name }}</a>{{ end }}{{ end -}}
+      </p>
+      {{- end }}
     </div>
   </footer>
 </body>

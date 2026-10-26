@@ -1,0 +1,9 @@
+{{- /* Staging disallows everything and names no sitemap; production allows everything and names the sitemap. scripts/check-output.sh checks both shapes. */ -}}
+User-agent: *
+{{ if eq (partial "environment.html" .) "staging" -}}
+Disallow: /
+{{- else -}}
+Allow: /
+
+Sitemap: {{ "sitemap.xml" | absURL }}
+{{- end }}

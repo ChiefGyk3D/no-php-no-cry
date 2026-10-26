@@ -4,8 +4,8 @@ title = "no-php-no-cry"
 
 # Kinds this site does not use. The taxonomy index (/tags/, /categories/) is
 # not linked anywhere; term pages (one tag, one category) are used.
-# robots.txt is left to the owner (static/ when wanted).
-disableKinds = ["taxonomy", "robotsTXT"]
+# robots.txt comes from layouts/robots.txt and depends on params.environment.
+disableKinds = ["taxonomy"]
 
 # Nothing in the site talks to a third party: no analytics, no embeds.
 disableHugoGeneratorInject = true
@@ -16,9 +16,10 @@ timeZone = "America/New_York"
   category = "categories"
   tag = "tags"
 
-# Home, posts and journal publish a feed. Home also publishes _redirects.
+# Home, posts and journal publish a feed. Home also publishes _redirects and
+# robots.txt.
 [outputs]
-  home = ["html", "rss", "redirects"]
+  home = ["html", "rss", "redirects", "robots"]
   section = ["html", "rss"]
   page = ["html"]
   term = ["html"]
@@ -51,3 +52,20 @@ timeZone = "America/New_York"
 
 [params]
   description = "Placeholder site description."
+  # "production" or "staging". Staging adds <meta name="robots" content="noindex,
+  # nofollow"> to every page and a robots.txt that disallows everything. A build
+  # sets it without editing this file: HUGO_PARAMS_ENVIRONMENT=staging hugo ...
+  # The deploy workflow's build job does this while the site lives on test-blog;
+  # docs/cutover.md has the steps for the apex.
+  environment = "production"
+
+  # Default Open Graph image, a path under static/. Use only a file listed in
+  # brand/approved-assets.txt (star-free).
+  ogImage = "brand/penguin-color.png"
+
+  # Identity links, rendered in the footer as <a rel="me"> (Mastodon and
+  # similar verify a profile link this way). None until the accounts are set,
+  # one table per account:
+  #   [[params.me]]
+  #     name = "Mastodon"
+  #     url = "https://social.example/@name"
