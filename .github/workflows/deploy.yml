@@ -7,8 +7,10 @@
 #   build   builds and checks the site, uploads the public directory.
 #   gate    waits for the `CI green` check run (ci.yml) on this commit and
 #           fails unless it succeeds. Reads checks; holds no secret.
-#   deploy  the only job that holds credentials. Runs no repository code: it
-#           downloads the build artifact and runs a pinned Wrangler on it.
+#   deploy  the only job that holds credentials. Repository code is limited to
+#           two scripts (see the checkout step): the artifact check before the
+#           credentials load, the project check after. It downloads the build
+#           artifact and runs a pinned Wrangler on it.
 #           Needs build and gate.
 #   smoke   checks the live site. No credentials.
 name: Deploy
@@ -78,6 +80,9 @@ jobs:
           EXPECT_ENV: staging
         run: scripts/check-output.sh public
 
+      - name: Check the site for Pages control files and pinned _headers/_redirects
+        run: scripts/check-site-artifact.sh public
+
       - name: Upload the build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -120,6 +125,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: scripts/wait-for-ci-green.sh "$REPO" "$SHA"
 
   deploy:
@@ -176,10 +182,12 @@ jobs:
           fi
           echo "egress canary: allowed hosts accept TCP 443"
 
-      # Only deploy/ (a package.json and its lockfile) and one script are
-      # checked out. The script, ensure-pages-project.sh, is the only repository
-      # code that runs after the credentials are fetched: it makes two curl
-      # calls, validates its inputs first, and loads no package. Everything
+      # Checked out: deploy/ (a package.json and its lockfile), static/_headers
+      # (the expected headers file) and two scripts. Repository code that runs
+      # BEFORE the credentials load: check-site-artifact.sh (reads the
+      # downloaded build and static/_headers, no network). Repository code that
+      # runs AFTER they load: ensure-pages-project.sh only (two curl calls,
+      # token and other inputs validated first, no package loaded). Everything
       # installs before any secret exists, from the lockfile with install
       # scripts off, so a package never sees the token.
       - name: Check out the Wrangler lockfile and the project check
@@ -188,6 +196,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             /deploy/
+            /static/_headers
+            /scripts/check-site-artifact.sh
             /scripts/ensure-pages-project.sh
           sparse-checkout-cone-mode: false
 
@@ -218,6 +228,11 @@ jobs:
           set -euo pipefail
           test -f site/index.html || { echo "::error title=Deploy::site/index.html is missing: the build artifact was not downloaded or was cleaned"; exit 1; }
           echo "build present: $(find site -type f | wc -l) files"
+
+      # Before any credential exists: nothing Pages would run (worker, routes,
+      # functions) and no _headers/_redirects other than the expected ones.
+      - name: Check the build for Pages control files
+        run: scripts/check-site-artifact.sh site static/_headers
 
       - name: Fetch Cloudflare credentials from Doppler
         uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@6f40107c2e05483f485452991e422f7f63886000 # v1.25.1

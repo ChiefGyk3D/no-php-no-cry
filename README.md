@@ -34,6 +34,8 @@ H="$HOME/.local/share/no-php-no-cry-dev/hugo"
 "$H" --minify --gc               # production build into public/
 scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition only
 scripts/check-output.sh public   # see the rules below
+scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
+scripts/test-check-site-artifact.sh
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-head.sh             # head tags and rel=me links against hostile front matter
 scripts/test-check-hugo-version.sh
@@ -69,7 +71,7 @@ layouts/_markup/         image render hook (srcset, width/height, lazy, alt requ
 layouts/home.redirects   builds public/_redirects from page aliases
 layouts/robots.txt       environment-aware robots.txt (docs/cutover.md)
 static/_headers          Cloudflare Pages headers (strict CSP)
-scripts/                 check-output.sh, check-hugo-version.sh and their tests
+scripts/                 check-output.sh, check-site-artifact.sh, check-hugo-version.sh and their tests
 tools/wxr2hugo/         WordPress export to Hugo page bundles, with a scrub pass
 .github/workflows/ci.yml build job, shared shell and security workflows, CI green gate
 ```
