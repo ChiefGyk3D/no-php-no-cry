@@ -1,18 +1,22 @@
 /*
- * Design tokens. Dark first: :root is the dark palette, the light palette is
- * the override at the bottom. Values come from Reach Around (docs/design.md,
- * examples/themes/dark-hero.yaml): brand amber #FBB03B, text on amber #1A1A1A,
- * off-white #F0F0F0, near-black page.
+ * GENERATED FILE. Do not edit: change brand/tokens.json and run
+ * python3 -I scripts/gen-tokens.py (CI runs it with --check).
  *
- * Every text color pair is checked for WCAG AA (4.5:1) in both modes by
- * scripts/check-contrast.py; keep colors as 6-digit hex so the check can read
- * them. Nothing else in the CSS hard-codes a color or a font. Specification:
- * brand/README.md.
+ * Design tokens. Dark first: :root is the dark palette, the light palette is
+ * the override below, emitted for the system preference and for
+ * :root[data-theme="light"]; :root[data-theme="dark"] pins dark. Brand amber
+ * #FBB03B, text on amber #1A1A1A, off-white #F0F0F0, near-black page.
+ *
+ * Every color pair is checked for WCAG AA (4.5:1 text, 3:1 focus ring) in
+ * every block by scripts/check-contrast.py; colors are 6-digit hex so the
+ * check can read them. Nothing else in the CSS hard-codes a color or a font.
+ * Specification: brand/README.md.
  *
  * Jost is self-hosted from /fonts (SIL OFL 1.1, license text beside it); no
  * font host is contacted. The wordmark font is undecided: the wordmark is only
  * ever used as an image, never typeset.
  */
+
 @font-face {
   font-family: Jost;
   font-style: normal;
@@ -35,6 +39,15 @@
   --focus: #FBB03B;
   --rule: #3A3530;
   --border: #3A3530;
+
+  /* Redesign surfaces. Carbon, plate, ghost: dark mode only. Cream plate: both modes, focus and links use --focus-on-plate. --accent-deep: decoration, never text. */
+  --carbon-base: #181818;
+  --carbon-line: #282828;
+  --plate: #281808;
+  --ghost: #383838;
+  --accent-deep: #AF6A0E;
+  --plate-light: #FFEFD9;
+  --focus-on-plate: #8A5A00;
 
   /* Code highlighting, drawn on --surface (the code-block background). */
   --code-keyword: #FBB03B;
@@ -81,7 +94,8 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme]) {
+    /* Color: light overrides. */
     --bg: #FAF7F2;
     --surface: #F0EBE3;
     --text: #1A1A1A;
@@ -91,6 +105,7 @@
     --rule: #D9D1C5;
     --border: #D9D1C5;
 
+    /* Code highlighting. */
     --code-keyword: #8A5A00;
     --code-string: #2F6B1F;
     --code-number: #0B5C80;
@@ -99,8 +114,76 @@
     --code-deleted: #A3271C;
     --code-inserted: #2F6B1F;
 
+    /* Effects. */
     --glow: rgb(251 176 59 / 0.22);
     --glow-strong: rgb(251 176 59 / 0.45);
     --shadow: rgb(26 26 26 / 0.15);
   }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Color: light overrides. */
+  --bg: #FAF7F2;
+  --surface: #F0EBE3;
+  --text: #1A1A1A;
+  --muted: #5C554C;
+  --link: #8A5A00;
+  --focus: #8A5A00;
+  --rule: #D9D1C5;
+  --border: #D9D1C5;
+
+  /* Code highlighting. */
+  --code-keyword: #8A5A00;
+  --code-string: #2F6B1F;
+  --code-number: #0B5C80;
+  --code-function: #6A3FA0;
+  --code-comment: #5C554C;
+  --code-deleted: #A3271C;
+  --code-inserted: #2F6B1F;
+
+  /* Effects. */
+  --glow: rgb(251 176 59 / 0.22);
+  --glow-strong: rgb(251 176 59 / 0.45);
+  --shadow: rgb(26 26 26 / 0.15);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Color: dark palette (default). */
+  --accent: #FBB03B;
+  --on-accent: #1A1A1A;
+  --bg: #0E0E0E;
+  --surface: #181716;
+  --text: #F0F0F0;
+  --muted: #B5ADA2;
+  --link: #FBB03B;
+  --focus: #FBB03B;
+  --rule: #3A3530;
+  --border: #3A3530;
+
+  /* Redesign surfaces. Carbon, plate, ghost: dark mode only. Cream plate: both modes, focus and links use --focus-on-plate. --accent-deep: decoration, never text. */
+  --carbon-base: #181818;
+  --carbon-line: #282828;
+  --plate: #281808;
+  --ghost: #383838;
+  --accent-deep: #AF6A0E;
+  --plate-light: #FFEFD9;
+  --focus-on-plate: #8A5A00;
+
+  /* Code highlighting, drawn on --surface (the code-block background). */
+  --code-keyword: #FBB03B;
+  --code-string: #9ED28A;
+  --code-number: #7FC8E8;
+  --code-function: #C9A8F0;
+  --code-comment: #A8A093;
+  --code-deleted: #F4968D;
+  --code-inserted: #9ED28A;
+
+  /* Effects: amber glow. Alpha values, so they are not contrast-checked. */
+  --glow: rgb(251 176 59 / 0.16);
+  --glow-strong: rgb(251 176 59 / 0.35);
+  --shadow: rgb(0 0 0 / 0.5);
 }
