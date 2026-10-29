@@ -36,22 +36,38 @@ scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition
 scripts/check-output.sh public   # see the rules below
 scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
 scripts/test-check-site-artifact.sh
+scripts/test-pin-theme.sh
+scripts/test-deploy-sparse.sh   # the deploy job's sparse checkout lists every file its scripts need
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-head.sh             # head tags and rel=me links against hostile front matter
 scripts/test-check-hugo-version.sh
 scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 ```
 
-`check-output.sh` fails the build output on any of: a `<script>` element at all
-(`script-src` is `'none'`, so a script needs a CSP change and a reviewed
-allow-list first; inline scripts are also reported separately), `<style>`,
-`style=` attributes, `on*=` handlers, `http://` references, external assets in
+`check-output.sh` fails the build output on any of: any `<script>` element
+other than `<script src=/theme.js></script>` once per page (`script-src 'self'`
+allows same-origin scripts; these checks and the hash pin make /theme.js the
+only one; inline scripts are also reported separately), a
+second script file, a `theme.js` of 1 KB gzip or more, `javascript:` URLs,
+`<style>`, `style=` attributes, `on*=` handlers, `http://` references, external assets in
 HTML, an external `@import` or `url()` (including `//host`) in CSS or SVG, an
 `xml-stylesheet` instruction in a feed or SVG, any `*.xml` that does not parse,
 a missing `_redirects`, feed or `_headers`, a weak CSP, any alias in the build
 without its 301 line, a `robots.txt` and noindex tags that disagree (staging
 versus production, `EXPECT_ENV` pins which), and a home page, post or journal
 entry missing its description, canonical, icon, Open Graph or Twitter card tags.
+
+`script-src 'self'` allows every same-origin response, not one file, so the
+checks also refuse any file of an unlisted type (including one with no
+extension), a `theme.js` whose sha256 is not the one in the committed
+`theme.js.sha256` (no hash file means no script at all; see
+`docs/theme-script.md` and `scripts/pin-theme.sh`), an SVG with script, and
+`_headers` that is not one `/*` block with exactly one `nosniff`. URLs are judged after character references are
+decoded, attributes are read quote-aware (a `>` or `=` inside a quoted value is
+text), the same rules apply to `.svg`, `.xml` and `.xhtml` outputs, and a
+`<base>` element is refused. The post-deploy `smoke-site.sh`
+checks the policy and `nosniff` on one page per template, not on the home page
+alone.
 
 No JSON-LD: it needs a `<script>`, which the CSP and `check-output.sh` both
 ban. Structured data is skipped rather than weakening either.

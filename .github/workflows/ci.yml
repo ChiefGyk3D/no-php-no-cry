@@ -89,6 +89,12 @@ jobs:
       - name: Test the site artifact checker (negative cases)
         run: scripts/test-check-site-artifact.sh
 
+      - name: Test that the deploy job's sparse checkout covers what it runs
+        run: scripts/test-deploy-sparse.sh
+
+      - name: Test the theme script pinning
+        run: scripts/test-pin-theme.sh
+
       - name: Test the Hugo version check
         run: scripts/test-check-hugo-version.sh
 

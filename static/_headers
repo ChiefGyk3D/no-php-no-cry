@@ -1,8 +1,12 @@
 # Cloudflare Pages response headers. GitHub Pages ignores this file.
 # frame-src is added per embed provider later, one provider at a time, with
-# the matching cookie-free embed. script-src is 'none' until a script is needed.
+# the matching cookie-free embed. script-src 'self' allows every same-origin
+# script; it cannot name one file. The build checks and the hash pin of
+# /theme.js (theme.js.sha256) make sure the only script is /theme.js: no inline
+# script, no other script, no third-party source (scripts/check-output.sh and
+# check-site-artifact.sh).
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()

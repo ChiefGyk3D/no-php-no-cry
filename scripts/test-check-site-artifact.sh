@@ -13,8 +13,13 @@ trap 'rm -rf "$work"' EXIT
 
 failures=0
 site="$work/site"
+# The pinned hash of the one allowed script lives in a committed file; tests use
+# their own, absent unless a case pins it.
+export THEME_HASH_FILE="$work/theme.sha256"
+pin_theme() { printf '%s  theme.js\n' "$(sha256sum "$site/theme.js" | cut -d' ' -f1)" >"$THEME_HASH_FILE"; }
 
 make_good() {
+    rm -f "$THEME_HASH_FILE"
     rm -rf "$site"
     mkdir -p "$site/posts/a"
     printf '<!doctype html><title>t</title>\n' >"$site/index.html"
@@ -83,6 +88,248 @@ expect_fail "missing _headers" headers-missing
 make_good
 printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
+
+# Script files: the CSP allows 'self' scripts, so the artifact may hold /theme.js
+# (under 1 KB gzip) only when its sha256 equals the one in the committed hash
+# file, and no other script file. With no hash file no script is allowed.
+make_good
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+pin_theme
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a pinned theme.js passes"
+else
+    echo "FAIL: a pinned theme.js was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+
+make_good
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+expect_fail "theme.js with no hash file" extra-script
+
+make_good
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+pin_theme
+printf 'document.documentElement.dataset.theme="light"\n' >"$site/theme.js"
+expect_fail "theme.js changed after pinning" theme-hash
+
+make_good
+printf 'x\n' >"$site/theme.js"
+pin_theme
+printf '%s\n' "/\"/;eval('x');//\"" >"$site/theme.js"
+expect_fail "theme.js with unusual quoting, not the pinned one" theme-hash
+
+make_good
+printf 'x\n' >"$site/theme.js"
+printf '%s  theme.js\n' "$(printf 'y\n' | sha256sum | cut -d' ' -f1)" >"$THEME_HASH_FILE"
+expect_fail "theme.js pinned to another file's hash" theme-hash
+
+for bad in 'not a hash' "$(printf 'a%.0s' $(seq 1 63))" "$(printf 'a%.0s' $(seq 1 64))  other.js" "$(printf 'A%.0s' $(seq 1 64))" "$(printf 'a%.0s' $(seq 1 64))  theme.js extra" ''; do
+    make_good
+    printf 'x\n' >"$site/theme.js"
+    printf '%s\n' "$bad" >"$THEME_HASH_FILE"
+    expect_fail "malformed hash file ($bad)" theme-hash-file
+done
+make_good
+printf 'x\n' >"$site/theme.js"
+{
+    sha256sum "$site/theme.js" | cut -d' ' -f1
+    sha256sum "$site/theme.js" | cut -d' ' -f1
+} >"$THEME_HASH_FILE"
+expect_fail "two-line hash file" theme-hash-file
+
+make_good
+printf 'x\n' >"$site/theme.js"
+pin_theme
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: the sha256sum format hash file passes"
+else
+    echo "FAIL: sha256sum-format hash file rejected"
+    failures=$((failures + 1))
+fi
+make_good
+rc=0
+printf '%s\n' "$(printf 'a%.0s' $(seq 1 64))" >"$THEME_HASH_FILE"
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a hash file with no theme.js in the build passes"
+else
+    echo "FAIL: a hash file with no theme.js was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+
+make_good
+printf 'x\n' >"$site/app.js"
+expect_fail "second script file" extra-script
+
+make_good
+mkdir -p "$site/js"
+printf 'x\n' >"$site/js/theme.js"
+expect_fail "theme.js in a subdirectory" extra-script
+
+make_good
+printf 'x\n' >"$site/lib.MJS"
+expect_fail "uppercase .mjs" extra-script
+
+make_good
+head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/theme.js"
+pin_theme
+expect_fail "theme.js over 1 KB gzip" js-budget
+
+make_good
+for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$site/theme.js"
+pin_theme
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a large but compressible theme.js under 1 KB gzip passes"
+else
+    echo "FAIL: compressible theme.js under 1 KB gzip was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+
+# 'self' authorizes any same-origin response, so the build may hold only files
+# of known non-script types (plus /theme.js): a file with no extension or an
+# unlisted one is refused whatever it contains, in any directory.
+make_good
+printf 'x\n' >"$site/payload"
+expect_fail "extensionless file" unexpected-file
+
+make_good
+printf 'x\n' >"$site/posts/a/payload"
+expect_fail "nested extensionless file" unexpected-file
+
+make_good
+printf 'x\n' >"$site/data.json"
+expect_fail "unlisted extension" unexpected-file
+
+make_good
+printf 'x\n' >"$site/.hidden"
+expect_fail "dotfile" unexpected-file
+
+make_good
+printf 'x\n' >"$site/theme.js.map"
+expect_fail "unlisted double extension" unexpected-file
+
+make_good
+printf 'x\n' >"$site/page.html.php"
+expect_fail "known extension followed by another" unexpected-file
+
+make_good
+printf 'x\n' >"$site/trailing."
+expect_fail "trailing dot" unexpected-file
+
+make_good
+for f in a.html b.css c.svg d.xml e.txt f.png g.jpg h.jpeg i.gif j.webp k.avif l.ico m.woff n.woff2 O.PNG; do
+    printf 'x\n' >"$site/$f"
+done
+printf '<svg xmlns="http://www.w3.org/2000/svg"/>\n' >"$site/c.svg"
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: every listed extension passes"
+else
+    echo "FAIL: a listed extension was rejected (rc=$rc)"
+    "$checker" "$site" || true
+    failures=$((failures + 1))
+fi
+
+# Markup that is not a page must not carry script either.
+make_good
+printf '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>\n' >"$site/logo.svg"
+expect_fail "script element in an svg" script-in-markup
+
+make_good
+printf '<svg xmlns="http://www.w3.org/2000/svg" onload="x"/>\n' >"$site/logo.svg"
+expect_fail "event handler in an svg" script-in-markup
+
+# nosniff keeps the browser from treating a non-script response as a script.
+make_good
+grep -v 'X-Content-Type-Options' "$root/static/_headers" >"$work/no-nosniff"
+cp "$work/no-nosniff" "$site/_headers"
+expect_fail_with_expected() {
+    local name="$1" rule="$2" exp="$3" out rc=0
+    out="$("$checker" "$site" "$exp" 2>&1)" || rc=$?
+    if [[ $rc -eq 1 && "$out" == *"[$rule]"* ]]; then
+        echo "ok: $name"
+    else
+        echo "FAIL: $name (rc=$rc, wanted rc=1 and [$rule])"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+expect_fail_with_expected "expected headers without nosniff" headers-nosniff "$work/no-nosniff"
+for extra in 'X-Content-Type-Options: sniff' 'x-content-type-options: nosniff' 'X-Content-Type-Options: nosniff, sniff'; do
+    grep -v 'X-Content-Type-Options' "$root/static/_headers" >"$work/bad-nosniff"
+    printf '  X-Content-Type-Options: nosniff\n  %s\n' "$extra" >>"$work/bad-nosniff"
+    cp "$work/bad-nosniff" "$site/_headers"
+    expect_fail_with_expected "expected headers with a second or conflicting value ($extra)" headers-nosniff "$work/bad-nosniff"
+done
+grep -v 'X-Content-Type-Options' "$root/static/_headers" >"$work/bad-nosniff"
+printf '  X-Content-Type-Options: sniff\n' >>"$work/bad-nosniff"
+cp "$work/bad-nosniff" "$site/_headers"
+expect_fail_with_expected "expected headers with a different value" headers-nosniff "$work/bad-nosniff"
+
+# Header directives: one "/*" rule block, no removal directive, no per-path
+# override. Each is also a mismatch with the repository file, so the headers
+# are tried as the expected file too (the same text in both places).
+headers_variant() {
+    local name="$1" rule="$2" extra="$3" out rc=0
+    make_good
+    {
+        cat "$root/static/_headers"
+        printf '%b' "$extra"
+    } >"$work/variant-headers"
+    cp "$work/variant-headers" "$site/_headers"
+    out="$("$checker" "$site" "$work/variant-headers" 2>&1)" || rc=$?
+    if [[ $rc -eq 1 && "$out" == *"[$rule]"* ]]; then
+        echo "ok: $name"
+    else
+        echo "FAIL: $name (rc=$rc, wanted rc=1 and [$rule])"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+headers_variant "removal directive for nosniff" headers-structure '/admin/*\n  ! X-Content-Type-Options\n'
+headers_variant "removal directive for the policy" headers-structure '/admin/*\n  ! Content-Security-Policy\n'
+headers_variant "removal directive, tab indented" headers-structure '/admin/*\n\t! X-Content-Type-Options\n'
+headers_variant "removal directive under the first rule" headers-structure '  ! Referrer-Policy\n'
+headers_variant "second rule block" headers-structure '/other/*\n  Referrer-Policy: no-referrer\n'
+headers_variant "per-path override of nosniff" headers-structure '/api/*\n  X-Content-Type-Options: sniff\n'
+headers_variant "per-path override of the policy" headers-structure "/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'\\n"
+headers_variant "rule block with a different path" headers-structure '/a\n  X-Test: 1\n'
+
+# The pinned _headers must carry script-src 'self' (not 'none') once the theme
+# script ships. The repository's own file is checked here, so a revert to
+# 'none' in static/_headers is caught even if the build is byte-identical.
+make_good
+sed -i "s/script-src 'self'/script-src 'none'/" "$site/_headers"
+sed "s/script-src 'self'/script-src 'none'/" "$root/static/_headers" >"$work/none-headers"
+rc=0
+out="$("$checker" "$site" "$work/none-headers" 2>&1)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"[headers-script-src]"* ]]; then
+    echo "ok: expected headers with script-src 'none' rejected"
+else
+    echo "FAIL: expected headers with script-src 'none' (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
+
+make_good
+sed -i "s/script-src 'self'/script-src 'self' https:/" "$site/_headers"
+sed "s/script-src 'self'/script-src 'self' https:/" "$root/static/_headers" >"$work/https-headers"
+rc=0
+out="$("$checker" "$site" "$work/https-headers" 2>&1)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"[headers-script-src]"* ]]; then
+    echo "ok: expected headers with a loosened script-src rejected"
+else
+    echo "FAIL: expected headers with a loosened script-src (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
 
 make_good
 printf '/* https://evil.example/x 301\n' >>"$site/_redirects"

@@ -8,12 +8,27 @@
 #     name begins with _worker (any depth, any type): Pages would run it
 #   - symlinks anywhere (an artifact must be plain files)
 #   - _headers that differs byte for byte from the repository's static/_headers
+#     (the expected file must also carry script-src exactly 'self')
+#   - any script file (.js, .mjs, .cjs, any depth) other than /theme.js, and a
+#     /theme.js that is 1 KB gzip (1024 bytes) or more
+#   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
+#     webp avif ico woff woff2, plus _headers and _redirects at the root),
+#     whatever its content or name: script-src 'self' authorizes every
+#     same-origin response, so there must be no file a script could load
+#   - /theme.js whose sha256 is not the one in the committed theme.js.sha256
+#     (THEME_HASH_FILE overrides the path); with no such file no script at all
+#   - a _headers that is not exactly one "/*" block, or has a removal directive
+#   - an SVG with a script element, event handler or javascript: URL
+#   - expected headers without X-Content-Type-Options: nosniff
 #   - _redirects with a line that is not a comment, blank, or
 #     "/source /target 301|302" with internal targets only, or over 2000 lines
 #
 # The default expected headers file is static/_headers next to this script's
 # repository root. Prints one line per problem; exit 1 on any, 2 on bad usage.
 set -euo pipefail
+
+# shellcheck source=scripts/artifact-rules.sh
+source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
     echo "usage: check-site-artifact.sh <site-dir> [expected-headers-file]" >&2
@@ -22,6 +37,7 @@ fi
 dir="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 expected_headers="${2:-$root/static/_headers}"
+theme_hash_file="${THEME_HASH_FILE:-$root/theme.js.sha256}"
 [[ -d "$dir" ]] || {
     echo "check-site-artifact: not a directory: $dir" >&2
     exit 2
@@ -58,6 +74,72 @@ if [[ ! -f "$dir/_headers" || -L "$dir/_headers" ]]; then
     report headers-missing "_headers"
 elif ! cmp -s "$dir/_headers" "$expected_headers"; then
     report headers-differ "_headers differs from the repository's static/_headers"
+fi
+
+# The expected policy: one script-src, exactly 'self' (same-origin scripts; the checks here pin the only one),
+# and no script-src-elem or script-src-attr to override it.
+if ! awk '
+    /^[[:space:]]*Content-Security-Policy:/ {
+        sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0
+        for (i = 1; i <= n; i++) {
+            gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+            name = tolower(d[i]); sub(/[ \t].*/, "", name)
+            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+            if (name == "script-src-elem" || name == "script-src-attr") bad = 1
+        }
+        if (count != 1) bad = 1
+        seen = 1
+    }
+    END { exit (bad || !seen) }' "$expected_headers"; then
+    report headers-script-src "expected headers: script-src must be exactly 'self', once"
+fi
+
+for f in "$expected_headers" "$dir/_headers"; do
+    if [[ -f "$f" && ! -L "$f" ]] && ! headers_policy_ok "$f"; then
+        report headers-structure "${f#"$dir"/} must be one /* rule block with no removal directive"
+    fi
+done
+if ! headers_nosniff_ok "$expected_headers"; then
+    report headers-nosniff "expected headers: X-Content-Type-Options must be nosniff"
+fi
+
+# Every file must be of a listed type (js files are reported below, and
+# /theme.js is checked for what it can do).
+while IFS= read -r -d '' p; do
+    rel="${p#"$dir"/}"
+    case "${rel,,}" in
+        *.js | *.mjs | *.cjs) continue ;;
+    esac
+    artifact_name_ok "$rel" || report unexpected-file "$rel"
+    if [[ "${rel,,}" == *.svg ]] && svg_script_bad "$p"; then
+        report script-in-markup "$rel"
+    fi
+done < <(find "$dir" -type f -print0 | sort -z)
+
+# Script files: the CSP allows 'self' scripts, so the only one is /theme.js, and
+# only if its sha256 is the one pinned in the committed hash file. No hash file,
+# no script.
+pinned=""
+rc=0
+pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+if [[ $rc -eq 2 ]]; then
+    report theme-hash-file "$(basename "$theme_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+    pinned=""
+fi
+while IFS= read -r -d '' p; do
+    rel="${p#"$dir"/}"
+    if [[ "$rel" != theme.js || -z "$pinned" ]]; then
+        report extra-script "$rel"
+    fi
+done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
+if [[ -f "$dir/theme.js" && ! -L "$dir/theme.js" ]]; then
+    if [[ -n "$pinned" && "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$pinned" ]]; then
+        report theme-hash "theme.js does not match the sha256 pinned in $(basename "$theme_hash_file")"
+    fi
+    gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
+    if ((gz >= 1024)); then
+        report js-budget "theme.js is ${gz} bytes gzip (budget: under 1024)"
+    fi
 fi
 
 # _redirects: internal 301/302 rules only.

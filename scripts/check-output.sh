@@ -8,11 +8,33 @@
 # deliverable is missing. Findings are printed as "[rule] file"; page content
 # is never printed.
 #
-# Rules: inline-script, script-element-present, style-element, style-attribute,
+# Rules: inline-script, script-not-allowed, script-count, missing-script,
+# extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# xml-stylesheet, bad-xml, missing-robots, bad-robots, env-mismatch,
+# xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
+# script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
+#
+# Scripts: script-src is 'self' in static/_headers, which allows every
+# same-origin script (it cannot name one file); these checks and the hash pin of
+# /theme.js make the theme script the only one. The only script element allowed is <script src=/theme.js></script>
+# (quotes optional, no other attribute, no body), at most once per page. No
+# other script element, no inline script, no event-handler attribute, no
+# javascript: URL. The only script file in the build is /theme.js, under 1 KB
+# gzip (docs/redesign-brief.md section 10). The CSP must carry exactly one
+# script-src, and it must be 'self'.
+#
+# 'self' authorizes every same-origin response, so also: every file in the build
+# is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
+# nosniff is in _headers, _headers is one /* block with no removal directive
+# (headers-structure), and theme.js is accepted only if its sha256 equals the
+# one in the committed theme.js.sha256 (THEME_HASH_FILE overrides the path;
+# theme-hash, theme-hash-file). With no hash file no script element and no js
+# file may exist. URLs are judged as the browser reads them, after character
+# references are decoded and tabs and newlines dropped (a parser pass per page):
+# javascript: URLs, http: and scheme-relative or backslash URLs to another host
+# on a tag that loads something, and any <base> element are findings.
 #
 # Environment:
 #   SITE_HOST     host that counts as first party (default: test-blog.chiefgyk3d.com)
@@ -37,7 +59,11 @@
 # the slash and the no-slash line; an alias ending in .html needs its one line).
 set -euo pipefail
 
+# shellcheck source=scripts/artifact-rules.sh
+source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
+
 dir="${1:-public}"
+theme_hash_file="${THEME_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/theme.js.sha256}"
 site_host="${SITE_HOST:-test-blog.chiefgyk3d.com}"
 expect_alias="${EXPECT_ALIAS:-/2023/02/10/sample-post/}"
 findings=0
@@ -47,10 +73,23 @@ if [[ ! -d "$dir" ]]; then
     exit 1
 fi
 
+declare -A reported=()
 report() {
-    # report <rule> <file>
+    # report <rule> <file>; the same rule for the same file is printed once
+    [[ -n "${reported["$1|$2"]:-}" ]] && return 0
+    reported["$1|$2"]=1
     printf '[%s] %s\n' "$1" "$2"
     findings=$((findings + 1))
+}
+
+# decoded_findings <site-host> <file> [--markup]: prints one rule name per line
+# for what the file's tags say once a browser has read them (see
+# scripts/scan-markup.py): quote-aware attribute parsing, character references
+# decoded, tabs and newlines dropped from URLs. Only rule names are printed.
+decoded_findings() {
+    local host="$1" file="$2"
+    shift 2
+    python3 -I "$(dirname "${BASH_SOURCE[0]}")/scan-markup.py" "$@" "$host" "$file"
 }
 
 # has_redirect <path>: _redirects holds a 301 line whose source is <path>.
@@ -90,6 +129,22 @@ robots_wildcard() {
     ' "$1"
 }
 
+# csp_scripts_ok: reads Content-Security-Policy header lines on stdin. Succeeds
+# when every policy has exactly one script-src whose whole value is 'self' and
+# no script-src-elem or script-src-attr (either would override script-src).
+csp_scripts_ok() {
+    awk '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; ok = 1
+          for (i = 1; i <= n; i++) {
+              gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+              name = tolower(d[i]); sub(/[ \t].*/, "", name)
+              if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") ok = 0 }
+              if (name == "script-src-elem" || name == "script-src-attr") ok = 0
+          }
+          if (count != 1 || !ok) bad = 1; seen = 1 }
+        END { exit (bad || !seen) }'
+}
+
 env=""
 if [[ ! -s "$dir/robots.txt" ]]; then
     report missing-robots "robots.txt"
@@ -122,21 +177,42 @@ case "${EXPECT_ENV:-}" in
     *) report env-mismatch "EXPECT_ENV must be staging or production" ;;
 esac
 
+# The pinned theme hash: absent means no script is allowed in the build.
+pinned=""
+rc=0
+pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+if [[ $rc -eq 2 ]]; then
+    report theme-hash-file "$(basename "$theme_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+    pinned=""
+fi
+
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
 asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>]*>'
 
 while IFS= read -r -d '' f; do
     rel="${f#"$dir"/}"
 
-    # Inline script: a <script> tag with no src attribute.
-    if grep -oEi '<script([ >][^>]*)?>' "$f" | grep -qiv 'src='; then
+    # Scripts. flat is the page on one line, so a tag split across lines is
+    # still one tag. Inline script: a <script> tag with no src attribute.
+    flat="$(tr '\n\r' '  ' <"$f")"
+    if grep -oEi '<script([^a-z0-9_>-][^>]*)?>' <<<"$flat" | grep -qiv 'src='; then
         report inline-script "$rel"
     fi
-    # script-src is 'none' in static/_headers: any script element would be
-    # blocked in production, so a script needs a CSP change and a reviewed
-    # allow-list first.
-    if grep -qEi '<script([ >]|$)' "$f"; then
-        report script-element-present "$rel"
+    # Every script element must be exactly the theme script. Any other form
+    # (a body, another attribute, another file, a tag with no closing >) is
+    # blocked or unreviewed.
+    script_total="$(grep -oEi '<script([^a-z0-9_-]|$)' <<<"$flat" | wc -l || true)"
+    script_theme="$(grep -oEi "<script src=(\"/theme\\.js\"|'/theme\\.js'|/theme\\.js)></script>" <<<"$flat" | wc -l || true)"
+    if [[ "$script_total" -ne "$script_theme" ]]; then
+        report script-not-allowed "$rel"
+    elif [[ "$script_theme" -gt 1 ]]; then
+        report script-count "$rel"
+    fi
+    if [[ -z "$pinned" && "$script_total" -gt 0 ]]; then
+        report script-not-allowed "$rel (no pinned theme script: no script is allowed)"
+    fi
+    if [[ "$script_theme" -ge 1 && ! -f "$dir/theme.js" ]]; then
+        report missing-script "$rel (references /theme.js, which is not in the build)"
     fi
     if grep -qEi '<style[ >]' "$f"; then
         report style-element "$rel"
@@ -144,13 +220,16 @@ while IFS= read -r -d '' f; do
     if grep -qEi '[[:space:]]style=' "$f"; then
         report style-attribute "$rel"
     fi
-    if grep -qEi '[[:space:]]on[a-z]+=' "$f"; then
-        report event-handler "$rel"
-    fi
+    # Event-handler attributes and javascript: URLs are read from real
+    # attributes by the parser pass below (scripts/scan-markup.py).
     # pre-not-focusable: a scrollable code block must be reachable by keyboard.
     if grep -oEi '<pre([ >][^>]*)?>' "$f" | grep -qiv 'tabindex='; then
         report pre-not-focusable "$rel"
     fi
+
+    while IFS= read -r rule; do
+        [[ -n "$rule" ]] && report "$rule" "$rel"
+    done < <(decoded_findings "$site_host" "$f")
 
     # Absolute URLs inside tags that load something (anchors are not assets).
     urls="$(grep -oEi "$asset_tag" "$f" | grep -oEi "$url_attr" || true)"
@@ -184,6 +263,15 @@ while IFS= read -r -d '' f; do
         fi
     fi
 done < <(find "$dir" -type f -name '*.html' -print0 | sort -z)
+
+# The same attribute rules on svg, xml and xhtml outputs, and any script element
+# there is a finding.
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    while IFS= read -r rule; do
+        [[ -n "$rule" ]] && report "$rule" "$rel"
+    done < <(decoded_findings "$site_host" "$f" --markup)
+done < <(find "$dir" -type f \( -iname '*.svg' -o -iname '*.xml' -o -iname '*.xhtml' \) -print0 | sort -z)
 
 # head_meta <file> <attribute> <value>: the content of the first
 # <meta attribute=value ...>, quoted or not as the minifier wrote it. Empty when
@@ -308,9 +396,49 @@ if [[ ! -s "$dir/_headers" ]]; then
     report missing-headers "_headers"
 else
     csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
-    if ! grep -qF "default-src 'none'" <<<"$csp" ||
+    if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
         grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"$csp"; then
         report weak-csp "_headers"
+    elif ! csp_scripts_ok <<<"$csp"; then
+        report weak-csp "_headers (script-src must be exactly 'self', once, with no script-src-elem or script-src-attr)"
+    fi
+fi
+
+if [[ -s "$dir/_headers" ]] && ! headers_policy_ok "$dir/_headers"; then
+    report headers-structure "_headers (must be one /* rule block with no removal directive)"
+fi
+if [[ -s "$dir/_headers" ]] && ! headers_nosniff_ok "$dir/_headers"; then
+    report missing-nosniff "_headers (X-Content-Type-Options must be nosniff)"
+fi
+
+# 'self' authorizes every same-origin response: every file must be of a listed
+# non-script type (the js files are reported below).
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    case "${rel,,}" in
+        *.js | *.mjs | *.cjs) continue ;;
+    esac
+    artifact_name_ok "$rel" || report unexpected-file "$rel"
+    if [[ "${rel,,}" == *.svg ]] && svg_script_bad "$f"; then
+        report script-in-markup "$rel"
+    fi
+done < <(find "$dir" -type f -print0 | sort -z)
+
+# Script files: /theme.js only, only if its sha256 is the pinned one, under 1 KB
+# gzip. No hash file, no script.
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    if [[ "$rel" != theme.js || -z "$pinned" ]]; then
+        report extra-script-file "$rel"
+    fi
+done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
+if [[ -f "$dir/theme.js" ]]; then
+    if [[ -n "$pinned" && "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$pinned" ]]; then
+        report theme-hash "theme.js (does not match the pinned sha256)"
+    fi
+    gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
+    if [[ "$gz" -ge 1024 ]]; then
+        report js-budget "theme.js (${gz} bytes gzip, budget is under 1024)"
     fi
 fi
 
