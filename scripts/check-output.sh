@@ -8,11 +8,20 @@
 # deliverable is missing. Findings are printed as "[rule] file"; page content
 # is never printed.
 #
-# Rules: inline-script, script-element-present, style-element, style-attribute,
+# Rules: inline-script, script-not-allowed, script-count, missing-script,
+# extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
 # xml-stylesheet, bad-xml, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
+#
+# Scripts: script-src is 'self' in static/_headers for one file, the theme
+# script. The only script element allowed is <script src=/theme.js></script>
+# (quotes optional, no other attribute, no body), at most once per page. No
+# other script element, no inline script, no event-handler attribute, no
+# javascript: URL. The only script file in the build is /theme.js, under 1 KB
+# gzip (docs/redesign-brief.md section 10). The CSP must carry exactly one
+# script-src, and it must be 'self'.
 #
 # Environment:
 #   SITE_HOST     host that counts as first party (default: test-blog.chiefgyk3d.com)
@@ -90,6 +99,22 @@ robots_wildcard() {
     ' "$1"
 }
 
+# csp_scripts_ok: reads Content-Security-Policy header lines on stdin. Succeeds
+# when every policy has exactly one script-src whose whole value is 'self' and
+# no script-src-elem or script-src-attr (either would override script-src).
+csp_scripts_ok() {
+    awk '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; ok = 1
+          for (i = 1; i <= n; i++) {
+              gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+              name = tolower(d[i]); sub(/[ \t].*/, "", name)
+              if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") ok = 0 }
+              if (name == "script-src-elem" || name == "script-src-attr") ok = 0
+          }
+          if (count != 1 || !ok) bad = 1; seen = 1 }
+        END { exit (bad || !seen) }'
+}
+
 env=""
 if [[ ! -s "$dir/robots.txt" ]]; then
     report missing-robots "robots.txt"
@@ -128,15 +153,24 @@ asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>
 while IFS= read -r -d '' f; do
     rel="${f#"$dir"/}"
 
-    # Inline script: a <script> tag with no src attribute.
-    if grep -oEi '<script([ >][^>]*)?>' "$f" | grep -qiv 'src='; then
+    # Scripts. flat is the page on one line, so a tag split across lines is
+    # still one tag. Inline script: a <script> tag with no src attribute.
+    flat="$(tr '\n\r' '  ' <"$f")"
+    if grep -oEi '<script([^a-z0-9_>-][^>]*)?>' <<<"$flat" | grep -qiv 'src='; then
         report inline-script "$rel"
     fi
-    # script-src is 'none' in static/_headers: any script element would be
-    # blocked in production, so a script needs a CSP change and a reviewed
-    # allow-list first.
-    if grep -qEi '<script([ >]|$)' "$f"; then
-        report script-element-present "$rel"
+    # Every script element must be exactly the theme script. Any other form
+    # (a body, another attribute, another file, a tag with no closing >) is
+    # blocked or unreviewed.
+    script_total="$(grep -oEi '<script([^a-z0-9_-]|$)' <<<"$flat" | wc -l || true)"
+    script_theme="$(grep -oEi "<script src=(\"/theme\\.js\"|'/theme\\.js'|/theme\\.js)></script>" <<<"$flat" | wc -l || true)"
+    if [[ "$script_total" -ne "$script_theme" ]]; then
+        report script-not-allowed "$rel"
+    elif [[ "$script_theme" -gt 1 ]]; then
+        report script-count "$rel"
+    fi
+    if [[ "$script_theme" -ge 1 && ! -f "$dir/theme.js" ]]; then
+        report missing-script "$rel (references /theme.js, which is not in the build)"
     fi
     if grep -qEi '<style[ >]' "$f"; then
         report style-element "$rel"
@@ -144,8 +178,15 @@ while IFS= read -r -d '' f; do
     if grep -qEi '[[:space:]]style=' "$f"; then
         report style-attribute "$rel"
     fi
-    if grep -qEi '[[:space:]]on[a-z]+=' "$f"; then
+    # Event-handler attributes and javascript: URLs, looked for inside tags only
+    # (so prose such as 'one=' is not a finding). An attribute can follow a
+    # space, a slash or a closing quote.
+    tags="$(grep -oEi '<[a-z][^>]*>' <<<"$flat" || true)"
+    if grep -qEi "[[:space:]\"'/]on[a-z]+[[:space:]]*=" <<<"$tags"; then
         report event-handler "$rel"
+    fi
+    if grep -qEi "=[[:space:]]*[\"']?[[:space:]]*javascript:" <<<"$tags"; then
+        report javascript-url "$rel"
     fi
     # pre-not-focusable: a scrollable code block must be reachable by keyboard.
     if grep -oEi '<pre([ >][^>]*)?>' "$f" | grep -qiv 'tabindex='; then
@@ -308,9 +349,22 @@ if [[ ! -s "$dir/_headers" ]]; then
     report missing-headers "_headers"
 else
     csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
-    if ! grep -qF "default-src 'none'" <<<"$csp" ||
+    if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
         grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"$csp"; then
         report weak-csp "_headers"
+    elif ! csp_scripts_ok <<<"$csp"; then
+        report weak-csp "_headers (script-src must be exactly 'self', once, with no script-src-elem or script-src-attr)"
+    fi
+fi
+
+# Script files: /theme.js only, under 1 KB gzip.
+while IFS= read -r -d '' f; do
+    [[ "${f#"$dir"/}" == theme.js ]] || report extra-script-file "${f#"$dir"/}"
+done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
+if [[ -f "$dir/theme.js" ]]; then
+    gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
+    if [[ "$gz" -ge 1024 ]]; then
+        report js-budget "theme.js (${gz} bytes gzip, budget is under 1024)"
     fi
 fi
 

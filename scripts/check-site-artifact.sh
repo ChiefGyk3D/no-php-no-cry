@@ -8,6 +8,9 @@
 #     name begins with _worker (any depth, any type): Pages would run it
 #   - symlinks anywhere (an artifact must be plain files)
 #   - _headers that differs byte for byte from the repository's static/_headers
+#     (the expected file must also carry script-src exactly 'self')
+#   - any script file (.js, .mjs, .cjs, any depth) other than /theme.js, and a
+#     /theme.js that is 1 KB gzip (1024 bytes) or more
 #   - _redirects with a line that is not a comment, blank, or
 #     "/source /target 301|302" with internal targets only, or over 2000 lines
 #
@@ -58,6 +61,35 @@ if [[ ! -f "$dir/_headers" || -L "$dir/_headers" ]]; then
     report headers-missing "_headers"
 elif ! cmp -s "$dir/_headers" "$expected_headers"; then
     report headers-differ "_headers differs from the repository's static/_headers"
+fi
+
+# The expected policy: one script-src, exactly 'self' (the theme file only),
+# and no script-src-elem or script-src-attr to override it.
+if ! awk '
+    /^[[:space:]]*Content-Security-Policy:/ {
+        sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0
+        for (i = 1; i <= n; i++) {
+            gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+            name = tolower(d[i]); sub(/[ \t].*/, "", name)
+            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+            if (name == "script-src-elem" || name == "script-src-attr") bad = 1
+        }
+        if (count != 1) bad = 1
+        seen = 1
+    }
+    END { exit (bad || !seen) }' "$expected_headers"; then
+    report headers-script-src "expected headers: script-src must be exactly 'self', once"
+fi
+
+# Script files: the CSP allows 'self' scripts for the theme file only.
+while IFS= read -r -d '' p; do
+    [[ "${p#"$dir"/}" == theme.js ]] || report extra-script "${p#"$dir"/}"
+done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
+if [[ -f "$dir/theme.js" && ! -L "$dir/theme.js" ]]; then
+    gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
+    if ((gz >= 1024)); then
+        report js-budget "theme.js is ${gz} bytes gzip (budget: under 1024)"
+    fi
 fi
 
 # _redirects: internal 301/302 rules only.

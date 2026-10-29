@@ -1,4 +1,4 @@
-{{- /* Description, Open Graph, Twitter card and favicons. Every URL is absolute from the site's baseURL. The default image is an approved, star-free brand asset (brand/approved-assets.txt). No structured data script: script-src is 'none' (static/_headers) and scripts are banned by scripts/check-output.sh. */ -}}
+{{- /* Description, Open Graph, Twitter card and favicons. Every URL is absolute from the site's baseURL. The default image is an approved, star-free brand asset (brand/approved-assets.txt). No structured data script: script-src is 'self' for the theme file only (static/_headers) and scripts/check-output.sh allows no other script. */ -}}
 {{- $desc := partial "description.html" . -}}
 {{- $image := site.Params.ogImage | default "brand/penguin-color.png" | absURL -}}
 {{- $title := cond .IsHome site.Title .Title -}}

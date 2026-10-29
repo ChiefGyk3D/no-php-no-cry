@@ -19,7 +19,7 @@ stop_server() {
 }
 trap 'stop_server; rm -rf "$work"' EXIT
 
-csp="default-src 'none'; script-src 'none'"
+csp="default-src 'none'; script-src 'self'"
 pub="$work/public"
 mkdir -p "$pub"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n' "$csp" >"$pub/_headers"
@@ -168,6 +168,22 @@ cp "$pub/_headers" "$work/noredir/"
 printf '# nothing\n' >"$work/noredir/_redirects"
 expect no-headers-file input good "$work/nohdr"
 expect no-redirect-line input good "$work/noredir"
+
+# The expected policy must carry script-src exactly 'self': 'none' (the header
+# and the theme script would have drifted apart) and anything looser are refused
+# before any request is made.
+for src in "'none'" "'self' https:" "'unsafe-inline'" "*" "'self' data:"; do
+    d="$work/csp-$(printf '%s' "$src" | tr -c '[:lower:]' '_')"
+    mkdir -p "$d"
+    cp "$pub/_redirects" "$d/"
+    printf '/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "$src" >"$d/_headers"
+    expect "expected-script-src-$src" input good "$d"
+done
+d="$work/csp-no-script-src"
+mkdir -p "$d"
+cp "$pub/_redirects" "$d/"
+printf '/*\n  Content-Security-Policy: default-src %s\n' "'none'" >"$d/_headers"
+expect expected-without-script-src input good "$d"
 
 # Plain http is refused unless the test switch is set.
 rc=0

@@ -40,7 +40,7 @@ make_good() {
 RED
     cat >"$dir/_headers" <<'HDR'
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; script-src 'none'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'
 HDR
 }
 
@@ -89,10 +89,84 @@ APPEND='<button onclick="go()">x</button>' variant event-handler event-handler a
 APPEND='<img src="http://example.org/a.png" alt=x>' variant http-reference http-reference append_html
 APPEND='<link rel=stylesheet href=https://fonts.example.org/css>' variant external-asset external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script external-asset append_html
-APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script-element script-element-present append_html
-APPEND='<script src=/app.js></script>' variant local-script script-element-present append_html
-APPEND='<script>alert(1)</script>' variant inline-script-element script-element-present append_html
+APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script-element script-not-allowed append_html
+APPEND='<script src=//cdn.example.org/x.js></script>' variant scheme-relative-script script-not-allowed append_html
+APPEND='<script src=/app.js></script>' variant local-other-script script-not-allowed append_html
+APPEND='<script>alert(1)</script>' variant inline-script-element script-not-allowed append_html
+APPEND='<script src=/theme.js>alert(1)</script>' variant theme-script-with-inline-body script-not-allowed append_html
+APPEND='<script src=/theme.js defer></script>' variant theme-script-extra-attribute script-not-allowed append_html
+APPEND='<script type=module src=/theme.js></script>' variant theme-script-module script-not-allowed append_html
+APPEND='<script src=data:text/javascript,alert(1)></script>' variant data-url-script script-not-allowed append_html
+APPEND='<script src=/theme.js></script><script src=/theme.js></script>' variant theme-script-twice script-count append_html
+APPEND='<script src=/theme.js></script><script src=/other.js></script>' variant second-script-file script-not-allowed append_html
+APPEND='<script' variant unterminated-script-tag script-not-allowed append_html
+APPEND='<a href="javascript:alert(1)">x</a>' variant javascript-href javascript-url append_html
+APPEND="<a href='  JavaScript:alert(1)'>x</a>" variant javascript-href-spaced-quoted javascript-url append_html
+APPEND='<iframe src=javascript:alert(1)></iframe>' variant javascript-iframe javascript-url append_html
+APPEND='<img/onerror=alert(1) src=x>' variant handler-after-slash event-handler append_html
+APPEND='<img src=x alt="a"onerror=alert(1)>' variant handler-after-quote event-handler append_html
+APPEND='<p ONCLICK = "x">' variant handler-uppercase-spaced event-handler append_html
+APPEND='<p
+onclick=x>' variant handler-on-next-line event-handler append_html
 
+# The one allowed script: <script src=/theme.js></script> (as the minifier writes
+# it, or with quotes) with a small theme.js. It is allowed once, in any page.
+with_theme() {
+    printf '%s\n' "$APPEND" >>"$1/index.html"
+    printf '%s\n' "$THEME_JS" >"$1/theme.js"
+}
+THEME_JS='document.documentElement.dataset.theme="dark"'
+for form in '<script src=/theme.js></script>' '<script src="/theme.js"></script>' "<script src='/theme.js'></script>" '<SCRIPT SRC=/theme.js></SCRIPT>'; do
+    d="$work/theme-ok"
+    make_good "$d"
+    APPEND="$form" THEME_JS="$THEME_JS" with_theme "$d"
+    if "$checker" "$d" >/dev/null 2>&1; then
+        echo "ok: the theme script is allowed ($form)"
+    else
+        echo "FAIL: the theme script was rejected ($form)"
+        "$checker" "$d" || true
+        failures=$((failures + 1))
+    fi
+done
+
+# The page references /theme.js but the file is not in the build.
+theme_missing() { printf '%s\n' '<script src=/theme.js></script>' >>"$1/index.html"; }
+variant theme-script-file-missing missing-script theme_missing
+
+# Script files: only /theme.js, under 1 KB gzip (brief section 10).
+good_theme() {
+    printf '%s\n' '<script src=/theme.js></script>' >>"$1/index.html"
+    printf '%s\n' "$THEME_JS" >"$1/theme.js"
+}
+extra_js() {
+    good_theme "$1"
+    mkdir -p "$(dirname "$1/$FILE")"
+    printf 'x\n' >"$1/$FILE"
+}
+FILE=app.js variant extra-js-file extra-script-file extra_js
+FILE=js/other.js variant nested-js-file extra-script-file extra_js
+FILE=other.mjs variant extra-mjs-file extra-script-file extra_js
+FILE=Other.JS variant extra-uppercase-js-file extra-script-file extra_js
+FILE=js/theme.js variant theme-js-in-subdirectory extra-script-file extra_js
+js_only_file() { printf 'x\n' >"$1/app.js"; }
+variant js-file-without-page-reference extra-script-file js_only_file
+# 4 KB of incompressible bytes is over the gzip budget; a 1 KB compressible
+# file is not.
+big_theme() {
+    good_theme "$1"
+    head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$1/theme.js"
+}
+variant theme-js-over-budget js-budget big_theme
+d="$work/theme-compressible"
+make_good "$d"
+good_theme "$d"
+head -c 8192 /dev/zero | tr '\0' 'a' >"$d/theme.js"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: a theme.js that is large raw but under 1 KB gzip passes"
+else
+    echo "FAIL: a compressible theme.js under 1 KB gzip was rejected"
+    failures=$((failures + 1))
+fi
 append_file() { printf '%s\n' "$APPEND" >>"$1/$FILE"; }
 FILE=css/site.min.css APPEND='@import "https://fonts.example.org/css";' variant css-import external-css-reference append_file
 FILE=css/site.min.css APPEND='@import url(//fonts.example.org/css);' variant css-import-scheme-relative external-css-reference append_file
@@ -128,8 +202,32 @@ variant html-alias-missing missing-alias no_html_alias
 no_slash_variant() { sed -i '\#^/2023/02/10/sample-post/ #d' "$1/_redirects"; }
 variant slash-variant-missing missing-alias no_slash_variant
 
-weak_csp() { sed -i "s/script-src 'none'/script-src 'unsafe-inline'/" "$1/_headers"; }
-variant weak-csp weak-csp weak_csp
+# CSP: script-src must be exactly 'self'. 'none' is rejected too (the header and
+# the template must not drift apart once the theme script ships).
+set_script_src() { sed -i "s#script-src 'self'#script-src ${SRC}#" "$1/_headers"; }
+SRC="'unsafe-inline'" variant weak-csp weak-csp set_script_src
+SRC="'none'" variant csp-script-src-none weak-csp set_script_src
+SRC="https:" variant csp-script-src-https weak-csp set_script_src
+SRC="'self' https://cdn.example.org" variant csp-script-src-host weak-csp set_script_src
+SRC="*" variant csp-script-src-star weak-csp set_script_src
+SRC="'self' data:" variant csp-script-src-data weak-csp set_script_src
+SRC="'self' blob:" variant csp-script-src-blob weak-csp set_script_src
+SRC="'self' 'unsafe-eval'" variant csp-script-src-eval weak-csp set_script_src
+SRC="'self' 'nonce-abc'" variant csp-script-src-nonce weak-csp set_script_src
+SRC="'self' 'strict-dynamic'" variant csp-script-src-strict-dynamic weak-csp set_script_src
+SRC="'self' http://example.org" variant csp-script-src-http weak-csp set_script_src
+csp_no_script_src() { sed -i "s#; script-src 'self'##" "$1/_headers"; }
+variant csp-without-script-src weak-csp csp_no_script_src
+csp_two_script_src() { sed -i "s#script-src 'self'#script-src 'self'; script-src 'self'#" "$1/_headers"; }
+variant csp-two-script-src weak-csp csp_two_script_src
+csp_script_src_elem() { sed -i "s#script-src 'self'#script-src 'self'; script-src-elem https:#" "$1/_headers"; }
+variant csp-script-src-elem weak-csp csp_script_src_elem
+csp_script_src_attr() { sed -i "s#script-src 'self'#script-src 'self'; script-src-attr 'unsafe-hashes'#" "$1/_headers"; }
+variant csp-script-src-attr weak-csp csp_script_src_attr
+csp_default_open() { sed -i "s#default-src 'none'#default-src 'self'#" "$1/_headers"; }
+variant csp-default-src-self weak-csp csp_default_open
+csp_second_line() { printf '/other/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "'none'" >>"$1/_headers"; }
+variant csp-second-block-weak weak-csp csp_second_line
 
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).

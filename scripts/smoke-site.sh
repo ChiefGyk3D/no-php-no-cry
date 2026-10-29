@@ -4,7 +4,8 @@
 # Post-deploy smoke test. Against the deployed site it checks:
 #   status        the home page answers HTTP 200
 #   missing-csp   the Content-Security-Policy header equals the one the build
-#                 carries in <public-dir>/_headers (from static/_headers)
+#                 carries in <public-dir>/_headers (from static/_headers), which
+#                 must itself carry script-src exactly 'self' (else exit 2)
 #   redirect      the first 301 line of <public-dir>/_redirects answers 301
 #                 with the expected Location
 # The expectations are read from the build artifact, so they follow the site.
@@ -32,6 +33,23 @@ if [[ -f "$dir/_headers" ]]; then
 fi
 if [[ -z "$csp_expected" ]]; then
     echo "input: no Content-Security-Policy in ${dir}/_headers"
+    exit 2
+fi
+
+# The build's policy must allow scripts from 'self' only (the theme file): one
+# script-src, exactly 'self'. 'none' would mean the header and the theme script
+# drifted apart; anything looser is a weaker site than the one reviewed.
+if ! awk -v csp="$csp_expected" 'BEGIN {
+        n = split(csp, d, ";")
+        for (i = 1; i <= n; i++) {
+            gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+            name = tolower(d[i]); sub(/[ \t].*/, "", name)
+            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+            if (name == "script-src-elem" || name == "script-src-attr") bad = 1
+        }
+        exit (bad || count != 1)
+    }'; then
+    echo "input: the Content-Security-Policy in ${dir}/_headers must have script-src exactly 'self'"
     exit 2
 fi
 

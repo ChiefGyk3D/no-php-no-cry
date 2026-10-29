@@ -84,6 +84,76 @@ make_good
 printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
 
+# Script files: the CSP allows 'self' scripts for the theme file only, so the
+# artifact may hold /theme.js (under 1 KB gzip) and no other script file.
+make_good
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a small theme.js passes"
+else
+    echo "FAIL: a small theme.js was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+
+make_good
+printf 'x\n' >"$site/app.js"
+expect_fail "second script file" extra-script
+
+make_good
+mkdir -p "$site/js"
+printf 'x\n' >"$site/js/theme.js"
+expect_fail "theme.js in a subdirectory" extra-script
+
+make_good
+printf 'x\n' >"$site/lib.MJS"
+expect_fail "uppercase .mjs" extra-script
+
+make_good
+head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/theme.js"
+expect_fail "theme.js over 1 KB gzip" js-budget
+
+make_good
+head -c 8192 /dev/zero | tr '\0' 'a' >"$site/theme.js"
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a large but compressible theme.js under 1 KB gzip passes"
+else
+    echo "FAIL: compressible theme.js under 1 KB gzip was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+
+# The pinned _headers must carry script-src 'self' (not 'none') once the theme
+# script ships. The repository's own file is checked here, so a revert to
+# 'none' in static/_headers is caught even if the build is byte-identical.
+make_good
+sed -i "s/script-src 'self'/script-src 'none'/" "$site/_headers"
+sed "s/script-src 'self'/script-src 'none'/" "$root/static/_headers" >"$work/none-headers"
+rc=0
+out="$("$checker" "$site" "$work/none-headers" 2>&1)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"[headers-script-src]"* ]]; then
+    echo "ok: expected headers with script-src 'none' rejected"
+else
+    echo "FAIL: expected headers with script-src 'none' (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
+
+make_good
+sed -i "s/script-src 'self'/script-src 'self' https:/" "$site/_headers"
+sed "s/script-src 'self'/script-src 'self' https:/" "$root/static/_headers" >"$work/https-headers"
+rc=0
+out="$("$checker" "$site" "$work/https-headers" 2>&1)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"[headers-script-src]"* ]]; then
+    echo "ok: expected headers with a loosened script-src rejected"
+else
+    echo "FAIL: expected headers with a loosened script-src (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
+
 make_good
 printf '/* https://evil.example/x 301\n' >>"$site/_redirects"
 expect_fail "redirect to a scheme and host" redirects-line
