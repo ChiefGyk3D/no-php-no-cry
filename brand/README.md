@@ -1,7 +1,12 @@
 # Brand spec and design tokens
 
-The visual system for the static site. The tokens are in
-`assets/css/tokens.css`; this page says what they mean and what is still open.
+The visual system for the static site. The canonical tokens are in
+`brand/tokens.json`; `assets/css/tokens.css` is generated from it (do not edit
+it): `python3 -I scripts/gen-tokens.py` writes it, `--check` fails on drift
+(CI runs `--check`). The generator emits the light palette for the system
+preference and for `:root[data-theme="light"]`, and pins dark under
+`:root[data-theme="dark"]`. This page says what the tokens mean and what is
+still open.
 The palette follows Reach Around (`docs/design.md`,
 `examples/themes/dark-hero.yaml`), so the site and the link page match.
 
@@ -26,6 +31,12 @@ The palette follows Reach Around (`docs/design.md`,
 | `--on-accent` | `#1A1A1A` | same | text on an accent fill |
 | `--link` | `#FBB03B` | `#8A5A00` | link text |
 | `--focus` | `#FBB03B` | `#8A5A00` | focus ring (3:1 needed, has 10.5 and 5.5) |
+| `--carbon-base`, `--carbon-line` | `#181818`, `#282828` | n/a | carbon-fiber ground and stripe (dark only) |
+| `--plate` | `#281808` | n/a | warm brown panel (dark only) |
+| `--ghost` | `#383838` | n/a | ghosted mascot layer (dark only, no controls) |
+| `--plate-light` | `#FFEFD9` | same | cream plate; focus and links use `--focus-on-plate` |
+| `--focus-on-plate` | `#8A5A00` | same | focus ring and link text on the cream plate |
+| `--accent-deep` | `#AF6A0E` | same | decorative edges only, never text (below 4.5:1) |
 | `--rule`, `--border` | `#3A3530` | `#D9D1C5` | dividers (decorative, not contrast-checked) |
 
 Amber is too light to be text on the light page (1.7:1), so light mode uses the

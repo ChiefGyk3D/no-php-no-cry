@@ -104,6 +104,9 @@ jobs:
       - name: Test the WordPress converter
         run: scripts/test-wxr2hugo.sh
 
+      - name: Check assets/css/tokens.css is generated from brand/tokens.json
+        run: python3 -I scripts/gen-tokens.py --check
+
       - name: Check design-token contrast (WCAG AA)
         run: python3 -I scripts/check-contrast.py assets/css/tokens.css
 
