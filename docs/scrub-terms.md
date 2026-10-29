@@ -31,9 +31,9 @@ comments.
 
 ## Current state: starter content only
 
-The secret holds a starter list. `hostname:bluehost` is a real term. The
-`employer` and `serial` lines are inert PLACEHOLDER lines: they make those two
-categories print as `ran`, but they match nothing real. Until someone replaces
+The secret holds a starter list. One starter term exists in the `hostname`
+category and it is real. The `employer` and `serial` lines are inert
+PLACEHOLDER lines: they make those two categories print as `ran`, but they match nothing real. Until someone replaces
 them with real terms, **employer and serial are effectively unchecked**, even
 though the run reports them as having run.
 
@@ -44,12 +44,12 @@ and writes the result back, so the term is never printed, never on a command
 line and never in history:
 
 ```sh
-read -r -p "category:term " L; { doppler secrets get SCRUB_TERMS --project no-php-no-cry --config prd --plain; printf '%s\n' "$L"; } | doppler secrets set SCRUB_TERMS --project no-php-no-cry --config prd >/dev/null; unset L
+read -rs -p "category:term " L; echo; { doppler secrets get SCRUB_TERMS --project no-php-no-cry --config prd --plain; printf '%s\n' "$L"; } | doppler secrets set SCRUB_TERMS --project no-php-no-cry --config prd >/dev/null; unset L
 ```
 
 Type the line at the prompt, for example `serial:` followed by the value.
-(`read` without `-s` shows what you type on your own terminal; nothing is
-echoed anywhere else.)
+(`-s` keeps what you type from being shown, so the term never appears on the
+screen, in shell history or in any output.)
 
 ## Replace a placeholder line
 
