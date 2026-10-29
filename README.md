@@ -138,7 +138,7 @@ category, file and line only, exits 3 and writes nothing.
 a Doppler secret and never touch disk:
 
 ```sh
-doppler secrets get SCRUB_TERMS --plain | python3 -I tools/wxr2hugo/convert.py \
+doppler secrets get SCRUB_TERMS --project no-php-no-cry --config prd --plain | python3 -I tools/wxr2hugo/convert.py \
     --wxr PATH/export.xml --out DIR --scrub-terms - --require-terms
 ```
 
@@ -147,5 +147,7 @@ file paths only. A missing or unreadable terms file exits 2. With
 `--require-terms`, a file or stdin with no `employer`, `hostname` or `serial`
 term (empty, comments only, or `allow:` lines only) exits 2. The status lines
 still show a term category as `ran` only when stdin supplied terms for it.
-Terms are never echoed, logged or written. Exit 2 is a refused
+Terms are never echoed, logged or written. Where the terms live, how to add
+one and what the starter content does not yet cover: [docs/scrub-terms.md](docs/scrub-terms.md).
+Exit 2 is a refused
 path, a bad terms file or a slug collision.

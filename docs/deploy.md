@@ -71,9 +71,13 @@ Authorization header from stdin, never as curl configuration.
 Custom domain (once, by the owner): on the Pages project, Workers & Pages, the
 project, Custom domains, Set up a domain, and add `test-blog.chiefgyk3d.com`
 (per Cloudflare's Pages documentation; the dashboard layout changes, so follow
-what you see). A domain attached through the API does NOT create the DNS record.
-Whichever way it is attached, make sure the zone has a proxied CNAME from the
-hostname to `<project>.pages.dev`; without it Cloudflare shows error 1016.
+what you see). The dashboard flow creates the DNS record. A domain attached
+through the API does NOT: it stays `pending` with "CNAME record not set" and the
+site answers Cloudflare error 1016. In that case create a proxied CNAME from the
+hostname to `<project>.pages.dev` (needs DNS Write), then retry validation.
+Done means the domain API (`GET .../pages/projects/<project>/domains/<host>`)
+says `active` and the public URL serves the site; a 200 from the attach call is
+not done.
 
 Account id: dashboard, Workers & Pages overview, right-hand column, Account ID.
 It is not a secret by itself, but the workflow reads it as a credential value
@@ -84,8 +88,9 @@ CI never touches DNS or custom domains.
 ### API token
 
 Create a USER API token at My Profile, API Tokens, Create Token (Custom token).
-Do not use an account-owned token for the Doppler rotation: Doppler's rotation
-uses two user tokens. Exactly one permission, limited to the one account:
+Do not use an account-owned token (Manage Account, Account API Tokens): it
+cannot carry zone permissions such as DNS, and Doppler's rotation uses two user
+tokens. Exactly one permission, limited to the one account:
 
 - Account, Cloudflare Pages: Edit (resource: the one account).
 
@@ -180,3 +185,19 @@ If you fork under another name, change the OIDC subject and `SITE_URL` to match.
   `allowed-endpoints` (space-separated, no wildcards, a newline-separated list
   matches nothing), commit, and re-run. The other jobs stay in audit because
   the artifact storage host varies per run. Tracked in issue #10.
+
+## Owner cleanup after agent-assisted Cloudflare work
+
+If an agent worked on Cloudflare through the Cloudflare MCP, that connection is
+an OAuth authorization on the owner's account and it can hold write scopes. The
+consent screen offers Read Only and Full Access templates plus optional scopes,
+so the grant is as wide as what was approved. When the work is done, return it
+to read-only or remove it:
+
+- Authorizations are viewed and revoked in the dashboard under Profile, Access
+  Management, Connected Applications (Cloudflare docs, "Authorizing an
+  application", fetched 2026-10-29; the consent-screen templates and optional
+  scopes are in the changelog entries of 2026-04-14 and 2026-08-22).
+- No API for listing or revoking OAuth authorizations was found in those docs.
+  That is a negative result from the docs only, not a tested claim.
+- Plan the whole job's scopes before the first consent so one grant covers it.
