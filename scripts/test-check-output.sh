@@ -199,7 +199,7 @@ variant theme-js-over-budget js-budget big_theme
 d="$work/theme-compressible"
 make_good "$d"
 good_theme "$d"
-head -c 8192 /dev/zero | tr '\0' 'a' >"$d/theme.js"
+for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$d/theme.js"
 if "$checker" "$d" >/dev/null 2>&1; then
     echo "ok: a theme.js that is large raw but under 1 KB gzip passes"
 else
@@ -289,12 +289,21 @@ theme_bracket() {
     printf '%s\n' 'document["create"+"Element"]("script")' >"$1/theme.js"
 }
 variant theme-js-computed-property theme-capability theme_bracket
+theme_markup() {
+    good_theme "$1"
+    printf '%s\n' 'document.body.setHTMLUnsafe("<b>x</b>")' >"$1/theme.js"
+}
+variant theme-js-markup-setter theme-capability theme_markup
 svg_script() {
     printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>' >"$1/logo.svg"
 }
 variant svg-with-script script-in-markup svg_script
 no_nosniff() { sed -i '/X-Content-Type-Options/d' "$1/_headers"; }
 variant headers-without-nosniff missing-nosniff no_nosniff
+dup_nosniff() { printf '  X-Content-Type-Options: sniff\n' >>"$1/_headers"; }
+variant headers-conflicting-nosniff missing-nosniff dup_nosniff
+dup_nosniff_same() { printf '  x-content-type-options: nosniff\n' >>"$1/_headers"; }
+variant headers-duplicate-nosniff missing-nosniff dup_nosniff_same
 
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).

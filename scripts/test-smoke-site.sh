@@ -103,7 +103,13 @@ class H(BaseHTTPRequestHandler):
             if fault == "dupcsp" and hit:
                 self.send_header("content-security-policy", value)
         if not (fault == "nonosniff" and hit):
-            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Content-Type-Options", "sniff" if fault == "othernosniff" and hit else "nosniff")
+            if fault == "dupnosniff" and hit:
+                self.send_header("X-Content-Type-Options", "nosniff")
+            if fault == "conflictnosniff" and hit:
+                self.send_header("x-content-type-options", "sniff")
+            if fault == "joinednosniff" and hit:
+                self.send_header("x-content-type-options", "nosniff, sniff")
         self.send_header("Content-Length", "2")
         self.end_headers()
         self.wfile.write(b"ok")
@@ -166,7 +172,11 @@ for page in /posts/sample-post/ /journal/sample-entry/ /posts/ /journal/ /tags/l
     expect "duplicate CSP on $page" "duplicate-csp: $shown" "dupcsp@$page"
     expect "different CSP on $page" "wrong-csp: $shown" "diffcsp@$page"
     expect "no nosniff on $page" "missing-nosniff: $shown" "nonosniff@$page"
+    expect "duplicate nosniff on $page" "wrong-nosniff: $shown" "dupnosniff@$page"
+    expect "conflicting nosniff on $page" "wrong-nosniff: $shown" "conflictnosniff@$page"
 done
+expect "different nosniff value on a post" "wrong-nosniff: /posts/sample-post/" "othernosniff@/posts/sample-post/"
+expect "joined nosniff values on a post" "wrong-nosniff: /posts/sample-post/" "joinednosniff@/posts/sample-post/"
 expect "joined duplicate CSP on a post" "wrong-csp: /posts/sample-post/" "joined@/posts/sample-post/"
 expect "server error on a post" "status: /posts/sample-post/" "status@/posts/sample-post/"
 expect "server error on the 404 page" "status: /smoke-check-missing-page/" "status@*404"

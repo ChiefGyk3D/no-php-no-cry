@@ -9,8 +9,9 @@
 #                 Content-Security-Policy header, equal to the one the build
 #                 carries in <public-dir>/_headers (from static/_headers), which
 #                 must itself carry script-src exactly 'self' (else exit 2)
-#   missing-nosniff
-#                 on every page, X-Content-Type-Options: nosniff
+#   missing-nosniff / wrong-nosniff
+#                 on every page, exactly one X-Content-Type-Options header whose
+#                 only value is nosniff
 #   redirect      the first 301 line of <public-dir>/_redirects answers 301
 #                 with the expected Location
 # Pages checked, one per template, taken from the build: the home page, the
@@ -25,6 +26,9 @@
 # SMOKE_RETRY_SLEEP (default 3) is the delay in seconds between attempts.
 # SMOKE_ALLOW_HTTP=1 permits a non-https URL (tests only).
 set -euo pipefail
+
+# shellcheck source=scripts/artifact-rules.sh
+source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
 
 base="${1:?usage: smoke-site.sh <site-url> <public-dir>}"
 dir="${2:?usage: smoke-site.sh <site-url> <public-dir>}"
@@ -63,8 +67,8 @@ if ! awk -v csp="$csp_expected" 'BEGIN {
     exit 2
 fi
 
-if ! grep -qiE '^[[:space:]]*X-Content-Type-Options:[[:space:]]*nosniff[[:space:]]*$' "$dir/_headers"; then
-    echo "input: no X-Content-Type-Options: nosniff in ${dir}/_headers"
+if ! headers_nosniff_ok "$dir/_headers"; then
+    echo "input: ${dir}/_headers must carry X-Content-Type-Options: nosniff exactly once"
     exit 2
 fi
 
@@ -124,7 +128,7 @@ header_values() {
 # check_page <path>: status, exactly one expected Content-Security-Policy, and
 # nosniff on one page. Prints a line per result; fails if any check does.
 check_page() {
-    local path="$1" want=200 resp="" code csp_count csp_actual ok=0 failed=0
+    local path="$1" want=200 resp="" code csp_count csp_actual nosniff_values ok=0 failed=0
     [[ "$path" == "$missing_page" ]] && want=404
     if resp="$(fetch "$path")"; then
         code="$(status_of "$resp")"
@@ -151,8 +155,12 @@ check_page() {
         echo "wrong-csp: ${path} has Content-Security-Policy '${csp_actual}', wanted '${csp_expected}'"
         failed=1
     fi
-    if ! printf '%s' "$resp" | header_values x-content-type-options | grep -qix nosniff; then
-        echo "missing-nosniff: ${path} has no X-Content-Type-Options: nosniff"
+    nosniff_values="$(printf '%s' "$resp" | header_values x-content-type-options)"
+    if [[ -z "$nosniff_values" ]]; then
+        echo "missing-nosniff: ${path} has no X-Content-Type-Options header"
+        failed=1
+    elif [[ "${nosniff_values,,}" != nosniff ]]; then
+        echo "wrong-nosniff: ${path} must have exactly one X-Content-Type-Options header with the value nosniff"
         failed=1
     fi
     if [[ $failed -eq 0 && $ok -eq 1 ]]; then
