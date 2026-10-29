@@ -61,6 +61,7 @@ fault, _, fpath = mode.partition("@")
 # the CSP header, a 200 where the 301 belongs), then answers correctly.
 stale = int(mode.split("-")[1]) if mode.startswith("stale-") else 0
 seen = 0
+theme_seen = 0
 
 
 class H(BaseHTTPRequestHandler):
@@ -68,7 +69,7 @@ class H(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        global seen
+        global seen, theme_seen
         seen += 1
         with open(os.environ["PORTFILE"] + ".count", "w") as f:
             f.write(str(seen))
@@ -96,6 +97,11 @@ class H(BaseHTTPRequestHandler):
             body = open(os.environ["THEME_FILE"], "rb").read()
             if fault == "tampertheme":
                 body += b"x"
+            if fault == "alternatetheme":
+                # every other request gets different bytes
+                theme_seen += 1
+                if theme_seen % 2 == 1:
+                    body += b"x"
         hit = self.path == fpath or (fpath == "*404" and not is_known)
         code = 200 if is_known else 404
         if mode == "bad-status" and self.path == "/":
@@ -281,6 +287,7 @@ printf '%s  theme.js\n' "$(sha256sum "$tpub/theme.js" | cut -d' ' -f1)" >"$THEME
 known="$known,/theme.js"
 expect "pinned theme served unchanged" pass good "$tpub"
 expect "theme served with different bytes" "theme-hash: /theme.js" tampertheme@/theme.js "$tpub"
+expect "theme bytes alternate between responses" "theme-hash: /theme.js" alternatetheme@/theme.js "$tpub"
 expect "no CSP on the theme script" "missing-csp: /theme.js" nocsp@/theme.js "$tpub"
 rm -f "$THEME_HASH_FILE"
 expect "theme.js in the build with no hash file" input good "$tpub"

@@ -37,6 +37,7 @@ scripts/check-output.sh public   # see the rules below
 scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
 scripts/test-check-site-artifact.sh
 scripts/test-pin-theme.sh
+scripts/test-deploy-sparse.sh   # the deploy job's sparse checkout lists every file its scripts need
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-head.sh             # head tags and rel=me links against hostile front matter
 scripts/test-check-hugo-version.sh

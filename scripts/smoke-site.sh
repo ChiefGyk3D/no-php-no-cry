@@ -134,8 +134,14 @@ if [[ -z "$from" || -z "$to" ]]; then
 fi
 
 # fetch <path>: prints the status line and headers, fails if no response.
+# The body goes to $body_file from the same request, so headers and body are
+# judged from ONE response (a second request could be answered differently).
+body_dir="$(mktemp -d)"
+trap 'rm -rf "$body_dir"' EXIT
+body_file="$body_dir/body"
 fetch() {
-    curl -sS -o /dev/null -D - --max-time 20 "${base}$1"
+    : >"$body_file"
+    curl -sS -o "$body_file" -D - --max-time 20 "${base}$1"
 }
 
 status_of() { printf '%s' "$1" | tr -d '\r' | awk 'NR == 1 { print $2 }'; }
@@ -188,7 +194,7 @@ check_page() {
         failed=1
     fi
     if [[ "$path" == /theme.js ]]; then
-        got="$(curl -sS --max-time 20 "${base}${path}" | sha256sum | cut -d' ' -f1)" || got=""
+        got="$(sha256sum <"$body_file" | cut -d' ' -f1)"
         if [[ "$got" != "$theme_pinned" ]]; then
             echo "theme-hash: ${path} served by the site does not match the pinned sha256"
             failed=1
