@@ -56,7 +56,8 @@ drop the demo.
 | Discovering the Magic of Mastodon: A Journey into the Decentralized Social Networking World | `/discovering-the-magic-of-mastodon-a-journey-into-the-decentralized-social-networking-world/` | 2023-02-06 | 1416 | 0 | Keep | Longest post; core fediverse content. |
 | Introducing Twitch-and-toot: The Open-Source Solution for Mastodon Stream Alerts | `/introducing-twitch-and-toot-the-open-source-solution-for-mastodon-stream-alerts/` | 2023-02-06 | 517 | 0 | Keep with note | Superseded by Stream Daemon; link forward. |
 
-Totals: 10 keep or keep-with-note (7), 3 rewrite. Posts are in category
+Totals: 7 keep (including keep-as-archive and keep-with-note), 3 rewrite, 10
+posts in all. Pages: 4 rewrite, 2 drop, 6 pages in all. Posts are in category
 Uncategorized (9 of 10, the other two categories hold one each: Audio and
 Hardware).
 
