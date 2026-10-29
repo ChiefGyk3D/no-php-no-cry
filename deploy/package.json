@@ -3,6 +3,6 @@
   "private": true,
   "description": "Pinned Wrangler for the Cloudflare Pages deploy job. Installed with npm ci --ignore-scripts.",
   "devDependencies": {
-    "wrangler": "4.152.0"
+    "wrangler": "4.155.0"
   }
 }
