@@ -1,7 +1,7 @@
 # Redesign brief: chiefgyk3d.com
 
-Issue: ChiefGyk3D/no-php-no-cry#41. Status: draft for maintainer approval.
-Written 2026-10-29. Docs only; no site code changes.
+Issue: ChiefGyk3D/no-php-no-cry#41. Status: maintainer decisions recorded 2026-10-29 (section 13); the issue list
+in section 12 awaits approval. Written 2026-10-29. Docs only; no site code changes.
 
 Inputs: the baseline (`docs/baseline-chiefgyk3d-com.md`, PR #43), the stream
 asset review (images viewed by eye, kept outside the repo), the Reach Around
@@ -22,6 +22,9 @@ checks, and the decisions on #2, #11, #12 and #40.
 - Jost stays the interim body font. The wordmark is built from the existing
   artwork as an image, not a webfont (#2).
 - Accent `#FBB03B`, dark first.
+- The eight answers of 2026-10-29 are recorded in section 13 and applied through
+  the rest of this brief. The theme toggle (decision 4) changes the CSP, which
+  this brief earlier kept unchanged.
 
 ## 1. Goals and audience
 
@@ -72,8 +75,9 @@ copy can be dry and funny; the layout stays calm so long posts stay readable.
 
 Rules for the site:
 
-1. Dark first. Light mode exists and passes the same contrast rules, but is the
-   override, as in `tokens.css` today.
+1. Dark first. Dark is the default; light follows the system setting when it
+   says light, and a manual toggle overrides both (section 10). Light mode
+   passes the same contrast rules.
 2. One accent. Orange marks interaction and emphasis; it does not decorate
    every block.
 3. HUD brackets frame a few key objects (hero, social tiles, products
@@ -136,7 +140,8 @@ Two-way link with Reach Around (#12): this site links to it from the header of
 the social hub and the footer; Reach Around links back to the blog.
 
 Journal: the repo has a `journal` section and a nav item today. The baseline has
-no journal content. See open question 3.
+no journal content. See decision 3: the nav item is hidden until the first entry exists, and the
+template stays.
 
 ## 4. Page templates
 
@@ -149,10 +154,10 @@ token stylesheet. Specific needs:
 | Post | Single column at `--measure`. Title, date, reading time, tags. Optional `archive` front matter shows a dated archive banner (used for the TikTok letter: original date and "this is a record, not a current view"). Optional `supersededBy` front matter shows a forward link (twitch-and-toot to Stream Daemon). Code blocks use the existing highlight classes. A syndication row (section 5). Previous/next. |
 | Archive | Posts list with year grouping, tag filter links (plain term pages), RSS link. Reuse for journal and term pages. |
 | Products | Disclosure block first, above the fold, in a bracket frame: plain statement that links earn a commission and what that means. Items grouped by the old posts' topics (audio, 3D printing and PC repair, air quality). Each item: name, one line, price note ("price checked on <date>", no live prices), outbound link with `rel="sponsored noopener"`. The old prose stays in the posts, which link here. |
-| About | Short bio, mascot, current projects with GitHub links, how to reach the maintainer without a form (links, not an email form; address policy in open question 6). |
-| Socials hub | A tile grid, one tile per network in section 5. Tile = icon, network name, handle or room name, a short role line. The Matrix tile names the community room. Same data file drives the footer `rel="me"` row and the home strip. |
+| About | Short bio, mascot, current projects with GitHub links, how to reach the maintainer without a form (Matrix and Discord links plus one text-only public address, decision 6). |
+| Socials hub | A tile grid, one tile per network in section 5 (nine, TikTok included). Tile = icon, network name, handle or room name, a short role line. The Matrix tile names the community room. Same data file drives the footer `rel="me"` row and the home strip. |
 | Support | Link list (tips, shop) in the same tile style, with each link rechecked before publish. |
-| Privacy | Plain text: no analytics, no embeds, no cookies, no third-party requests; outbound links leave the site. |
+| Privacy | Plain text: no analytics, no embeds, no cookies, no third-party requests; outbound links leave the site. States the one stored item: the theme choice, kept in the browser's local storage only when the visitor uses the toggle, never sent anywhere. |
 | 404 | Mascot, one line, links to Posts and Social. |
 
 The plan keeps raw HTML in Markdown off (`unsafe = false`), so products and
@@ -161,16 +166,15 @@ partials, not from hand-written HTML in content.
 
 ## 5. Social integration
 
-Constraint: `default-src 'none'`, `script-src 'none'`, `img-src 'self'`,
-`frame-ancestors 'none'`. No embedded timelines, no widgets, no share buttons
-that load a vendor script. Every integration below works with plain links and
+Constraint: `default-src 'none'`, `script-src 'self'` (one small theme file,
+section 10), `img-src 'self'`, `frame-ancestors 'none'`. No embedded timelines,
+no widgets, no share buttons that load a vendor script. Every integration below works with plain links and
 build-time data.
 
 ### Networks (hub, footer row, home strip)
 
-Bluesky, Mastodon, Matrix, Discord, GitHub, YouTube, Twitch, Kick. TikTok is on
-the live hub today and is not on this list; see open question 1. X/Twitter is
-out. Support links (Ko-fi, StreamElements, shop) live on the support page, not
+Bluesky, Mastodon, Matrix, Discord, GitHub, YouTube, Twitch, Kick, TikTok.
+TikTok stays on the hub (decision 1). X/Twitter is out. Support links (Ko-fi, StreamElements, shop) live on the support page, not
 the hub.
 
 One data file, `data/socials.yaml`, with `name`, `icon` (slug), `url`, `handle`,
@@ -270,9 +274,9 @@ preset, not the default, and must not be treated as the brand value.
 
 ### Palette (proposed canonical values)
 
-Keep the blog's current values as canonical, since they were chosen with the
-contrast check and the warm-neutral light mode, and move Reach Around to them
-in a follow-up issue there. Additions for the redesign (new tokens, dark mode):
+The blog's current values are canonical (decision 5), since they were chosen
+with the contrast check and the warm-neutral light mode. Reach Around adopts
+them through the checksum-vendored `brand/tokens.json` (issue 4). Additions for the redesign (new tokens, dark mode):
 
 | Token | Value | Use |
 |---|---|---|
@@ -305,9 +309,28 @@ New pairs, dark mode unless noted:
 | `#585858` on bg | 2.71 | fail as text; ghost layer only |
 | accent `#FBB03B` on light bg `#FAF7F2` | 1.73 | fail; light mode keeps `#8A5A00` (5.55) |
 
+The toggle adds no colors: its two states (forced dark, forced light) use the
+same two token sets, so the existing 32 pairs (16 per mode, rerun 2026-10-29
+with `scripts/check-contrast.py`, all pass) cover them. The toggle control
+itself is new UI. Computed with the same formula:
+
+| Toggle pair | Ratio | Verdict |
+|---|---|---|
+| control border/icon `#FBB03B` on bg `#0E0E0E` (dark) | 10.46 | pass, needs 3:1 |
+| control border/icon `#8A5A00` on bg `#FAF7F2` (light) | 5.55 | pass, needs 3:1 |
+| control label text on bg, dark / light | 16.94 / 16.29 | pass |
+| `#1A1A1A` on accent (pressed fill, either mode) | 9.43 | pass |
+| focus ring on bg, dark / light | 10.46 / 5.55 | pass, needs 3:1 |
+
+The token generator emits the light set twice from one source: once under
+`@media (prefers-color-scheme: light)` for `:root:not([data-theme])`, and once
+under `:root[data-theme="light"]`; `:root[data-theme="dark"]` pins dark. The
+contrast script must read all three blocks, or a hand-edited copy could drift.
+
 The check script must grow with each new token pair (`carbon-line` on text,
 `plate` on text, muted on carbon), or the new tokens ship unchecked. Proposed
-issue: extend `PAIRS` in `check-contrast.py` and read the generated tokens.
+issue: extend `PAIRS` in `check-contrast.py` (including the toggle pairs above and the
+`data-theme` blocks) and read the generated tokens.
 Focus ring stays 3:1 minimum against every surface it can sit on.
 
 ## 7. Typography
@@ -384,26 +407,28 @@ a by-eye Star of David check.
 
 | New asset | How | Notes |
 |---|---|---|
-| Wordmark (SVG or PNG, white on transparent) | Extract the wordmark region from the 6600x1650 banner (1584x396 master) and clean or trace it locally; strip the baked halo so CSS owns the glow | The surrounding banner has a Twitter bird and TikTok mark; take only the wordmark region. A black-on-transparent variant for light mode. |
+| Wordmark (SVG or PNG, white on transparent) | Trace the wordmark region of the 6600x1650 banner (1584x396 master) to SVG locally (decision 2); fallback is a transparent PNG cut. Strip the baked halo so CSS owns the glow | The surrounding banner has a Twitter bird and TikTok mark; crop them away and take only the wordmark region. Star check by eye on the result. A black-on-transparent variant for light mode. |
 | Mascot WebP derivatives (hero 640 px, favicon 32/180/512) | resize of the approved PNG | Lossless or q90, star-free file as source |
-| OG card 1200x630 | compose locally from wordmark, mascot and carbon background; one default plus per-post via a Hugo image pipeline is optional | Replaces the 512 px square; keep under 120 KB |
+| OG card 1200x630 | compose locally from wordmark, mascot and carbon background; one default now (decision 7); per-post cards later only through Hugo's own image pipeline with no new dependency | Replaces the 512 px square; keep under 120 KB |
 | Circuit-trace pattern | trace or recreate as simple SVG | under 6 KB |
-| Eight network icons | copy from Reach Around's CC0 set | record hash in the manifest |
+| Nine network icons (eight plus TikTok) | copy from Reach Around's CC0 set; confirm the TikTok icon is in it, else add it from the same CC0 source | record hash in the manifest |
 
 ### Needs paid generation
 
-Nothing in this plan requires paid image generation. If the maintainer wants
-alternatives (for example a per-post OG background set, or a wider hero
-illustration), the estimate is below for approval. These are estimates and have
-not been measured against any provider price list.
+No paid hero art now (decision 8). Nothing in this plan requires paid image
+generation. The maintainer is open to spending later; each set then goes
+through the paid gate (2 USD per job cap, 10 USD monthly ceiling, fresh approval
+for each job) and the star and third-party-mark check. The estimates below are
+for that later case. They are estimates and have not been measured against any
+provider price list.
 
 | Optional item | Images | Estimate | Cap |
 |---|---|---|---|
 | Hero background variants for the home page | 4 | about $0.20 to $0.40 | under the $2 per job cap |
 | OG card backgrounds (3 post categories) | 3 | about $0.15 to $0.30 | under the $2 per job cap |
 
-No generation call is made by this brief. Anything generated would also need the
-by-eye star check and a manifest line.
+No generation call is made by this brief. Anything generated also needs the
+by-eye star check, the third-party-mark check and a manifest line.
 
 ### Alt text
 
@@ -418,7 +443,7 @@ Budgets (a build gate in CI measures them):
 
 | Item | Budget |
 |---|---|
-| JavaScript | 0 bytes |
+| JavaScript | one same-origin file (`/theme.js`), under 1 KB gzip, target under 600 bytes; no other script, no third-party script |
 | CSS (all, minified, one file) | 20 KB gzip, under 12 KB target; today 8.3 KB raw |
 | Fonts | 1 file, under 30 KB (Jost is 26.6 KB) |
 | Home page HTML | under 15 KB gzip |
@@ -429,19 +454,45 @@ Budgets (a build gate in CI measures them):
 | LCP on a mid-range phone, 4G | under 2.0 s (measure in a browser run; the baseline did not measure Lighthouse) |
 | CLS | under 0.05; image dimensions always declared |
 
-Constraints from `static/_headers`, kept as is:
+Constraints from `static/_headers` (one change, below):
 
-- `default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self';
-  script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors
-  'none'`.
+- Today: `default-src 'none'; img-src 'self'; style-src 'self'; font-src
+  'self'; script-src 'none'; base-uri 'none'; form-action 'none';
+  frame-ancestors 'none'`.
+- Changed by decision 4: `script-src 'self'` replaces `script-src 'none'`.
+  Everything else stays. No inline script, no `unsafe-inline`, no
+  `unsafe-eval`, no third-party script source, no hashes or nonces needed.
 - No inline `<script>`, `<style>` or `style=` attributes; `check-output.sh`
   fails the build on each. No `data:` images. No forms (so no contact form).
-- Mobile menu, accordions and the theme behave with native elements
-  (`<details>`) and CSS only. There is no theme toggle button in the plan
-  (needs script); the theme follows `prefers-color-scheme`.
+- `check-output.sh` today fails on any `<script` element and on
+  `script-src` other than the strict form. New expectations: the only allowed
+  script element is `<script src="/theme.js">` (same origin, no `http(s)://`
+  src, no inline body); the CSP must contain exactly `script-src 'self'`
+  (`none` is rejected once the toggle ships so the header and the template
+  cannot drift apart; also reject `*`, any `http(s):` source, `unsafe-inline`,
+  `unsafe-eval`, `data:` and `blob:` in script-src). `test-check-output.sh`
+  fixtures change to `'self'` and gain negative cases: inline script, external
+  script, a second script file, `script-src 'unsafe-inline'`, and
+  `script-src https:`. The comment in `static/_headers` is rewritten to say
+  `script-src` is `'self'` for the theme file only.
+- Mobile menu and accordions use native elements (`<details>`) and CSS only.
+- Theme (decision 4): dark is the default; the CSS follows
+  `prefers-color-scheme` (light only when the system says light, dark when it
+  is unknown), so the no-script path is correct on CSS alone. With script, a
+  toggle adds a manual override. `/theme.js` is loaded from `<head>` as a
+  blocking tag so the stored choice is applied before first paint (no flash,
+  no CLS). It reads and writes one key through a guarded access: reads and
+  writes sit in `try`/`catch` (storage can throw when blocked), only the exact
+  values `light` and `dark` are accepted, anything else is ignored, and a
+  failure falls back to the CSS default with the toggle still working for the
+  page view. It sets `data-theme` on `<html>`, builds the button in the DOM (no
+  dead control without script), and uses no `eval`, no `innerHTML` of stored
+  data and no network call.
 - Outbound links never auto-load anything (no preconnect to third parties).
 - A new CSP source needs its own issue and an explicit decision; the header
-  comment already says embeds are added one provider at a time.
+  comment already says embeds are added one provider at a time. The
+  `script-src 'self'` change is that decision for the theme file and covers
+  nothing else.
 
 ## 11. Accessibility requirements (WCAG 2.2 AA)
 
@@ -458,6 +509,16 @@ Constraints from `static/_headers`, kept as is:
   carry a text label (visually hidden if needed).
 - Links: every outbound link names its destination; identical link text points to
   identical targets; link color is not the only cue in body text (underline).
+- Theme toggle: a real `<button>` reachable by Tab in header order, with a
+  visible text or icon-plus-text label that names the action ("Light theme" /
+  "Dark theme"), at least 44 px on touch and never below 24 px. State is
+  exposed with `aria-pressed` (pressed means the light theme is on), and the
+  accessible name does not change with state, so a screen reader announces the
+  name plus "pressed" or "not pressed". Operable with Enter and Space (native
+  button, no custom key handling). The 3 px focus ring and the 3:1 contrast
+  above apply. Switching does not animate under `prefers-reduced-motion`
+  (and the CSS applies no transition to color on the root either way). The
+  control is created only when script runs, so there is no inert button.
 - Motion and contrast preferences: `prefers-reduced-motion`,
   `prefers-contrast: more` (raise border and glow contrast), and `forced-colors`
   fallbacks.
@@ -476,64 +537,72 @@ board card before work starts. Repo is this one unless noted.
 
 | # | Proposed issue | Size | Depends on |
 |---|---|---|---|
-| 1 | Approve this brief (decisions on the open questions) | S | none |
-| 2 | Token source: `brand/tokens.json`, generator script, regenerate `tokens.css`, add new tokens and extend `check-contrast.py` pairs | M | 1 |
-| 3 | Reach Around (that repo): vendor the token file with a hash pin, map to `--ra-*`, align surface/text/border/light-bg drift, link to the blog | M | 2 |
-| 4 | Drift check: local script in both repos; propose moving it to GYST as a reusable check | S | 2, 3 |
-| 5 | Assets, part 1: wordmark (dark and light), mascot WebP derivatives, favicon set, approved-assets manifest lines, by-eye star check | M | 1 |
-| 6 | Assets, part 2: circuit SVG, network icons from the shared set, default 1200x630 OG card | S | 5 |
-| 7 | Shell: base layout, header and `<details>` nav, footer, landmarks, skip link, print and `forced-colors` styles | M | 2, 5 |
-| 8 | HUD component CSS: bracket frame, divider, carbon surface, glow, tile, button | M | 2, 7 |
-| 9 | Templates: home (hero, latest posts, social strip) | M | 7, 8 |
-| 10 | Templates: post (archive banner, superseded note, syndication row, prev/next), archive and term pages | M | 7, 8 |
-| 11 | Data files and the socials hub page, `rel="me"` row from the same data, add YouTube, leave X out | M | 7, 8 |
-| 12 | Products page and template with disclosure at the top; move the 22 affiliate links from the 3 posts | M | 7, 8 |
-| 13 | About, Contact (no form), Support, Privacy pages | M | 7, 8 |
-| 14 | Migrate content: 10 posts, 15 aliases to `_redirects`, alt text for retained images, WebP conversion, TikTok archive note, Stream Daemon forward link | L | 10, 12 |
-| 15 | Head and SEO: per-page descriptions, `summary_large_image` card, sitemap line check, tune `check-output.sh` for new tags | S | 6, 10 |
-| 16 | Performance and accessibility gates: size budget script in CI, browser run for LCP and CLS, keyboard and zoom pass per template | M | 9 to 14 |
-| 17 | Syndication contract: `syndicate` and `syndicated` front matter in templates; hand-off to #11 | S | 10 |
-| 18 | Cutover checklist run: staging to apex per `docs/cutover.md`, redirects verified on the live host | M | 14, 16 |
-| 19 | Optional: build-time "latest on Mastodon" list from the maintainer's public RSS | M | 11, 18 |
+| 1 | Approve this brief and the issue list (decisions are recorded in section 13) | S | none |
+| 2 | Token source: `brand/tokens.json`, generator script (emits the system-light and `data-theme` blocks), regenerate `tokens.css`, add new tokens and extend `check-contrast.py` pairs | M | 1 |
+| 3 | CSP change for the theme script: `script-src 'self'` in `static/_headers` (comment rewritten), `check-output.sh` allows only the one same-origin theme script and requires the exact policy, `test-check-output.sh` fixtures and negative cases, performance-budget line for the one JS file | S | 1 |
+| 4 | Reach Around (that repo): vendor the token file with a hash pin, map to `--ra-*`, align surface/text/border/light-bg drift, link to the blog | M | 2 |
+| 5 | Drift check: local script in both repos; propose moving it to GYST as a reusable check | S | 2, 4 |
+| 6 | Assets, part 1: wordmark (traced SVG, PNG fallback; dark and light; third-party marks cropped), mascot WebP derivatives, favicon set, approved-assets manifest lines, by-eye star check | M | 1 |
+| 7 | Assets, part 2: circuit SVG, nine network icons from the shared set, default 1200x630 OG card | S | 6 |
+| 8 | Shell: base layout, header and `<details>` nav, footer, landmarks, skip link, print and `forced-colors` styles; journal nav item hidden until the first entry exists | M | 2, 6 |
+| 9 | Theme toggle: `/theme.js` (guarded storage, head-loaded, builds the button), button styles and the `data-theme` CSS hooks, keyboard and screen-reader pass, reduced-motion behavior, privacy-page wording for the stored choice | M | 2, 3, 8 |
+| 10 | HUD component CSS: bracket frame, divider, carbon surface, glow, tile, button | M | 2, 8 |
+| 11 | Templates: home (hero, latest posts, social strip) | M | 8, 10 |
+| 12 | Templates: post (archive banner, superseded note, syndication row, prev/next), archive and term pages | M | 8, 10 |
+| 13 | Data files and the socials hub page (nine networks, TikTok kept), `rel="me"` row from the same data, add YouTube, leave X out | M | 8, 10 |
+| 14 | Products page and template with disclosure at the top; move the 22 affiliate links from the 3 posts | M | 8, 10 |
+| 15 | About, Contact (no form or script: Matrix and Discord links plus one text-only public address, alias supplied by the maintainer and not blocking), Support, Privacy pages | M | 8, 10 |
+| 16 | Migrate content: 10 posts, 15 aliases to `_redirects`, alt text for retained images, WebP conversion, TikTok archive note, Stream Daemon forward link | L | 12, 14 |
+| 17 | Head and SEO: per-page descriptions, `summary_large_image` card with the one default OG card, sitemap line check, tune `check-output.sh` for new tags | S | 7, 12 |
+| 18 | Performance and accessibility gates: size budget script in CI (one JS file allowed), browser run for LCP and CLS, keyboard and zoom pass per template, toggle checks | M | 9, 11 to 16 |
+| 19 | Syndication contract: `syndicate` and `syndicated` front matter in templates; hand-off to #11 | S | 12 |
+| 20 | Cutover checklist run: staging to apex per `docs/cutover.md`, redirects verified on the live host | M | 16, 18 |
+| 21 | Optional: build-time "latest on Mastodon" list from the maintainer's public RSS | M | 13, 20 |
 
-Issue 3 and part of 4 belong in the Reach Around repo; the rest are here. The
-syndicate deploy job itself stays in #11.
+Twenty-one issues (the first brief had nineteen; the CSP change and the toggle
+are the two added by decision 4). Issue 4 and part of 5 belong in the Reach
+Around repo; the rest are here. The syndicate deploy job itself stays in #11.
+Per-post OG cards (decision 7) and paid hero art (decision 8) are deliberately
+not issues yet.
 
-## 13. Open questions for the maintainer (max 8)
+## 13. Decisions (maintainer answers, 2026-10-29)
 
-1. TikTok on the hub. The live hub lists TikTok; you named YouTube in and X out
-   and did not mention TikTok. Recommendation: keep it on the hub (it is in the
-   live site and in the banners) unless the account is inactive, in which case
-   drop it like X.
-2. Wordmark source file. The only in-hand art is the raster banner (6600x1650).
-   Recommendation: trace the wordmark region locally to an SVG; if the trace
-   looks wrong, use a transparent PNG cut. No designer license issue arises
-   because it is your own artwork and stays an image.
-3. Journal section. The repo has a journal nav item and no journal content.
-   Recommendation: hide it from the nav until the first entry exists, keep the
-   template.
-4. Light mode. Keep a full light palette (existing) or go dark only?
-   Recommendation: keep light; it costs one token block and the contrast check
-   already covers it. Remove the idea of a toggle (needs script).
-5. Which token file is canonical when the two repos disagree today. The blog
-   and Reach Around differ on surface, text, border and light background.
-   Recommendation: the blog values win (warm neutrals, pass the check), and
-   Reach Around adopts them in issue 3.
-6. Contact path without a form. Options: a mailto link (address visible to
-   scrapers), a Matrix or Discord link, or an obfuscated address. Recommendation:
-   link to Matrix and Discord plus a text-only address you approve for public
-   posting; no form.
-7. Per-post OG cards. One default card, or a generated card per post at build
-   time? Recommendation: one default now; per-post cards only if Hugo's image
-   pipeline does it with no new dependency.
-8. Optional paid hero art. Spend up to about $0.60 on generated backgrounds, or
-   none? Recommendation: none; the CSS composition plus the existing mascot
-   covers the home page, and a generated image would need its own star and
-   third-party-mark check.
+The eight open questions are answered. The same text is in the comments on
+issue #41. Each answer is applied in the section named.
+
+1. TikTok stays on the socials hub (largest platform). Nine networks; the icon
+   comes from the shared CC0 set. Applied in sections 4, 5, 9 and issue 13.
+2. Wordmark: trace the banner region to SVG locally; fallback is a transparent
+   PNG cut. Crop away the third-party marks, then star-check the result by eye.
+   It stays an image. Applied in sections 7, 9 and issue 6.
+3. Journal: hide the nav item until the first entry exists; keep the template.
+   Applied in section 3 and issue 8.
+4. Theme: dark default; follow the system setting when it says light; dark
+   fallback when unknown; plus a manual toggle. This replaces the earlier
+   no-toggle recommendation. Consequences: the toggle needs one small
+   same-origin script, so the CSP changes `script-src` from `'none'` to
+   `'self'` (no inline script, no third-party script); the no-script path stays
+   correct through `prefers-color-scheme` CSS; the stored choice uses guarded
+   storage access. Applied in sections 2, 6 (contrast), 10 (CSP, budget,
+   `check-output.sh` and test expectations), 11 (accessibility) and issues 2, 3,
+   9 and 18.
+5. Blog token values win. Reach Around adopts them through the shared
+   `brand/tokens.json`, vendored with a recorded checksum. Applied in section 6
+   and issues 2, 4 and 5.
+6. Contact: Matrix and Discord links plus one text-only public address the
+   maintainer approves. No form, no script. The alias comes from the maintainer
+   later and does not block the build; the page ships with the two links and
+   gains the address when it is supplied. Applied in sections 4 and issue 15.
+7. One default OG card now. Per-post cards come later only through Hugo's own
+   image pipeline with no new dependency. Applied in section 9 and issue 17.
+8. No paid hero art now. Open to spending later; each set goes through the paid
+   gate (2 USD per job cap, 10 USD monthly ceiling, fresh approval each job) and
+   the star and third-party-mark check. Applied in section 9.
 
 ## 14. Constraints recap
 
-- No analytics, no embeds, no third-party requests; strict CSP unchanged.
+- No analytics, no embeds, no third-party requests; strict CSP, with one change:
+  `script-src 'self'` for the theme script only (decision 4).
 - American English throughout.
 - Public repo: no callsign, grid square, employer, hostname, serial or secret
   in any file or asset; asset paths in the manifest are relative import paths.
