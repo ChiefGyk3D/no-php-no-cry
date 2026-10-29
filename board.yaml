@@ -35,6 +35,7 @@ fields:
   - name: Status
     type: single_select
     options:
+      - {name: Todo, color: GREEN, description: "Stock GitHub default option; use Backlog instead"}
       - {name: Backlog, color: GRAY, description: "Not scheduled"}
       - {name: Next, color: BLUE, description: "Scheduled for a sprint"}
       - {name: In progress, color: YELLOW, description: "Being worked, or a draft pull request"}
