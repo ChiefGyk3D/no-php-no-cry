@@ -7,8 +7,12 @@
 #      (artifact_name_ok): there is no second file a script could load;
 #   2. nosniff is in the headers (headers_nosniff_ok), so a response that is not
 #      served as JavaScript is not run as a script;
-#   3. the one allowed script, /theme.js, cannot load or build code
-#      (theme_capability_bad), so it cannot reach for a file in any case.
+#   3. the one allowed script, /theme.js, is accepted only if its sha256 equals
+#      the value in the committed hash file (theme_hash_state): with no hash
+#      file no script is allowed at all, and any change to the script is a
+#      reviewed change to that file (scripts/pin-theme.sh writes it);
+#   4. the headers file is one "/*" rule block with no removal directive
+#      (headers_policy_ok), so nothing detaches or overrides a header per path.
 
 # artifact_name_ok <path relative to the site root>: succeeds for a file the
 # build may carry. The two control files only at the root; everything else needs
@@ -28,64 +32,17 @@ artifact_name_ok() {
     return 1
 }
 
-# theme_capability_bad <file>: succeeds (a finding) when the script is not
-# plainly a theme toggle. It is an ALLOWLIST, so a DOM API nobody listed (new or
-# old) is refused instead of needing to be thought of:
-#   - ASCII only; no backslash (escapes), backtick (templates), bracket access,
-#     or comment (// and /* */);
-#   - a member after a dot must be one of PROPS below (names after "dataset."
-#     are free); string arguments are checked for createElement (only "button")
-#     and setAttribute (only the listed attribute names);
-#   - a bare name must be a keyword or global from BARE below, or at most three
-#     characters (a local such as t or e).
-# To let the theme toggle use another API, add its name to PROPS or BARE here,
-# in a reviewed change that also adds a test, and list it in docs/theme-script.md.
-theme_capability_bad() {
-    python3 -I -c '
-import re
-import sys
-
-PROPS = set("""documentElement body head dataset classList add remove toggle contains
-getItem setItem matches matchMedia addEventListener getAttribute removeAttribute
-setAttribute createElement appendChild textContent type hidden title className
-querySelector getElementById preventDefault target currentTarget document
-localStorage""".split())
-BARE = set("""var let const function if else return try catch finally new typeof true false
-null undefined this document window localStorage matchMedia""".split())
-ATTRS = ("data-theme", "aria-pressed", "aria-label", "type", "title", "class", "hidden")
-
-raw = open(sys.argv[1], "rb").read()
-try:
-    text = raw.decode("ascii")
-except UnicodeDecodeError:
-    sys.exit(0)
-if "\\" in text or "`" in text:
-    sys.exit(0)
-
-# String-argument rules, on the text as written.
-n_create = len(re.findall(r"\bcreateElement\b", text))
-ok_create = len(re.findall(r"\.\s*createElement\s*\(\s*([\"\x27])button\1\s*\)", text))
-attr_alt = "|".join(re.escape(a) for a in ATTRS)
-n_set = len(re.findall(r"\bsetAttribute\b", text))
-ok_set = len(re.findall(r"\.\s*setAttribute\s*\(\s*([\"\x27])(?:%s)\1\s*," % attr_alt, text))
-if n_create != ok_create or n_set != ok_set:
-    sys.exit(0)
-
-# Strings out (they hold no code once eval, Function and timers are not names).
-code = re.sub(r"\"[^\"\n]*\"|\x27[^\x27\n]*\x27", "\"\"", text)
-if "[" in code or "//" in code or "/*" in code:
-    sys.exit(0)
-code = re.sub(r"\bdataset\s*\.\s*[A-Za-z_$][\w$]*", "dataset", code)
-for m in re.finditer(r"(?<![\w$])([A-Za-z_$][\w$]*)", code):
-    name = m.group(1)
-    before = code[: m.start()].rstrip()
-    if before.endswith("."):
-        if name not in PROPS:
-            sys.exit(0)
-    elif name not in BARE and len(name) > 3:
-        sys.exit(0)
-sys.exit(1)
-' "$1"
+# theme_hash_state <hash file>: prints the pinned sha256 and succeeds when the
+# file is one line, "<64 lowercase hex>" optionally followed by spaces and
+# theme.js (sha256sum format). Returns 1 for no file (no script is allowed) and
+# 2 for a malformed one.
+theme_hash_state() {
+    local lines=()
+    [[ -f "$1" ]] || return 1
+    mapfile -t lines <"$1"
+    [[ ${#lines[@]} -eq 1 ]] || return 2
+    [[ "${lines[0]}" =~ ^([0-9a-f]{64})([[:space:]]+\*?theme\.js)?$ ]] || return 2
+    printf '%s\n' "${BASH_REMATCH[1]}"
 }
 
 # svg_script_bad <file>: succeeds when an SVG carries a script element, an
@@ -104,4 +61,17 @@ headers_nosniff_ok() {
             if (v != "nosniff") bad = 1
         }
         END { exit (n != 1 || bad) }' "$1"
+}
+
+# headers_policy_ok <headers file>: succeeds when the file has exactly one rule
+# block, "/*", and no line that removes a header (one starting with "!"). A
+# second block or a per-path rule could override a header; a removal directive
+# could detach one.
+headers_policy_ok() {
+    awk '
+        { sub(/\r$/, "") }
+        /^[ \t]*$/ || /^[ \t]*#/ { next }
+        /^[^ \t]/ { blocks++; if ($0 != "/*") bad = 1; next }
+        { line = $0; sub(/^[ \t]+/, "", line); if (substr(line, 1, 1) == "!") bad = 1; if (blocks != 1) bad = 1 }
+        END { exit (blocks != 1 || bad) }' "$1"
 }

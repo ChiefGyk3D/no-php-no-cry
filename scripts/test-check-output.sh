@@ -14,9 +14,14 @@ work="$(mktemp -d "$root/tmp/check-output.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
 failures=0
+# The pinned hash of the one allowed script is a committed file; tests use their
+# own, absent unless a case pins it.
+export THEME_HASH_FILE="$work/theme.sha256"
+pin_dir() { printf '%s  theme.js\n' "$(sha256sum "$1/theme.js" | cut -d' ' -f1)" >"$THEME_HASH_FILE"; }
 
 make_good() {
     local dir="$1"
+    rm -f "$THEME_HASH_FILE"
     rm -rf "$dir"
     mkdir -p "$dir/posts/sample-post"
     # Heads as Hugo's minifier writes them (attribute quotes dropped where legal).
@@ -153,6 +158,7 @@ done
 with_theme() {
     printf '%s\n' "$APPEND" >>"$1/index.html"
     printf '%s\n' "$THEME_JS" >"$1/theme.js"
+    pin_dir "$1"
 }
 THEME_JS='document.documentElement.dataset.theme="dark"'
 for form in '<script src=/theme.js></script>' '<script src="/theme.js"></script>' "<script src='/theme.js'></script>" '<SCRIPT SRC=/theme.js></SCRIPT>'; do
@@ -169,13 +175,17 @@ for form in '<script src=/theme.js></script>' '<script src="/theme.js"></script>
 done
 
 # The page references /theme.js but the file is not in the build.
-theme_missing() { printf '%s\n' '<script src=/theme.js></script>' >>"$1/index.html"; }
+theme_missing() {
+    printf '%s\n' '<script src=/theme.js></script>' >>"$1/index.html"
+    printf '%s  theme.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$THEME_HASH_FILE"
+}
 variant theme-script-file-missing missing-script theme_missing
 
 # Script files: only /theme.js, under 1 KB gzip (brief section 10).
 good_theme() {
     printf '%s\n' '<script src=/theme.js></script>' >>"$1/index.html"
     printf '%s\n' "$THEME_JS" >"$1/theme.js"
+    pin_dir "$1"
 }
 extra_js() {
     good_theme "$1"
@@ -194,12 +204,14 @@ variant js-file-without-page-reference extra-script-file js_only_file
 big_theme() {
     good_theme "$1"
     head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$1/theme.js"
+    pin_dir "$1"
 }
 variant theme-js-over-budget js-budget big_theme
 d="$work/theme-compressible"
 make_good "$d"
 good_theme "$d"
 for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$d/theme.js"
+pin_dir "$d"
 if "$checker" "$d" >/dev/null 2>&1; then
     echo "ok: a theme.js that is large raw but under 1 KB gzip passes"
 else
@@ -279,21 +291,25 @@ FILE=posts/sample-post/payload variant nested-extensionless-file unexpected-file
 FILE=data.json variant unlisted-extension unexpected-file other_file
 FILE=.hidden variant dotfile unexpected-file other_file
 FILE=page.html.php variant double-extension unexpected-file other_file
-theme_capability() {
+# The script is accepted only by hash: unpinned, changed after pinning, or with
+# a malformed hash file it fails; with no hash file no script element passes.
+no_hash_file() { rm -f "$THEME_HASH_FILE"; }
+no_hash_file_with_script() {
     good_theme "$1"
-    printf '%s\n' 'var s=document.createElement("script");s.src="/payload";document.head.append(s)' >"$1/theme.js"
+    no_hash_file
 }
-variant theme-js-creates-script theme-capability theme_capability
-theme_bracket() {
+variant theme-without-hash-file script-not-allowed no_hash_file_with_script
+variant theme-file-without-hash-file extra-script-file no_hash_file_with_script
+theme_changed() {
     good_theme "$1"
-    printf '%s\n' 'document["create"+"Element"]("script")' >"$1/theme.js"
+    printf '%s\n' "/\"/;eval('x');//\"" >"$1/theme.js"
 }
-variant theme-js-computed-property theme-capability theme_bracket
-theme_markup() {
+variant theme-changed-after-pinning theme-hash theme_changed
+theme_bad_hash_file() {
     good_theme "$1"
-    printf '%s\n' 'document.body.setHTMLUnsafe("<b>x</b>")' >"$1/theme.js"
+    printf 'not a hash\n' >"$THEME_HASH_FILE"
 }
-variant theme-js-markup-setter theme-capability theme_markup
+variant theme-malformed-hash-file theme-hash-file theme_bad_hash_file
 svg_script() {
     printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>' >"$1/logo.svg"
 }
@@ -304,6 +320,14 @@ dup_nosniff() { printf '  X-Content-Type-Options: sniff\n' >>"$1/_headers"; }
 variant headers-conflicting-nosniff missing-nosniff dup_nosniff
 dup_nosniff_same() { printf '  x-content-type-options: nosniff\n' >>"$1/_headers"; }
 variant headers-duplicate-nosniff missing-nosniff dup_nosniff_same
+headers_extra() { printf '%b' "$EXTRA" >>"$1/_headers"; }
+EXTRA='/admin/*\n  ! X-Content-Type-Options\n' variant headers-removal-nosniff headers-structure headers_extra
+EXTRA='/admin/*\n  ! Content-Security-Policy\n' variant headers-removal-policy headers-structure headers_extra
+EXTRA='/admin/*\n\t! X-Content-Type-Options\n' variant headers-removal-tab headers-structure headers_extra
+EXTRA='  ! Referrer-Policy\n' variant headers-removal-first-block headers-structure headers_extra
+EXTRA='/other/*\n  Referrer-Policy: no-referrer\n' variant headers-second-block headers-structure headers_extra
+EXTRA='/api/*\n  X-Content-Type-Options: sniff\n' variant headers-path-override-nosniff headers-structure headers_extra
+EXTRA="/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'\\n" variant headers-path-override-policy headers-structure headers_extra
 
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).

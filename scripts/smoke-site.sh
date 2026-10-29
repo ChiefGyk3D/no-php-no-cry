@@ -14,6 +14,8 @@
 #                 only value is nosniff
 #   redirect      the first 301 line of <public-dir>/_redirects answers 301
 #                 with the expected Location
+#   theme-hash    when the build has a theme.js, the deployed /theme.js has the
+#                 sha256 pinned in theme.js.sha256 (THEME_HASH_FILE overrides)
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
 # category page, the feed (/index.xml) and the 404 page (asked for as
@@ -67,6 +69,10 @@ if ! awk -v csp="$csp_expected" 'BEGIN {
     exit 2
 fi
 
+if ! headers_policy_ok "$dir/_headers"; then
+    echo "input: ${dir}/_headers must be one /* rule block with no removal directive"
+    exit 2
+fi
 if ! headers_nosniff_ok "$dir/_headers"; then
     echo "input: ${dir}/_headers must carry X-Content-Type-Options: nosniff exactly once"
     exit 2
@@ -81,6 +87,23 @@ first_page() {
     p="${p#"$dir"}"
     printf '%s/\n' "${p%/index.html}"
 }
+
+# The theme script: a theme.js in the build must match the pinned hash (else
+# exit 2), and the deployed /theme.js must be exactly those bytes.
+theme_hash_file="${THEME_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/theme.js.sha256}"
+theme_pinned=""
+if [[ -f "$dir/theme.js" ]]; then
+    rc=0
+    theme_pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "input: ${dir}/theme.js is in the build but there is no valid pinned hash at ${theme_hash_file}"
+        exit 2
+    fi
+    if [[ "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$theme_pinned" ]]; then
+        echo "input: ${dir}/theme.js does not match the pinned hash in ${theme_hash_file}"
+        exit 2
+    fi
+fi
 
 missing_page=/smoke-check-missing-page/
 singles=() lists=() pages=(/)
@@ -99,6 +122,7 @@ if [[ ${#singles[@]} -eq 0 || ${#lists[@]} -eq 0 ]]; then
 fi
 pages+=("${singles[@]}" "${lists[@]}")
 [[ -f "$dir/index.xml" ]] && pages+=(/index.xml)
+[[ -n "$theme_pinned" ]] && pages+=(/theme.js)
 
 from="" to=""
 if [[ -f "$dir/_redirects" ]]; then
@@ -128,7 +152,7 @@ header_values() {
 # check_page <path>: status, exactly one expected Content-Security-Policy, and
 # nosniff on one page. Prints a line per result; fails if any check does.
 check_page() {
-    local path="$1" want=200 resp="" code csp_count csp_actual nosniff_values ok=0 failed=0
+    local path="$1" want=200 got resp="" code csp_count csp_actual nosniff_values ok=0 failed=0
     [[ "$path" == "$missing_page" ]] && want=404
     if resp="$(fetch "$path")"; then
         code="$(status_of "$resp")"
@@ -162,6 +186,13 @@ check_page() {
     elif [[ "${nosniff_values,,}" != nosniff ]]; then
         echo "wrong-nosniff: ${path} must have exactly one X-Content-Type-Options header with the value nosniff"
         failed=1
+    fi
+    if [[ "$path" == /theme.js ]]; then
+        got="$(curl -sS --max-time 20 "${base}${path}" | sha256sum | cut -d' ' -f1)" || got=""
+        if [[ "$got" != "$theme_pinned" ]]; then
+            echo "theme-hash: ${path} served by the site does not match the pinned sha256"
+            failed=1
+        fi
     fi
     if [[ $failed -eq 0 && $ok -eq 1 ]]; then
         echo "ok: ${path} answers ${want} with the expected policy and nosniff"

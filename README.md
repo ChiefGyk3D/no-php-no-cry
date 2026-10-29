@@ -36,6 +36,7 @@ scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition
 scripts/check-output.sh public   # see the rules below
 scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
 scripts/test-check-site-artifact.sh
+scripts/test-pin-theme.sh
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-head.sh             # head tags and rel=me links against hostile front matter
 scripts/test-check-hugo-version.sh
@@ -56,8 +57,10 @@ entry missing its description, canonical, icon, Open Graph or Twitter card tags.
 
 `script-src 'self'` allows every same-origin response, not one file, so the
 checks also refuse any file of an unlisted type (including one with no
-extension), a `theme.js` that can load or build code, an SVG with script, and
-headers without `nosniff`. URLs are judged after character references are
+extension), a `theme.js` whose sha256 is not the one in the committed
+`theme.js.sha256` (no hash file means no script at all; see
+`docs/theme-script.md` and `scripts/pin-theme.sh`), an SVG with script, and
+`_headers` that is not one `/*` block with exactly one `nosniff`. URLs are judged after character references are
 decoded, and a `<base>` element is refused. The post-deploy `smoke-site.sh`
 checks the policy and `nosniff` on one page per template, not on the home page
 alone.

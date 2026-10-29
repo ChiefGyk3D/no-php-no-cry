@@ -13,8 +13,13 @@ trap 'rm -rf "$work"' EXIT
 
 failures=0
 site="$work/site"
+# The pinned hash of the one allowed script lives in a committed file; tests use
+# their own, absent unless a case pins it.
+export THEME_HASH_FILE="$work/theme.sha256"
+pin_theme() { printf '%s  theme.js\n' "$(sha256sum "$site/theme.js" | cut -d' ' -f1)" >"$THEME_HASH_FILE"; }
 
 make_good() {
+    rm -f "$THEME_HASH_FILE"
     rm -rf "$site"
     mkdir -p "$site/posts/a"
     printf '<!doctype html><title>t</title>\n' >"$site/index.html"
@@ -84,16 +89,75 @@ make_good
 printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
 
-# Script files: the CSP allows 'self' scripts for the theme file only, so the
-# artifact may hold /theme.js (under 1 KB gzip) and no other script file.
+# Script files: the CSP allows 'self' scripts, so the artifact may hold /theme.js
+# (under 1 KB gzip) only when its sha256 equals the one in the committed hash
+# file, and no other script file. With no hash file no script is allowed.
 make_good
 printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+pin_theme
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
-    echo "ok: a small theme.js passes"
+    echo "ok: a pinned theme.js passes"
 else
-    echo "FAIL: a small theme.js was rejected (rc=$rc)"
+    echo "FAIL: a pinned theme.js was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+
+make_good
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+expect_fail "theme.js with no hash file" extra-script
+
+make_good
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
+pin_theme
+printf 'document.documentElement.dataset.theme="light"\n' >"$site/theme.js"
+expect_fail "theme.js changed after pinning" theme-hash
+
+make_good
+printf 'x\n' >"$site/theme.js"
+pin_theme
+printf '%s\n' "/\"/;eval('x');//\"" >"$site/theme.js"
+expect_fail "theme.js with unusual quoting, not the pinned one" theme-hash
+
+make_good
+printf 'x\n' >"$site/theme.js"
+printf '%s  theme.js\n' "$(printf 'y\n' | sha256sum | cut -d' ' -f1)" >"$THEME_HASH_FILE"
+expect_fail "theme.js pinned to another file's hash" theme-hash
+
+for bad in 'not a hash' "$(printf 'a%.0s' $(seq 1 63))" "$(printf 'a%.0s' $(seq 1 64))  other.js" "$(printf 'A%.0s' $(seq 1 64))" "$(printf 'a%.0s' $(seq 1 64))  theme.js extra" ''; do
+    make_good
+    printf 'x\n' >"$site/theme.js"
+    printf '%s\n' "$bad" >"$THEME_HASH_FILE"
+    expect_fail "malformed hash file ($bad)" theme-hash-file
+done
+make_good
+printf 'x\n' >"$site/theme.js"
+{
+    sha256sum "$site/theme.js" | cut -d' ' -f1
+    sha256sum "$site/theme.js" | cut -d' ' -f1
+} >"$THEME_HASH_FILE"
+expect_fail "two-line hash file" theme-hash-file
+
+make_good
+printf 'x\n' >"$site/theme.js"
+pin_theme
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: the sha256sum format hash file passes"
+else
+    echo "FAIL: sha256sum-format hash file rejected"
+    failures=$((failures + 1))
+fi
+make_good
+rc=0
+printf '%s\n' "$(printf 'a%.0s' $(seq 1 64))" >"$THEME_HASH_FILE"
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a hash file with no theme.js in the build passes"
+else
+    echo "FAIL: a hash file with no theme.js was rejected (rc=$rc)"
     failures=$((failures + 1))
 fi
 
@@ -112,10 +176,12 @@ expect_fail "uppercase .mjs" extra-script
 
 make_good
 head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/theme.js"
+pin_theme
 expect_fail "theme.js over 1 KB gzip" js-budget
 
 make_good
 for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$site/theme.js"
+pin_theme
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
@@ -171,110 +237,6 @@ else
     failures=$((failures + 1))
 fi
 
-# The one script may not be able to load anything else: no dynamic loading,
-# no dynamic code, no computed property names, no escape sequences.
-theme_with() {
-    make_good
-    printf '%s\n' "$1" >"$site/theme.js"
-}
-theme_with 'var s=document.createElement("script");s.src="/payload";document.head.append(s)'
-expect_fail "theme.js creates elements" theme-capability
-theme_with 'import("/payload")'
-expect_fail "theme.js dynamic import" theme-capability
-theme_with 'importScripts("/payload")'
-expect_fail "theme.js importScripts" theme-capability
-theme_with 'fetch("/payload").then(r=>r.text()).then(eval)'
-expect_fail "theme.js fetch and eval" theme-capability
-theme_with 'new Function("x")()'
-expect_fail "theme.js Function constructor" theme-capability
-theme_with 'document.write("x")'
-expect_fail "theme.js document.write" theme-capability
-theme_with 'document.body.innerHTML="x"'
-expect_fail "theme.js innerHTML" theme-capability
-theme_with 'document.body.insertAdjacentHTML("beforeend","x")'
-expect_fail "theme.js insertAdjacentHTML" theme-capability
-theme_with 'document["create"+"Element"]("script")'
-expect_fail "theme.js computed property" theme-capability
-theme_with 'document.createElement("script")'
-expect_fail "theme.js creates a script element" theme-capability
-theme_with 'document.createElement`script`'
-expect_fail "theme.js template literal" theme-capability
-theme_with 'new Worker("/payload")'
-expect_fail "theme.js worker" theme-capability
-theme_with 'location.href="/payload"'
-expect_fail "theme.js navigation" theme-capability
-theme_with 'x.setAttribute("src","/payload")'
-expect_fail "theme.js setAttribute" theme-capability
-theme_with 'setTimeout("x",0)'
-expect_fail "theme.js string timer" theme-capability
-theme_with 'var f=document.cre/**/ateElement'
-expect_fail "theme.js comment inside an identifier" theme-capability
-
-# Each structural ban is tested with input that breaks ONLY that rule (every
-# name in it is on the allowlist), next to a control that passes without it.
-theme_ok() {
-    theme_with "$1"
-    local rc=0
-    "$checker" "$site" >/dev/null 2>&1 || rc=$?
-    if [[ $rc -eq 0 ]]; then
-        echo "ok: $2 passes"
-    else
-        echo "FAIL: $2 was rejected (rc=$rc)"
-        "$checker" "$site" || true
-        failures=$((failures + 1))
-    fi
-}
-theme_ok 'var a=1;var u=2' "theme.js control without an escape"
-theme_with 'var a\u{62}=1'
-expect_fail "theme.js escape sequence only" theme-capability
-theme_ok 'var a=1' "theme.js control without a bracket"
-theme_with 'var a=[1]'
-expect_fail "theme.js bracket only" theme-capability
-theme_ok 'var a="x"' "theme.js control without a template literal"
-theme_with 'var a=`x`'
-expect_fail "theme.js template literal only" theme-capability
-theme_with 'var a=1/*x*/'
-expect_fail "theme.js block comment only" theme-capability
-theme_with 'var a=1//x'
-expect_fail "theme.js line comment only" theme-capability
-
-# The class of markup-parsing and element-building APIs is closed by an
-# allowlist: only the members a theme toggle needs are accepted, so a member
-# nobody listed (new or old) is refused.
-theme_with 'document.body.setHTMLUnsafe("<b>x</b>")'
-expect_fail "theme.js setHTMLUnsafe" theme-capability
-theme_with 'Document.parseHTMLUnsafe("<b>x</b>")'
-expect_fail "theme.js parseHTMLUnsafe" theme-capability
-theme_with 'document.body.setHTML("x")'
-expect_fail "theme.js setHTML" theme-capability
-theme_with 'const {setHTMLUnsafe}=document.body'
-expect_fail "theme.js destructured member" theme-capability
-theme_with 'document.body.attachShadow({mode:"open"})'
-expect_fail "theme.js attachShadow" theme-capability
-theme_with 'document.body.onclick=function(){}'
-expect_fail "theme.js handler property" theme-capability
-theme_with 'document.createElement(name)'
-expect_fail "theme.js createElement with a variable" theme-capability
-theme_with 'document.createElement("img")'
-expect_fail "theme.js createElement of another tag" theme-capability
-theme_with 'document.body.setAttribute("src","/x")'
-expect_fail "theme.js setAttribute of another attribute" theme-capability
-theme_with 'var a="é"'
-expect_fail "theme.js non-ASCII" theme-capability
-theme_ok 'var b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed","false");b.textContent="Theme";b.addEventListener("click",function(){var d=document.documentElement;d.classList.toggle("dark");d.setAttribute("data-theme","dark");try{localStorage.setItem("theme",d.classList.contains("dark")?"dark":"light")}catch(e){}});document.body.appendChild(b)' "theme.js toggle button"
-
-make_good
-printf 'try{var t=localStorage.getItem("theme")}catch(e){}\ndocument.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")\n' >"$site/theme.js"
-rc=0
-"$checker" "$site" >/dev/null 2>&1 || rc=$?
-if [[ $rc -eq 0 ]]; then
-    echo "ok: a plain theme.js passes"
-else
-    echo "FAIL: a plain theme.js was rejected (rc=$rc)"
-    "$checker" "$site" || true
-    failures=$((failures + 1))
-fi
-
 # Markup that is not a page must not carry script either.
 make_good
 printf '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>\n' >"$site/logo.svg"
@@ -310,6 +272,35 @@ grep -v 'X-Content-Type-Options' "$root/static/_headers" >"$work/bad-nosniff"
 printf '  X-Content-Type-Options: sniff\n' >>"$work/bad-nosniff"
 cp "$work/bad-nosniff" "$site/_headers"
 expect_fail_with_expected "expected headers with a different value" headers-nosniff "$work/bad-nosniff"
+
+# Header directives: one "/*" rule block, no removal directive, no per-path
+# override. Each is also a mismatch with the repository file, so the headers
+# are tried as the expected file too (the same text in both places).
+headers_variant() {
+    local name="$1" rule="$2" extra="$3" out rc=0
+    make_good
+    {
+        cat "$root/static/_headers"
+        printf '%b' "$extra"
+    } >"$work/variant-headers"
+    cp "$work/variant-headers" "$site/_headers"
+    out="$("$checker" "$site" "$work/variant-headers" 2>&1)" || rc=$?
+    if [[ $rc -eq 1 && "$out" == *"[$rule]"* ]]; then
+        echo "ok: $name"
+    else
+        echo "FAIL: $name (rc=$rc, wanted rc=1 and [$rule])"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+headers_variant "removal directive for nosniff" headers-structure '/admin/*\n  ! X-Content-Type-Options\n'
+headers_variant "removal directive for the policy" headers-structure '/admin/*\n  ! Content-Security-Policy\n'
+headers_variant "removal directive, tab indented" headers-structure '/admin/*\n\t! X-Content-Type-Options\n'
+headers_variant "removal directive under the first rule" headers-structure '  ! Referrer-Policy\n'
+headers_variant "second rule block" headers-structure '/other/*\n  Referrer-Policy: no-referrer\n'
+headers_variant "per-path override of nosniff" headers-structure '/api/*\n  X-Content-Type-Options: sniff\n'
+headers_variant "per-path override of the policy" headers-structure "/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'\\n"
+headers_variant "rule block with a different path" headers-structure '/a\n  X-Test: 1\n'
 
 # The pinned _headers must carry script-src 'self' (not 'none') once the theme
 # script ships. The repository's own file is checked here, so a revert to

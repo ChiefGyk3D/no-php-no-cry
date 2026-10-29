@@ -11,7 +11,7 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# xml-stylesheet, bad-xml, base-element, unexpected-file, theme-capability,
+# xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
@@ -26,8 +26,11 @@
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
-# nosniff is in _headers, and theme.js cannot load or build code
-# (theme-capability). URLs are judged as the browser reads them, after character
+# nosniff is in _headers, _headers is one /* block with no removal directive
+# (headers-structure), and theme.js is accepted only if its sha256 equals the
+# one in the committed theme.js.sha256 (THEME_HASH_FILE overrides the path;
+# theme-hash, theme-hash-file). With no hash file no script element and no js
+# file may exist. URLs are judged as the browser reads them, after character
 # references are decoded and tabs and newlines dropped (a parser pass per page):
 # javascript: URLs, http: and scheme-relative or backslash URLs to another host
 # on a tag that loads something, and any <base> element are findings.
@@ -59,6 +62,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
 
 dir="${1:-public}"
+theme_hash_file="${THEME_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/theme.js.sha256}"
 site_host="${SITE_HOST:-test-blog.chiefgyk3d.com}"
 expect_alias="${EXPECT_ALIAS:-/2023/02/10/sample-post/}"
 findings=0
@@ -238,6 +242,15 @@ case "${EXPECT_ENV:-}" in
     *) report env-mismatch "EXPECT_ENV must be staging or production" ;;
 esac
 
+# The pinned theme hash: absent means no script is allowed in the build.
+pinned=""
+rc=0
+pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+if [[ $rc -eq 2 ]]; then
+    report theme-hash-file "$(basename "$theme_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+    pinned=""
+fi
+
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
 asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>]*>'
 
@@ -259,6 +272,9 @@ while IFS= read -r -d '' f; do
         report script-not-allowed "$rel"
     elif [[ "$script_theme" -gt 1 ]]; then
         report script-count "$rel"
+    fi
+    if [[ -z "$pinned" && "$script_total" -gt 0 ]]; then
+        report script-not-allowed "$rel (no pinned theme script: no script is allowed)"
     fi
     if [[ "$script_theme" -ge 1 && ! -f "$dir/theme.js" ]]; then
         report missing-script "$rel (references /theme.js, which is not in the build)"
@@ -452,6 +468,9 @@ else
     fi
 fi
 
+if [[ -s "$dir/_headers" ]] && ! headers_policy_ok "$dir/_headers"; then
+    report headers-structure "_headers (must be one /* rule block with no removal directive)"
+fi
 if [[ -s "$dir/_headers" ]] && ! headers_nosniff_ok "$dir/_headers"; then
     report missing-nosniff "_headers (X-Content-Type-Options must be nosniff)"
 fi
@@ -469,17 +488,21 @@ while IFS= read -r -d '' f; do
     fi
 done < <(find "$dir" -type f -print0 | sort -z)
 
-# Script files: /theme.js only, under 1 KB gzip.
+# Script files: /theme.js only, only if its sha256 is the pinned one, under 1 KB
+# gzip. No hash file, no script.
 while IFS= read -r -d '' f; do
-    [[ "${f#"$dir"/}" == theme.js ]] || report extra-script-file "${f#"$dir"/}"
+    rel="${f#"$dir"/}"
+    if [[ "$rel" != theme.js || -z "$pinned" ]]; then
+        report extra-script-file "$rel"
+    fi
 done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
 if [[ -f "$dir/theme.js" ]]; then
+    if [[ -n "$pinned" && "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$pinned" ]]; then
+        report theme-hash "theme.js (does not match the pinned sha256)"
+    fi
     gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
     if [[ "$gz" -ge 1024 ]]; then
         report js-budget "theme.js (${gz} bytes gzip, budget is under 1024)"
-    fi
-    if theme_capability_bad "$dir/theme.js"; then
-        report theme-capability "theme.js (can load or build code)"
     fi
 fi
 

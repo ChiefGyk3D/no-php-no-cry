@@ -15,7 +15,9 @@
 #     webp avif ico woff woff2, plus _headers and _redirects at the root),
 #     whatever its content or name: script-src 'self' authorizes every
 #     same-origin response, so there must be no file a script could load
-#   - a /theme.js that can load or build code (see scripts/artifact-rules.sh)
+#   - /theme.js whose sha256 is not the one in the committed theme.js.sha256
+#     (THEME_HASH_FILE overrides the path); with no such file no script at all
+#   - a _headers that is not exactly one "/*" block, or has a removal directive
 #   - an SVG with a script element, event handler or javascript: URL
 #   - expected headers without X-Content-Type-Options: nosniff
 #   - _redirects with a line that is not a comment, blank, or
@@ -35,6 +37,7 @@ fi
 dir="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 expected_headers="${2:-$root/static/_headers}"
+theme_hash_file="${THEME_HASH_FILE:-$root/theme.js.sha256}"
 [[ -d "$dir" ]] || {
     echo "check-site-artifact: not a directory: $dir" >&2
     exit 2
@@ -91,6 +94,11 @@ if ! awk '
     report headers-script-src "expected headers: script-src must be exactly 'self', once"
 fi
 
+for f in "$expected_headers" "$dir/_headers"; do
+    if [[ -f "$f" && ! -L "$f" ]] && ! headers_policy_ok "$f"; then
+        report headers-structure "${f#"$dir"/} must be one /* rule block with no removal directive"
+    fi
+done
 if ! headers_nosniff_ok "$expected_headers"; then
     report headers-nosniff "expected headers: X-Content-Type-Options must be nosniff"
 fi
@@ -108,17 +116,29 @@ while IFS= read -r -d '' p; do
     fi
 done < <(find "$dir" -type f -print0 | sort -z)
 
-# Script files: the CSP allows 'self' scripts for the theme file only.
+# Script files: the CSP allows 'self' scripts, so the only one is /theme.js, and
+# only if its sha256 is the one pinned in the committed hash file. No hash file,
+# no script.
+pinned=""
+rc=0
+pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+if [[ $rc -eq 2 ]]; then
+    report theme-hash-file "$(basename "$theme_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+    pinned=""
+fi
 while IFS= read -r -d '' p; do
-    [[ "${p#"$dir"/}" == theme.js ]] || report extra-script "${p#"$dir"/}"
+    rel="${p#"$dir"/}"
+    if [[ "$rel" != theme.js || -z "$pinned" ]]; then
+        report extra-script "$rel"
+    fi
 done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
 if [[ -f "$dir/theme.js" && ! -L "$dir/theme.js" ]]; then
+    if [[ -n "$pinned" && "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$pinned" ]]; then
+        report theme-hash "theme.js does not match the sha256 pinned in $(basename "$theme_hash_file")"
+    fi
     gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
     if ((gz >= 1024)); then
         report js-budget "theme.js is ${gz} bytes gzip (budget: under 1024)"
-    fi
-    if theme_capability_bad "$dir/theme.js"; then
-        report theme-capability "theme.js can load or build code"
     fi
 fi
 

@@ -34,6 +34,10 @@ done
 printf '<!doctype html>\n' >"$pub/index.html"
 printf '<!doctype html>\n' >"$pub/404.html"
 printf '<rss/>\n' >"$pub/index.xml"
+# The pinned hash of the theme script: a file of the test's own, absent unless a
+# case pins it.
+export THEME_HASH_FILE="$work/theme.sha256"
+theme_file="$work/theme-served.js"
 known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml"
 # Requests per full attempt: nine pages (eight above and the 404) and the redirect.
 per_attempt=10
@@ -42,7 +46,7 @@ per_attempt=10
 start_server() {
     stop_server
     rm -f "$work/port" "$work/port.count"
-    MODE="$1" CSP="$csp" KNOWN="$known" PORTFILE="$work/port" python3 -I -c '
+    MODE="$1" CSP="$csp" KNOWN="$known" THEME_FILE="$theme_file" PORTFILE="$work/port" python3 -I -c '
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -85,7 +89,13 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        body = b"ok"
         is_known = self.path in known
+        if self.path == "/theme.js" and os.path.exists(os.environ["THEME_FILE"]):
+            is_known = True
+            body = open(os.environ["THEME_FILE"], "rb").read()
+            if fault == "tampertheme":
+                body += b"x"
         hit = self.path == fpath or (fpath == "*404" and not is_known)
         code = 200 if is_known else 404
         if mode == "bad-status" and self.path == "/":
@@ -110,9 +120,9 @@ class H(BaseHTTPRequestHandler):
                 self.send_header("x-content-type-options", "sniff")
             if fault == "joinednosniff" and hit:
                 self.send_header("x-content-type-options", "nosniff, sniff")
-        self.send_header("Content-Length", "2")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(b"ok")
+        self.wfile.write(body)
 
 
 srv = HTTPServer(("127.0.0.1", 0), H)
@@ -248,6 +258,35 @@ mkdir -p "$d"
 cp "$pub/_redirects" "$d/"
 printf '/*\n  Content-Security-Policy: default-src %s\n' "'none'" >"$d/_headers"
 expect expected-without-script-src input good "$d"
+
+# Header structure of the build's own _headers: one "/*" block, no removal
+# directive, one nosniff, one policy. Refused before any request is made.
+for variant in 'removal-nosniff:/admin/*\n  ! X-Content-Type-Options\n' 'removal-policy:/admin/*\n  ! Content-Security-Policy\n' 'removal-first-block:  ! Referrer-Policy\n' 'second-block:/other/*\n  Referrer-Policy: no-referrer\n' 'path-override-nosniff:/api/*\n  X-Content-Type-Options: sniff\n' 'duplicate-nosniff:  X-Content-Type-Options: nosniff\n'; do
+    d="$work/hdr-${variant%%:*}"
+    mkdir -p "$d"
+    cp "$pub/_redirects" "$d/"
+    cp -r "$pub/posts" "$pub/journal" "$d/"
+    cp "$pub/_headers" "$d/_headers"
+    printf '%b' "${variant#*:}" >>"$d/_headers"
+    expect "headers-structure-${variant%%:*}" input good "$d"
+done
+
+# The theme script is judged by its pinned hash: the build's file must match it,
+# and so must the bytes the site serves. With no hash file a theme.js is refused.
+tpub="$work/public-theme"
+cp -r "$pub" "$tpub"
+printf 'document.documentElement.dataset.theme="dark"\n' >"$tpub/theme.js"
+cp "$tpub/theme.js" "$theme_file"
+printf '%s  theme.js\n' "$(sha256sum "$tpub/theme.js" | cut -d' ' -f1)" >"$THEME_HASH_FILE"
+known="$known,/theme.js"
+expect "pinned theme served unchanged" pass good "$tpub"
+expect "theme served with different bytes" "theme-hash: /theme.js" tampertheme@/theme.js "$tpub"
+expect "no CSP on the theme script" "missing-csp: /theme.js" nocsp@/theme.js "$tpub"
+rm -f "$THEME_HASH_FILE"
+expect "theme.js in the build with no hash file" input good "$tpub"
+printf '%s  theme.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$THEME_HASH_FILE"
+expect "build theme.js differs from the pinned hash" input good "$tpub"
+rm -f "$THEME_HASH_FILE" "$theme_file"
 
 # Plain http is refused unless the test switch is set.
 rc=0
