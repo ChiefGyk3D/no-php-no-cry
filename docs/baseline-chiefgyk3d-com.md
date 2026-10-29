@@ -57,9 +57,9 @@ drop the demo.
 | Introducing Twitch-and-toot: The Open-Source Solution for Mastodon Stream Alerts | `/introducing-twitch-and-toot-the-open-source-solution-for-mastodon-stream-alerts/` | 2023-02-06 | 517 | 0 | Keep with note | Superseded by Stream Daemon; link forward. |
 
 Totals: 7 keep (including keep-as-archive and keep-with-note), 3 rewrite, 10
-posts in all. Pages: 4 rewrite, 2 drop, 6 pages in all. Posts are in category
-Uncategorized (9 of 10, the other two categories hold one each: Audio and
-Hardware).
+posts in all. Pages: 4 rewrite, 2 drop, 6 pages in all. By category, 9 posts are
+Uncategorized and 1 post is in both Audio and Hardware (9 + 1 = 10 posts;
+that one post counts once under each of those two categories).
 
 ## Menus
 
