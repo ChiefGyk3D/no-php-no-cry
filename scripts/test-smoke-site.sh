@@ -241,12 +241,13 @@ fi
 # the retries re-ran the whole set ($per_attempt requests per attempt, 4 attempts).
 start_server bad-status
 rc=0
-began=$SECONDS
 out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=3 SMOKE_RETRY_SLEEP=0.1 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
-if [[ $rc -ne 0 && "$out" == *"status:"* && $((SECONDS - began)) -lt 5 && "$(cat "$work/port.count")" == $((4 * per_attempt)) ]]; then
+# Bounded means exactly 4 attempts: the fake server saw 4 full sets of requests
+# and the script said so. No wall-clock limit is involved.
+if [[ $rc -ne 0 && "$out" == *"status:"* && "$out" == *"still failing after 4 attempt(s)"* && "$(cat "$work/port.count")" == $((4 * per_attempt)) ]]; then
     echo "ok: never-correct site fails after bounded retries"
 else
-    echo "FAIL: never-correct site (rc=$rc, took $((SECONDS - began)) s, requests $(cat "$work/port.count"))"
+    echo "FAIL: never-correct site (rc=$rc, requests $(cat "$work/port.count"), wanted $((4 * per_attempt)))"
     echo "$out"
     failures=$((failures + 1))
 fi
