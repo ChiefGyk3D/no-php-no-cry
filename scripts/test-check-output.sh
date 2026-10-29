@@ -41,6 +41,7 @@ RED
     cat >"$dir/_headers" <<'HDR'
 /*
   Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'
+  X-Content-Type-Options: nosniff
 HDR
 }
 
@@ -108,6 +109,44 @@ APPEND='<img src=x alt="a"onerror=alert(1)>' variant handler-after-quote event-h
 APPEND='<p ONCLICK = "x">' variant handler-uppercase-spaced event-handler append_html
 APPEND='<p
 onclick=x>' variant handler-on-next-line event-handler append_html
+
+# Character references are decoded by the browser before the URL is read, so the
+# encoded forms must be caught as the plain ones are.
+APPEND='<a href="java&#x73;cript:alert(1)">x</a>' variant javascript-href-hex-reference javascript-url append_html
+APPEND='<a href="&#106;avascript:alert(1)">x</a>' variant javascript-href-decimal-reference javascript-url append_html
+APPEND='<a href="javascript&colon;alert(1)">x</a>' variant javascript-href-named-colon javascript-url append_html
+APPEND='<a href="java&Tab;script:alert(1)">x</a>' variant javascript-href-named-tab javascript-url append_html
+APPEND='<a href="java&#9;script:alert(1)">x</a>' variant javascript-href-numeric-tab javascript-url append_html
+APPEND='<a href="&#x20;javascript:alert(1)">x</a>' variant javascript-href-leading-space-reference javascript-url append_html
+APPEND='<iframe src="&#106;avascript:alert(1)"></iframe>' variant javascript-iframe-reference javascript-url append_html
+APPEND='<meta http-equiv=refresh content="0;url=javascript:alert(1)">' variant javascript-meta-refresh javascript-url append_html
+# Scheme-relative and backslash forms leave the site without http(s):.
+APPEND='<iframe src="//evil.example/frame"></iframe>' variant protocol-relative-iframe external-asset append_html
+APPEND='<object data="//evil.example/payload"></object>' variant protocol-relative-object external-asset append_html
+APPEND='<embed src="//evil.example/payload">' variant protocol-relative-embed external-asset append_html
+APPEND='<link rel=stylesheet href=//evil.example/x.css>' variant protocol-relative-stylesheet external-asset append_html
+APPEND='<img src="\\evil.example/a.png" alt=x>' variant backslash-host-image external-asset append_html
+APPEND='<img src="/\evil.example/a.png" alt=x>' variant slash-backslash-host-image external-asset append_html
+APPEND='<form action="//evil.example/post"></form>' variant protocol-relative-form external-asset append_html
+APPEND='<img srcset="/a.png 1x, //evil.example/b.png 2x" alt=x>' variant protocol-relative-srcset external-asset append_html
+APPEND='<img src="https&colon;//evil.example/a.png" alt=x>' variant encoded-scheme-image external-asset append_html
+APPEND='<img src="h&#116;tp://evil.example/a.png" alt=x>' variant encoded-http-image http-reference append_html
+APPEND='<video poster="//evil.example/p.png"></video>' variant protocol-relative-poster external-asset append_html
+APPEND='<base href="//evil.example/">' variant base-protocol-relative base-element append_html
+APPEND='<base href=/>' variant base-same-site base-element append_html
+APPEND='<BASE target=_top>' variant base-target-only base-element append_html
+for form in '<img src="//test-blog.chiefgyk3d.com/a.png" alt=x>' '<a href="//example.org/x">outbound</a>' '<a href="&#104;ttps://example.org/x">outbound</a>' '<p title="a javascript: word">x</p>'; do
+    d="$work/ok-reference"
+    make_good "$d"
+    APPEND="$form" append_html "$d"
+    if "$checker" "$d" >/dev/null 2>&1; then
+        echo "ok: allowed reference passes ($form)"
+    else
+        echo "FAIL: allowed reference was rejected ($form)"
+        "$checker" "$d" || true
+        failures=$((failures + 1))
+    fi
+done
 
 # The one allowed script: <script src=/theme.js></script> (as the minifier writes
 # it, or with quotes) with a small theme.js. It is allowed once, in any page.
@@ -228,6 +267,34 @@ csp_default_open() { sed -i "s#default-src 'none'#default-src 'self'#" "$1/_head
 variant csp-default-src-self weak-csp csp_default_open
 csp_second_line() { printf '/other/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "'none'" >>"$1/_headers"; }
 variant csp-second-block-weak weak-csp csp_second_line
+
+# 'self' authorizes any same-origin response: only files of known non-script
+# types may ship (plus /theme.js), and nosniff must be in the headers.
+other_file() {
+    mkdir -p "$(dirname "$1/$FILE")"
+    printf 'x\n' >"$1/$FILE"
+}
+FILE=payload variant extensionless-file unexpected-file other_file
+FILE=posts/sample-post/payload variant nested-extensionless-file unexpected-file other_file
+FILE=data.json variant unlisted-extension unexpected-file other_file
+FILE=.hidden variant dotfile unexpected-file other_file
+FILE=page.html.php variant double-extension unexpected-file other_file
+theme_capability() {
+    good_theme "$1"
+    printf '%s\n' 'var s=document.createElement("script");s.src="/payload";document.head.append(s)' >"$1/theme.js"
+}
+variant theme-js-creates-script theme-capability theme_capability
+theme_bracket() {
+    good_theme "$1"
+    printf '%s\n' 'document["create"+"Element"]("script")' >"$1/theme.js"
+}
+variant theme-js-computed-property theme-capability theme_bracket
+svg_script() {
+    printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>' >"$1/logo.svg"
+}
+variant svg-with-script script-in-markup svg_script
+no_nosniff() { sed -i '/X-Content-Type-Options/d' "$1/_headers"; }
+variant headers-without-nosniff missing-nosniff no_nosniff
 
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).

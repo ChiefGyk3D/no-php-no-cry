@@ -125,6 +125,129 @@ else
     failures=$((failures + 1))
 fi
 
+# 'self' authorizes any same-origin response, so the build may hold only files
+# of known non-script types (plus /theme.js): a file with no extension or an
+# unlisted one is refused whatever it contains, in any directory.
+make_good
+printf 'x\n' >"$site/payload"
+expect_fail "extensionless file" unexpected-file
+
+make_good
+printf 'x\n' >"$site/posts/a/payload"
+expect_fail "nested extensionless file" unexpected-file
+
+make_good
+printf 'x\n' >"$site/data.json"
+expect_fail "unlisted extension" unexpected-file
+
+make_good
+printf 'x\n' >"$site/.hidden"
+expect_fail "dotfile" unexpected-file
+
+make_good
+printf 'x\n' >"$site/theme.js.map"
+expect_fail "unlisted double extension" unexpected-file
+
+make_good
+printf 'x\n' >"$site/page.html.php"
+expect_fail "known extension followed by another" unexpected-file
+
+make_good
+printf 'x\n' >"$site/trailing."
+expect_fail "trailing dot" unexpected-file
+
+make_good
+for f in a.html b.css c.svg d.xml e.txt f.png g.jpg h.jpeg i.gif j.webp k.avif l.ico m.woff n.woff2 O.PNG; do
+    printf 'x\n' >"$site/$f"
+done
+printf '<svg xmlns="http://www.w3.org/2000/svg"/>\n' >"$site/c.svg"
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: every listed extension passes"
+else
+    echo "FAIL: a listed extension was rejected (rc=$rc)"
+    "$checker" "$site" || true
+    failures=$((failures + 1))
+fi
+
+# The one script may not be able to load anything else: no dynamic loading,
+# no dynamic code, no computed property names, no escape sequences.
+theme_with() {
+    make_good
+    printf '%s\n' "$1" >"$site/theme.js"
+}
+theme_with 'var s=document.createElement("script");s.src="/payload";document.head.append(s)'
+expect_fail "theme.js creates elements" theme-capability
+theme_with 'import("/payload")'
+expect_fail "theme.js dynamic import" theme-capability
+theme_with 'importScripts("/payload")'
+expect_fail "theme.js importScripts" theme-capability
+theme_with 'fetch("/payload").then(r=>r.text()).then(eval)'
+expect_fail "theme.js fetch and eval" theme-capability
+theme_with 'new Function("x")()'
+expect_fail "theme.js Function constructor" theme-capability
+theme_with 'document.write("x")'
+expect_fail "theme.js document.write" theme-capability
+theme_with 'document.body.innerHTML="x"'
+expect_fail "theme.js innerHTML" theme-capability
+theme_with 'document.body.insertAdjacentHTML("beforeend","x")'
+expect_fail "theme.js insertAdjacentHTML" theme-capability
+theme_with 'document["create"+"Element"]("script")'
+expect_fail "theme.js computed property" theme-capability
+theme_with 'document.createElement("script")'
+expect_fail "theme.js escape sequence" theme-capability
+theme_with 'document.createElement`script`'
+expect_fail "theme.js template literal" theme-capability
+theme_with 'new Worker("/payload")'
+expect_fail "theme.js worker" theme-capability
+theme_with 'location.href="/payload"'
+expect_fail "theme.js navigation" theme-capability
+theme_with 'x.setAttribute("src","/payload")'
+expect_fail "theme.js setAttribute" theme-capability
+theme_with 'setTimeout("x",0)'
+expect_fail "theme.js string timer" theme-capability
+theme_with 'var f=document.cre/**/ateElement'
+expect_fail "theme.js comment inside an identifier" theme-capability
+
+make_good
+printf 'try{var t=localStorage.getItem("theme")}catch(e){}\ndocument.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")\n' >"$site/theme.js"
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: a plain theme.js passes"
+else
+    echo "FAIL: a plain theme.js was rejected (rc=$rc)"
+    "$checker" "$site" || true
+    failures=$((failures + 1))
+fi
+
+# Markup that is not a page must not carry script either.
+make_good
+printf '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>\n' >"$site/logo.svg"
+expect_fail "script element in an svg" script-in-markup
+
+make_good
+printf '<svg xmlns="http://www.w3.org/2000/svg" onload="x"/>\n' >"$site/logo.svg"
+expect_fail "event handler in an svg" script-in-markup
+
+# nosniff keeps the browser from treating a non-script response as a script.
+make_good
+grep -v 'X-Content-Type-Options' "$root/static/_headers" >"$work/no-nosniff"
+cp "$work/no-nosniff" "$site/_headers"
+expect_fail_with_expected() {
+    local name="$1" rule="$2" exp="$3" out rc=0
+    out="$("$checker" "$site" "$exp" 2>&1)" || rc=$?
+    if [[ $rc -eq 1 && "$out" == *"[$rule]"* ]]; then
+        echo "ok: $name"
+    else
+        echo "FAIL: $name (rc=$rc, wanted rc=1 and [$rule])"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+expect_fail_with_expected "expected headers without nosniff" headers-nosniff "$work/no-nosniff"
+
 # The pinned _headers must carry script-src 'self' (not 'none') once the theme
 # script ships. The repository's own file is checked here, so a revert to
 # 'none' in static/_headers is caught even if the build is byte-identical.

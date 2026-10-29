@@ -24,16 +24,35 @@ pub="$work/public"
 mkdir -p "$pub"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n' "$csp" >"$pub/_headers"
 printf '# generated\n/2023/02/10/sample-post/ /posts/sample-post/ 301\n/2023/02/10/sample-post /posts/sample-post/ 301\n' >"$pub/_redirects"
+# One page per template the deployed site serves: home, a post, a journal entry,
+# the two section lists, a tag page, a category page and the feed. The 404 page
+# is asked for by a name that does not exist.
+for p in posts/sample-post journal/sample-entry posts journal tags/lorem categories/sample; do
+    mkdir -p "$pub/$p"
+    printf '<!doctype html>\n' >"$pub/$p/index.html"
+done
+printf '<!doctype html>\n' >"$pub/index.html"
+printf '<!doctype html>\n' >"$pub/404.html"
+printf '<rss/>\n' >"$pub/index.xml"
+known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml"
+# Requests per full attempt: nine pages (eight above and the 404) and the redirect.
+per_attempt=10
 
 # start_server <mode>: sets $url
 start_server() {
     stop_server
     rm -f "$work/port" "$work/port.count"
-    MODE="$1" CSP="$csp" PORTFILE="$work/port" python3 -I -c '
+    MODE="$1" CSP="$csp" KNOWN="$known" PORTFILE="$work/port" python3 -I -c '
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 mode, csp = os.environ["MODE"], os.environ["CSP"]
+known = set(os.environ["KNOWN"].split(","))
+# "<fault>@<path>" breaks one page: nocsp (no CSP header), dupcsp (the header
+# twice, the second in lower case), joined (one header holding the policy twice),
+# diffcsp (a different policy), nonosniff, status (HTTP 500). The path "*404"
+# means the page served for a name that does not exist.
+fault, _, fpath = mode.partition("@")
 # "stale-N" answers the first N requests with wrong data (a 404 page without
 # the CSP header, a 200 where the 301 belongs), then answers correctly.
 stale = int(mode.split("-")[1]) if mode.startswith("stale-") else 0
@@ -66,10 +85,25 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        self.send_response(404 if mode == "bad-status" else 200)
-        if mode != "no-csp":
+        is_known = self.path in known
+        hit = self.path == fpath or (fpath == "*404" and not is_known)
+        code = 200 if is_known else 404
+        if mode == "bad-status" and self.path == "/":
+            code = 404
+        if fault == "status" and hit:
+            code = 500
+        self.send_response(code)
+        if mode != "no-csp" and not (fault == "nocsp" and hit):
             value = "default-src *" if mode == "weak-csp" else csp
+            if fault == "diffcsp" and hit:
+                value = csp + "; script-src-elem https:"
+            if fault == "joined" and hit:
+                value = csp + ", " + csp
             self.send_header("Content-Security-Policy", value)
+            if fault == "dupcsp" and hit:
+                self.send_header("content-security-policy", value)
+        if not (fault == "nonosniff" and hit):
+            self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Length", "2")
         self.end_headers()
         self.wfile.write(b"ok")
@@ -119,14 +153,30 @@ expect() {
 expect good pass good
 expect bad-status status bad-status
 expect no-csp missing-csp no-csp
-expect weak-csp missing-csp weak-csp
+expect weak-csp wrong-csp weak-csp
 expect no-redirect redirect no-redirect
 expect wrong-redirect redirect wrong-redirect
 
-# Edge propagation: wrong answers first, correct ones later. The first four
-# requests are two full attempts (home page, then redirect), so the third
+# The policy is checked on every page template, not on the home page alone: a
+# fault on any one page fails, naming the page and the problem.
+for page in /posts/sample-post/ /journal/sample-entry/ /posts/ /journal/ /tags/lorem/ /categories/sample/ /index.xml '*404'; do
+    shown="$page"
+    [[ "$page" == '*404' ]] && shown="/smoke-check-missing-page/"
+    expect "no CSP on $page" "missing-csp: $shown" "nocsp@$page"
+    expect "duplicate CSP on $page" "duplicate-csp: $shown" "dupcsp@$page"
+    expect "different CSP on $page" "wrong-csp: $shown" "diffcsp@$page"
+    expect "no nosniff on $page" "missing-nosniff: $shown" "nonosniff@$page"
+done
+expect "joined duplicate CSP on a post" "wrong-csp: /posts/sample-post/" "joined@/posts/sample-post/"
+expect "server error on a post" "status: /posts/sample-post/" "status@/posts/sample-post/"
+expect "server error on the 404 page" "status: /smoke-check-missing-page/" "status@*404"
+expect "no CSP on the home page" "missing-csp: /" "nocsp@/"
+expect "duplicate CSP on the home page" "duplicate-csp: /" "dupcsp@/"
+
+# Edge propagation: wrong answers first, correct ones later. The first twenty
+# requests are two full attempts (every page, then redirect), so the third
 # attempt is the first good one: three retries pass, none fail.
-start_server stale-4
+start_server "stale-$((2 * per_attempt))"
 rc=0
 out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=3 SMOKE_RETRY_SLEEP=0.1 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
 if [[ $rc -eq 0 ]]; then
@@ -136,7 +186,7 @@ else
     echo "$out"
     failures=$((failures + 1))
 fi
-start_server stale-4
+start_server "stale-$((2 * per_attempt))"
 rc=0
 out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
 if [[ $rc -ne 0 && "$out" == *"status:"* ]]; then
@@ -148,12 +198,12 @@ else
 fi
 
 # A site that never becomes correct fails after the bounded retries, fast, and
-# the retries re-ran the whole set (2 requests per attempt, 4 attempts).
+# the retries re-ran the whole set ($per_attempt requests per attempt, 4 attempts).
 start_server bad-status
 rc=0
 began=$SECONDS
 out="$(SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=3 SMOKE_RETRY_SLEEP=0.1 "$smoke" "$url" "$pub" 2>&1)" || rc=$?
-if [[ $rc -ne 0 && "$out" == *"status:"* && $((SECONDS - began)) -lt 5 && "$(cat "$work/port.count")" == 8 ]]; then
+if [[ $rc -ne 0 && "$out" == *"status:"* && $((SECONDS - began)) -lt 5 && "$(cat "$work/port.count")" == $((4 * per_attempt)) ]]; then
     echo "ok: never-correct site fails after bounded retries"
 else
     echo "FAIL: never-correct site (rc=$rc, took $((SECONDS - began)) s, requests $(cat "$work/port.count"))"
@@ -166,6 +216,10 @@ mkdir -p "$work/nohdr" "$work/noredir"
 cp "$pub/_redirects" "$work/nohdr/"
 cp "$pub/_headers" "$work/noredir/"
 printf '# nothing\n' >"$work/noredir/_redirects"
+mkdir -p "$work/nopages"
+cp "$pub/_redirects" "$pub/_headers" "$work/nopages/"
+printf '<!doctype html>\n' >"$work/nopages/index.html"
+expect build-without-pages input good "$work/nopages"
 expect no-headers-file input good "$work/nohdr"
 expect no-redirect-line input good "$work/noredir"
 

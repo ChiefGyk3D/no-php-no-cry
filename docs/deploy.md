@@ -38,8 +38,10 @@ a secret.
    `scripts/ensure-pages-project.sh` only (two curl calls, the token and other
    inputs validated first, no package loaded). Dependabot bumps the lockfile
    weekly. It is the only job with `id-token: write`.
-4. `smoke` runs `scripts/smoke-site.sh` against `SITE_URL`: HTTP 200, the
-   Content-Security-Policy from `static/_headers`, and one 301 from the built
+4. `smoke` runs `scripts/smoke-site.sh` against `SITE_URL`: on one page per
+   template (home, post, journal entry, lists, tag, category, feed, a missing
+   page) the expected status, exactly one Content-Security-Policy equal to the
+   one in `static/_headers`, and `nosniff`; and one 301 from the built
    `_redirects`.
 
 Repository variables (Settings, Secrets and variables, Actions, Variables):

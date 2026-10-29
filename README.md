@@ -54,6 +54,14 @@ without its 301 line, a `robots.txt` and noindex tags that disagree (staging
 versus production, `EXPECT_ENV` pins which), and a home page, post or journal
 entry missing its description, canonical, icon, Open Graph or Twitter card tags.
 
+`script-src 'self'` allows every same-origin response, not one file, so the
+checks also refuse any file of an unlisted type (including one with no
+extension), a `theme.js` that can load or build code, an SVG with script, and
+headers without `nosniff`. URLs are judged after character references are
+decoded, and a `<base>` element is refused. The post-deploy `smoke-site.sh`
+checks the policy and `nosniff` on one page per template, not on the home page
+alone.
+
 No JSON-LD: it needs a `<script>`, which the CSP and `check-output.sh` both
 ban. Structured data is skipped rather than weakening either.
 

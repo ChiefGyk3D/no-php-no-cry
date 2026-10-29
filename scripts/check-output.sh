@@ -11,7 +11,8 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# xml-stylesheet, bad-xml, missing-robots, bad-robots, env-mismatch,
+# xml-stylesheet, bad-xml, base-element, unexpected-file, theme-capability,
+# script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
 #
@@ -22,6 +23,14 @@
 # javascript: URL. The only script file in the build is /theme.js, under 1 KB
 # gzip (docs/redesign-brief.md section 10). The CSP must carry exactly one
 # script-src, and it must be 'self'.
+#
+# 'self' authorizes every same-origin response, so also: every file in the build
+# is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
+# nosniff is in _headers, and theme.js cannot load or build code
+# (theme-capability). URLs are judged as the browser reads them, after character
+# references are decoded and tabs and newlines dropped (a parser pass per page):
+# javascript: URLs, http: and scheme-relative or backslash URLs to another host
+# on a tag that loads something, and any <base> element are findings.
 #
 # Environment:
 #   SITE_HOST     host that counts as first party (default: test-blog.chiefgyk3d.com)
@@ -46,6 +55,9 @@
 # the slash and the no-slash line; an alias ending in .html needs its one line).
 set -euo pipefail
 
+# shellcheck source=scripts/artifact-rules.sh
+source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
+
 dir="${1:-public}"
 site_host="${SITE_HOST:-test-blog.chiefgyk3d.com}"
 expect_alias="${EXPECT_ALIAS:-/2023/02/10/sample-post/}"
@@ -56,10 +68,89 @@ if [[ ! -d "$dir" ]]; then
     exit 1
 fi
 
+declare -A reported=()
 report() {
-    # report <rule> <file>
+    # report <rule> <file>; the same rule for the same file is printed once
+    [[ -n "${reported["$1|$2"]:-}" ]] && return 0
+    reported["$1|$2"]=1
     printf '[%s] %s\n' "$1" "$2"
     findings=$((findings + 1))
+}
+
+# decoded_findings <site-host> <html file>: prints one rule name per line for
+# what the page's tags say once a browser has read them. The parser decodes
+# character references in attribute values; tabs and newlines are dropped from
+# a URL and leading control characters and spaces trimmed, as a browser does.
+# Only the rule names are printed, never page content.
+decoded_findings() {
+    python3 -I -c '
+import re
+import sys
+from html.parser import HTMLParser
+from urllib.parse import urlsplit
+
+host = sys.argv[1].lower()
+LOADS = {"img", "script", "iframe", "frame", "source", "link", "video", "audio",
+         "embed", "object", "form", "input", "track", "base"}
+URL_ATTRS = {"src", "href", "poster", "action", "data", "formaction", "xlink:href",
+             "background", "ping", "manifest", "codebase"}
+found = set()
+
+
+def clean(value):
+    value = re.sub(r"[\t\n\r]", "", value or "")
+    return re.sub(r"^[\x00-\x20]+", "", value)
+
+
+def judge(url):
+    # url: cleaned. Returns "http", "external" or "" for a URL on a loading tag.
+    url = url.replace("\\", "/")
+    m = re.match(r"^(https?:)?//([^/?#]*)", url, re.I)
+    if not m:
+        return ""
+    netloc = m.group(2).lower().rsplit("@", 1)[-1]
+    name = netloc.rsplit(":", 1)[0] if re.search(r":\d*$", netloc) else netloc
+    rule = "http" if m.group(1) and m.group(1).lower() == "http:" else ""
+    if name != host:
+        return "external" if not rule else "external-http"
+    return rule
+
+
+class P(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag == "base":
+            found.add("base-element")
+        for name, value in attrs:
+            name = name.lower()
+            v = clean(value)
+            if re.match(r"^on[a-z]", name):
+                found.add("event-handler")
+            if re.match(r"^javascript:", v, re.I) or re.search(r"url\s*=\s*[\x27\"]?\s*javascript:", v, re.I):
+                found.add("javascript-url")
+            if tag not in LOADS:
+                continue
+            urls = []
+            if name in URL_ATTRS:
+                urls = [v]
+            elif name in ("srcset", "imagesrcset"):
+                urls = [clean(part.strip().split(" ")[0]) for part in (value or "").split(",")]
+            for u in urls:
+                kind = judge(u)
+                if kind in ("http", "external-http"):
+                    found.add("http-reference")
+                if kind in ("external", "external-http"):
+                    found.add("external-asset")
+
+
+try:
+    text = open(sys.argv[2], encoding="utf-8", errors="replace").read()
+    P(convert_charrefs=True).feed(text)
+except Exception:
+    found.add("unparseable-html")
+for rule in sorted(found):
+    print(rule)
+' "$1" "$2"
 }
 
 # has_redirect <path>: _redirects holds a 301 line whose source is <path>.
@@ -192,6 +283,10 @@ while IFS= read -r -d '' f; do
     if grep -oEi '<pre([ >][^>]*)?>' "$f" | grep -qiv 'tabindex='; then
         report pre-not-focusable "$rel"
     fi
+
+    while IFS= read -r rule; do
+        [[ -n "$rule" ]] && report "$rule" "$rel"
+    done < <(decoded_findings "$site_host" "$f")
 
     # Absolute URLs inside tags that load something (anchors are not assets).
     urls="$(grep -oEi "$asset_tag" "$f" | grep -oEi "$url_attr" || true)"
@@ -357,6 +452,23 @@ else
     fi
 fi
 
+if [[ -s "$dir/_headers" ]] && ! headers_nosniff_ok "$dir/_headers"; then
+    report missing-nosniff "_headers (X-Content-Type-Options must be nosniff)"
+fi
+
+# 'self' authorizes every same-origin response: every file must be of a listed
+# non-script type (the js files are reported below).
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    case "${rel,,}" in
+        *.js | *.mjs | *.cjs) continue ;;
+    esac
+    artifact_name_ok "$rel" || report unexpected-file "$rel"
+    if [[ "${rel,,}" == *.svg ]] && svg_script_bad "$f"; then
+        report script-in-markup "$rel"
+    fi
+done < <(find "$dir" -type f -print0 | sort -z)
+
 # Script files: /theme.js only, under 1 KB gzip.
 while IFS= read -r -d '' f; do
     [[ "${f#"$dir"/}" == theme.js ]] || report extra-script-file "${f#"$dir"/}"
@@ -365,6 +477,9 @@ if [[ -f "$dir/theme.js" ]]; then
     gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
     if [[ "$gz" -ge 1024 ]]; then
         report js-budget "theme.js (${gz} bytes gzip, budget is under 1024)"
+    fi
+    if theme_capability_bad "$dir/theme.js"; then
+        report theme-capability "theme.js (can load or build code)"
     fi
 fi
 

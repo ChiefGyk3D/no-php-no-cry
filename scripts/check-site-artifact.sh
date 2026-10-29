@@ -11,12 +11,22 @@
 #     (the expected file must also carry script-src exactly 'self')
 #   - any script file (.js, .mjs, .cjs, any depth) other than /theme.js, and a
 #     /theme.js that is 1 KB gzip (1024 bytes) or more
+#   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
+#     webp avif ico woff woff2, plus _headers and _redirects at the root),
+#     whatever its content or name: script-src 'self' authorizes every
+#     same-origin response, so there must be no file a script could load
+#   - a /theme.js that can load or build code (see scripts/artifact-rules.sh)
+#   - an SVG with a script element, event handler or javascript: URL
+#   - expected headers without X-Content-Type-Options: nosniff
 #   - _redirects with a line that is not a comment, blank, or
 #     "/source /target 301|302" with internal targets only, or over 2000 lines
 #
 # The default expected headers file is static/_headers next to this script's
 # repository root. Prints one line per problem; exit 1 on any, 2 on bad usage.
 set -euo pipefail
+
+# shellcheck source=scripts/artifact-rules.sh
+source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
     echo "usage: check-site-artifact.sh <site-dir> [expected-headers-file]" >&2
@@ -81,6 +91,23 @@ if ! awk '
     report headers-script-src "expected headers: script-src must be exactly 'self', once"
 fi
 
+if ! headers_nosniff_ok "$expected_headers"; then
+    report headers-nosniff "expected headers: X-Content-Type-Options must be nosniff"
+fi
+
+# Every file must be of a listed type (js files are reported below, and
+# /theme.js is checked for what it can do).
+while IFS= read -r -d '' p; do
+    rel="${p#"$dir"/}"
+    case "${rel,,}" in
+        *.js | *.mjs | *.cjs) continue ;;
+    esac
+    artifact_name_ok "$rel" || report unexpected-file "$rel"
+    if [[ "${rel,,}" == *.svg ]] && svg_script_bad "$p"; then
+        report script-in-markup "$rel"
+    fi
+done < <(find "$dir" -type f -print0 | sort -z)
+
 # Script files: the CSP allows 'self' scripts for the theme file only.
 while IFS= read -r -d '' p; do
     [[ "${p#"$dir"/}" == theme.js ]] || report extra-script "${p#"$dir"/}"
@@ -89,6 +116,9 @@ if [[ -f "$dir/theme.js" && ! -L "$dir/theme.js" ]]; then
     gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
     if ((gz >= 1024)); then
         report js-budget "theme.js is ${gz} bytes gzip (budget: under 1024)"
+    fi
+    if theme_capability_bad "$dir/theme.js"; then
+        report theme-capability "theme.js can load or build code"
     fi
 fi
 
