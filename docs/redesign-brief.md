@@ -269,14 +269,15 @@ preset, not the default, and must not be treated as the brand value.
   check is a candidate for a GYST reusable check; the first version can be a
   local script and move to GYST when the second repo adopts it.
 - The shared icon set is Reach Around's `static/icons/` (Simple Icons, CC0).
-  The blog copies the eight needed icons and records them in
+  The blog copies the nine needed icons and records them in
   `approved-assets.txt` with the source hash.
 
 ### Palette (proposed canonical values)
 
 The blog's current values are canonical (decision 5), since they were chosen
 with the contrast check and the warm-neutral light mode. Reach Around adopts
-them through the checksum-vendored `brand/tokens.json` (issue 4). Additions for the redesign (new tokens, dark mode):
+them through the checksum-vendored `brand/tokens.json` (issue 4). Additions for the
+redesign (new tokens, dark mode):
 
 | Token | Value | Use |
 |---|---|---|
