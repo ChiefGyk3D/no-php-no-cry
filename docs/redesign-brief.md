@@ -506,7 +506,8 @@ Constraints from `static/_headers` (one change, below):
   fixtures change to `'self'` and gain negative cases: inline script, external
   script, a second script file, `script-src 'unsafe-inline'`, and
   `script-src https:`. The comment in `static/_headers` is rewritten to say
-  `script-src` is `'self'` for the theme file only.
+  `script-src` is `'self'` (same-origin scripts; the build checks and the hash pin
+  of `/theme.js` make it the only script).
 - Mobile menu and accordions use native elements (`<details>`) and CSS only.
 - Theme (decision 4): dark is the default; the CSS follows
   `prefers-color-scheme` (light only when the system says light, dark when it

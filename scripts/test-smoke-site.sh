@@ -91,6 +91,18 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             return
         body = b"ok"
+        pages = {
+            "inlinescript": b"<html><script>x()</script></html>",
+            "extrascript": b"<html><script src=/other.js></script></html>",
+            "remotescript": b"<html><script src=https://e.example/x.js></script></html>",
+            "handlerpage": b"<html><body onload=x()></body></html>",
+            "quotedgt": b"<html><img alt=\"x>\" onerror=x()></html>",
+            "jsurl": b"<html><a href=\"javascript:x()\">y</a></html>",
+            "themeref": b"<html><script src=/theme.js></script></html>",
+            "themetwice": b"<html><script src=/theme.js></script><script src=/theme.js></script></html>",
+            "benignpage": b"<html><img alt=\"one=1\" src=/a.png><a href=\"https://example.org/\">y</a></html>",
+            "badfeed": b"<rss><a onclick=\"x\"/></rss>",
+        }
         is_known = self.path in known
         if self.path == "/theme.js" and os.path.exists(os.environ["THEME_FILE"]):
             is_known = True
@@ -108,6 +120,8 @@ class H(BaseHTTPRequestHandler):
             code = 404
         if fault == "status" and hit:
             code = 500
+        if fault in pages and (self.path == fpath or (fpath == "*404" and not is_known)):
+            body = pages[fault]
         self.send_response(code)
         if mode != "no-csp" and not (fault == "nocsp" and hit):
             value = "default-src *" if mode == "weak-csp" else csp
@@ -277,6 +291,19 @@ for variant in 'removal-nosniff:/admin/*\n  ! X-Content-Type-Options\n' 'removal
     expect "headers-structure-${variant%%:*}" input good "$d"
 done
 
+# The served bytes of each page are read with the same parser as the build check:
+# a script element, a handler or a javascript: URL in what the site serves fails,
+# naming the page. Benign text (alt="one=1", an outbound link) passes.
+expect "inline script served on a post" "script-not-allowed: /posts/sample-post/" inlinescript@/posts/sample-post/
+expect "extra script file served on the home page" "script-not-allowed: /" extrascript@/
+expect "remote script served on a list" "script-not-allowed: /journal/" remotescript@/journal/
+expect "handler served on the 404 page" "event-handler: /smoke-check-missing-page/" handlerpage@'*404'
+expect "handler after a quoted > on a post" "event-handler: /posts/sample-post/" quotedgt@/posts/sample-post/
+expect "javascript URL served on a tag page" "javascript-url: /tags/lorem/" jsurl@/tags/lorem/
+expect "theme script tag served with no pinned theme" "script-not-allowed: /" themeref@/
+expect "handler in the served feed" "event-handler: /index.xml" badfeed@/index.xml
+expect "benign served markup passes" pass benignpage@/posts/
+
 # The theme script is judged by its pinned hash: the build's file must match it,
 # and so must the bytes the site serves. With no hash file a theme.js is refused.
 tpub="$work/public-theme"
@@ -287,6 +314,9 @@ printf '%s  theme.js\n' "$(sha256sum "$tpub/theme.js" | cut -d' ' -f1)" >"$THEME
 known="$known,/theme.js"
 expect "pinned theme served unchanged" pass good "$tpub"
 expect "theme served with different bytes" "theme-hash: /theme.js" tampertheme@/theme.js "$tpub"
+expect "the pinned theme script tag served passes" pass themeref@/ "$tpub"
+expect "the theme script tag served twice" "script-count: /" themetwice@/ "$tpub"
+expect "an extra script next to the theme tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
 expect "theme bytes alternate between responses" "theme-hash: /theme.js" alternatetheme@/theme.js "$tpub"
 expect "no CSP on the theme script" "missing-csp: /theme.js" nocsp@/theme.js "$tpub"
 rm -f "$THEME_HASH_FILE"

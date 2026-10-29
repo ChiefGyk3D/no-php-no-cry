@@ -16,8 +16,9 @@
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
 #
-# Scripts: script-src is 'self' in static/_headers for one file, the theme
-# script. The only script element allowed is <script src=/theme.js></script>
+# Scripts: script-src is 'self' in static/_headers, which allows every
+# same-origin script (it cannot name one file); these checks and the hash pin of
+# /theme.js make the theme script the only one. The only script element allowed is <script src=/theme.js></script>
 # (quotes optional, no other attribute, no body), at most once per page. No
 # other script element, no inline script, no event-handler attribute, no
 # javascript: URL. The only script file in the build is /theme.js, under 1 KB
@@ -81,80 +82,14 @@ report() {
     findings=$((findings + 1))
 }
 
-# decoded_findings <site-host> <html file>: prints one rule name per line for
-# what the page's tags say once a browser has read them. The parser decodes
-# character references in attribute values; tabs and newlines are dropped from
-# a URL and leading control characters and spaces trimmed, as a browser does.
-# Only the rule names are printed, never page content.
+# decoded_findings <site-host> <file> [--markup]: prints one rule name per line
+# for what the file's tags say once a browser has read them (see
+# scripts/scan-markup.py): quote-aware attribute parsing, character references
+# decoded, tabs and newlines dropped from URLs. Only rule names are printed.
 decoded_findings() {
-    python3 -I -c '
-import re
-import sys
-from html.parser import HTMLParser
-from urllib.parse import urlsplit
-
-host = sys.argv[1].lower()
-LOADS = {"img", "script", "iframe", "frame", "source", "link", "video", "audio",
-         "embed", "object", "form", "input", "track", "base"}
-URL_ATTRS = {"src", "href", "poster", "action", "data", "formaction", "xlink:href",
-             "background", "ping", "manifest", "codebase"}
-found = set()
-
-
-def clean(value):
-    value = re.sub(r"[\t\n\r]", "", value or "")
-    return re.sub(r"^[\x00-\x20]+", "", value)
-
-
-def judge(url):
-    # url: cleaned. Returns "http", "external" or "" for a URL on a loading tag.
-    url = url.replace("\\", "/")
-    m = re.match(r"^(https?:)?//([^/?#]*)", url, re.I)
-    if not m:
-        return ""
-    netloc = m.group(2).lower().rsplit("@", 1)[-1]
-    name = netloc.rsplit(":", 1)[0] if re.search(r":\d*$", netloc) else netloc
-    rule = "http" if m.group(1) and m.group(1).lower() == "http:" else ""
-    if name != host:
-        return "external" if not rule else "external-http"
-    return rule
-
-
-class P(HTMLParser):
-    def handle_starttag(self, tag, attrs):
-        tag = tag.lower()
-        if tag == "base":
-            found.add("base-element")
-        for name, value in attrs:
-            name = name.lower()
-            v = clean(value)
-            if re.match(r"^on[a-z]", name):
-                found.add("event-handler")
-            if re.match(r"^javascript:", v, re.I) or re.search(r"url\s*=\s*[\x27\"]?\s*javascript:", v, re.I):
-                found.add("javascript-url")
-            if tag not in LOADS:
-                continue
-            urls = []
-            if name in URL_ATTRS:
-                urls = [v]
-            elif name in ("srcset", "imagesrcset"):
-                urls = [clean(part.strip().split(" ")[0]) for part in (value or "").split(",")]
-            for u in urls:
-                kind = judge(u)
-                if kind in ("http", "external-http"):
-                    found.add("http-reference")
-                if kind in ("external", "external-http"):
-                    found.add("external-asset")
-
-
-try:
-    text = open(sys.argv[2], encoding="utf-8", errors="replace").read()
-    P(convert_charrefs=True).feed(text)
-except Exception:
-    found.add("unparseable-html")
-for rule in sorted(found):
-    print(rule)
-' "$1" "$2"
+    local host="$1" file="$2"
+    shift 2
+    python3 -I "$(dirname "${BASH_SOURCE[0]}")/scan-markup.py" "$@" "$host" "$file"
 }
 
 # has_redirect <path>: _redirects holds a 301 line whose source is <path>.
@@ -285,16 +220,8 @@ while IFS= read -r -d '' f; do
     if grep -qEi '[[:space:]]style=' "$f"; then
         report style-attribute "$rel"
     fi
-    # Event-handler attributes and javascript: URLs, looked for inside tags only
-    # (so prose such as 'one=' is not a finding). An attribute can follow a
-    # space, a slash or a closing quote.
-    tags="$(grep -oEi '<[a-z][^>]*>' <<<"$flat" || true)"
-    if grep -qEi "[[:space:]\"'/]on[a-z]+[[:space:]]*=" <<<"$tags"; then
-        report event-handler "$rel"
-    fi
-    if grep -qEi "=[[:space:]]*[\"']?[[:space:]]*javascript:" <<<"$tags"; then
-        report javascript-url "$rel"
-    fi
+    # Event-handler attributes and javascript: URLs are read from real
+    # attributes by the parser pass below (scripts/scan-markup.py).
     # pre-not-focusable: a scrollable code block must be reachable by keyboard.
     if grep -oEi '<pre([ >][^>]*)?>' "$f" | grep -qiv 'tabindex='; then
         report pre-not-focusable "$rel"
@@ -336,6 +263,15 @@ while IFS= read -r -d '' f; do
         fi
     fi
 done < <(find "$dir" -type f -name '*.html' -print0 | sort -z)
+
+# The same attribute rules on svg, xml and xhtml outputs, and any script element
+# there is a finding.
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    while IFS= read -r rule; do
+        [[ -n "$rule" ]] && report "$rule" "$rel"
+    done < <(decoded_findings "$site_host" "$f" --markup)
+done < <(find "$dir" -type f \( -iname '*.svg' -o -iname '*.xml' -o -iname '*.xhtml' \) -print0 | sort -z)
 
 # head_meta <file> <attribute> <value>: the content of the first
 # <meta attribute=value ...>, quoted or not as the minifier wrote it. Empty when

@@ -41,8 +41,12 @@ a secret.
 4. `smoke` runs `scripts/smoke-site.sh` against `SITE_URL`: on one page per
    template (home, post, journal entry, lists, tag, category, feed, a missing
    page) the expected status, exactly one Content-Security-Policy equal to the
-   one in `static/_headers`, and `nosniff`; and one 301 from the built
-   `_redirects`.
+   one in `static/_headers`, and `nosniff`; the served bytes of each page read
+   for script elements (only one `<script src=/theme.js></script>`, none
+   without a pinned theme), event handlers and `javascript:` URLs; the deployed
+   `/theme.js` against the pinned hash; and one 301 from the built `_redirects`.
+   It does not crawl the site or inspect any file it does not fetch; the file
+   rules (listed types, hash pin) are the build checks, run before deploy.
 
 Repository variables (Settings, Secrets and variables, Actions, Variables):
 

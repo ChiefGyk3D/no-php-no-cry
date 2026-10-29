@@ -125,6 +125,51 @@ APPEND='<a href="java&#9;script:alert(1)">x</a>' variant javascript-href-numeric
 APPEND='<a href="&#x20;javascript:alert(1)">x</a>' variant javascript-href-leading-space-reference javascript-url append_html
 APPEND='<iframe src="&#106;avascript:alert(1)"></iframe>' variant javascript-iframe-reference javascript-url append_html
 APPEND='<meta http-equiv=refresh content="0;url=javascript:alert(1)">' variant javascript-meta-refresh javascript-url append_html
+# Attributes are read from real attributes: a ">" inside a quoted value does not
+# end the tag, and text inside a value is not an attribute.
+APPEND='<img alt="x>" onerror=alert(1)>' variant handler-after-quoted-gt event-handler append_html
+APPEND="<img alt='x>' onerror=alert(1)>" variant handler-after-single-quoted-gt event-handler append_html
+APPEND='<a title="a>b" href="javascript:alert(1)">x</a>' variant javascript-url-after-quoted-gt javascript-url append_html
+APPEND='<img alt=x onerror=alert(1)>' variant handler-unquoted-attributes event-handler append_html
+APPEND="<img alt='x' onerror='alert(1)'>" variant handler-single-quoted event-handler append_html
+APPEND='<a title=x href=javascript:alert(1)>x</a>' variant javascript-url-unquoted javascript-url append_html
+for form in '<a href=x alt="one=1">y</a>' '<img alt="one=1" src=/a.png>' '<img alt=one=1 src=/a.png>' '<p title="onerror=alert(1) is text">x</p>' "<p title='onclick=x'>x</p>" '<p title="a>b">x</p>'; do
+    d="$work/ok-attribute"
+    make_good "$d"
+    APPEND="$form" append_html "$d"
+    if "$checker" "$d" >/dev/null 2>&1; then
+        echo "ok: benign attribute passes ($form)"
+    else
+        echo "FAIL: benign attribute was rejected ($form)"
+        "$checker" "$d" || true
+        failures=$((failures + 1))
+    fi
+done
+
+# The same rules apply to svg, xml and xhtml outputs.
+markup_file() {
+    mkdir -p "$(dirname "$1/$FILE")"
+    printf '%s\n' "$CONTENT" >"$1/$FILE"
+}
+FILE=logo.svg CONTENT='<svg xmlns="http://www.w3.org/2000/svg"><script href="/theme.js"/></svg>' variant svg-script-element script-not-allowed markup_file
+FILE=logo.svg CONTENT='<svg xmlns="http://www.w3.org/2000/svg" onload="x()"/>' variant svg-event-handler event-handler markup_file
+FILE=logo.svg CONTENT='<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:x()"><text>t</text></a></svg>' variant svg-javascript-url javascript-url markup_file
+FILE=logo.svg CONTENT='<svg xmlns="http://www.w3.org/2000/svg"><a title="a>b" onclick="x()"/></svg>' variant svg-handler-after-quoted-gt event-handler markup_file
+FILE=index.xml CONTENT='<?xml version="1.0"?><rss version="2.0"><channel><script/></channel></rss>' variant xml-script-element script-not-allowed markup_file
+FILE=index.xml CONTENT='<?xml version="1.0"?><rss version="2.0"><channel><a onclick="x()"/></channel></rss>' variant xml-event-handler event-handler markup_file
+FILE=posts/sample-post/index.xml CONTENT='<?xml version="1.0"?><rss version="2.0"><a href="javascript:x()"/></rss>' variant nested-xml-javascript-url javascript-url markup_file
+FILE=page.xhtml CONTENT='<html xmlns="http://www.w3.org/1999/xhtml"><body onload="x()"/></html>' variant xhtml-event-handler event-handler markup_file
+d="$work/ok-feed"
+make_good "$d"
+printf '%s\n' '<?xml version="1.0"?><rss version="2.0"><channel><item><description>&lt;a onclick="x"&gt; one=1 &lt;script&gt;</description></item></channel></rss>' >"$d/index.xml"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: escaped markup text inside a feed passes"
+else
+    echo "FAIL: escaped markup text in a feed was rejected"
+    "$checker" "$d" || true
+    failures=$((failures + 1))
+fi
+
 # Scheme-relative and backslash forms leave the site without http(s):.
 APPEND='<iframe src="//evil.example/frame"></iframe>' variant protocol-relative-iframe external-asset append_html
 APPEND='<object data="//evil.example/payload"></object>' variant protocol-relative-object external-asset append_html

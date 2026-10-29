@@ -45,8 +45,9 @@ scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 ```
 
 `check-output.sh` fails the build output on any of: any `<script>` element
-other than `<script src=/theme.js></script>` once per page (`script-src` is
-`'self'` for that one file; inline scripts are also reported separately), a
+other than `<script src=/theme.js></script>` once per page (`script-src 'self'`
+allows same-origin scripts; these checks and the hash pin make /theme.js the
+only one; inline scripts are also reported separately), a
 second script file, a `theme.js` of 1 KB gzip or more, `javascript:` URLs,
 `<style>`, `style=` attributes, `on*=` handlers, `http://` references, external assets in
 HTML, an external `@import` or `url()` (including `//host`) in CSS or SVG, an
@@ -62,7 +63,9 @@ extension), a `theme.js` whose sha256 is not the one in the committed
 `theme.js.sha256` (no hash file means no script at all; see
 `docs/theme-script.md` and `scripts/pin-theme.sh`), an SVG with script, and
 `_headers` that is not one `/*` block with exactly one `nosniff`. URLs are judged after character references are
-decoded, and a `<base>` element is refused. The post-deploy `smoke-site.sh`
+decoded, attributes are read quote-aware (a `>` or `=` inside a quoted value is
+text), the same rules apply to `.svg`, `.xml` and `.xhtml` outputs, and a
+`<base>` element is refused. The post-deploy `smoke-site.sh`
 checks the policy and `nosniff` on one page per template, not on the home page
 alone.
 

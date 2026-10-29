@@ -76,7 +76,7 @@ elif ! cmp -s "$dir/_headers" "$expected_headers"; then
     report headers-differ "_headers differs from the repository's static/_headers"
 fi
 
-# The expected policy: one script-src, exactly 'self' (the theme file only),
+# The expected policy: one script-src, exactly 'self' (same-origin scripts; the checks here pin the only one),
 # and no script-src-elem or script-src-attr to override it.
 if ! awk '
     /^[[:space:]]*Content-Security-Policy:/ {

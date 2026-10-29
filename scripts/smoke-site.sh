@@ -16,6 +16,14 @@
 #                 with the expected Location
 #   theme-hash    when the build has a theme.js, the deployed /theme.js has the
 #                 sha256 pinned in theme.js.sha256 (THEME_HASH_FILE overrides)
+#   script-not-allowed / script-count / event-handler / javascript-url /
+#   external-asset / http-reference / base-element
+#                 the bytes each page SERVES (the same response as its headers)
+#                 are read with scripts/scan-markup.py, the build check's parser:
+#                 no script element other than one <script src=/theme.js></script>
+#                 (and none at all without a pinned theme), no handler, no
+#                 javascript: URL. It reads the served page only; it does not
+#                 fetch or inspect any other script file (the build checks do).
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
 # category page, the feed (/index.xml) and the 404 page (asked for as
@@ -105,6 +113,10 @@ if [[ -f "$dir/theme.js" ]]; then
     fi
 fi
 
+scan_py="$(dirname "${BASH_SOURCE[0]}")/scan-markup.py"
+site_host="${base#*://}"
+site_host="${site_host%%/*}"
+site_host="${site_host%%:*}"
 missing_page=/smoke-check-missing-page/
 singles=() lists=() pages=(/)
 for section in posts journal; do
@@ -199,6 +211,19 @@ check_page() {
             echo "theme-hash: ${path} served by the site does not match the pinned sha256"
             failed=1
         fi
+    fi
+    # What the site serves, read with the build check's parser (same request as
+    # the headers above): no extra, inline, remote or handler scripts.
+    if [[ "$path" != /theme.js && $ok -eq 1 ]]; then
+        local opts=(--scripts none) found rule
+        [[ -n "$theme_pinned" ]] && opts=(--scripts theme)
+        [[ "$path" == *.xml ]] && opts=(--markup)
+        found="$(python3 -I "$scan_py" "${opts[@]}" "$site_host" "$body_file")" || found="unparseable-html"
+        while IFS= read -r rule; do
+            [[ -n "$rule" ]] || continue
+            echo "${rule}: ${path} serves markup the policy does not allow"
+            failed=1
+        done <<<"$found"
     fi
     if [[ $failed -eq 0 && $ok -eq 1 ]]; then
         echo "ok: ${path} answers ${want} with the expected policy and nosniff"
