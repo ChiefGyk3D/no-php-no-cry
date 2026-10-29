@@ -113,8 +113,8 @@ Starting point is the baseline page inventory (6 pages, 10 posts, accepted).
 | `/products/` | Recommended Products (was external `links.` subdomain) plus the 22 affiliate links from posts | products |
 | `/social/` | Social Media Links (rewrite, adds YouTube) | social hub |
 | `/support/` | Support My Work (refresh, recheck links) | page (link list) |
-| `/about/` | new; folds in the Contact content | about |
-| `/contact/` | Contact (rewrite, no form) | page, or a section of about |
+| `/about/` | new; folds in the Contact content as a `#contact` section | about |
+| `/contact/` | not a page: 301 to `/about/#contact` (check on staging that the host keeps the fragment; if not, redirect to `/about/`) | redirect |
 | `/privacy/` | new statement (no analytics, no embeds) | page |
 | `/journal/` | exists in the repo as a section | archive |
 | `/tags/<tag>/`, `/categories/<c>/` | existing term pages | archive |
@@ -125,8 +125,9 @@ is replaced by a new statement.
 
 ### Primary navigation
 
-Header, in this order: Posts, Products, Social, Support, About. Contact lives
-inside About and the footer (fewer top-level items on a phone). The baseline
+Header, in this order: Posts, Products, Social, Support, About. Contact is the
+`#contact` section of `/about/`, not a page of its own; the footer links to
+`/about/#contact` (fewer top-level items on a phone). The baseline
 menu had six items; this keeps every destination but merges Home (the wordmark
 links home) and Contact.
 
@@ -134,7 +135,7 @@ On a phone the header is a wordmark plus a native `<details>` menu. No script.
 A `<nav aria-label="Main">` landmark exists on every page (the baseline found
 none).
 
-Footer: Contact, Privacy, RSS, the `rel="me"` identity row, a link to Reach
+Footer: Contact (`/about/#contact`), Privacy, RSS, the `rel="me"` identity row, a link to Reach
 Around ("link page"), and the media kit link that points out to Reach Around.
 Two-way link with Reach Around (#12): this site links to it from the header of
 the social hub and the footer; Reach Around links back to the blog.
@@ -154,7 +155,7 @@ token stylesheet. Specific needs:
 | Post | Single column at `--measure`. Title, date, reading time, tags. Optional `archive` front matter shows a dated archive banner (used for the TikTok letter: original date and "this is a record, not a current view"). Optional `supersededBy` front matter shows a forward link (twitch-and-toot to Stream Daemon). Code blocks use the existing highlight classes. A syndication row (section 5). Previous/next. |
 | Archive | Posts list with year grouping, tag filter links (plain term pages), RSS link. Reuse for journal and term pages. |
 | Products | Disclosure block first, above the fold, in a bracket frame: plain statement that links earn a commission and what that means. Items grouped by the old posts' topics (audio, 3D printing and PC repair, air quality). Each item: name, one line, price note ("price checked on <date>", no live prices), outbound link with `rel="sponsored noopener"`. The old prose stays in the posts, which link here. |
-| About | Short bio, mascot, current projects with GitHub links, how to reach the maintainer without a form (Matrix and Discord links plus one text-only public address, decision 6). |
+| About | Short bio, mascot, current projects with GitHub links, then a `#contact` section (heading with `id="contact"`): how to reach the maintainer without a form (Matrix and Discord links plus one text-only public address, decision 6). This is the only contact page; there is no `/contact/` template. |
 | Socials hub | A tile grid, one tile per network in section 5 (nine, TikTok included). Tile = icon, network name, handle or room name, a short role line. The Matrix tile names the community room. Same data file drives the footer `rel="me"` row and the home strip. |
 | Support | Link list (tips, shop) in the same tile style, with each link rechecked before publish. |
 | Privacy | Plain text: no analytics, no embeds, no cookies, no third-party requests; outbound links leave the site. States the one stored item: the theme choice, kept in the browser's local storage only when the visitor uses the toggle, never sent anywhere. |
@@ -263,9 +264,11 @@ preset, not the default, and must not be treated as the brand value.
   matches the copy in Reach Around). Its build maps the values onto its
   `--ra-*` tokens, so Reach Around keeps its names and the blog keeps its own.
 - Drift check: both repos run a check that compares the vendored file's sha256
-  with the canonical one fetched from the blog repo's default branch by raw
-  GitHub URL pinned to a commit. Bumping is a deliberate re-pin PR in Reach
-  Around. Per the standing rule that anything two repos need goes to GYST, the
+  with the canonical one fetched from the blog repo by a raw GitHub URL pinned to a
+  commit SHA (`raw.githubusercontent.com/<owner>/<repo>/<full-sha>/brand/tokens.json`).
+  The unpinned default-branch form (`.../main/...`) is not used: it moves, so the
+  check would not be reproducible. Bumping is a deliberate re-pin PR in Reach
+  Around that changes the SHA and the recorded sha256 together. Per the standing rule that anything two repos need goes to GYST, the
   check is a candidate for a GYST reusable check; the first version can be a
   local script and move to GYST when the second repo adopts it.
 - The shared icon set is Reach Around's `static/icons/` (Simple Icons, CC0).
@@ -286,6 +289,7 @@ redesign (new tokens, dark mode):
 | `--plate` | `#281808` | warm brown panel, circuit fill |
 | `--accent-deep` | `#AF6A0E` | shading, decorative edges only (not text) |
 | `--ghost` | `#383838` | ghosted mascot layer |
+| `--plate-light` | `#FFEFD9` | the cream "light plate" variant (section 2); text and focus use `#8A5A00` on it |
 
 ### Contrast, computed
 
@@ -304,11 +308,19 @@ New pairs, dark mode unless noted:
 | text on carbon `#282828` | 12.94 | pass |
 | `#1A1A1A` on accent (button) | 9.43 | pass (existing) |
 | `#1A1A1A` on cream plate `#FFEFD9` | 15.42 | pass |
-| `#8A5A00` on cream plate | 5.25 | pass |
-| `#AF6A0E` on bg | 4.50 | at the threshold; decorative use only |
+| `#8A5A00` on cream plate `#FFEFD9` | 5.25 | pass |
+| `#AF6A0E` on cream plate `#FFEFD9` | 3.80 | fail as text; decorative only |
+| `#FBB03B` on cream plate `#FFEFD9` | 1.64 | fail; never on the cream plate |
+| `#AF6A0E` on bg `#0E0E0E` | 4.4959 (shows as 4.50 rounded) | fail as text (below 4.5); decorative use only |
 | `#888888` on bg | 5.45 | pass (secondary icon use) |
 | `#585858` on bg | 2.71 | fail as text; ghost layer only |
 | accent `#FBB03B` on light bg `#FAF7F2` | 1.73 | fail; light mode keeps `#8A5A00` (5.55) |
+
+Every number in this section was recomputed on 2026-10-29 in a script that
+imports `ratio()` from `scripts/check-contrast.py`, not copied from a tool or an
+earlier draft. `#AF6A0E` (`--accent-deep`) is below 4.5 on every surface listed
+here (bg 4.50 rounded down from 4.4959, surface 4.17, carbon 3.43, plate 3.99,
+cream 3.80), so it stays out of text and out of the checker's text pairs.
 
 The toggle adds no colors: its two states (forced dark, forced light) use the
 same two token sets, so the existing 32 pairs (16 per mode, rerun 2026-10-29
@@ -330,9 +342,28 @@ contrast script must read all three blocks, or a hand-edited copy could drift.
 
 The check script must grow with each new token pair (`carbon-line` on text,
 `plate` on text, muted on carbon), or the new tokens ship unchecked. Proposed
-issue: extend `PAIRS` in `check-contrast.py` (including the toggle pairs above and the
+issue: extend `PAIRS` in `check-contrast.py` (including the toggle pairs above, the focus pairs for carbon, plate and cream plate, and the
 `data-theme` blocks) and read the generated tokens.
-Focus ring stays 3:1 minimum against every surface it can sit on.
+Focus ring stays 3:1 minimum against every surface it can sit on. Today's
+`PAIRS` check `focus` only against `bg` and `surface`, so the additions below are
+required, not optional. Same formula, 2026-10-29:
+
+| Focus pair (need 3:1) | Ratio | Verdict |
+|---|---|---|
+| focus `#FBB03B` on `--carbon-base` `#181818` (dark) | 9.62 | pass |
+| focus `#FBB03B` on `--carbon-line` `#282828` (dark) | 7.99 | pass |
+| focus `#FBB03B` on `--plate` `#281808` (dark) | 9.29 | pass |
+| focus `#FBB03B` on `--ghost` `#383838` (dark) | 6.35 | pass (no control sits on the ghost layer; listed so none can) |
+| focus `#8A5A00` on cream plate `#FFEFD9` | 5.25 | pass |
+| focus `#FBB03B` on cream plate `#FFEFD9` | 1.64 | fail |
+| focus `#8A5A00` (light) on carbon `#181818` / `#282828` / plate `#281808` | 3.00 / 2.49 / 2.89 | fail or marginal |
+
+Rules that follow: carbon and plate are dark-mode surfaces only (the light set
+does not render them), and the cream plate always uses `#8A5A00` for its focus
+ring and link text in either mode. The checker gets `focus` on `carbon-base`,
+`carbon-line`, `plate` and `ghost` (dark) and a `focus-on-plate` pair of
+`#8A5A00` on `#FFEFD9` (new token `--plate-light`), all at 3.0. A control on a
+surface with no checked pair is a build failure, not a judgment call.
 
 ## 7. Typography
 
@@ -539,7 +570,7 @@ board card before work starts. Repo is this one unless noted.
 | # | Proposed issue | Size | Depends on |
 |---|---|---|---|
 | 1 | Approve this brief and the issue list (decisions are recorded in section 13) | S | none |
-| 2 | Token source: `brand/tokens.json`, generator script (emits the system-light and `data-theme` blocks), regenerate `tokens.css`, add new tokens and extend `check-contrast.py` pairs | M | 1 |
+| 2 | Token source: `brand/tokens.json`, generator script (emits the system-light and `data-theme` blocks), regenerate `tokens.css`, add new tokens and extend `check-contrast.py` pairs. Acceptance: `PAIRS` gains `focus` (3.0) on `carbon-base`, `carbon-line`, `plate` and `ghost`, `#8A5A00` focus on `--plate-light` `#FFEFD9` (3.0), muted and text on carbon and plate (4.5), and the toggle pairs; a test fixture with a focus color below 3:1 on a new surface makes the script exit 1 | M | 1 |
 | 3 | CSP change for the theme script: `script-src 'self'` in `static/_headers` (comment rewritten), `check-output.sh` allows only the one same-origin theme script and requires the exact policy, `test-check-output.sh` fixtures and negative cases, performance-budget line for the one JS file | S | 1 |
 | 4 | Reach Around (that repo): vendor the token file with a hash pin, map to `--ra-*`, align surface/text/border/light-bg drift, link to the blog | M | 2 |
 | 5 | Drift check: local script in both repos; propose moving it to GYST as a reusable check | S | 2, 4 |
@@ -552,7 +583,7 @@ board card before work starts. Repo is this one unless noted.
 | 12 | Templates: post (archive banner, superseded note, syndication row, prev/next), archive and term pages | M | 8, 10 |
 | 13 | Data files and the socials hub page (nine networks, TikTok kept), `rel="me"` row from the same data, add YouTube, leave X out | M | 8, 10 |
 | 14 | Products page and template with disclosure at the top; move the 22 affiliate links from the 3 posts | M | 8, 10 |
-| 15 | About, Contact (no form or script: Matrix and Discord links plus one text-only public address, alias supplied by the maintainer and not blocking), Support, Privacy pages | M | 8, 10 |
+| 15 | About with its `#contact` section (no form or script: Matrix and Discord links plus one text-only public address, alias supplied by the maintainer and not blocking), the `/contact/` to `/about/#contact` redirect, Support, Privacy pages | M | 8, 10 |
 | 16 | Migrate content: 10 posts, 15 aliases to `_redirects`, alt text for retained images, WebP conversion, TikTok archive note, Stream Daemon forward link | L | 12, 14 |
 | 17 | Head and SEO: per-page descriptions, `summary_large_image` card with the one default OG card, sitemap line check, tune `check-output.sh` for new tags | S | 7, 12 |
 | 18 | Performance and accessibility gates: size budget script in CI (one JS file allowed), browser run for LCP and CLS, keyboard and zoom pass per template, toggle checks | M | 9, 11 to 16 |
@@ -593,7 +624,7 @@ issue #41. Each answer is applied in the section named.
 6. Contact: Matrix and Discord links plus one text-only public address the
    maintainer approves. No form, no script. The alias comes from the maintainer
    later and does not block the build; the page ships with the two links and
-   gains the address when it is supplied. Applied in sections 4 and issue 15.
+   gains the address when it is supplied. Applied in sections 3, 4 and issue 15 (Contact is a section of About).
 7. One default OG card now. Per-post cards come later only through Hugo's own
    image pipeline with no new dependency. Applied in section 9 and issue 17.
 8. No paid hero art now. Open to spending later; each set goes through the paid
