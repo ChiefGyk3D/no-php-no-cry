@@ -35,7 +35,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           # audit, not block: artifact upload goes to GitHub's blob storage,
           # whose host name varies per run and cannot be listed without a
@@ -105,7 +105,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           # audit: this job holds no secret and its output is only a pass or
           # fail; the deploy job is the one that blocks.
@@ -142,7 +142,7 @@ jobs:
       WRANGLER_SEND_METRICS: "false"
       CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'no-php-no-cry' }}
     steps:
-      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           # block, with an explicit list (no wildcards). The runner's own
           # infrastructure hosts are allowed by the agent. This list is
@@ -239,7 +239,7 @@ jobs:
         run: scripts/check-site-artifact.sh site static/_headers
 
       - name: Fetch Cloudflare credentials from Doppler
-        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@0fc2df49cf51608a2f8b4b8eeb51d86d4d4cfaba # v1.27.0
+        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@7501cb3fa19d83d0e0a131cb040e7c4da32a9504 # v1.28.0
         with:
           project: cloudflare
           config: prd
@@ -296,7 +296,7 @@ jobs:
     env:
       SITE_URL: ${{ vars.SITE_URL || 'https://test-blog.chiefgyk3d.com' }}
     steps:
-      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           # audit, not block: unmeasured (artifact host, and the site host
           # depends on SITE_URL). Tighten after the first run: issue #10.
