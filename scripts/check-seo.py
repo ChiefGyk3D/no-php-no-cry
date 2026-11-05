@@ -21,6 +21,7 @@ import os
 import re
 import sys
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 from html.parser import HTMLParser
 
 NAME = "ChiefGyk3D"
@@ -148,7 +149,7 @@ def site(root, host, env):
         ok = False
         try:
             atom = "{http://www.w3.org/2005/Atom}"
-            ls = [l for l in ET.parse(feed).getroot().iter(atom + "link") if l.get("rel") == "self"]
+            ls = [l for l in load_xml(feed).iter(atom + "link") if l.get("rel") == "self"]
             ok = len(ls) == 1 and (ls[0].get("href") or "").startswith("https://%s/" % host)
         except (ET.ParseError, OSError):
             pass
@@ -165,10 +166,32 @@ def site(root, host, env):
     return 0
 
 
+def load_xml(path):
+    """Root element of an XML file; a DOCTYPE or entity declaration is a parse error.
+
+    The standard library tree parser would expand declared entities, and this
+    checker takes no third-party packages, so a first expat pass refuses those
+    declarations before the tree is built. Built output never carries one.
+    """
+    def refuse(*_):
+        raise ET.ParseError("DTD and entity declarations are not allowed")
+
+    with open(path, "rb") as fh:
+        data = fh.read()
+    scan = expat.ParserCreate()
+    scan.StartDoctypeDeclHandler = refuse
+    scan.EntityDeclHandler = refuse
+    try:
+        scan.Parse(data, True)
+    except expat.ExpatError as exc:
+        raise ET.ParseError(str(exc)) from exc
+    return ET.fromstring(data)
+
+
 def sitemap(root, host, path):
     ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
     try:
-        tree = ET.parse(path).getroot()
+        tree = load_xml(path)
     except (ET.ParseError, OSError):
         return ["sitemap.xml (does not parse)"]
     bad, locs = [], set()

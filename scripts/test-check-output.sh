@@ -564,6 +564,8 @@ FROM='<url><loc>https://test-blog.chiefgyk3d.com/posts/sample-post/</loc><lastmo
 feed_edit() { sed -i "s#${FROM}#${TO}#" "$1/index.xml"; }
 FROM='rel="self"' TO='rel="alternate"' variant feed-without-self-link bad-feed feed_edit
 FROM='https://test-blog.chiefgyk3d.com/index.xml' TO='https://example.org/index.xml' variant feed-self-link-foreign-host bad-feed feed_edit
+FROM='<rss' TO='<!DOCTYPE rss [<!ENTITY e "x">]><rss' variant feed-with-doctype bad-feed feed_edit
+FROM='<urlset' TO='<!DOCTYPE urlset [<!ENTITY e "x">]><urlset' variant sitemap-with-doctype bad-sitemap sitemap_edit
 
 # One description per page.
 dup_desc() { sed -i 's#Post description\.#Home description.#g' "$1/posts/sample-post/index.html"; }
