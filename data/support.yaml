@@ -1,5 +1,45 @@
-# Support row in the footer: name and url (https only). Order is display order.
-# TODO: add Tip, Ko-fi and Patreon with their real URLs (not in the repo;
-# owner to supply and recheck before publish).
+# Support data. Order is display order. Two kinds of entry share this file:
+#
+# Links (the footer Support row and the buttons on /support/): name, url (https
+# only), button (the label on /support/, when different from the footer name).
+# Each link is rechecked before publish.
+#
+# Crypto (the /support/ Crypto block): kind: crypto, name, coin (btc, xmr, eth
+# or sol; names static/support/qr-<coin>.svg), address, and an empty url so the
+# footer, which lists only https urls, skips it.
+# Addresses are copied verbatim from the authoritative source, the public repo
+# github.com/ChiefGyk3D/support-me (SIGNATURE.md, read 2026-11-04). When an
+# address changes there, change it here, run scripts/gen-support-qr.sh and
+# update scripts/test-pages.sh in the same pull request.
+- name: Tip
+  button: Tip during a stream
+  url: https://streamelements.com/chiefgyk3d/tip
+- name: Ko-fi
+  button: Ko-fi
+  url: https://ko-fi.com/chiefgyk3d
+- name: Patreon
+  button: Patreon
+  url: https://patreon.com/chiefgyk3d
 - name: Shop
-  url: https://shop.chiefgyk3d.com
+  button: Merch shop
+  url: https://shop.chiefgyk3d.com/
+- kind: crypto
+  name: Bitcoin
+  coin: btc
+  address: bc1qztdzcy2wyavj2tsuandu4p0tcklzttvdnzalla
+  url: ""
+- kind: crypto
+  name: Monero
+  coin: xmr
+  address: 84Y34QubRwQYK2HNviezeH9r6aRcPvgWmKtDkN3EwiuVbp6sNLhm9ffRgs6BA9X1n9jY7wEN16ZEpiEngZbecXseUrW8SeQ
+  url: ""
+- kind: crypto
+  name: Ethereum
+  coin: eth
+  address: "0x554f18cfB684889c3A60219BDBE7b050C39335ED"
+  url: ""
+- kind: crypto
+  name: Solana
+  coin: sol
+  address: 5T8h3HbyvHgLxwXgchRYbHSqRjZyAr8J7uwjLN9Fh8Jh
+  url: ""

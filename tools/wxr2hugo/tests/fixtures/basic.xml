@@ -46,7 +46,7 @@
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>Buy it <a href="https://amzn.to/abc123">here</a> or read <a href="https://tmp-demo.mybluehost.invalid/about/">about</a>. Use <strong>bold</strong>, <em>italic</em> and snake_case.</p>
+<p>Buy it <a href="https://amzn.to/abc123">here</a> or read <a href="https://tmp-demo.mybluehost.invalid/team/">team</a>. Use <strong>bold</strong>, <em>italic</em> and snake_case.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:image -->
@@ -128,11 +128,11 @@ exit 0</code></pre>
 
   <item>
     <title>About</title>
-    <link>https://example.invalid/about/</link>
+    <link>https://example.invalid/team/</link>
     <wp:post_id>13</wp:post_id>
     <wp:post_date><![CDATA[2023-01-05 08:00:00]]></wp:post_date>
     <wp:post_date_gmt><![CDATA[2023-01-05 13:00:00]]></wp:post_date_gmt>
-    <wp:post_name><![CDATA[about]]></wp:post_name>
+    <wp:post_name><![CDATA[team]]></wp:post_name>
     <wp:status><![CDATA[publish]]></wp:status>
     <wp:post_type><![CDATA[page]]></wp:post_type>
     <content:encoded><![CDATA[<!-- wp:paragraph -->

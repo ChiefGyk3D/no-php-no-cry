@@ -98,6 +98,9 @@ jobs:
       - name: Test that the deploy job's sparse checkout covers what it runs
         run: scripts/test-deploy-sparse.sh
 
+      - name: Test the Support, About and Privacy pages
+        run: scripts/test-pages.sh
+
       - name: Test the theme script pinning
         run: scripts/test-pin-theme.sh
 
