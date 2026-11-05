@@ -101,6 +101,16 @@ jobs:
       - name: Test the Support, About and Privacy pages
         run: scripts/test-pages.sh
 
+      - name: Test the generated _redirects file (fragment grammar, line shape)
+        run: scripts/test-redirects.sh
+
+      # Re-encodes data/support.yaml with the hash-pinned segno (scripts/
+      # requirements-qr.txt, installed with --require-hashes) and compares the
+      # whole committed SVGs, so the QR modules are verified, not only <desc>.
+      # Needs network access to the Python package index for that one package.
+      - name: Check the support QR files against data/support.yaml
+        run: scripts/gen-support-qr.sh --check
+
       - name: Test the theme script pinning
         run: scripts/test-pin-theme.sh
 
