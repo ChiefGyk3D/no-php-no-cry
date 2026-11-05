@@ -29,9 +29,22 @@ make_good() {
     # The shell Hugo writes: skip link first, then header, the Main nav, main, footer.
     local shell_open='<a class=skip-link href=#main>Skip to main content</a><header><a class=site-title href=/>t</a><nav aria-label=Main><ul><li><a href=/posts/>Posts</a></ul></nav></header><main id=main>'
     local shell_close='</main><footer><a href=/about/#contact>Contact</a></footer>'
+    # Page bodies the templates write (issues 58 and 59). The home hero and the
+    # 404 carry the mascot with its dimensions; the archive groups by year.
+    local mascot='<img class=hero-mascot src=/brand/mascot-256.webp width=256 height=256 alt="Renegade Tux">'
+    local home_body="<section class=hero>${mascot}<h1>Let's make the internet more secure and fun, one commit at a time.</h1><p>Hands-on cybersecurity, Linux, homelabs, and open source.<p><a class=\"btn btn-primary\" href=/posts/>Read the latest</a> <a class=btn href=/social/>Find me online</a> <a class=btn href=/support/>Support my work</a></section><section class=panel><h2>Latest posts</h2><a href=/posts/>All posts</a></section><section class=panel><h2>Find me online</h2></section>"
+    local archive_body='<h1>Posts</h1><a href=/posts/index.xml>RSS</a><h2 class=archive-year>2023</h2><ul><li><a href=/posts/sample-post/>Sample post</a></ul>'
+    local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/social/>Find me online</a>"
+    local post_body='<article><h1>Sample post</h1><time datetime=2023-02-10>February 10, 2023</time> <span class=reading-time>1 min read</span></article>'
     local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
-    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${shell_close}</body></html>" >"$dir/index.html"
-    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${home_body}${shell_close}</body></html>" >"$dir/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${post_body}${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
+    plain_page() { printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><title>t</title></head><body>${shell_open}$1${shell_close}</body></html>" >"$2"; }
+    mkdir -p "$dir/tags/lorem" "$dir/journal"
+    plain_page "$archive_body" "$dir/posts/index.html"
+    plain_page "$archive_body" "$dir/tags/lorem/index.html"
+    plain_page "$archive_body" "$dir/journal/index.html"
+    plain_page "$not_found_body" "$dir/404.html"
     # Hugo's meta-refresh alias pages: one directory-style, one ending in .html.
     mkdir -p "$dir/2023/02/10/sample-post" "$dir/css"
     alias_page='<!doctype html><html lang=en-us><head><title>https://test-blog.chiefgyk3d.com/posts/sample-post/</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/><meta name=robots content=noindex><meta http-equiv=refresh content="0; url=https://test-blog.chiefgyk3d.com/posts/sample-post/"></head></html>'
@@ -393,7 +406,7 @@ EXTRA="/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).
 robots_staging() { printf 'User-agent: *\nDisallow: /\n' >"$1/robots.txt"; }
-add_noindex() { sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html" "$1/posts/sample-post/index.html"; }
+add_noindex() { sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html" "$1/posts/sample-post/index.html" "$1/404.html" "$1/posts/index.html" "$1/tags/lorem/index.html" "$1/journal/index.html"; }
 staging_tree() {
     robots_staging "$1"
     add_noindex "$1"
@@ -490,6 +503,27 @@ home_as_article() { sed -i 's#property=og:type content=website#property=og:type 
 variant home-typed-article bad-head-value home_as_article
 post_as_website() { sed -i 's#property=og:type content=article#property=og:type content=website#' "$1/posts/sample-post/index.html"; }
 variant post-typed-website bad-head-value post_as_website
+
+# Templates (issues 58 and 59): home hero, 404, archive and post elements. Each
+# required piece removed in turn must be reported by name.
+cut_text() { sed -i "s#${CUT}##g" "$1/$PAGE"; }
+for pair in 'index.html|Read the latest' 'index.html|Find me online' 'index.html|Support my work' 'index.html|Latest posts' 'index.html|All posts' 'index.html|more secure and fun' 'index.html|Hands-on cybersecurity' \
+    '404.html|rm -rf' '404.html|Start over' '404.html|Find me online' '404.html|refusing to answer questions' \
+    'posts/index.html|archive-year' 'posts/index.html|index.xml' 'tags/lorem/index.html|archive-year' 'journal/index.html|archive-year' \
+    'posts/sample-post/index.html|reading-time' 'posts/sample-post/index.html|<time'; do
+    page="${pair%%|*}"
+    cut="${pair#*|}"
+    PAGE="$page" CUT="$cut" variant "cut-${page//\//-}-${cut//[^a-zA-Z-]/}" template-element cut_text
+done
+drop_mascot_size() { sed -i -E 's# width=256 height=256##' "$1/$PAGE"; }
+PAGE=index.html variant home-mascot-without-size template-element drop_mascot_size
+PAGE=404.html variant 404-mascot-without-size template-element drop_mascot_size
+drop_mascot() { sed -i -E 's#<img class=hero-mascot[^>]*>##' "$1/index.html"; }
+variant home-without-mascot template-element drop_mascot
+drop_404() { rm -f "$1/404.html"; }
+variant missing-404 template-element drop_404
+drop_archive() { rm -f "$1/posts/index.html"; }
+variant missing-posts-archive template-element drop_archive
 
 if [[ -f "$root/public/index.html" ]]; then
     if "$checker" "$root/public" >/dev/null 2>&1; then

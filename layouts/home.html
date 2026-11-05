@@ -1,15 +1,42 @@
 {{ define "main" }}
-<h1>{{ site.Title }}</h1>
+<section class="hero">
+  <img class="hero-mascot" src="{{ "/brand/mascot-256.webp" | relURL }}" srcset="{{ "/brand/mascot-256.webp" | relURL }} 256w, {{ "/brand/mascot-512.webp" | relURL }} 512w" sizes="(min-width: 40rem) 16rem, 10rem" width="256" height="256" alt="Renegade Tux, the penguin mascot">
+  <div class="hero-text">
+    <h1>Let's make the internet more secure and fun, one commit at a time.</h1>
+    <p class="hero-sub">Hands-on cybersecurity, Linux, homelabs, and open source.</p>
+    <p class="hero-actions">
+      <a class="btn btn-primary" href="{{ "/posts/" | relURL }}">Read the latest</a>
+      <a class="btn btn-ghost" href="{{ "/social/" | relURL }}">Find me online</a>
+      <a class="btn btn-ghost" href="{{ "/support/" | relURL }}">Support my work</a>
+    </p>
+  </div>
+</section>
 {{ .Content }}
-<h2>Latest posts</h2>
-{{ with where site.RegularPages "Section" "posts" }}
-<ul class="post-list">
-  {{- range first 5 . }}
-  <li><a href="{{ .RelPermalink }}">{{ .Title }}</a> <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span></li>
-  {{- end }}
-</ul>
-<p><a href="{{ "/posts/" | relURL }}">All posts</a></p>
-{{ else }}
-<p>No posts yet.</p>
-{{ end }}
+<section class="panel home-panel" aria-labelledby="latest-posts">
+  <h2 id="latest-posts" class="hud-heading">Latest posts</h2>
+  {{ with where site.RegularPages "Section" "posts" }}
+  <ul class="post-list">
+    {{- range first 5 . }}
+    <li>
+      <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+      <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
+      <p class="post-summary">{{ with .Description }}{{ . | plainify }}{{ else }}{{ .Summary | plainify }}{{ end }}</p>
+    </li>
+    {{- end }}
+  </ul>
+  <p><a href="{{ "/posts/" | relURL }}">All posts &rarr;</a></p>
+  {{ else }}
+  <p>No posts yet.</p>
+  {{ end }}
+</section>
+{{- with site.Data.socials }}
+<section class="panel home-panel" aria-labelledby="find-me">
+  <h2 id="find-me" class="hud-heading">Find me online</h2>
+  <ul class="home-social">
+    {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
+    <li><a class="icon-{{ $s.icon }}"{{ if $s.rel_me }} rel="me"{{ end }} href="{{ $s.url }}">{{ $s.name }}</a></li>
+    {{- end }}{{ end }}
+  </ul>
+</section>
+{{- end }}
 {{ end }}
