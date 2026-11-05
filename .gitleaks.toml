@@ -1,0 +1,28 @@
+# gitleaks configuration, read by the shared security workflow (from the pull
+# request's BASE commit, so a change here takes effect after it merges).
+#
+# Rule discord-api-token matches any 64-hex-digit value on a line that mentions
+# "discord". The brand manifests record the SHA-256 of static/brand/icons/discord.svg
+# on such lines (issue #87). Those are content hashes, not tokens.
+#
+# One allowlist, kept narrow on purpose. condition = "AND" means a finding is
+# ignored only when it is this rule, in one of these three files, AND the
+# matched value is a bare 64-hex-digit string. Any other rule, any other file
+# and any other value shape still fires. scripts/test-gitleaks-config.sh fails
+# if this grows.
+title = "no-php-no-cry gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SHA-256 content hashes in the brand manifests (rule discord-api-token only)"
+condition = "AND"
+targetRules = ["discord-api-token"]
+paths = [
+  '''(^|/)brand/assets-build\.json$''',
+  '''(^|/)scripts/gen-brand-assets\.py$''',
+  '''(^|/)brand/approved-assets\.txt$''',
+]
+regexTarget = "secret"
+regexes = ['''(?i)\b[0-9a-f]{64}\b''']
