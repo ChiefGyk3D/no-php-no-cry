@@ -406,7 +406,7 @@ fi
 if [[ ! -f "$dir/404.html" ]]; then
     report template-element "404.html (missing)"
 else
-    for t in "rm -rf" "refusing to answer questions" "Start over" "Find me online"; do
+    for t in "rm -rf" "refusing to answer questions" "Start over" "Browse posts" "Find me online"; do
         need_text "$dir/404.html" "$t"
     done
     need_mascot "$dir/404.html"
