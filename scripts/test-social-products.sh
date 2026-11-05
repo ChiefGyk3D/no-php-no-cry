@@ -161,8 +161,10 @@ def check_social(page, root, bad):
                 bad.append("Pixelfed tile is a link")
             if "coming soon" not in text.lower():
                 bad.append("Pixelfed tile lacks 'coming soon'")
-            if not tile.find("span", "social-icon--placeholder"):
-                bad.append("Pixelfed tile lacks the placeholder icon")
+            if not tile.find("span", "social-icon--pixelfed"):
+                bad.append("Pixelfed tile lacks the Pixelfed icon")
+            if not pathlib.Path(root, "static/brand/icons/pixelfed.svg").is_file():
+                bad.append("Pixelfed icon file missing")
             continue
         if len(links) != 1:
             bad.append("%s tile has %d links" % (name, len(links)))
@@ -305,7 +307,7 @@ css="$(cat "$public"/css/*.css 2>/dev/null || true)"
 if [[ -z "$css" ]]; then
     fail "built stylesheet found"
 else
-    for slug in twitch youtube kick mastodon bluesky tiktok instagram threads discord matrix github; do
+    for slug in twitch youtube kick mastodon bluesky tiktok instagram threads discord matrix github pixelfed; do
         if ! grep -q "social-icon--${slug}" <<<"$css"; then
             fail "css rule for social-icon--${slug}"
         fi
@@ -338,7 +340,8 @@ if [[ -f "$social" && -f "$products" ]]; then
         fi
     }
     guard "rel=me dropped" social "$social" 's/rel="me noopener"/rel="noopener"/g'
-    guard "pixelfed linked" social "$social" 's/<span class="social-icon social-icon--placeholder"/<a href="https:\/\/x.example\/"><span class="social-icon social-icon--placeholder"/'
+    guard "pixelfed linked" social "$social" 's/<span class="social-icon social-icon--pixelfed"/<a href="https:\/\/x.example\/"><span class="social-icon social-icon--pixelfed"/'
+    guard "pixelfed icon dropped" social "$social" 's/social-icon--pixelfed/social-icon--placeholder/'
     guard "sponsored dropped" products "$products" 's/rel="sponsored noopener"/rel="noopener"/'
     guard "disclosure changed" products "$products" 's/at no extra cost to you/at a cost to you/'
     guard "price note removed" products "$products" 's/Price checked on/Seen on/'

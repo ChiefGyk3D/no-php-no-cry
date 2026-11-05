@@ -45,6 +45,9 @@ ICONS = {
     "matrix": "07e6a16f5437fb0e7704c15b97bd50f46f3fa8968e022af2b9f2395fe0419d72",
     "discord": "1d364b72c9eaf1fe37d17ca88cd8fb541308dc0f3b09e2ab3b824f380b3493d5",
     "github": "3bf8cceead820aec50d4ee825a3fd02c5a1cd6665cc9cf4cbf3d9c8861a204bb",
+    # Pixelfed (issue 95): the same Simple Icons 16.36.0 release, CC0 1.0. Not in the
+    # kit yet, so --simple-icons DIR (a 16.36.0 checkout's icons/ folder) may supply it.
+    "pixelfed": "e5a7fe7a6c69ce7f283082a83626be777719231f9631752a87316b0c5ae653a6",
 }
 MASCOT_SIZES = (128, 256, 512)
 
@@ -71,6 +74,11 @@ def main():
     ap.add_argument("--master", required=True, type=pathlib.Path)
     ap.add_argument("--kit", required=True, type=pathlib.Path)
     ap.add_argument(
+        "--simple-icons",
+        type=pathlib.Path,
+        help="Simple Icons 16.36.0 icons/ folder, used for an icon the kit does not have yet",
+    )
+    ap.add_argument(
         "--out-root",
         type=pathlib.Path,
         default=pathlib.Path(__file__).resolve().parent.parent,
@@ -84,6 +92,8 @@ def main():
     icon_src = {}
     for slug, want in ICONS.items():
         p = args.kit / "assets/icons/simple-icons" / f"{slug}.svg"
+        if not p.is_file() and args.simple_icons:
+            p = args.simple_icons / f"{slug}.svg"
         need(p, want, f"icon {slug}")
         icon_src[slug] = p
 
