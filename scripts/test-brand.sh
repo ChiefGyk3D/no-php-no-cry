@@ -109,6 +109,16 @@ if grep -q 'color-scheme: dark;' "$tokens"; then ok ":root declares color-scheme
 if grep -q -e '^ *--font-display: "Cyber City"' "$tokens"; then ok "Cyber City is a display token"; else bad "--font-display token missing"; fi
 if find "$root/static" -type f -iname '*cyber*' | grep -q .; then bad "a Cyber City font file is bundled"; else ok "no Cyber City font file is bundled"; fi
 
+# Orbitron: one self-hosted @font-face (ttf, swap) and a display token that names it.
+if grep -q -e '^  font-family: Orbitron;' "$tokens" && grep -q -e 'src: url("../fonts/orbitron-wght.ttf") format("truetype");' "$tokens"; then ok "Orbitron has a self-hosted ttf @font-face"; else bad "no Orbitron @font-face"; fi
+if [[ "$(grep -c -e '^  font-display: swap;' "$tokens")" -eq 2 ]]; then ok "both @font-face rules use font-display: swap"; else bad "@font-face rules lack font-display: swap"; fi
+if grep -q -e '^ *--font-display: .*Orbitron' "$tokens"; then ok "--font-display names Orbitron"; else bad "--font-display does not name Orbitron"; fi
+if grep -q -e '^ *--font-body: Jost' "$tokens" && ! grep -q -e '^ *--font-body:.*Orbitron' "$tokens"; then ok "body font is Jost, never Orbitron"; else bad "body font token names Orbitron"; fi
+# The display font is used on headings only: --font-display appears in main.css
+# for h1/h2/HUD headings and the wordmark, and body never sets it.
+if grep -n 'var(--font-display)' "$root/assets/css/main.css" | grep -q .; then ok "main.css uses --font-display"; else bad "--font-display is unused"; fi
+if awk '/^body *\{/,/^\}/' "$root/assets/css/main.css" | grep -q 'font-display'; then bad "body sets the display font"; else ok "body does not set the display font"; fi
+
 # --- token generator ------------------------------------------------------
 expect_pass "tokens.css is current with brand/tokens.json" python3 -I "$gen" --check
 python3 -I "$gen" --out "$work/gen1.css"
@@ -233,6 +243,26 @@ if [[ -z "$(find "$work/gen-root" -type f)" ]]; then ok "generator wrote nothing
 
 # The build record names the approved master's hash.
 if grep -q '"sha256": "82edc2004ced79de845a04c466ac39604ffd3e9c961e89f205f4bee4be361189"' "$root/brand/assets-build.json"; then ok "build record carries the master sha256"; else bad "build record lacks the master sha256"; fi
+
+# Every icon file has an .icon-<slug> rule in icons.css (a missing rule renders
+# a solid square: the mask is empty and only the text color shows).
+icon_gaps() {
+    local css="$1" f slug n=0
+    for f in "$root"/static/brand/icons/*.svg; do
+        [[ -e "$f" ]] || continue
+        n=$((n + 1))
+        slug="$(basename "$f" .svg)"
+        grep -q -F ".icon-${slug} {" "$css" || printf 'no .icon-%s rule in %s\n' "$slug" "$css"
+    done
+    ((n > 0)) || printf 'no icon files found (check is blind)\n'
+}
+gaps="$(icon_gaps "$root/assets/css/pages/icons.css")"
+if [[ -z "$gaps" ]]; then ok "every brand icon has an .icon-<slug> rule"; else
+    printf '%s\n' "$gaps"
+    bad "brand icons without a CSS rule"
+fi
+grep -v -F '.icon-matrix {' "$root/assets/css/pages/icons.css" >"$work/icons-nomatrix.css"
+if icon_gaps "$work/icons-nomatrix.css" | grep -q 'no .icon-matrix rule'; then ok "a missing icon rule is caught"; else bad "a missing icon rule was not caught"; fi
 
 if ((failures > 0)); then
     printf '%d failure(s)\n' "$failures"

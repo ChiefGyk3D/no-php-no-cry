@@ -1,0 +1,38 @@
+{{- /* Archive body shared by /posts/, /journal/ and the tag and category term pages. Takes a dict: "page" (the list page) and an optional "note" (plain text under the title). Entries are grouped by year, newest first. */ -}}
+{{- $p := .page -}}
+<h1>{{ $p.Title }}</h1>
+{{ $p.Content }}
+{{- with .note }}
+<p class="meta">{{ . }}</p>
+{{- end }}
+<p class="meta archive-links">
+  {{- with $p.OutputFormats.Get "rss" }}<a href="{{ .RelPermalink }}">RSS feed</a>{{ end }}
+  {{- if eq $p.Kind "term" }}<a href="{{ "/posts/" | relURL }}">All posts</a>{{ end }}
+</p>
+{{- if eq $p.Section "posts" }}{{ if eq $p.Kind "section" }}
+{{- with site.Taxonomies.tags.Alphabetical }}
+<nav class="archive-tags" aria-label="Browse by tag">
+  <ul class="tag-list">
+    {{- range . }}<li><a href="{{ .Page.RelPermalink }}">#{{ .Page.LinkTitle }}</a> <span class="meta">({{ .Count }})</span></li>{{ end }}
+  </ul>
+</nav>
+{{- end }}
+{{- end }}{{ end }}
+{{- range $p.Pages.GroupByDate "2006" "desc" }}
+<section class="archive-group">
+  <h2 class="archive-year hud-heading">{{ .Key }}</h2>
+  <ul class="post-list">
+    {{- range .Pages }}
+    <li>
+      <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+      <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
+      {{- with partial "description.html" . }}{{ if ne . site.Params.description }}
+      <p class="post-summary">{{ . }}</p>
+      {{- end }}{{ end }}
+    </li>
+    {{- end }}
+  </ul>
+</section>
+{{- else }}
+<p>Nothing here yet.</p>
+{{- end }}

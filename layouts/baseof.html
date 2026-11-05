@@ -14,7 +14,7 @@
   <link rel="alternate" type="application/rss+xml" title="{{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}
   {{- end }}
-  {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css")) | minify | fingerprint }}
+  {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css")) | minify | fingerprint }}
   <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
   {{- end }}
 </head>
@@ -22,20 +22,21 @@
   <a class="skip-link" href="#main">Skip to main content</a>
   <header class="site-header">
     <div class="wrap">
-      <a class="site-title" href="{{ "/" | relURL }}">{{ site.Title }}</a>
+      <a class="site-title" href="{{ "/" | relURL }}"><img class="site-mark" src="{{ "brand/mascot-128.webp" | relURL }}" width="36" height="36" alt="">{{ site.Title }}</a>
       {{- /* Phones: the list sits in a native details menu (no script). From 40rem up, CSS shows the list without opening it. */}}
       <nav class="site-nav" aria-label="Main">
         <details class="nav-menu">
           <summary class="btn btn-ghost">Menu</summary>
           <ul>
-            <li><a href="{{ "/posts/" | relURL }}">Posts</a></li>
+            {{- /* aria-current="page" marks the link whose URL is this page; a post under /posts/ is not that page, so the Posts link stays plain there. */}}
+            {{- $here := .RelPermalink }}
+            <li><a href="{{ "/posts/" | relURL }}"{{ if eq $here ("/posts/" | relURL) }} aria-current="page"{{ end }}>Posts</a></li>
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
-            <li><a href="{{ "/journal/" | relURL }}">Journal</a></li>
+            <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            <li><a href="{{ "/products/" | relURL }}">Products</a></li>
-            <li><a href="{{ "/social/" | relURL }}">Social</a></li>
-            <li><a href="{{ "/support/" | relURL }}">Support</a></li>
-            <li><a href="{{ "/about/" | relURL }}">About</a></li>
+            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Social") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") }}
+            <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
+            {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
           </ul>
         </details>
@@ -53,6 +54,7 @@
         <li><a href="{{ "/about/" | relURL }}">About</a></li>
         <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
+        <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
         <li><a href="{{ "/index.xml" | relURL }}">RSS</a></li>
       </ul>
       {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me adds more identity links beside it. */ -}}
@@ -75,6 +77,7 @@
         {{- end }}{{ end }}
       </ul>
       {{- end }}
+      <p class="credit">&copy; {{ now.Year }} ChiefGyk3D</p>
     </div>
   </footer>
 </body>

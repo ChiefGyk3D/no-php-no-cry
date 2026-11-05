@@ -1,8 +1,19 @@
-{{- /* Description, Open Graph, Twitter card and favicons. Every URL is absolute from the site's baseURL. The default image is an approved, star-free brand asset (brand/approved-assets.txt). No structured data script: script-src 'self' (static/_headers) allows same-origin scripts; the build checks and the hash pin of /theme.js ensure the only script is /theme.js, so no structured data script. */ -}}
+{{- /* Description, Open Graph, Twitter card, JSON-LD and favicons. Every URL is absolute from the site's baseURL. The card image is the page's front matter "image" (a page resource, else a path under static/), else the default OG card, an approved star-free brand asset (brand/approved-assets.txt, 1200x630). Structured data is an application/ld+json DATA block: a browser never runs it and script-src 'self' does not apply to it (checked in Chromium against static/_headers); scripts/check-output.sh allows that one type, parses it, and still fails every other script element. The Person is named by the display name only. */ -}}
 {{- $desc := partial "description.html" . -}}
-{{- $image := site.Params.ogImage | default "brand/og-card.png" | absURL -}}
+{{- $env := partial "environment.html" . -}}
+{{- $default := site.Params.ogImage | default "brand/og-card.png" -}}
+{{- $image := $default | absURL -}}
+{{- $custom := false -}}
+{{- with .Params.image -}}
+  {{- $res := $.Resources.GetMatch . -}}
+  {{- if $res }}{{ $image = $res.Permalink }}{{ else }}{{ $image = . | absURL }}{{ end -}}
+  {{- $custom = true -}}
+{{- end -}}
 {{- $title := cond .IsHome site.Title .Title -}}
 {{- $article := and .IsPage (in (slice "posts" "journal") .Section) -}}
+{{- $name := site.Params.author.name | default "ChiefGyk3D" -}}
+{{- $home := "/" | absURL -}}
+{{- $personID := printf "%s#person" $home -}}
 <meta name="description" content="{{ $desc }}">
 <meta property="og:site_name" content="{{ site.Title }}">
 <meta property="og:title" content="{{ $title }}">
@@ -10,11 +21,42 @@
 <meta property="og:type" content="{{ cond $article "article" "website" }}">
 <meta property="og:url" content="{{ .Permalink }}">
 <meta property="og:image" content="{{ $image }}">
+{{- if not $custom }}
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+{{- end }}
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{ $image }}">
+<meta name="theme-color" content="#0F0F0F">
+<link rel="manifest" href="{{ "site.webmanifest" | relURL }}">
+{{- if and (eq .Kind "404") (ne $env "staging") }}
+<meta name="robots" content="noindex">
+{{- end }}
 {{- if $article }}
 <meta property="article:published_time" content="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">
+{{- if .Lastmod.After .Date }}
+<meta property="article:modified_time" content="{{ .Lastmod.Format "2006-01-02T15:04:05Z07:00" }}">
+{{- end }}
 {{- end }}
 <link rel="icon" href="{{ "brand/penguin-glyph.svg" | relURL }}" type="image/svg+xml">
 <link rel="icon" href="{{ "brand/favicon-32.png" | relURL }}" type="image/png" sizes="32x32">
 <link rel="icon" href="{{ "brand/favicon-192.png" | relURL }}" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="{{ "brand/apple-touch-icon-180.png" | relURL }}" sizes="180x180">
+{{- /* JSON-LD. sameAs: the https links of data/socials.yaml (params.me when that file is empty). */ -}}
+{{- $sameAs := slice -}}
+{{- range site.Data.socials }}{{ if strings.HasPrefix .url "https://" }}{{ $sameAs = $sameAs | append .url }}{{ end }}{{ end -}}
+{{- if not $sameAs }}{{ range site.Params.me }}{{ if strings.HasPrefix .url "https://" }}{{ $sameAs = $sameAs | append .url }}{{ end }}{{ end }}{{ end -}}
+{{- $ld := false -}}
+{{- if .IsHome -}}
+  {{- $person := dict "@type" "Person" "@id" $personID "name" $name "url" $home -}}
+  {{- if $sameAs }}{{ $person = merge $person (dict "sameAs" $sameAs) }}{{ end -}}
+  {{- $site := dict "@type" "WebSite" "@id" (printf "%s#website" $home) "name" site.Title "url" $home "description" $desc "publisher" (dict "@id" $personID) -}}
+  {{- $ld = dict "@context" "https://schema.org" "@graph" (slice $site $person) -}}
+{{- else if $article -}}
+  {{- $art := dict "@context" "https://schema.org" "@type" "Article" "headline" .Title "description" $desc "url" .Permalink "mainEntityOfPage" (dict "@type" "WebPage" "@id" .Permalink) "image" $image "datePublished" (.Date.Format "2006-01-02T15:04:05Z07:00") "dateModified" (.Lastmod.Format "2006-01-02T15:04:05Z07:00") "author" (dict "@type" "Person" "@id" $personID "name" $name "url" $home) -}}
+  {{- with .Params.tags }}{{ $art = merge $art (dict "keywords" (delimit . ", ")) }}{{ end -}}
+  {{- $ld = $art -}}
+{{- end -}}
+{{- with $ld }}
+<script type="application/ld+json">{{ . | jsonify | safeJS }}</script>
+{{- end }}

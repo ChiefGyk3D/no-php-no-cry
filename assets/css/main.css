@@ -5,6 +5,10 @@
 }
 
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--bg);
   background-image: radial-gradient(60rem 28rem at 50% 0, var(--glow), transparent 70%);
@@ -16,9 +20,27 @@ body {
 }
 
 .wrap {
+  width: 100%;
   max-width: var(--measure);
   margin: 0 auto;
   padding: 0 var(--space);
+}
+
+/* Display face (Orbitron, via --font-display) on the page headings only; body
+ * text stays Jost. Orbitron is wide, so the sizes come from the token scale. */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: var(--text-xl);
+}
+
+h2 {
+  font-size: var(--text-lg);
 }
 
 a {
@@ -45,6 +67,7 @@ a:focus-visible {
 }
 
 .site-header {
+  position: relative;
   border-bottom: var(--rule-width) solid var(--rule);
   padding: var(--space) 0;
 }
@@ -60,11 +83,18 @@ a:focus-visible {
 .site-title {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: var(--tap);
   font-family: var(--font-display);
   font-weight: 700;
   text-decoration: none;
   color: var(--text);
+}
+
+.site-mark {
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 .visually-hidden {
@@ -89,18 +119,37 @@ a:focus-visible {
   display: none;
 }
 
+/* Phones, menu open: a full-width stacked dropdown hung from the bottom edge of
+ * the header (.site-header is the positioning box). It overlays the page, so
+ * the header row keeps its height and the document does not grow. */
 .nav-menu ul {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
   list-style: none;
-  margin: var(--space-2) 0 0;
-  padding: 0;
+  margin: 0;
+  padding: 0 var(--space);
+  background: var(--surface);
+  border-bottom: var(--rule-width) solid var(--rule);
+  box-shadow: 0 0.75rem 1.5rem var(--shadow);
 }
 
-.nav-menu li a,
+.nav-menu li + li {
+  border-top: var(--rule-width) solid var(--rule);
+}
+
+.nav-menu li a {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
 .footer-row a {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
-  padding: 0 var(--space-2);
 }
 
 @media (min-width: 40rem) {
@@ -114,14 +163,36 @@ a:focus-visible {
   }
 
   .nav-menu ul {
+    position: static;
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    margin: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .nav-menu li + li {
+    border-top: 0;
+  }
+
+  .nav-menu li a {
+    display: inline-flex;
+    padding: 0 var(--space-2);
   }
 }
 
+/* Current page: aria-current="page" on a header link gets an amber underline. */
+.nav-menu li a[aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: var(--rule-accent-width);
+  text-underline-offset: 0.35em;
+}
+
 main {
+  flex: 1 0 auto;
   padding: var(--space-6) 0;
 }
 
@@ -132,9 +203,32 @@ main {
   font-size: var(--text-sm);
 }
 
+/* Footer: the rows share one wrapping line on wide screens, flush with the
+ * content column edge (no side padding on the links); the credit closes it. */
+.site-footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-5);
+}
+
+.credit {
+  flex-basis: 100%;
+  margin: var(--space-2) 0 0;
+}
+
 .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space);
   color: var(--muted);
   font-size: var(--text-sm);
+}
+
+/* In a list the date sits on its own line under the title. */
+.post-list .meta {
+  margin-top: var(--space-1);
 }
 
 .post-list {
@@ -148,14 +242,12 @@ main {
 }
 
 .tag-list {
-  display: inline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  margin: 0;
   list-style: none;
   padding: 0;
-}
-
-.tag-list li {
-  display: inline;
-  margin-right: var(--space-2);
 }
 
 img {
@@ -227,9 +319,9 @@ pre:focus-visible {
 .footer-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space);
+  gap: 0 var(--space);
   list-style: none;
-  margin: 0 0 var(--space-2);
+  margin: 0;
   padding: 0;
 }
 
@@ -337,6 +429,7 @@ summary:focus-visible {
 
 /* Chevron/rule heading: a chevron, the text, then a rule that fills the row. */
 .hud-heading {
+  font-family: var(--font-display);
   display: flex;
   align-items: center;
   gap: var(--space-2);

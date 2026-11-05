@@ -1,0 +1,90 @@
+/* /support/ (issue 62). Tokens only. */
+.page-support .lede {
+  font-size: var(--text-lg);
+}
+
+.support-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space);
+  list-style: none;
+  margin: var(--space-5) 0 var(--space-2);
+  padding: 0;
+}
+
+.support-buttons li {
+  display: flex;
+}
+
+.support-buttons .btn {
+  width: 100%;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@media (min-width: 40rem) {
+  .support-buttons {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.page-support details.accordion {
+  margin-top: var(--space-5);
+}
+
+.crypto .summary-note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.coin-list {
+  display: grid;
+  gap: var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: var(--space) 0 0;
+}
+
+.coin {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.coin-name {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.address {
+  display: block;
+  max-width: 100%;
+  padding: var(--space-2) var(--space);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.qr {
+  background: var(--text);
+  border: var(--rule-accent-width) solid var(--text);
+}
+
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.social-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+.coming-soon {
+  color: var(--muted);
+}

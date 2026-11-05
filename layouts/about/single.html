@@ -1,0 +1,33 @@
+{{ define "main" }}
+<article class="page-about">
+  <h1>{{ .Title }}</h1>
+  <div class="about-intro">
+    <img class="about-mascot" src="{{ "brand/mascot-256.webp" | relURL }}" width="256" height="256" alt="ChiefGyk3D's penguin mascot">
+    {{- /* DRAFT: placeholder bio. The maintainer reviews and replaces this wording before launch. */}}
+    <div class="panel draft-bio">
+      <p><strong>DRAFT</strong> (bio wording is a placeholder for the maintainer to review)</p>
+      <p>I'm ChiefGyk3D. I stream, make videos, and build open-source tools, and I write about what I learn along the way.</p>
+    </div>
+  </div>
+
+  <p class="resume-link">Looking for my work history? Read the <a href="{{ "/resume/" | relURL }}">resume</a>.</p>
+
+  <h2>Current projects</h2>
+  <ul class="tile-grid project-tiles">
+    <li><a class="tile" href="https://github.com/ChiefGyk3D/Stream-Daemon" target="_blank" rel="noopener"><strong>Stream Daemon</strong><span class="meta"> Announces your live streams to Mastodon, Bluesky, Discord, and Matrix.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    <li><a class="tile" href="https://github.com/ChiefGyk3D/Reach-Around" target="_blank" rel="noopener"><strong>Reach Around</strong><span class="meta"> One pane for creator analytics, a link page, and a media kit.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    <li><a class="tile" href="https://github.com/ChiefGyk3D/Clouds-Against-Humanity" target="_blank" rel="noopener"><strong>Clouds Against Humanity</strong><span class="meta"> Learn cloud security by building it, in an open-source homelab.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+  </ul>
+
+  <section aria-labelledby="contact">
+    <h2 id="contact">Contact</h2>
+    <p>There's no contact form. Reach me on Matrix or Discord, or use the email address listed as plain text.</p>
+    <ul class="contact-links">
+      <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+      <li><a href="https://discord.chiefgyk3d.com" target="_blank" rel="noopener">Discord<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+    </ul>
+    {{- /* TODO: the maintainer supplies the public email address (plain text, never a mailto: link or a form). */}}
+    <p class="email-todo">Email: <span class="meta">TODO: address to be added.</span></p>
+  </section>
+</article>
+{{ end }}

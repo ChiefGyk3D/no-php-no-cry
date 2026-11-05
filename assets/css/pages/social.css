@@ -1,0 +1,91 @@
+/* /social/: the tile grid. Tokens only. Icons are the committed Simple Icons
+ * SVGs used as a mask, because the glyph files carry no fill and draw black.
+ * The mask follows img-src 'self'. */
+.social-grid {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.tile-item {
+  display: flex;
+}
+
+.social-tile {
+  display: grid;
+  grid-template-columns: var(--space-6) 1fr;
+  grid-template-areas:
+    "icon name"
+    "icon handle"
+    "icon role";
+  column-gap: var(--space);
+  align-items: center;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.social-icon {
+  grid-area: icon;
+  display: block;
+  width: var(--space-6);
+  height: var(--space-6);
+  background-color: var(--accent);
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.social-name {
+  grid-area: name;
+  font-weight: 700;
+}
+
+.social-handle {
+  grid-area: handle;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.social-role {
+  grid-area: role;
+  font-size: var(--text-sm);
+}
+
+.social-icon--twitch { --icon: url("/brand/icons/twitch.svg"); }
+.social-icon--youtube { --icon: url("/brand/icons/youtube.svg"); }
+.social-icon--kick { --icon: url("/brand/icons/kick.svg"); }
+.social-icon--mastodon { --icon: url("/brand/icons/mastodon.svg"); }
+.social-icon--bluesky { --icon: url("/brand/icons/bluesky.svg"); }
+.social-icon--tiktok { --icon: url("/brand/icons/tiktok.svg"); }
+.social-icon--instagram { --icon: url("/brand/icons/instagram.svg"); }
+.social-icon--threads { --icon: url("/brand/icons/threads.svg"); }
+.social-icon--discord { --icon: url("/brand/icons/discord.svg"); }
+.social-icon--matrix { --icon: url("/brand/icons/matrix.svg"); }
+.social-icon--github { --icon: url("/brand/icons/github.svg"); }
+
+/* Pixelfed has no icon in the kit (brand/ICONS.md): a neutral outlined square. */
+.social-icon--placeholder {
+  background: none;
+  border: var(--rule-accent-width) dashed var(--gray);
+  border-radius: var(--radius);
+  -webkit-mask: none;
+  mask: none;
+}
+
+/* A tile that is not a link yet: no hover glow, quieter text. */
+.social-tile--soon {
+  border-style: dashed;
+}
+
+.social-tile--soon:hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.social-tile--soon .social-name,
+.social-tile--soon .social-role {
+  color: var(--muted);
+}
+
+@media (forced-colors: active) {
+  .social-icon {
+    background-color: CanvasText;
+  }
+}

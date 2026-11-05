@@ -86,11 +86,30 @@ jobs:
       - name: Test the page head and footer links (hostile front matter)
         run: scripts/test-head.sh
 
+      - name: Test the Social and Products pages (built site, guard self-tests)
+        run: scripts/test-social-products.sh
+
+      - name: Test the resume page and print stylesheet (content rules, guard)
+        run: scripts/test-resume.sh
+
       - name: Test the site artifact checker (negative cases)
         run: scripts/test-check-site-artifact.sh
 
       - name: Test that the deploy job's sparse checkout covers what it runs
         run: scripts/test-deploy-sparse.sh
+
+      - name: Test the Support, About and Privacy pages
+        run: scripts/test-pages.sh
+
+      - name: Test the generated _redirects file (fragment grammar, line shape)
+        run: scripts/test-redirects.sh
+
+      # Re-encodes data/support.yaml with the hash-pinned segno (scripts/
+      # requirements-qr.txt, installed with --require-hashes) and compares the
+      # whole committed SVGs, so the QR modules are verified, not only <desc>.
+      # Needs network access to the Python package index for that one package.
+      - name: Check the support QR files against data/support.yaml
+        run: scripts/gen-support-qr.sh --check
 
       - name: Test the theme script pinning
         run: scripts/test-pin-theme.sh

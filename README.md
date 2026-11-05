@@ -36,10 +36,14 @@ scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition
 scripts/check-output.sh public   # see the rules below
 scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
 scripts/test-check-site-artifact.sh
+scripts/test-pages.sh          # Support, About and Privacy pages, the /contact/ redirect, wallet addresses and QR files
+scripts/test-redirects.sh      # _redirects fragment grammar and line shape
+scripts/gen-support-qr.sh --check   # QR SVGs equal a fresh encoding of data/support.yaml
 scripts/test-pin-theme.sh
 scripts/test-deploy-sparse.sh   # the deploy job's sparse checkout lists every file its scripts need
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-head.sh             # head tags and rel=me links against hostile front matter
+scripts/test-social-products.sh  # /social/ tiles and /products/ disclosure, items and affiliate links
 scripts/test-check-hugo-version.sh
 scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 ```
@@ -82,6 +86,8 @@ hugo.toml                site config, output formats (RSS, _redirects)
 content/posts/           posts, one leaf page bundle each (index.md + images)
 content/journal/         work journal, a separate section
 assets/css/              tokens.css (placeholders) and main.css, via Hugo Pipes
+assets/css/pages/        one stylesheet per page template (social.css, products.css), concatenated by baseof
+data/                    socials.yaml (hub, footer) and products.yaml (affiliate items)
 layouts/                 templates written from scratch
 layouts/_markup/         image render hook (srcset, width/height, lazy, alt required)
 layouts/home.redirects   builds public/_redirects from page aliases

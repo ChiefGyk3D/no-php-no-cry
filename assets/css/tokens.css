@@ -11,10 +11,12 @@
  * check can read them. Nothing else in the CSS hard-codes a color or a font.
  * Specification: brand/README.md.
  *
- * Jost is self-hosted from /fonts (SIL OFL 1.1, license text beside it); no
- * font host is contacted. Cyber City is the logo, wordmark and display font
- * only (--font-display); TODO: its file is not bundled (license document not
- * seen here), so the stack falls through to Jost. The wordmark is used as an
+ * Jost and Orbitron are self-hosted from /fonts (SIL OFL 1.1, license text
+ * beside each); no font host is contacted. Orbitron is the display face for
+ * headings only (--font-display, kit decision X1), never body text. Cyber City
+ * is the logo, wordmark and display font only (--font-display); TODO: its
+ * file is not bundled (license document not seen here), so the stack falls
+ * through to Orbitron, then Jost. The wordmark is used as an
  * image, never typeset.
  */
 
@@ -24,6 +26,14 @@
   font-weight: 100 900;
   font-display: swap;
   src: url("../fonts/jost-latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Orbitron;
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("../fonts/orbitron-wght.ttf") format("truetype");
 }
 
 :root {
@@ -62,9 +72,9 @@
   --glow-strong: rgb(251 176 59 / 0.35);
   --shadow: rgb(0 0 0 / 0.5);
 
-  /* Type. font-display is for the logo, wordmark and display uses ONLY (kit decisions Q, R, X4), never body text. TODO: the Cyber City font file is NOT bundled (license document not seen in this repo); until a reviewed file is added to static/fonts and approved-assets.txt, the stack falls through to Jost. Body is Jost. */
+  /* Type. font-display is for the logo, wordmark and display uses ONLY (kit decisions Q, R, X4), never body text. TODO: the Cyber City font file is NOT bundled (license document not seen in this repo); until a reviewed file is added to static/fonts and approved-assets.txt, the stack falls through to Orbitron (self-hosted, kit decision X1), then Jost. Body is Jost. */
   --font-body: Jost, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Cyber City", Jost, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Cyber City", Orbitron, Jost, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --text-sm: 0.875rem;
   --text-base: 1.125rem;

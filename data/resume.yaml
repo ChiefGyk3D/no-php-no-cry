@@ -1,0 +1,75 @@
+# Content for /resume/ (layouts/resume.html). Generalities only: no employer
+# names, no job dates, no callsign, no grid square. Source: the GitHub profile
+# README (approved for reuse). Wording is a draft for ChatGPT/maintainer review.
+name: ChiefGyk3D
+title: Cybersecurity Engineer (CISSP)
+summary:
+  - 15 years in IT and cybersecurity, working across IAM, EDR, SOAR, ZTNA, SASE and cloud security.
+  - "Primarily self-taught: homelabbing, curiosity and hands-on work over formal education."
+  - Open-source builder and content creator who automates everything and talks about it.
+
+skills:
+  - group: Identity and access
+    items: [IAM]
+  - group: Detection and response
+    items: [EDR, SOAR, SIEM and SOC operations, Detection engineering]
+  - group: Zero trust and cloud
+    items: [ZTNA and SASE, Cloud security]
+  - group: Automation and code
+    items: [Python, Bash, PowerShell, "Infrastructure as code with OpenTofu and Terraform"]
+  - group: Systems and networking
+    items: [Linux, "Networking with pfSense, Suricata and UniFi"]
+  - group: Ways of working
+    items: ["AI-assisted workflows", "DevSecOps and GYST CI"]
+
+knowledge:
+  - Zero trust
+  - Threat modeling
+  - OSINT
+  - Telecom security
+  - Privacy
+
+# Clouds Against Humanity stays first.
+projects:
+  - name: Clouds Against Humanity
+    url: https://github.com/ChiefGyk3D/Clouds-Against-Humanity
+    line: A locked-down, low-cost DigitalOcean environment that teaches cloud security, zero trust and infrastructure as code, with no public inbound ports.
+  - name: Stream Daemon
+    url: https://github.com/ChiefGyk3D/Stream-Daemon
+    line: Announces when you go live on Twitch, YouTube or Kick to Mastodon, Bluesky, Discord and Matrix.
+  - name: SIEM Docker Stack
+    url: https://github.com/ChiefGyk3D/siem-docker-stack
+    line: A fully Dockerized SIEM and SOC stack with hot and warm tiering for home labs and small businesses.
+  - name: pfSense SIEM Stack
+    url: https://github.com/ChiefGyk3D/pfsense-siem-stack
+    line: A pfSense deployment, monitoring and security knowledge base, from basic setup to SIEM integration and IDS/IPS tuning.
+  - name: git-your-ship-together
+    url: https://github.com/ChiefGyk3D/git-your-ship-together
+    line: Reusable, hardened GitHub Actions workflows with lint, tests, signed releases and six kinds of scan.
+  - name: Hammunition family
+    url: https://github.com/Renegade-Penguin/Hammunition
+    line: Turns a Debian-family install into an amateur radio and SDR workstation, with companion tools for propagation, devices and offline data.
+  # TODO(maintainer): Reach Around is not in the profile README; this one-line
+  # wording is a draft (maintainer ruling 2026-11-05). Confirm or reword it.
+  - name: Reach Around
+    url: https://github.com/ChiefGyk3D/Reach-Around
+    line: A privacy-first link page with creator analytics. Open source.
+  - name: Skid Finder
+    url: https://github.com/ChiefGyk3D/Skid-Finder
+    line: Defensive Bluetooth Low Energy monitoring for conference floors that detects scripted spam tooling and helps find the source.
+
+credentials:
+  - CISSP
+  - CompTIA Security+
+  - CompTIA Network+
+  - CompTIA A+
+  - Associate degree in Network System Administration, ITT Tech, 2016
+  - Amateur radio operator, General class license
+  - Ordained Priest, Church of the Latter Day Dude
+
+community:
+  - "YouTube and Twitch streaming: tutorials, security breakdowns and livestreams."
+  - "Open-source maintainer: everything I build is open source."
+
+contact: "Employers: references, job history and a phone number are available on request via the contact section on /about/#contact."
+contact_url: /about/#contact

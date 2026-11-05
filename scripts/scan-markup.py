@@ -15,6 +15,10 @@ script element. --scripts none|theme (HTML only, used on served pages) also
 judges script elements: with "none" any script element is script-not-allowed;
 with "theme" only one <script src=/theme.js></script> is allowed (a second is
 script-count, any other form, attribute or body is script-not-allowed).
+A <script type="application/ld+json"> data block (that one attribute, nothing
+else) is not a script in either mode: a browser never runs it and script-src
+does not apply. Its body is judged by scripts/check-seo.py. In --markup mode
+every script element is still refused.
 """
 import re
 import sys
@@ -66,7 +70,11 @@ class Scan(HTMLParser):
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
         if tag == "script":
-            if self.markup or self.scripts == "none":
+            if not self.markup and [(n.lower(), clean(v).lower()) for n, v in attrs] == [("type", "application/ld+json")]:
+                # A JSON-LD data block: never run, not subject to script-src.
+                # Its body is judged by scripts/check-seo.py.
+                self.in_script = False
+            elif self.markup or self.scripts == "none":
                 self.found.add("script-not-allowed")
             elif self.scripts == "theme":
                 self.in_script = True

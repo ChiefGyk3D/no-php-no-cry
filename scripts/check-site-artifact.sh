@@ -12,7 +12,7 @@
 #   - any script file (.js, .mjs, .cjs, any depth) other than /theme.js, and a
 #     /theme.js that is 1 KB gzip (1024 bytes) or more
 #   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
-#     webp avif ico woff woff2 ttf, plus _headers and _redirects at the root),
+#     webp avif ico woff woff2 ttf webmanifest, plus _headers and _redirects at the root),
 #     whatever its content or name: script-src 'self' authorizes every
 #     same-origin response, so there must be no file a script could load
 #   - /theme.js whose sha256 is not the one in the committed theme.js.sha256

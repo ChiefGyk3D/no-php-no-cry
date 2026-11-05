@@ -50,7 +50,7 @@ class BasicConversionTests(unittest.TestCase):
         names = sorted(p.parent.relative_to(self.out).as_posix() for p in self.out.rglob("index.md"))
         self.assertEqual(
             names,
-            ["about", "hidden-draft", "posts/first-post", "posts/second-post"],
+            ["hidden-draft", "posts/first-post", "posts/second-post", "team"],
         )
 
     def test_front_matter(self):
@@ -77,11 +77,11 @@ class BasicConversionTests(unittest.TestCase):
         draft = (self.out / "hidden-draft/index.md").read_text()
         self.assertIn("draft: true\n", draft)
         self.assertNotIn("aliases", draft)
-        about = (self.out / "about/index.md").read_text()
-        self.assertIn("draft: false\n", about)
-        self.assertIn('url: "/about/"\n', about)
+        team = (self.out / "team/index.md").read_text()
+        self.assertIn("draft: false\n", team)
+        self.assertIn('url: "/team/"\n', team)
         # The old permalink equals the new URL: an alias would overwrite the page.
-        self.assertNotIn("aliases", about)
+        self.assertNotIn("aliases", team)
 
     def test_body_markdown(self):
         self.assertIn("## A heading & more", self.post)
@@ -97,7 +97,7 @@ class BasicConversionTests(unittest.TestCase):
         self.assertEqual((self.out / "posts/first-post/pic.png").read_bytes(), PNG)
 
     def test_temp_host_links_rewritten_to_site_url(self):
-        self.assertIn("(https://test-blog.chiefgyk3d.com/about/)", self.post)
+        self.assertIn("(https://test-blog.chiefgyk3d.com/team/)", self.post)
         everything = "\n".join(p.read_text() for p in self.out.rglob("*.md"))
         self.assertNotIn("bluehost", everything)
 
@@ -135,7 +135,7 @@ class BasicConversionTests(unittest.TestCase):
         self.assertEqual(by_id[11]["old"], "/2023/02/10/first-post/")
         self.assertEqual(by_id[11]["new"], "/posts/first-post/")
         self.assertEqual(by_id[12]["old"], "/second-post.html")
-        self.assertEqual(by_id[13]["new"], "/about/")
+        self.assertEqual(by_id[13]["new"], "/team/")
         self.assertEqual(by_id[14]["old"], None)
         self.assertTrue(by_id[14]["draft"])
 
@@ -148,16 +148,16 @@ class RootPageTests(unittest.TestCase):
         return text
 
     def test_page_with_a_different_old_permalink_keeps_its_alias(self):
-        text = only_items("basic.xml", {"13"}).replace("example.invalid/about/", "example.invalid/old/about-us/")
+        text = only_items("basic.xml", {"13"}).replace("example.invalid/team/", "example.invalid/old/team-us/")
         proc, out, _ = convert(text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        page = (out / "about/index.md").read_text()
-        self.assertIn('url: "/about/"\n', page)
-        self.assertIn('  - "/old/about-us/"\n', page)
+        page = (out / "team/index.md").read_text()
+        self.assertIn('url: "/team/"\n', page)
+        self.assertIn('  - "/old/team-us/"\n', page)
         pmap = json.loads((out / "permalink-map.json").read_text())
-        self.assertEqual(pmap[0]["old"], "/old/about-us/")
-        self.assertEqual(pmap[0]["new"], "/about/")
-        self.assertEqual(pmap[0]["file"], "about/index.md")
+        self.assertEqual(pmap[0]["old"], "/old/team-us/")
+        self.assertEqual(pmap[0]["new"], "/team/")
+        self.assertEqual(pmap[0]["file"], "team/index.md")
 
     def test_posts_stay_under_posts_without_a_url_key(self):
         proc, out, _ = basic()
@@ -166,7 +166,7 @@ class RootPageTests(unittest.TestCase):
 
     def test_page_slug_colliding_with_a_section_is_refused(self):
         for slug in ("posts", "journal"):
-            text = only_items("basic.xml", {"13"}).replace("<![CDATA[about]]>", "<![CDATA[%s]]>" % slug)
+            text = only_items("basic.xml", {"13"}).replace("<![CDATA[team]]>", "<![CDATA[%s]]>" % slug)
             proc, out, _ = convert(text)
             self.assertEqual(proc.returncode, 2, slug)
             self.assertIn("collides", proc.stderr)
@@ -178,7 +178,7 @@ class RootPageTests(unittest.TestCase):
             p.name for base in ("content", "static") for p in (REPO / base).iterdir() if p.is_dir()
         )
         self.assertTrue(names, "no top-level directories found to test against")
-        text = only_items("basic.xml", {"13"}).replace("<![CDATA[about]]>", "<![CDATA[%s]]>" % names[0])
+        text = only_items("basic.xml", {"13"}).replace("<![CDATA[team]]>", "<![CDATA[%s]]>" % names[0])
         proc, out, _ = convert(text)
         self.assertEqual(proc.returncode, 2)
         self.assertFalse(out.exists())
@@ -193,7 +193,7 @@ class EmptyPageTests(unittest.TestCase):
         text = only_items("basic.xml", {"13", "14"}).replace("<p>About this fixture site.</p>", "")
         proc, out, _ = convert(text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertFalse((out / "about").exists())
+        self.assertFalse((out / "team").exists())
         self.assertTrue((out / "hidden-draft/index.md").exists())
         log = json.loads((out / "decision-log.json").read_text())
         self.assertEqual(len(log["skipped"]), 1)
@@ -209,7 +209,7 @@ class EmptyPageTests(unittest.TestCase):
         text = only_items("basic.xml", {"13"}).replace("<p>About this fixture site.</p>", "<p> </p><div></div>")
         proc, out, _ = convert(text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertFalse((out / "about").exists())
+        self.assertFalse((out / "team").exists())
 
     def test_empty_post_is_not_skipped(self):
         text = only_items("basic.xml", {"12"}).replace(
@@ -250,7 +250,7 @@ class DisclosureTests(unittest.TestCase):
             "<p>About this fixture site.</p>", '<p><a href="https://amzn.to/pg">x</a></p>'
         )
         proc, out, _ = convert(text)
-        self.assertNotIn(DISCLOSURE, (out / "about/index.md").read_text())
+        self.assertNotIn(DISCLOSURE, (out / "team/index.md").read_text())
 
     def test_decision_log_records_each_post(self):
         files = [d["file"] for d in self.log["disclosures"]]
@@ -281,7 +281,7 @@ class SyndicateTests(unittest.TestCase):
         proc, out, _ = basic()
         self.assertEqual(self.flags(out, "posts/first-post/index.md"), ["syndicate: true"])
         self.assertEqual(self.flags(out, "posts/second-post/index.md"), ["syndicate: false"])
-        self.assertEqual(self.flags(out, "about/index.md"), ["syndicate: false"])
+        self.assertEqual(self.flags(out, "team/index.md"), ["syndicate: false"])
 
     def test_page_with_the_share_flag_stays_false(self):
         text = only_items("basic.xml", {"13"}).replace(
@@ -290,7 +290,7 @@ class SyndicateTests(unittest.TestCase):
             "<wp:meta_value><![CDATA[1]]></wp:meta_value></wp:postmeta></item>",
         )
         proc, out, _ = convert(text)
-        self.assertEqual(self.flags(out, "about/index.md"), ["syndicate: false"])
+        self.assertEqual(self.flags(out, "team/index.md"), ["syndicate: false"])
 
 
 class EscapingTests(unittest.TestCase):
@@ -301,7 +301,7 @@ class EscapingTests(unittest.TestCase):
         )
         proc, out, _ = convert(text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        body = (out / "about/index.md").read_text().split("---\n")[2]
+        body = (out / "team/index.md").read_text().split("---\n")[2]
         self.assertIn("2 \\* 3 \\[not a link\\] \\_x\\_ \\<b>", body)
         self.assertIn("\\# not a heading", body)
 
@@ -422,7 +422,7 @@ class SafetyTests(unittest.TestCase):
         wxr.write_text(only_items("basic.xml", {"13"}))
         proc = run(["--wxr", wxr])
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertTrue((work / "out" / "about/index.md").exists())
+        self.assertTrue((work / "out" / "team/index.md").exists())
 
 
 class ScrubStdinTests(unittest.TestCase):

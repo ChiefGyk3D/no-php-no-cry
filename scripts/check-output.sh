@@ -13,8 +13,9 @@
 # event-handler, http-reference, external-asset, external-css-reference,
 # skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
-# noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
-# missing-headers, weak-csp, missing-output.
+# noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
+# bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
+# missing-headers, weak-csp, template-element, missing-output.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pin of
@@ -53,9 +54,22 @@
 # nav aria-label=Main, one main#main and one footer (scripts/check-landmarks.py).
 #
 # Head: the home page and every post and journal entry carry a description,
-# canonical and icon links, Open Graph and Twitter card tags (og:url and
+# theme-color, a manifest link, canonical and icon links, Open Graph and Twitter card tags (og:url and
 # og:image absolute on the site's own host); entries are og:type article with
 # article:published_time, the home page is a website.
+#
+# Structured data: a head may carry <script type="application/ld+json"> DATA
+# blocks (exactly that tag, no other attribute, no src, no "<" in the body).
+# A browser never runs them and script-src does not apply (checked in Chromium
+# against static/_headers); every other script element is still a finding. The
+# blocks are parsed (scripts/check-seo.py): valid JSON, schema.org, the display
+# name ChiefGyk3D for any Person, https sameAs only, no personal-detail key; the
+# home page needs the Person, a post or entry the Article. Twitter card is
+# summary_large_image. In production the 404 page carries noindex and no other
+# page does. Site-wide (scripts/check-seo.py): no two pages share a description;
+# the feed has its atom self link on the site host; in production sitemap.xml
+# lists every post and entry and no alias stub, noindex page or page that is not
+# there, each url on the site host with a lastmod.
 #
 # Every alias in the build is also checked: each meta-refresh page Hugo wrote
 # for an alias must have a 301 line in _redirects (directory-style aliases need
@@ -189,6 +203,14 @@ if [[ $rc -eq 2 ]]; then
     pinned=""
 fi
 
+# jsonld_check <file> <home|article|other>: the JSON-LD rules of scripts/check-seo.py.
+jsonld_check() {
+    local rule
+    rule="$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-seo.py" jsonld "$2" "$1")"
+    [[ -n "$rule" ]] && report "$rule" "${1#"$dir"/}"
+    return 0
+}
+
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
 asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>]*>'
 
@@ -197,7 +219,7 @@ while IFS= read -r -d '' f; do
 
     # Scripts. flat is the page on one line, so a tag split across lines is
     # still one tag. Inline script: a <script> tag with no src attribute.
-    flat="$(tr '\n\r' '  ' <"$f")"
+    flat="$(tr '\n\r' '  ' <"$f" | sed -E 's#<script type=("application/ld\+json"|application/ld\+json)>[^<]*</script>##g')"
     if grep -oEi '<script([^a-z0-9_>-][^>]*)?>' <<<"$flat" | grep -qiv 'src='; then
         report inline-script "$rel"
     fi
@@ -233,6 +255,7 @@ while IFS= read -r -d '' f; do
     while IFS= read -r rule; do
         [[ -n "$rule" ]] && report "$rule" "$rel"
     done < <(decoded_findings "$site_host" "$f")
+    jsonld_check "$f" other
 
     # Landmarks and the skip link, on every page except Hugo's alias stubs.
     if ! grep -qEi 'http-equiv=["'"'"']?refresh' "$f"; then
@@ -254,7 +277,11 @@ while IFS= read -r -d '' f; do
 
     # Alias pages (Hugo's meta refresh) name an old URL by their location.
     if ! grep -qEi 'http-equiv=["'"'"']?refresh' "$f" && [[ -n "$env" ]]; then
-        if grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f"; then
+        if [[ "$rel" == 404.html && "$env" == production ]]; then
+            # The 404 is the one noindex page in production.
+            grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f" ||
+                report noindex-mismatch "$rel (the 404 page must carry noindex)"
+        elif grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f"; then
             [[ "$env" == production ]] && report noindex-mismatch "$rel (noindex in a production build)"
         else
             [[ "$env" == staging ]] && report noindex-mismatch "$rel (no noindex in a staging build)"
@@ -303,14 +330,14 @@ head_link() {
 # check_head <file> <website|article>
 check_head() {
     local f="$1" kind="$2" rel="${1#"$dir"/}" pair attr name val
-    for pair in name:description name:twitter:card property:og:title property:og:description \
+    for pair in name:description name:twitter:card name:twitter:image name:theme-color property:og:title property:og:description \
         property:og:type property:og:url property:og:image property:og:site_name; do
         attr="${pair%%:*}"
         name="${pair#*:}"
         val="$(head_meta "$f" "$attr" "$name")"
         [[ -z "$val" ]] && report missing-head-tag "$rel (${name})"
     done
-    for name in canonical apple-touch-icon; do
+    for name in canonical apple-touch-icon manifest; do
         head_link "$f" "$name" || report missing-head-tag "$rel (link rel=${name})"
     done
     # Two rel=icon links (the SVG and the PNG).
@@ -323,6 +350,15 @@ check_head() {
             report bad-head-value "$rel (${name} must be an absolute URL on ${site_host})"
         fi
     done
+    val="$(head_meta "$f" name twitter:image)"
+    if [[ -n "$val" && ! "$val" =~ ^https://${site_host//./\\.}/ ]]; then
+        report bad-head-value "$rel (twitter:image must be an absolute URL on ${site_host})"
+    fi
+    val="$(head_meta "$f" name twitter:card)"
+    if [[ -n "$val" && "$val" != summary_large_image ]]; then
+        report bad-head-value "$rel (twitter:card must be summary_large_image)"
+    fi
+    if [[ "$kind" == article ]]; then jsonld_check "$f" article; else jsonld_check "$f" home; fi
     val="$(head_meta "$f" property og:type)"
     if [[ -n "$val" && "$val" != "$kind" ]]; then
         report bad-head-value "$rel (og:type must be ${kind})"
@@ -345,6 +381,50 @@ fi
 while IFS= read -r -d '' f; do
     is_alias_page "$f" || check_head "$f" article
 done < <(find "$dir/posts" "$dir/journal" -mindepth 2 -maxdepth 2 -name index.html -print0 2>/dev/null | sort -z)
+
+# Template contract (issues 58 and 59): the pieces the home, 404, archive, term
+# and post templates must render. Fixed strings and attribute names only; page
+# content is never printed.
+need_text() { grep -qF -- "$2" "$1" || report template-element "${1#"$dir"/} (missing: $2)"; }
+# need_mascot <file>: an <img> of a mascot WebP that carries width and height.
+need_mascot() {
+    local tag
+    tag="$(grep -oEi '<img[^>]*mascot-[0-9]+\.webp[^>]*>' "$1" | head -n1 || true)"
+    if [[ -z "$tag" ]]; then
+        report template-element "${1#"$dir"/} (missing: mascot image)"
+    elif ! grep -qEi '[[:space:]]width=' <<<"$tag" || ! grep -qEi '[[:space:]]height=' <<<"$tag"; then
+        report template-element "${1#"$dir"/} (mascot image without width and height)"
+    fi
+}
+if [[ -f "$dir/index.html" ]] && ! is_alias_page "$dir/index.html"; then
+    for t in "make the internet more secure and fun" "Hands-on cybersecurity" "Read the latest" \
+        "Find me online" "Support my work" "Latest posts" "All posts"; do
+        need_text "$dir/index.html" "$t"
+    done
+    need_mascot "$dir/index.html"
+fi
+if [[ ! -f "$dir/404.html" ]]; then
+    report template-element "404.html (missing)"
+else
+    for t in "rm -rf" "refusing to answer questions" "Start over" "Browse posts" "Find me online"; do
+        need_text "$dir/404.html" "$t"
+    done
+    need_mascot "$dir/404.html"
+fi
+if [[ ! -f "$dir/posts/index.html" ]]; then
+    report template-element "posts/index.html (missing archive)"
+fi
+for f in "$dir/posts/index.html" "$dir/journal/index.html" "$dir"/tags/*/index.html "$dir"/categories/*/index.html; do
+    [[ -f "$f" ]] || continue
+    need_text "$f" "archive-year"
+    # Only the posts archive has a feed link of its own here (terms have none).
+    [[ "$f" == "$dir/posts/index.html" ]] && need_text "$f" "index.xml"
+done
+while IFS= read -r -d '' f; do
+    is_alias_page "$f" && continue
+    need_text "$f" "<time"
+    need_text "$f" "reading-time"
+done < <(find "$dir/posts" -mindepth 2 -maxdepth 2 -name index.html -print0 2>/dev/null | sort -z)
 
 # Stylesheets and SVG: no @import or url() that leaves the site, and no
 # scheme-relative (//host) form either. Feeds and SVG: no stylesheet processing
@@ -392,6 +472,11 @@ for path in sys.argv[1:]:
 ' "${xml_files[@]}")
 fi
 
+# Site-wide SEO rules: duplicate descriptions, the feed's atom link, the sitemap.
+while IFS=$'\t' read -r rule where; do
+    [[ -n "$rule" ]] && report "$rule" "$where"
+done < <(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-seo.py" site "$dir" "$site_host" "$env")
+
 if [[ ! -s "$dir/_redirects" ]]; then
     report missing-redirects "_redirects"
 elif ! has_redirect "$expect_alias"; then
@@ -411,6 +496,8 @@ else
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
         report weak-csp "_headers (script-src must be exactly 'self', once, with no script-src-elem or script-src-attr)"
+    elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
+        report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi
 fi
 

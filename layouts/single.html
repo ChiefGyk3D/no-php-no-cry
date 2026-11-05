@@ -1,8 +1,29 @@
 {{ define "main" }}
-<article>
+<article class="post">
+  {{- /* Front matter "archive": true, or a short text, marks a dated record. The post's own date is the original date. */}}
+  {{- with .Params.archive }}
+  <aside class="archive-banner panel" aria-label="Archive notice">
+    <p><strong>Archived post.</strong> Originally published <time datetime="{{ $.Date.Format "2006-01-02" }}">{{ $.Date.Format "January 2, 2006" }}</time>. This is a record, not a current view.{{ if ne (printf "%v" .) "true" }} {{ . }}{{ end }}</p>
+  </aside>
+  {{- end }}
+  {{- /* Front matter "supersededBy": a site path or an https URL, or the path of a page in this site. */}}
+  {{- with .Params.supersededby }}
+  {{- $target := "" }}
+  {{- $label := "the newer post" }}
+  {{- with site.GetPage . }}{{ $target = .RelPermalink }}{{ $label = .LinkTitle }}{{ else }}
+  {{- if or (strings.HasPrefix . "https://") (strings.HasPrefix . "/") }}{{ $target = . }}{{ end }}
+  {{- end }}
+  {{- with $target }}
+  <aside class="superseded-note panel" aria-label="Newer version">
+    <p>This post has been superseded. Read <a href="{{ . }}">{{ $label }}</a> instead.</p>
+  </aside>
+  {{- end }}
+  {{- end }}
   <h1>{{ .Title }}</h1>
   <div class="meta">
     <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
+    <span aria-hidden="true">&middot;</span>
+    <span class="reading-time">{{ .ReadingTime }} min read</span>
     {{- with .GetTerms "tags" }}
     <ul class="tag-list" aria-label="Tags">
       {{- range . }}<li><a href="{{ .RelPermalink }}">#{{ .LinkTitle }}</a></li>{{ end }}
@@ -10,5 +31,22 @@
     {{- end }}
   </div>
   {{ .Content }}
+  {{- /* Syndication row: the canonical link, and "Discuss" links once the deploy job writes the syndicated map (docs/redesign-brief.md section 5). Plain links only. */}}
+  <div class="syndication meta">
+    <p>Canonical link: <a href="{{ .Permalink }}">{{ .Permalink }}</a></p>
+    {{- with .Params.syndicated }}
+    <ul class="footer-row" aria-label="Discuss this post">
+      {{- range $net, $url := . }}{{ if strings.HasPrefix $url "https://" }}
+      <li><a href="{{ $url }}" rel="noopener">Discuss on {{ $net | title }}</a></li>
+      {{- end }}{{ end }}
+    </ul>
+    {{- end }}
+  </div>
+  {{- with or .PrevInSection .NextInSection }}
+  <nav class="post-nav" aria-label="More posts">
+    {{- with $.NextInSection }}<a class="post-nav-prev" href="{{ .RelPermalink }}"><span class="meta">Newer</span><br>{{ .LinkTitle }}</a>{{ end }}
+    {{- with $.PrevInSection }}<a class="post-nav-next" href="{{ .RelPermalink }}"><span class="meta">Older</span><br>{{ .LinkTitle }}</a>{{ end }}
+  </nav>
+  {{- end }}
 </article>
 {{ end }}

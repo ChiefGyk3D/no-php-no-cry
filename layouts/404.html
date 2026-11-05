@@ -1,4 +1,12 @@
 {{ define "main" }}
-<h1>Page not found</h1>
-<p>That page does not exist. Try the <a href="{{ "/" | relURL }}">home page</a>.</p>
+<section class="not-found">
+  <img class="not-found-mascot" src="{{ "/brand/mascot-256.webp" | relURL }}" width="256" height="256" alt="Renegade Tux, the penguin mascot">
+  <h1>Renegade Tux ran <code>rm -rf</code> again.</h1>
+  <p>The page is gone, and the penguin is refusing to answer questions.</p>
+  <p class="hero-actions">
+    <a class="btn btn-primary" href="{{ "/" | relURL }}">Start over</a>
+    <a class="btn btn-ghost" href="{{ "/posts/" | relURL }}">Browse posts</a>
+    <a class="btn btn-ghost" href="{{ "/social/" | relURL }}">Find me online</a>
+  </p>
+</section>
 {{ end }}

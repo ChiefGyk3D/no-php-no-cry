@@ -1,0 +1,59 @@
+/* /products/: the disclosure panel and the grouped item list. Tokens only. */
+.disclosure {
+  margin: var(--space-5) 0;
+  background-color: var(--plate);
+}
+
+.disclosure p {
+  margin: 0 0 var(--space-2);
+}
+
+.disclosure p:last-child {
+  margin-bottom: 0;
+}
+
+.product-group {
+  margin-top: var(--space-6);
+}
+
+.product-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space);
+  list-style: none;
+  margin: var(--space) 0 0;
+  padding: 0;
+}
+
+.product {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.product h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.product p {
+  margin: 0;
+}
+
+.product-line {
+  flex: 1;
+}
+
+.product .btn {
+  align-self: flex-start;
+}
+
+@media (forced-colors: active) {
+  .product {
+    border-color: CanvasText;
+  }
+}

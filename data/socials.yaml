@@ -1,11 +1,89 @@
-# Social networks: the footer icon row (and later the hub and home strip).
-# One entry per network: name, icon (slug for a CSS class), url (https only),
-# handle (public handle), rel_me (true renders rel="me" for identity
-# verification), blurb. Add the other networks (docs/redesign-brief.md section
-# 5) with their real public URLs; none is guessed here.
+# Social networks: the /social/ tile grid, the footer icon row (and later the
+# home strip). One entry per network, display order. Keys:
+#   name    network name
+#   icon    slug: static/brand/icons/<slug>.svg and .social-icon--<slug> in
+#           assets/css/pages/social.css. Empty for a network with no icon yet.
+#   url     https only. Empty means "not live": the tile is not a link and the
+#           footer row skips it.
+#   handle  public handle or room name
+#   rel_me  true renders rel="me" (identity verification: Mastodon and GitHub
+#           read it). Leave false where the network has no such mechanism.
+#   blurb   the short role line
+# Every URL below is already published by the maintainer: the GitHub profile
+# README, the old WordPress Social Media Links page, or the links page (Threads:
+# also brand/outro.json in the brand kit). None is guessed.
+- name: Twitch
+  icon: twitch
+  url: https://twitch.tv/chiefgyk3d
+  handle: chiefgyk3d
+  rel_me: false
+  blurb: Live streams
+- name: YouTube
+  icon: youtube
+  url: https://youtube.com/@ChiefGyk3D
+  handle: "@ChiefGyk3D"
+  rel_me: false
+  blurb: Videos
+- name: Kick
+  icon: kick
+  url: https://kick.com/chiefgyk3d
+  handle: chiefgyk3d
+  rel_me: false
+  blurb: Simulcast streams
+- name: Mastodon
+  icon: mastodon
+  url: https://social.chiefgyk3d.com/@chiefgyk3d
+  handle: "@chiefgyk3d@social.chiefgyk3d.com"
+  rel_me: true
+  blurb: Posts and boosts
+- name: Bluesky
+  icon: bluesky
+  url: https://bsky.app/profile/chiefgyk3d.com
+  handle: "@chiefgyk3d.com"
+  rel_me: false
+  blurb: Posts
+- name: TikTok
+  icon: tiktok
+  url: https://tiktok.com/@chiefgyk3d
+  handle: "@chiefgyk3d"
+  rel_me: false
+  blurb: Short videos
+- name: Instagram
+  icon: instagram
+  url: https://www.instagram.com/chiefgyk3d/
+  handle: "@ChiefGyk3D"
+  rel_me: false
+  blurb: Photos
+# Pixelfed is not live yet: no url, so the tile is not a link and the footer row
+# skips it. Its address (https://pics.chiefgyk3d.com/ChiefGyk3D, from the GitHub
+# README) goes in url when the account is live. No icon in the kit (brand/ICONS.md).
+- name: Pixelfed
+  icon: ""
+  url: ""
+  handle: "@ChiefGyk3D"
+  rel_me: false
+  blurb: Coming soon
+- name: Threads
+  icon: threads
+  url: https://www.threads.com/@chiefgyk3d
+  handle: "@chiefgyk3d"
+  rel_me: false
+  blurb: Posts
+- name: Discord
+  icon: discord
+  url: https://discord.chiefgyk3d.com
+  handle: discord.chiefgyk3d.com
+  rel_me: false
+  blurb: Community chat
+- name: Matrix
+  icon: matrix
+  url: https://matrix.to/#/#renegade-penguin:chiefgyk3d.com
+  handle: "#renegade-penguin:chiefgyk3d.com"
+  rel_me: false
+  blurb: Community room
 - name: GitHub
   icon: github
   url: https://github.com/ChiefGyk3D
   handle: ChiefGyk3D
   rel_me: true
-  blurb: Code and projects.
+  blurb: Code and projects
