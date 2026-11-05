@@ -122,6 +122,9 @@ jobs:
       - name: Test the brand checks (negative cases)
         run: scripts/test-brand.sh
 
+      - name: Test the gitleaks allowlist (pinned gitleaks, checksum verified)
+        run: scripts/test-gitleaks-config.sh
+
   shell:
     uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@7501cb3fa19d83d0e0a131cb040e7c4da32a9504 # v1.28.0
     permissions:
