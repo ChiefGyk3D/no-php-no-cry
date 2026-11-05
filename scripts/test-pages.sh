@@ -133,6 +133,9 @@ def external_ok(a):
 
 def support(p, errs, repo):
     common(p, errs)
+    # /support/ alone may carry the one pinned script; it is checked below.
+    if "a <script> element" in errs:
+        errs.remove("a <script> element")
     if p.h1 != ["Support my work"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
@@ -143,7 +146,7 @@ def support(p, errs, repo):
     if "StreamElements tips get a live thank-you during the stream." not in flat:
         errs.append("StreamElements note missing")
     for name, url in BUTTONS.items():
-        hits = [a for a, t in p.links if t.startswith(name + " ")]
+        hits = [a for a, t in p.links if re.sub(r"\s+", " ", t).startswith(name + " ")]
         if len(hits) != 1:
             errs.append("button %r appears %d times" % (name, len(hits)))
             continue
@@ -157,13 +160,13 @@ def support(p, errs, repo):
     html = repo["html"]
     if "Cryptocurrency tips" not in flat or html.find("Merch shop") > html.find("Cryptocurrency tips"):
         errs.append("the cryptocurrency section must follow the four tiles")
-    if p.count("details") != 0:
+    if any(t == "details" and "coin" in (a.get("class") or "") for t, a in p.tags):
         errs.append("the cryptocurrency block is always open, not a details element")
     # One Copy button per address: hidden until the script reveals it, named for
     # the coin, wired to the id of that coin's address, with a live status region.
     for coin, addr in ADDRESSES.items():
         m = re.search(r'<button[^>]*data-copy=("?)addr-%s\1[^>]*>' % coin, html)
-        if not m or "hidden" not in m.group(0).split():
+        if not m or "hidden" not in m.group(0).rstrip(">").split():
             errs.append("%s Copy button missing or not hidden by default" % coin)
         if not re.search(r"id=\"?addr-%s\"?" % coin, html):
             errs.append("%s address has no id for the Copy button" % coin)

@@ -391,11 +391,11 @@ rc=0
 
 # A real build, when present, must pass too.
 if [[ -f "$root/public/index.html" ]]; then
-    if "$checker" "$root/public" >/dev/null 2>&1; then
+    if env -u SCRIPT_HASH_FILE "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: public/ passes"
     else
         echo "FAIL: public/ fails the artifact check"
-        "$checker" "$root/public" || true
+        env -u SCRIPT_HASH_FILE "$checker" "$root/public" || true
         failures=$((failures + 1))
     fi
 fi

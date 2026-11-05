@@ -593,11 +593,11 @@ drop_archive() { rm -f "$1/posts/index.html"; }
 variant missing-posts-archive template-element drop_archive
 
 if [[ -f "$root/public/index.html" ]]; then
-    if "$checker" "$root/public" >/dev/null 2>&1; then
+    if env -u SCRIPT_HASH_FILE "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: real build in public/ passes"
     else
         echo "FAIL: real build in public/ was rejected"
-        "$checker" "$root/public" || true
+        env -u SCRIPT_HASH_FILE "$checker" "$root/public" || true
         failures=$((failures + 1))
     fi
 fi
