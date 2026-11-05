@@ -42,6 +42,7 @@ ICONS = {
     "tiktok": "6f54ac8d325faacea8935bdc44cbed60206a6b408641799e5fea1cba7c1a0af7",
     "instagram": "f53af2d1fc5292ba1433b5c1faf50005ce6a997fa302d1816989929f379a59dc",
     "threads": "3511f687f9a5713a3700130627f8d3611fb4cd54d3a9757071c93652c7fe16e8",
+    "matrix": "07e6a16f5437fb0e7704c15b97bd50f46f3fa8968e022af2b9f2395fe0419d72",
     "discord": "1d364b72c9eaf1fe37d17ca88cd8fb541308dc0f3b09e2ab3b824f380b3493d5",
     "github": "3bf8cceead820aec50d4ee825a3fd02c5a1cd6665cc9cf4cbf3d9c8861a204bb",
 }
