@@ -14,7 +14,7 @@
 # skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
-# missing-headers, weak-csp, missing-output.
+# missing-headers, weak-csp, template-element, missing-output.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pin of
@@ -345,6 +345,50 @@ fi
 while IFS= read -r -d '' f; do
     is_alias_page "$f" || check_head "$f" article
 done < <(find "$dir/posts" "$dir/journal" -mindepth 2 -maxdepth 2 -name index.html -print0 2>/dev/null | sort -z)
+
+# Template contract (issues 58 and 59): the pieces the home, 404, archive, term
+# and post templates must render. Fixed strings and attribute names only; page
+# content is never printed.
+need_text() { grep -qF -- "$2" "$1" || report template-element "${1#"$dir"/} (missing: $2)"; }
+# need_mascot <file>: an <img> of a mascot WebP that carries width and height.
+need_mascot() {
+    local tag
+    tag="$(grep -oEi '<img[^>]*mascot-[0-9]+\.webp[^>]*>' "$1" | head -n1 || true)"
+    if [[ -z "$tag" ]]; then
+        report template-element "${1#"$dir"/} (missing: mascot image)"
+    elif ! grep -qEi '[[:space:]]width=' <<<"$tag" || ! grep -qEi '[[:space:]]height=' <<<"$tag"; then
+        report template-element "${1#"$dir"/} (mascot image without width and height)"
+    fi
+}
+if [[ -f "$dir/index.html" ]] && ! is_alias_page "$dir/index.html"; then
+    for t in "make the internet more secure and fun" "Hands-on cybersecurity" "Read the latest" \
+        "Find me online" "Support my work" "Latest posts" "All posts"; do
+        need_text "$dir/index.html" "$t"
+    done
+    need_mascot "$dir/index.html"
+fi
+if [[ ! -f "$dir/404.html" ]]; then
+    report template-element "404.html (missing)"
+else
+    for t in "rm -rf" "refusing to answer questions" "Start over" "Find me online"; do
+        need_text "$dir/404.html" "$t"
+    done
+    need_mascot "$dir/404.html"
+fi
+if [[ ! -f "$dir/posts/index.html" ]]; then
+    report template-element "posts/index.html (missing archive)"
+fi
+for f in "$dir/posts/index.html" "$dir/journal/index.html" "$dir"/tags/*/index.html "$dir"/categories/*/index.html; do
+    [[ -f "$f" ]] || continue
+    need_text "$f" "archive-year"
+    # Only the posts archive has a feed link of its own here (terms have none).
+    [[ "$f" == "$dir/posts/index.html" ]] && need_text "$f" "index.xml"
+done
+while IFS= read -r -d '' f; do
+    is_alias_page "$f" && continue
+    need_text "$f" "<time"
+    need_text "$f" "reading-time"
+done < <(find "$dir/posts" -mindepth 2 -maxdepth 2 -name index.html -print0 2>/dev/null | sort -z)
 
 # Stylesheets and SVG: no @import or url() that leaves the site, and no
 # scheme-relative (//host) form either. Feeds and SVG: no stylesheet processing
