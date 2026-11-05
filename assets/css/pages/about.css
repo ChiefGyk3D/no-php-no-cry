@@ -1,0 +1,40 @@
+/* /about/ (issue 62). Tokens only. */
+.about-intro {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+}
+
+@media (min-width: 40rem) {
+  .about-intro {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.about-mascot {
+  width: 8rem;
+  height: auto;
+}
+
+.draft-bio {
+  border-style: dashed;
+}
+
+.project-tiles .tile .meta {
+  display: block;
+}
+
+.contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contact-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}

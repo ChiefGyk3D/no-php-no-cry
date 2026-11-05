@@ -1,0 +1,341 @@
+#!/usr/bin/env bash
+# Test the Support, About and Privacy pages (issue 62) against the built site.
+#
+# Builds the site into the repository's gitignored tmp/ (never /tmp) and asserts,
+# with Python's stdlib HTML parser, the approved layout and wording of /support/,
+# /about/ and /privacy/, the /contact/ redirect, the wallet addresses and their
+# pre-generated QR files, and that the CSP gained no frame-src. Needs the pinned
+# Hugo; a missing Hugo is a failure, not a skip. A guard self-test feeds the
+# asserter a page that breaks each rule and requires a failure.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+mkdir -p "$root/tmp"
+work="$(mktemp -d "$root/tmp/pages.XXXXXX")"
+trap '[[ -n "${KEEP:-}" ]] || rm -rf "$work"' EXIT
+
+if ! command -v hugo >/dev/null 2>&1; then
+    echo "FAIL: hugo is not on PATH (install the pinned version, see .hugo-version)"
+    exit 1
+fi
+
+failures=0
+pass() { echo "ok: $1"; }
+fail() {
+    echo "FAIL: $1"
+    failures=$((failures + 1))
+}
+
+asserter="$work/assert_pages.py"
+cat >"$asserter" <<'PY'
+import re
+import sys
+from html.parser import HTMLParser
+
+# The authoritative wallet addresses: github.com/ChiefGyk3D/support-me
+# SIGNATURE.md (read 2026-11-04). A second copy lives here on purpose: a change
+# to data/support.yaml must be a reviewed change to this test too.
+ADDRESSES = {
+    "btc": "bc1qztdzcy2wyavj2tsuandu4p0tcklzttvdnzalla",
+    "xmr": "84Y34QubRwQYK2HNviezeH9r6aRcPvgWmKtDkN3EwiuVbp6sNLhm9ffRgs6BA9X1n9jY7wEN16ZEpiEngZbecXseUrW8SeQ",
+    "eth": "0x554f18cfB684889c3A60219BDBE7b050C39335ED",
+    "sol": "5T8h3HbyvHgLxwXgchRYbHSqRjZyAr8J7uwjLN9Fh8Jh",
+}
+BUTTONS = {
+    "Tip during a stream": "https://streamelements.com/chiefgyk3d/tip",
+    "Ko-fi": "https://ko-fi.com/chiefgyk3d",
+    "Patreon": "https://patreon.com/chiefgyk3d",
+    "Merch shop": "https://shop.chiefgyk3d.com/",
+}
+PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
+           "Following a link takes you to another site. I collect nothing here.")
+CONTACT = ("There's no contact form. Reach me on Matrix or Discord, or use the email "
+           "address listed as plain text.")
+
+
+class Page(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.links = []      # (attrs, text)
+        self.tags = []       # (tag, attrs)
+        self.text = []
+        self.h1 = []
+        self._stack = []
+        self._link = None
+        self.summaries = []
+        self._summary = None
+        self.ids = {}
+        self.in_main = False
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        self.tags.append((tag, a))
+        if "id" in a:
+            self.ids[a["id"]] = tag
+        self._stack.append(tag)
+        if tag == "main":
+            self.in_main = True
+        if tag == "a" and self.in_main:
+            self._link = [a, ""]
+        if tag == "summary":
+            self._summary = ""
+
+    def handle_endtag(self, tag):
+        if tag == "main":
+            self.in_main = False
+        if tag == "a" and self._link is not None:
+            self.links.append((self._link[0], self._link[1].replace(" (opens in a new tab)", "").replace(" (GitHub, opens in a new tab)", "").strip()))
+            self._link = None
+        if tag == "summary" and self._summary is not None:
+            self.summaries.append(self._summary.strip())
+            self._summary = None
+        if self._stack and self._stack[-1] == tag:
+            self._stack.pop()
+
+    def handle_data(self, d):
+        if self._link is not None:
+            self._link[1] += d
+        if self._summary is not None:
+            self._summary += d
+        if self._stack and self._stack[-1] == "h1":
+            self.h1.append(d.strip())
+        self.text.append(d)
+
+    def flat(self):
+        return re.sub(r"\s+", " ", "".join(self.text)).strip()
+
+    def count(self, tag):
+        return sum(1 for t, _ in self.tags if t == tag)
+
+
+def load(path):
+    p = Page()
+    with open(path, encoding="utf-8") as f:
+        p.feed(f.read())
+    return p
+
+
+def common(p, errs):
+    for tag in ("iframe", "script", "form", "object", "embed", "style"):
+        if p.count(tag):
+            errs.append("a <%s> element" % tag)
+    for tag, a in p.tags:
+        if "style" in a:
+            errs.append("an inline style attribute")
+        if tag == "img" and not (a.get("src") or "").startswith("/"):
+            errs.append("an image that is not same-origin: %s" % a.get("src"))
+
+
+def external_ok(a):
+    rel = (a.get("rel") or "").split()
+    return a.get("target") == "_blank" and "noopener" in rel
+
+
+def support(p, errs, repo):
+    common(p, errs)
+    if p.h1 != ["Support my work"]:
+        errs.append("h1 is %r" % p.h1)
+    flat = p.flat()
+    intro = ("Want to help keep the streams, videos, and projects going? "
+             "Pick an option below, and thanks for the support.")
+    if intro not in flat:
+        errs.append("intro text missing")
+    if "StreamElements tips get a live thank-you during the stream." not in flat:
+        errs.append("StreamElements note missing")
+    for name, url in BUTTONS.items():
+        hits = [a for a, t in p.links if t == name]
+        if len(hits) != 1:
+            errs.append("button %r appears %d times" % (name, len(hits)))
+            continue
+        if hits[0].get("href") != url:
+            errs.append("button %r points to %r" % (name, hits[0].get("href")))
+        if not external_ok(hits[0]):
+            errs.append("button %r lacks target=_blank rel=noopener" % name)
+        if "btn" not in (hits[0].get("class") or "").split():
+            errs.append("button %r is not styled as a button" % name)
+    want = "Bitcoin, Monero, Ethereum, and Solana, with QR codes"
+    if not any(want in s for s in p.summaries):
+        errs.append("crypto summary missing: %r" % p.summaries)
+    if p.count("details") < 1:
+        errs.append("no details element")
+    # Visible buttons come before the collapsible block (zero clicks to pay).
+    html = repo["html"]
+    m = re.search(r"<details[^>]*crypto", html)
+    if not m or html.find("Merch shop") > m.start():
+        errs.append("the four buttons must precede the details block")
+    # Addresses: verbatim, in a <code> element each, once.
+    for coin, addr in ADDRESSES.items():
+        if flat.count(addr) != 1:
+            errs.append("%s address appears %d times" % (coin, flat.count(addr)))
+        if not re.search(r"<code[^>]*>\s*%s\s*</code>" % re.escape(addr), html):
+            errs.append("%s address is not in a <code> element" % coin)
+        imgs = [a for t, a in p.tags if t == "img" and (a.get("src") or "").endswith("/support/qr-%s.svg" % coin)]
+        if len(imgs) != 1:
+            errs.append("%s QR image appears %d times" % (coin, len(imgs)))
+        elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
+            errs.append("%s QR image needs alt, width and height" % coin)
+    # Socials: Instagram is a link; Pixelfed is marked coming soon and not a link.
+    insta = [a for a, t in p.links if t == "Instagram"]
+    if len(insta) != 1 or insta[0].get("href") != "https://www.instagram.com/chiefgyk3d/":
+        errs.append("Instagram link missing or wrong")
+    elif not external_ok(insta[0]):
+        errs.append("Instagram link lacks target=_blank rel=noopener")
+    if "Pixelfed" not in flat or "coming soon" not in flat.lower():
+        errs.append("Pixelfed not marked coming soon")
+    for a, t in p.links:
+        if "pics.chiefgyk3d.com" in (a.get("href") or "") or t.startswith("Pixelfed"):
+            errs.append("Pixelfed must not be a link")
+    # Ko-fi stays a link-out until the framing test; the TODO is in the template.
+    if repo.get("template") is not None and "TODO" not in repo["template"]:
+        errs.append("the Ko-fi embed TODO marker is missing from the template")
+
+
+def about(p, errs, repo):
+    common(p, errs)
+    if p.h1 != ["About"]:
+        errs.append("h1 is %r" % p.h1)
+    flat = p.flat()
+    if "DRAFT" not in flat:
+        errs.append("no DRAFT bio marker")
+    if not any(t == "img" and (a.get("alt") or "") and (a.get("src") or "").startswith("/brand/") for t, a in p.tags):
+        errs.append("no mascot image with alt text")
+    if p.ids.get("contact") not in ("h2", "h3", "section"):
+        errs.append("no #contact heading or section")
+    if CONTACT not in flat:
+        errs.append("contact sentence missing")
+    hrefs = [a.get("href") for a, _ in p.links]
+    for h in ("https://discord.chiefgyk3d.com", "https://matrix.to/#/#renegade-penguin:chiefgyk3d.com",
+              "https://github.com/ChiefGyk3D/Stream-Daemon", "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"):
+        if h not in hrefs:
+            errs.append("missing link %s" % h)
+    if not any((h or "").startswith("https://github.com/ChiefGyk3D/") and "Reach" in (h or "") for h in hrefs):
+        errs.append("missing Reach Around link")
+    for name in ("Stream Daemon", "Reach Around", "Clouds Against Humanity"):
+        if name not in flat:
+            errs.append("project tile %r missing" % name)
+    if "mailto:" in " ".join(h or "" for h in hrefs):
+        errs.append("the email address must be plain text, not a mailto: link")
+    if "TODO" not in repo["html"] and "email address will be added" not in flat.lower():
+        errs.append("email placeholder not marked")
+
+
+def privacy(p, errs, repo):
+    common(p, errs)
+    if p.h1 != ["Privacy"]:
+        errs.append("h1 is %r" % p.h1)
+    if PRIVACY not in p.flat():
+        errs.append("privacy statement missing")
+
+
+KINDS = {"support": support, "about": about, "privacy": privacy}
+
+if __name__ == "__main__":
+    kind, path = sys.argv[1], sys.argv[2]
+    tpl = None
+    if len(sys.argv) > 3:
+        with open(sys.argv[3], encoding="utf-8") as f:
+            tpl = f.read()
+    p = load(path)
+    with open(path, encoding="utf-8") as f:
+        repo = {"html": f.read(), "template": tpl}
+    errs = []
+    KINDS[kind](p, errs, repo)
+    for e in sorted(set(errs)):
+        print(e)
+    sys.exit(1 if errs else 0)
+PY
+
+echo "== build"
+if ! hugo --minify --gc --source "$root" --destination "$work/public" >"$work/hugo.log" 2>&1; then
+    cat "$work/hugo.log"
+    fail "hugo build"
+    exit 1
+fi
+pub="$work/public"
+
+assert() {
+    # assert <kind> <html file> [template]
+    local out rc=0
+    out="$(python3 -I "$asserter" "$@" 2>&1)" || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        pass "$1 page rules"
+    else
+        printf '%s\n' "$out" | sed 's/^/    /'
+        fail "$1 page rules"
+    fi
+}
+
+for kind in support about privacy; do
+    if [[ ! -f "$pub/$kind/index.html" ]]; then
+        fail "$kind/index.html is not built"
+    fi
+done
+[[ -f "$pub/support/index.html" ]] && assert support "$pub/support/index.html" "$root/layouts/support/single.html"
+[[ -f "$pub/about/index.html" ]] && assert about "$pub/about/index.html"
+[[ -f "$pub/privacy/index.html" ]] && assert privacy "$pub/privacy/index.html"
+
+# /contact/ is a 301 to /about/#contact, in both slash forms.
+for src in /contact /contact/; do
+    if awk -v s="$src" '$1 == s && $2 == "/about/#contact" && $3 == "301" { f = 1 } END { exit !f }' "$pub/_redirects"; then
+        pass "_redirects: $src -> /about/#contact"
+    else
+        fail "_redirects has no 301 from $src to /about/#contact"
+    fi
+done
+if [[ -d "$pub/contact" ]] && ! grep -q 'http-equiv=refresh\|http-equiv="refresh"' "$pub/contact/index.html"; then
+    fail "/contact/ is a page, not a redirect"
+fi
+
+# QR files: pre-generated static SVGs whose <desc> carries the encoded text,
+# which must equal the address in data/support.yaml (scripts/gen-support-qr.py
+# --check re-encodes them).
+for coin in btc xmr eth sol; do
+    f="$pub/support/qr-$coin.svg"
+    addr="$(awk -v c="$coin" '$1 == "coin:" { cur = $2 } $1 == "address:" && cur == c { gsub(/"/, "", $2); print $2 }' "$root/data/support.yaml")"
+    if [[ -z "$addr" ]]; then
+        fail "data/support.yaml has no $coin address"
+    elif [[ ! -s "$f" ]]; then
+        fail "$f is missing"
+    elif ! grep -q "<desc>$addr</desc>" "$f"; then
+        fail "$f does not record the address in data/support.yaml"
+    else
+        pass "qr-$coin.svg matches data/support.yaml"
+    fi
+done
+
+# The CSP gained no frame-src (Ko-fi stays a link-out until the framing test).
+if grep -i 'Content-Security-Policy' "$pub/_headers" | grep -qi 'frame-src'; then
+    fail "_headers has a frame-src"
+else
+    pass "no frame-src in _headers"
+fi
+if [[ -e "$pub/support.js" ]]; then
+    fail "support.js shipped without a pin (this change ships no copy-button script)"
+fi
+
+# Guard self-test: each broken page must fail the asserter.
+good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p>'
+printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
+if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
+    pass "guard: a correct privacy page passes"
+else
+    fail "guard: a correct privacy page was rejected"
+fi
+sed 's/I collect nothing here/I collect a little/' "$work/ok-privacy.html" >"$work/bad-privacy.html"
+if python3 -I "$asserter" privacy "$work/bad-privacy.html" >/dev/null 2>&1; then
+    fail "guard: a changed privacy statement passed"
+else
+    pass "guard: a changed privacy statement fails"
+fi
+printf '%s<iframe src="https://ko-fi.com/"></iframe>\n' "$good_privacy" >"$work/bad-frame.html"
+if python3 -I "$asserter" privacy "$work/bad-frame.html" >/dev/null 2>&1; then
+    fail "guard: an iframe passed"
+else
+    pass "guard: an iframe fails"
+fi
+
+if [[ $failures -gt 0 ]]; then
+    echo "$failures check(s) failed"
+    exit 1
+fi
+echo "all page tests passed"

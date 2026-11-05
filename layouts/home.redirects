@@ -10,6 +10,7 @@
 {{- $lines := slice -}}
 {{- range site.Pages -}}
   {{- $target := .RelPermalink -}}
+  {{- with .Params.alias_fragment }}{{ $target = printf "%s#%s" $target . }}{{ end -}}
   {{- range .Aliases -}}
     {{- $from := strings.TrimSuffix "/" . -}}
     {{- if not (hasPrefix $from "/") }}{{ $from = printf "/%s" $from }}{{ end -}}

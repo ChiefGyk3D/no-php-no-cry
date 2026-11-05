@@ -36,6 +36,7 @@ scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition
 scripts/check-output.sh public   # see the rules below
 scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
 scripts/test-check-site-artifact.sh
+scripts/test-pages.sh          # Support, About and Privacy pages, the /contact/ redirect, wallet addresses and QR files
 scripts/test-pin-theme.sh
 scripts/test-deploy-sparse.sh   # the deploy job's sparse checkout lists every file its scripts need
 scripts/test-check-output.sh     # negative tests for the checker
