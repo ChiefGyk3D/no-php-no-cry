@@ -1,2 +1,18 @@
-{{- /* The page description: front matter "description", else the site description, as plain text (markup stripped). The caller puts it in an attribute through html/template, which escapes quotes and angle brackets and collapses whitespace; scripts/test-head.sh holds that to hostile front matter. */ -}}
-{{- return (.Description | default site.Params.description | plainify | strings.TrimSpace) -}}
+{{- /* The page description, one per page and different on every page type. Order: front matter "description"; then by kind: home = the site description; a section = a line naming it; a term = "Posts tagged X"; the 404 = a fixed line; any other page = its summary as plain text (markup stripped, whitespace collapsed, cut to 160 characters at a word); a page with no summary = its title. The caller puts it in an attribute through html/template, which escapes quotes and angle brackets and collapses whitespace; scripts/test-head.sh holds that to hostile front matter. scripts/check-output.sh fails a build where two indexable pages share a description. */ -}}
+{{- $d := "" -}}
+{{- with .Description }}{{ $d = . | plainify }}{{ end -}}
+{{- if not (strings.TrimSpace $d) -}}
+  {{- if .IsHome -}}
+    {{- $d = site.Params.description -}}
+  {{- else if eq .Kind "404" -}}
+    {{- $d = printf "Page not found on %s." site.Title -}}
+  {{- else if eq .Kind "term" -}}
+    {{- $d = printf "Posts filed under the %s %s on %s." (.Data.Singular | default "term") .Title site.Title -}}
+  {{- else if eq .Kind "section" -}}
+    {{- $d = printf "Everything in %s on %s, newest first." .Title site.Title -}}
+  {{- else -}}
+    {{- $s := .Summary | plainify | replaceRE `\s+` " " | strings.TrimSpace -}}
+    {{- if $s }}{{ $d = $s | strings.Truncate 160 }}{{ else }}{{ $d = printf "%s on %s." .Title site.Title }}{{ end -}}
+  {{- end -}}
+{{- end -}}
+{{- return ($d | replaceRE `\s+` " " | strings.TrimSpace) -}}

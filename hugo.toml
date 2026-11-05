@@ -51,7 +51,7 @@ timeZone = "America/New_York"
   guessSyntax = false
 
 [params]
-  description = "Placeholder site description."
+  description = "Hands-on cybersecurity, Linux, homelabs, and open source, from ChiefGyk3D."
   # "production" or "staging". Staging adds <meta name="robots" content="noindex,
   # nofollow"> to every page and a robots.txt that disallows everything. A build
   # sets it without editing this file: HUGO_PARAMS_ENVIRONMENT=staging hugo ...
@@ -69,3 +69,14 @@ timeZone = "America/New_York"
   #   [[params.me]]
   #     name = "Mastodon"
   #     url = "https://social.example/@name"
+
+  # The site owner as structured data (JSON-LD Person on the home page, author
+  # of every Article). The display name only: nothing else about the person goes
+  # in the head. sameAs links come from data/socials.yaml.
+  [params.author]
+    name = "ChiefGyk3D"
+
+# Sitemap: layouts/sitemap.xml writes it (lastmod on every url, no alias stubs,
+# no 404). robots.txt names it in production.
+[sitemap]
+  filename = "sitemap.xml"

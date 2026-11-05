@@ -36,22 +36,26 @@ make_good() {
     local archive_body='<h1>Posts</h1><a href=/posts/index.xml>RSS</a><h2 class=archive-year>2023</h2><ul><li><a href=/posts/sample-post/>Sample post</a></ul>'
     local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/social/>Find me online</a>"
     local post_body='<article><h1>Sample post</h1><time datetime=2023-02-10>February 10, 2023</time> <span class=reading-time>1 min read</span></article>'
-    local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta name=theme-color content=#0F0F0F><meta name=twitter:image content=https://test-blog.chiefgyk3d.com/brand/og-card.png><link rel=manifest href=/site.webmanifest><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
-    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${home_body}${shell_close}</body></html>" >"$dir/index.html"
-    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${post_body}${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
+    local person_ld='<script type=application/ld+json>{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"t","url":"https://test-blog.chiefgyk3d.com/"},{"@type":"Person","name":"ChiefGyk3D","sameAs":["https://github.com/ChiefGyk3D"]}]}</script>'
+    local article_ld='<script type=application/ld+json>{"@context":"https://schema.org","@type":"Article","headline":"Sample post","datePublished":"2023-02-10T09:00:00-05:00","author":{"@type":"Person","name":"ChiefGyk3D"}}</script>'
+    local common='<meta name=twitter:card content=summary_large_image><meta name=theme-color content=#0F0F0F><meta name=twitter:image content=https://test-blog.chiefgyk3d.com/brand/og-card.png><link rel=manifest href=/site.webmanifest><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta name=description content=\"Home description.\"><meta property=og:description content=\"Home description.\"><meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/>${person_ld}</head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${home_body}${shell_close}</body></html>" >"$dir/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta name=description content=\"Post description.\"><meta property=og:description content=\"Post description.\"><meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/>${article_ld}</head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${post_body}${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
     plain_page() { printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><title>t</title></head><body>${shell_open}$1${shell_close}</body></html>" >"$2"; }
     mkdir -p "$dir/tags/lorem" "$dir/journal"
     plain_page "$archive_body" "$dir/posts/index.html"
     plain_page "$archive_body" "$dir/tags/lorem/index.html"
     plain_page "$archive_body" "$dir/journal/index.html"
-    plain_page "$not_found_body" "$dir/404.html"
+    # The 404 carries noindex in production (and in staging, with nofollow).
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><title>t</title><meta name=description content=\"Not found description.\"><meta name=robots content=noindex></head><body>${shell_open}${not_found_body}${shell_close}</body></html>" >"$dir/404.html"
     # Hugo's meta-refresh alias pages: one directory-style, one ending in .html.
     mkdir -p "$dir/2023/02/10/sample-post" "$dir/css"
     alias_page='<!doctype html><html lang=en-us><head><title>https://test-blog.chiefgyk3d.com/posts/sample-post/</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/><meta name=robots content=noindex><meta http-equiv=refresh content="0; url=https://test-blog.chiefgyk3d.com/posts/sample-post/"></head></html>'
     printf '%s\n' "$alias_page" >"$dir/2023/02/10/sample-post/index.html"
     printf '%s\n' "$alias_page" >"$dir/sample-post.html"
     printf 'body{background:url(data:image/png;base64,AAAA);color:red}\n' >"$dir/css/site.min.css"
-    printf '<?xml version="1.0"?><rss version="2.0"></rss>\n' >"$dir/index.xml"
+    printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/index.xml" rel="self" type="application/rss+xml"/></channel></rss>\n' >"$dir/index.xml"
+    printf '<?xml version="1.0" encoding="utf-8" standalone="yes"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://test-blog.chiefgyk3d.com/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url><url><loc>https://test-blog.chiefgyk3d.com/posts/sample-post/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url></urlset>\n' >"$dir/sitemap.xml"
     printf 'User-agent: *\nAllow: /\n\nSitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >"$dir/robots.txt"
     cat >"$dir/_redirects" <<'RED'
 # generated
@@ -190,7 +194,7 @@ FILE=posts/sample-post/index.xml CONTENT='<?xml version="1.0"?><rss version="2.0
 FILE=page.xhtml CONTENT='<html xmlns="http://www.w3.org/1999/xhtml"><body onload="x()"/></html>' variant xhtml-event-handler event-handler markup_file
 d="$work/ok-feed"
 make_good "$d"
-printf '%s\n' '<?xml version="1.0"?><rss version="2.0"><channel><item><description>&lt;a onclick="x"&gt; one=1 &lt;script&gt;</description></item></channel></rss>' >"$d/index.xml"
+printf '%s\n' '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/index.xml" rel="self" type="application/rss+xml"/><item><description>&lt;a onclick="x"&gt; one=1 &lt;script&gt;</description></item></channel></rss>' >"$d/index.xml"
 if "$checker" "$d" >/dev/null 2>&1; then
     echo "ok: escaped markup text inside a feed passes"
 else
@@ -507,6 +511,63 @@ home_as_article() { sed -i 's#property=og:type content=website#property=og:type 
 variant home-typed-article bad-head-value home_as_article
 post_as_website() { sed -i 's#property=og:type content=article#property=og:type content=website#' "$1/posts/sample-post/index.html"; }
 variant post-typed-website bad-head-value post_as_website
+
+# SEO (issue 64). A JSON-LD data block is the one inline script-element form
+# allowed; everything else about script elements is unchanged.
+d="$work/ld-extra-block-ok"
+make_good "$d"
+sed -i 's#</head>#<script type=application/ld+json>{"@context":"https://schema.org","@type":"Thing","name":"x"}</script></head>#' "$d/index.html"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: an extra valid JSON-LD block passes"
+else
+    echo "FAIL: an extra valid JSON-LD block was rejected"
+    failures=$((failures + 1))
+fi
+home_edit() { sed -i "s#${FROM}#${TO}#" "$1/index.html"; }
+post_edit() { sed -i "s#${FROM}#${TO}#" "$1/posts/sample-post/index.html"; }
+FROM='<script type=application/ld+json>' TO='<script type=application/ld+json src=/x.js>' variant ld-block-with-src script-not-allowed home_edit
+FROM='<script type=application/ld+json>' TO='<script type=text/javascript>' variant ld-type-swapped-to-javascript script-not-allowed home_edit
+FROM='<script type=application/ld+json>' TO='<script type=application/ld+json defer>' variant ld-block-extra-attribute script-not-allowed home_edit
+FROM='"@graph":\[' TO='alert(1);"@graph":[' variant ld-block-not-json bad-jsonld home_edit
+FROM='"name":"ChiefGyk3D"' TO='"name":"Somebody Else"' variant ld-person-wrong-name bad-jsonld home_edit
+FROM='"name":"ChiefGyk3D"' TO='"name":"ChiefGyk3D","worksFor":{"name":"Corp"}' variant ld-person-employer bad-jsonld home_edit
+FROM='"name":"ChiefGyk3D"' TO='"name":"ChiefGyk3D","givenName":"First"' variant ld-person-first-name bad-jsonld home_edit
+FROM='https://github.com/ChiefGyk3D' TO='http://github.com/ChiefGyk3D' variant ld-sameas-not-https bad-jsonld home_edit
+FROM='https://schema.org' TO='https://example.org/vocab' variant ld-wrong-context bad-jsonld home_edit
+FROM='"@type":"Person"' TO='"@type":"Organization"' variant ld-home-without-person bad-jsonld home_edit
+FROM='"@type":"Article"' TO='"@type":"Thing"' variant ld-post-without-article bad-jsonld post_edit
+FROM='"headline":"Sample post",' TO='' variant ld-article-without-headline bad-jsonld post_edit
+FROM='"datePublished":"2023-02-10T09:00:00-05:00",' TO='' variant ld-article-without-date bad-jsonld post_edit
+FROM='"author":{"@type":"Person","name":"ChiefGyk3D"}' TO='"author":{"@type":"Person","name":"Other"}' variant ld-article-wrong-author bad-jsonld post_edit
+drop_ld() { sed -i -E 's#<script type=application/ld\+json>[^<]*</script>##' "$1/$PAGE"; }
+PAGE=index.html variant home-without-jsonld bad-jsonld drop_ld
+PAGE=posts/sample-post/index.html variant post-without-jsonld bad-jsonld drop_ld
+FROM='content=summary_large_image' TO='content=summary' variant twitter-card-summary bad-head-value home_edit
+
+# The 404 is noindex in production; the other pages are not.
+no404_noindex() { sed -i 's#<meta name=robots content=noindex>##' "$1/404.html"; }
+variant production-404-without-noindex noindex-mismatch no404_noindex
+
+# Sitemap: present, parsed, on the site host, lastmod on every url, no alias
+# stub, no url that has no page, no noindex page.
+variant missing-sitemap missing-sitemap rm_file sitemap.xml
+sitemap_edit() { sed -i "s#${FROM}#${TO}#" "$1/sitemap.xml"; }
+FROM='<lastmod>2023-02-10T09:00:00-05:00</lastmod></url><url>' TO='</url><url>' variant sitemap-url-without-lastmod bad-sitemap sitemap_edit
+FROM='</urlset>' TO='<url><loc>https://test-blog.chiefgyk3d.com/2023/02/10/sample-post/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url></urlset>' variant sitemap-lists-alias-stub bad-sitemap sitemap_edit
+FROM='</urlset>' TO='<url><loc>https://test-blog.chiefgyk3d.com/404.html</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url></urlset>' variant sitemap-lists-404 bad-sitemap sitemap_edit
+FROM='</urlset>' TO='<url><loc>https://test-blog.chiefgyk3d.com/gone/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url></urlset>' variant sitemap-lists-missing-page bad-sitemap sitemap_edit
+FROM='https://test-blog.chiefgyk3d.com/posts/sample-post/' TO='https://example.org/posts/sample-post/' variant sitemap-foreign-host bad-sitemap sitemap_edit
+FROM='</urlset>' TO='' variant sitemap-not-xml bad-sitemap sitemap_edit
+FROM='<url><loc>https://test-blog.chiefgyk3d.com/posts/sample-post/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url>' TO='' variant sitemap-without-the-post bad-sitemap sitemap_edit
+
+# Feed: the self-hosted atom link.
+feed_edit() { sed -i "s#${FROM}#${TO}#" "$1/index.xml"; }
+FROM='rel="self"' TO='rel="alternate"' variant feed-without-self-link bad-feed feed_edit
+FROM='https://test-blog.chiefgyk3d.com/index.xml' TO='https://example.org/index.xml' variant feed-self-link-foreign-host bad-feed feed_edit
+
+# One description per page.
+dup_desc() { sed -i 's#Post description\.#Home description.#g' "$1/posts/sample-post/index.html"; }
+variant duplicate-description duplicate-description dup_desc
 
 # Templates (issues 58 and 59): home hero, 404, archive and post elements. Each
 # required piece removed in turn must be reported by name.

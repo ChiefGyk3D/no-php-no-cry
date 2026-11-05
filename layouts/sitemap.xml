@@ -1,0 +1,15 @@
+{{- /* sitemap.xml: one url per page that is meant to be found, each with lastmod. Hugo does not list alias (redirect) stubs and the 404 is not a page of the sitemap; a page that sets sitemap.disable is skipped. A page with no date of its own (a section page, a data-driven page) takes the newest date on the site, so every url has a lastmod. scripts/check-output.sh checks the result. */ -}}
+{{- $newest := time.AsTime "1970-01-01T00:00:00Z" -}}
+{{- range site.Pages }}{{ if .Lastmod.After $newest }}{{ $newest = .Lastmod }}{{ end }}{{ end -}}
+{{ `<?xml version="1.0" encoding="utf-8" standalone="yes"?>` | safeHTML }}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  {{- range sort site.Pages "Permalink" }}
+  {{- if and (not .Sitemap.Disable) (not .Params.noindex) }}
+  {{- $lm := .Lastmod }}{{ if $lm.IsZero }}{{ $lm = $newest }}{{ end }}
+  <url>
+    <loc>{{ .Permalink }}</loc>
+    <lastmod>{{ $lm.Format "2006-01-02T15:04:05Z07:00" }}</lastmod>
+  </url>
+  {{- end }}
+  {{- end }}
+</urlset>

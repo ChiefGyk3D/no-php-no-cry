@@ -1,4 +1,4 @@
-{{- /* RSS 2.0 feed for home, posts and journal. Entries marked syndicate: false stay in the feed: the flag is for the later syndication step, not for the feed. */ -}}
+{{- /* RSS 2.0 feed for home, posts and journal. Entries marked syndicate: false stay in the feed: the flag is for the later syndication step, not for the feed. Each item carries the full rendered body (an RSS reader shows the post, not a teaser); the self link is the feed's own address on this site. */ -}}
 {{- $pages := .Pages -}}
 {{- if .IsHome }}{{ $pages = where site.RegularPages "Section" "in" (slice "posts" "journal") }}{{ end -}}
 {{- $limit := 20 -}}
@@ -8,7 +8,7 @@
   <channel>
     <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
     <link>{{ .Permalink }}</link>
-    <description>{{ site.Params.description }}</description>
+    <description>{{ .Description | default site.Params.description }}</description>
     <language>{{ site.Language.Locale }}</language>
     {{- with .OutputFormats.Get "rss" }}
     {{ printf "<atom:link href=%q rel=\"self\" type=%q />" .Permalink .MediaType.Type | safeHTML }}
@@ -22,7 +22,7 @@
       <link>{{ .Permalink }}</link>
       <pubDate>{{ .Date.Format "Mon, 02 Jan 2006 15:04:05 -0700" | safeHTML }}</pubDate>
       <guid isPermaLink="true">{{ .Permalink }}</guid>
-      <description>{{ .Summary | transform.XMLEscape | safeHTML }}</description>
+      <description>{{ .Content | transform.XMLEscape | safeHTML }}</description>
     </item>
     {{- end }}
   </channel>

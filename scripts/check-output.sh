@@ -13,7 +13,8 @@
 # event-handler, http-reference, external-asset, external-css-reference,
 # skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
-# noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
+# noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
+# bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, template-element, missing-output.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
@@ -56,6 +57,19 @@
 # theme-color, a manifest link, canonical and icon links, Open Graph and Twitter card tags (og:url and
 # og:image absolute on the site's own host); entries are og:type article with
 # article:published_time, the home page is a website.
+#
+# Structured data: a head may carry <script type="application/ld+json"> DATA
+# blocks (exactly that tag, no other attribute, no src, no "<" in the body).
+# A browser never runs them and script-src does not apply (checked in Chromium
+# against static/_headers); every other script element is still a finding. The
+# blocks are parsed (scripts/check-seo.py): valid JSON, schema.org, the display
+# name ChiefGyk3D for any Person, https sameAs only, no personal-detail key; the
+# home page needs the Person, a post or entry the Article. Twitter card is
+# summary_large_image. In production the 404 page carries noindex and no other
+# page does. Site-wide (scripts/check-seo.py): no two pages share a description;
+# the feed has its atom self link on the site host; in production sitemap.xml
+# lists every post and entry and no alias stub, noindex page or page that is not
+# there, each url on the site host with a lastmod.
 #
 # Every alias in the build is also checked: each meta-refresh page Hugo wrote
 # for an alias must have a 301 line in _redirects (directory-style aliases need
@@ -189,6 +203,14 @@ if [[ $rc -eq 2 ]]; then
     pinned=""
 fi
 
+# jsonld_check <file> <home|article|other>: the JSON-LD rules of scripts/check-seo.py.
+jsonld_check() {
+    local rule
+    rule="$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-seo.py" jsonld "$2" "$1")"
+    [[ -n "$rule" ]] && report "$rule" "${1#"$dir"/}"
+    return 0
+}
+
 url_attr='(src|href|poster|action|data|srcset)=["'"'"']?https?://[^"'"'"' >]*'
 asset_tag='<(img|script|iframe|source|link|video|audio|embed|object|form)[ >][^>]*>'
 
@@ -197,7 +219,7 @@ while IFS= read -r -d '' f; do
 
     # Scripts. flat is the page on one line, so a tag split across lines is
     # still one tag. Inline script: a <script> tag with no src attribute.
-    flat="$(tr '\n\r' '  ' <"$f")"
+    flat="$(tr '\n\r' '  ' <"$f" | sed -E 's#<script type=("application/ld\+json"|application/ld\+json)>[^<]*</script>##g')"
     if grep -oEi '<script([^a-z0-9_>-][^>]*)?>' <<<"$flat" | grep -qiv 'src='; then
         report inline-script "$rel"
     fi
@@ -233,6 +255,7 @@ while IFS= read -r -d '' f; do
     while IFS= read -r rule; do
         [[ -n "$rule" ]] && report "$rule" "$rel"
     done < <(decoded_findings "$site_host" "$f")
+    jsonld_check "$f" other
 
     # Landmarks and the skip link, on every page except Hugo's alias stubs.
     if ! grep -qEi 'http-equiv=["'"'"']?refresh' "$f"; then
@@ -254,7 +277,11 @@ while IFS= read -r -d '' f; do
 
     # Alias pages (Hugo's meta refresh) name an old URL by their location.
     if ! grep -qEi 'http-equiv=["'"'"']?refresh' "$f" && [[ -n "$env" ]]; then
-        if grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f"; then
+        if [[ "$rel" == 404.html && "$env" == production ]]; then
+            # The 404 is the one noindex page in production.
+            grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f" ||
+                report noindex-mismatch "$rel (the 404 page must carry noindex)"
+        elif grep -qEi '<meta[^>]*name=["'"'"']?robots["'"'"']?[^>]*noindex' "$f"; then
             [[ "$env" == production ]] && report noindex-mismatch "$rel (noindex in a production build)"
         else
             [[ "$env" == staging ]] && report noindex-mismatch "$rel (no noindex in a staging build)"
@@ -327,6 +354,11 @@ check_head() {
     if [[ -n "$val" && ! "$val" =~ ^https://${site_host//./\\.}/ ]]; then
         report bad-head-value "$rel (twitter:image must be an absolute URL on ${site_host})"
     fi
+    val="$(head_meta "$f" name twitter:card)"
+    if [[ -n "$val" && "$val" != summary_large_image ]]; then
+        report bad-head-value "$rel (twitter:card must be summary_large_image)"
+    fi
+    if [[ "$kind" == article ]]; then jsonld_check "$f" article; else jsonld_check "$f" home; fi
     val="$(head_meta "$f" property og:type)"
     if [[ -n "$val" && "$val" != "$kind" ]]; then
         report bad-head-value "$rel (og:type must be ${kind})"
@@ -439,6 +471,11 @@ for path in sys.argv[1:]:
         print(path)
 ' "${xml_files[@]}")
 fi
+
+# Site-wide SEO rules: duplicate descriptions, the feed's atom link, the sitemap.
+while IFS=$'\t' read -r rule where; do
+    [[ -n "$rule" ]] && report "$rule" "$where"
+done < <(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-seo.py" site "$dir" "$site_host" "$env")
 
 if [[ ! -s "$dir/_redirects" ]]; then
     report missing-redirects "_redirects"
