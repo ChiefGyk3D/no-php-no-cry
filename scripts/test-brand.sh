@@ -57,16 +57,9 @@ expect_fail "low-contrast dark text is caught" "FAIL.*dark.*text on bg" python3 
 sed 's/--on-accent: #1A1A1A;/--on-accent: #FFFFFF;/' "$tokens" >"$work/low-on-accent.css"
 expect_fail "white on amber is caught" "FAIL.*on-accent on accent" python3 -I "$contrast" "$work/low-on-accent.css"
 
-# A light-mode defect: amber used as light-mode link text.
-sed 's/--link: #8A5A00;/--link: #FBB03B;/' "$tokens" >"$work/low-link.css"
-expect_fail "amber link on light bg is caught" "FAIL.*light.*link on bg" python3 -I "$contrast" "$work/low-link.css"
-
-# Highlight colors: a comment color too faint on the code background, in each mode.
+# Highlight colors: a comment color too faint on the code background.
 sed 's/--code-comment: #A8A093;/--code-comment: #3A3530;/' "$tokens" >"$work/low-code-dark.css"
 expect_fail "faint dark highlight color is caught" "FAIL.*dark.*code-comment on surface" python3 -I "$contrast" "$work/low-code-dark.css"
-
-sed 's/--code-keyword: #8A5A00;/--code-keyword: #FBB03B;/' "$tokens" >"$work/low-code-light.css"
-expect_fail "faint light highlight color is caught" "FAIL.*light.*code-keyword on surface" python3 -I "$contrast" "$work/low-code-light.css"
 
 grep -v -e '--code-string:' "$tokens" >"$work/no-code-string.css"
 expect_fail "missing highlight token is caught" "missing" python3 -I "$contrast" "$work/no-code-string.css"
@@ -78,30 +71,43 @@ expect_fail "missing token is caught" "missing" python3 -I "$contrast" "$work/no
 sed 's#^\( *\)--muted: \(.*\);#\1/* --muted: \2; */#' "$tokens" >"$work/commented-muted.css"
 expect_fail "token left only in a comment is caught" "missing" python3 -I "$contrast" "$work/commented-muted.css"
 
-# --- new surfaces, focus pairs, theme blocks (issue 49) --------------------
-# Focus below 3:1 on each new dark surface makes the checker exit 1.
-for surface in carbon-base carbon-line plate ghost; do
+# --- surfaces, focus pairs, dark only (issue 49, kit decision L) ------------
+# Focus below 3:1 on each dark surface makes the checker exit 1.
+for surface in carbon-base carbon-line plate; do
     sed -E "s/^( *)--${surface}: #[0-9A-Fa-f]{6};/\\1--${surface}: #F5B040;/" "$tokens" >"$work/low-focus-$surface.css"
     expect_fail "focus below 3:1 on $surface is caught" "FAIL.*dark.*focus on $surface" python3 -I "$contrast" "$work/low-focus-$surface.css"
 done
 
-sed 's/--focus-on-plate: #8A5A00;/--focus-on-plate: #FBB03B;/' "$tokens" >"$work/low-plate-light.css"
-expect_fail "amber focus on the cream plate is caught" "FAIL.*focus-on-plate on plate-light" python3 -I "$contrast" "$work/low-plate-light.css"
-
 sed 's/--muted: #B5ADA2;/--muted: #4A4540;/' "$tokens" >"$work/low-muted-carbon.css"
 expect_fail "faint muted text on carbon is caught" "FAIL.*dark.*muted on carbon-line" python3 -I "$contrast" "$work/low-muted-carbon.css"
 
-# The contrast script reads all three theme blocks: a defect in only one of
-# them (a hand-edited copy) is caught, as is drift between the light copies.
-sed '/^:root\[data-theme="light"\]/,/^}/ s/--link: #8A5A00;/--link: #FBB03B;/' "$tokens" >"$work/low-link-forced.css"
-expect_fail "defect only in the forced-light block is caught" 'FAIL.*light\[data-theme\].*link on bg' python3 -I "$contrast" "$work/low-link-forced.css"
-expect_fail "drift between the light blocks is caught" "FAIL.*drift" python3 -I "$contrast" "$work/low-link-forced.css"
+sed 's/--gray: #808080;/--gray: #404040;/' "$tokens" >"$work/low-gray.css"
+expect_fail "gray below 4.5:1 on the ground is caught" "FAIL.*dark.*gray on bg" python3 -I "$contrast" "$work/low-gray.css"
 
-sed '/^:root\[data-theme="dark"\]/,/^}/ s/--text: #F0F0F0;/--text: #3A3A3A;/' "$tokens" >"$work/low-text-pinned.css"
-expect_fail "defect only in the forced-dark block is caught" 'FAIL.*dark\[data-theme\].*text on bg' python3 -I "$contrast" "$work/low-text-pinned.css"
+# The palette matches the brand kit (decision A).
+for pair in "accent:#FBB03B" "bg:#0F0F0F" "surface:#202020" "gray:#808080"; do
+    if grep -q -e "^ *--${pair%%:*}: ${pair#*:};" "$tokens"; then ok "kit palette: --${pair%%:*} is ${pair#*:}"; else bad "kit palette: --${pair%%:*} is not ${pair#*:}"; fi
+done
 
-grep -v -e 'data-theme="dark"' "$tokens" >"$work/no-dark-block.css"
-expect_fail "missing forced-dark block is caught" "missing" python3 -I "$contrast" "$work/no-dark-block.css"
+# Dark only: no light palette, no data-theme selector, no retired light or
+# ghost colors, and the guard bites when one is added back.
+if grep -n -i -E 'data-theme|prefers-color-scheme|color-scheme: *light|8A5A00|383838|--ghost|plate-light' "$tokens" "$source_json" >"$work/light.txt"; then
+    bad "light-mode or retired tokens remain"
+    cat "$work/light.txt"
+else
+    ok "tokens are dark only (no light block, #8A5A00 or ghost gray)"
+fi
+{
+    cat "$tokens"
+    printf ':root[data-theme="light"] {\n  --bg: #FAF7F2;\n}\n'
+} >"$work/with-light.css"
+expect_fail "a light block is caught" "FAIL.*unexpected block" python3 -I "$contrast" "$work/with-light.css"
+
+if grep -q 'color-scheme: dark;' "$tokens"; then ok ":root declares color-scheme: dark"; else bad ":root lacks color-scheme: dark"; fi
+
+# Display font: a token only; the font file is not bundled (license unverified).
+if grep -q -e '^ *--font-display: "Cyber City"' "$tokens"; then ok "Cyber City is a display token"; else bad "--font-display token missing"; fi
+if find "$root/static" -type f -iname '*cyber*' | grep -q .; then bad "a Cyber City font file is bundled"; else ok "no Cyber City font file is bundled"; fi
 
 # --- token generator ------------------------------------------------------
 expect_pass "tokens.css is current with brand/tokens.json" python3 -I "$gen" --check

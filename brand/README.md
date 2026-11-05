@@ -3,17 +3,16 @@
 The visual system for the static site. The canonical tokens are in
 `brand/tokens.json`; `assets/css/tokens.css` is generated from it (do not edit
 it): `python3 -I scripts/gen-tokens.py` writes it, `--check` fails on drift
-(CI runs `--check`). The generator emits the light palette for the system
-preference and for `:root[data-theme="light"]`, and pins dark under
-`:root[data-theme="dark"]`. This page says what the tokens mean and what is
-still open.
+(CI runs `--check`). The generator emits one dark `:root` block. This page says
+what the tokens mean and what is still open. Synced to the brand kit
+(`chiefgyk3d-brand`, origin/main) on 2026-11-04.
 The palette follows Reach Around (`docs/design.md`,
 `examples/themes/dark-hero.yaml`), so the site and the link page match.
 
 ## Principles
 
-- Dark first. `:root` is the dark palette; `prefers-color-scheme: light`
-  overrides it. Both modes are checked for WCAG AA.
+- Dark only (kit decision L). There is no light mode and no theme toggle in
+  the brand. `:root` is the only palette, checked for WCAG AA.
 - One accent: amber `#FBB03B`. Text on an amber fill is `#1A1A1A` (9.4:1).
 - Effects are amber glow only (soft light behind the header, a glow on the
   accent rule and the penguin mark). They are alpha colors and never carry text.
@@ -21,29 +20,29 @@ The palette follows Reach Around (`docs/design.md`,
 
 ## Color
 
-| Token | Dark | Light | Use |
-| --- | --- | --- | --- |
-| `--bg` | `#0E0E0E` | `#FAF7F2` | page |
-| `--surface` | `#181716` | `#F0EBE3` | code blocks, cards |
-| `--text` | `#F0F0F0` | `#1A1A1A` | body text |
-| `--muted` | `#B5ADA2` | `#5C554C` | secondary text |
-| `--accent` | `#FBB03B` | same | fills, rules |
-| `--on-accent` | `#1A1A1A` | same | text on an accent fill |
-| `--link` | `#FBB03B` | `#8A5A00` | link text |
-| `--focus` | `#FBB03B` | `#8A5A00` | focus ring (3:1 needed, has 10.5 and 5.5) |
-| `--carbon-base`, `--carbon-line` | `#181818`, `#282828` | n/a | carbon-fiber ground and stripe (dark only) |
-| `--plate` | `#281808` | n/a | warm brown panel (dark only) |
-| `--ghost` | `#383838` | n/a | ghosted mascot layer (dark only, no controls) |
-| `--plate-light` | `#FFEFD9` | same | cream plate; focus and links use `--focus-on-plate` |
-| `--focus-on-plate` | `#8A5A00` | same | focus ring and link text on the cream plate |
-| `--accent-deep` | `#AF6A0E` | same | decorative edges only, never text (below 4.5:1) |
-| `--rule`, `--border` | `#3A3530` | `#D9D1C5` | dividers (decorative, not contrast-checked) |
+| Token | Value | Use |
+| --- | --- | --- |
+| `--bg` | `#0F0F0F` | page (kit dark ground) |
+| `--surface` | `#202020` | code blocks, cards (kit charcoal) |
+| `--gray` | `#808080` | kit gray: 4.85:1 on the ground, 4.13:1 on the surface (non-text only there) |
+| `--text` | `#F0F0F0` | body text |
+| `--muted` | `#B5ADA2` | secondary text |
+| `--accent` | `#FBB03B` | fills, rules (kit amber) |
+| `--on-accent` | `#1A1A1A` | text on an accent fill |
+| `--link` | `#FBB03B` | link text |
+| `--focus` | `#FBB03B` | focus ring (3:1 needed, has 10.4 on the ground) |
+| `--carbon-base`, `--carbon-line` | `#181818`, `#282828` | carbon-fiber ground and stripe |
+| `--plate` | `#281808` | warm brown panel |
+| `--accent-deep` | `#AF6A0E` | decorative edges only, never text (below 4.5:1) |
+| `--rule`, `--border` | `#3A3530` | dividers (decorative, not contrast-checked) |
 
-Amber is too light to be text on the light page (1.7:1), so light mode uses the
-darker `#8A5A00` for links and the focus ring.
+Retired in the kit sync (issue 78): every light-mode token, the light link and
+focus color `#8A5A00`, the ghost gray `#383838` and the cream plate pair
+(`--plate-light`, `--focus-on-plate`). `scripts/test-brand.sh` fails if one
+returns.
 
 `python3 -I scripts/check-contrast.py` computes every ratio and exits non-zero
-below 4.5:1 (text) or 3:1 (focus ring). `scripts/test-brand.sh` proves it
+below 4.5:1 (text) or 3:1 (focus ring), and on any light or `data-theme` block. `scripts/test-brand.sh` proves it
 catches a bad value.
 
 ## Spacing, type, UI elements
@@ -66,22 +65,31 @@ catches a bad value.
   npm package, 5.3.0; its sha256 is in `approved-assets.txt`. No font host is
   contacted and the Content-Security-Policy stays `font-src 'self'`.
 - Fallback stack: `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`.
-- Wordmark: the font is not known (it came from a designer). OPEN: confirm the
-  font name and license with the designer. Until then the wordmark is used only
-  as an image and is never retyped in CSS or HTML. No wordmark image is
-  committed yet.
+- Display: Cyber City is the logo, wordmark and display font ONLY, never body
+  or long text (kit decisions Q, R, X4). It is a token (`--font-display`) with
+  a Jost fallback. TODO: the font file is NOT bundled in this repo (no license
+  document seen here); add it to `static/fonts/` with an `approved-assets.txt`
+  line only after review. Until then the wordmark is used as an image and is
+  never retyped in CSS or HTML.
+- Orbitron (OFL 1.1) is approved in the kit for readable display headings; it
+  is not used here and not bundled.
 
 ## Mascot
 
-Two approved files, both star-free and checked by eye (details in
-`approved-assets.txt`):
+The master is Renegade Tux (kit decision T): the 900 px JPEG
+`masters/mascot-rifle-penguin-900.jpg` in the brand kit (sha256 in
+`approved-assets.txt`), the source for any new avatar or profile art. It is not
+committed here. No star variant is ever used.
 
-- `static/brand/penguin-color.png`: full-color penguin, use on dark.
-- `static/brand/penguin-glyph.svg`: black glyph with a white edge, use on light.
+Two approved derivative files are committed, both star-free and checked by eye
+(details in `approved-assets.txt`):
 
-Pick between them with `<picture>` and `prefers-color-scheme`, which needs no
-script and no inline style. `.brand-mark` sizes the image. Third-party marks
-are not republished; see `EXCLUDED.md`.
+- `static/brand/penguin-color.png`: full-color penguin on the dark ground (avatar, Open Graph).
+- `static/brand/penguin-glyph.svg`: single-color glyph, used as the SVG favicon.
+  The brand is dark only; this is not a light-mode asset.
+
+`.brand-mark` sizes the image. Third-party marks are not republished; see
+`EXCLUDED.md`.
 
 ## Adding an asset
 

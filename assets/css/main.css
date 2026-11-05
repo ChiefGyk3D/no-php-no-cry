@@ -166,8 +166,8 @@ pre:focus-visible {
   }
 }
 
-/* Penguin mark: full color on dark, black glyph on light (both sources are
- * static/brand/*; the page picks one with <picture>). */
+/* Penguin mark: the full-color mascot on the dark ground (source is
+ * static/brand/penguin-color.png). */
 .brand-mark {
   height: var(--tap);
   width: auto;
