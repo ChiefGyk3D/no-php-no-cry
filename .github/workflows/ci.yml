@@ -145,7 +145,7 @@ jobs:
         run: scripts/test-gitleaks-config.sh
 
   shell:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@7501cb3fa19d83d0e0a131cb040e7c4da32a9504 # v1.28.0
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@ddc98a545c1195f15b02341fa1f263fa3588bfd2 # v1.29.0
     permissions:
       contents: read
     with:
@@ -153,7 +153,7 @@ jobs:
       egress-policy: block
 
   security:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@7501cb3fa19d83d0e0a131cb040e7c4da32a9504 # v1.28.0
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@ddc98a545c1195f15b02341fa1f263fa3588bfd2 # v1.29.0
     permissions:
       contents: read
       security-events: write
