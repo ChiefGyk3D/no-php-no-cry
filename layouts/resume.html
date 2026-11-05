@@ -1,0 +1,64 @@
+{{ define "main" }}
+{{- with site.Data.resume }}
+<article class="resume">
+  <div class="resume-head">
+    <h1>{{ .name }}{{ with .aka }} <span class="resume-aka">aka {{ . }}</span>{{ end }}</h1>
+    <p class="resume-title">{{ .title }}</p>
+  </div>
+
+  <section aria-labelledby="r-summary">
+    <h2 id="r-summary" class="hud-heading">Summary</h2>
+    <ul class="resume-list">
+      {{- range .summary }}<li>{{ . }}</li>{{ end }}
+    </ul>
+  </section>
+
+  <section aria-labelledby="r-skills">
+    <h2 id="r-skills" class="hud-heading">Skills</h2>
+    <dl class="resume-skills">
+      {{- range .skills }}
+      <div>
+        <dt>{{ .group }}</dt>
+        <dd>{{ delimit .items ", " }}</dd>
+      </div>
+      {{- end }}
+    </dl>
+  </section>
+
+  <section aria-labelledby="r-knowledge">
+    <h2 id="r-knowledge" class="hud-heading">Knowledge</h2>
+    <ul class="resume-list">
+      {{- range .knowledge }}<li>{{ . }}</li>{{ end }}
+    </ul>
+  </section>
+
+  <section aria-labelledby="r-projects">
+    <h2 id="r-projects" class="hud-heading">Projects</h2>
+    <ul class="resume-list">
+      {{- range .projects }}
+      <li><a href="{{ .url }}" rel="noopener">{{ .name }}</a>: {{ .line }}</li>
+      {{- end }}
+    </ul>
+  </section>
+
+  <section aria-labelledby="r-credentials">
+    <h2 id="r-credentials" class="hud-heading">Credentials</h2>
+    <ul class="resume-list">
+      {{- range .credentials }}<li>{{ . }}</li>{{ end }}
+    </ul>
+  </section>
+
+  <section aria-labelledby="r-community">
+    <h2 id="r-community" class="hud-heading">Community and content</h2>
+    <ul class="resume-list">
+      {{- range .community }}<li>{{ . }}</li>{{ end }}
+    </ul>
+  </section>
+
+  <section aria-labelledby="r-contact">
+    <h2 id="r-contact" class="hud-heading">Contact</h2>
+    <p>{{ .contact }} <a href="{{ .contact_url | relURL }}">Contact section</a></p>
+  </section>
+</article>
+{{- end }}
+{{ end }}
