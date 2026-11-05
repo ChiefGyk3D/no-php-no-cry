@@ -1,12 +1,13 @@
 # Content for /resume/ (layouts/resume.html). Generalities only: no employer
 # names, no job dates, no callsign, no grid square. Source: the GitHub profile
-# README (approved for reuse). Wording is a draft for ChatGPT/maintainer review.
+# README (approved for reuse). Copy is the ChatGPT-edited set the maintainer
+# picked provisionally on 2026-11-05 (site is alpha); change it freely.
 name: ChiefGyk3D
 title: Cybersecurity Engineer (CISSP)
 summary:
-  - 15 years in IT and cybersecurity, working across IAM, EDR, SOAR, ZTNA, SASE and cloud security.
-  - "Primarily self-taught: homelabbing, curiosity and hands-on work over formal education."
-  - Open-source builder and content creator who automates everything and talks about it.
+  - Cybersecurity engineer and CISSP with about 15 years across IT and security.
+  - Hands-on experience with network defense, SIEM engineering, cloud security, zero trust, automation, and local AI.
+  - Open-source maintainer, technical creator, and homelabber who builds and documents working systems.
 
 skills:
   - group: Identity and access
@@ -33,30 +34,28 @@ knowledge:
 projects:
   - name: Clouds Against Humanity
     url: https://github.com/ChiefGyk3D/Clouds-Against-Humanity
-    line: A locked-down, low-cost DigitalOcean environment that teaches cloud security, zero trust and infrastructure as code, with no public inbound ports.
+    line: I built a cloud security lab with OpenTofu, Spacelift, Doppler, and Twingate, with no public inbound ports.
   - name: Stream Daemon
     url: https://github.com/ChiefGyk3D/Stream-Daemon
-    line: Announces when you go live on Twitch, YouTube or Kick to Mastodon, Bluesky, Discord and Matrix.
+    line: I built a daemon that announces Twitch, YouTube, and Kick stream activity across social and community platforms.
   - name: SIEM Docker Stack
     url: https://github.com/ChiefGyk3D/siem-docker-stack
-    line: A fully Dockerized SIEM and SOC stack with hot and warm tiering for home labs and small businesses.
+    line: I run a containerized OpenSearch and Wazuh SIEM with logging, monitoring, dashboards, and long-term data storage.
   - name: pfSense SIEM Stack
     url: https://github.com/ChiefGyk3D/pfsense-siem-stack
-    line: A pfSense deployment, monitoring and security knowledge base, from basic setup to SIEM integration and IDS/IPS tuning.
+    line: I built the network side of my SIEM around pfSense, Suricata, optimized telemetry, and security automation.
   - name: git-your-ship-together
     url: https://github.com/ChiefGyk3D/git-your-ship-together
-    line: Reusable, hardened GitHub Actions workflows with lint, tests, signed releases and six kinds of scan.
-  - name: Hammunition family
+    line: I maintain hardened, reusable GitHub Actions workflows shared across my Python projects.
+  - name: Hammunition
     url: https://github.com/Renegade-Penguin/Hammunition
-    line: Turns a Debian-family install into an amateur radio and SDR workstation, with companion tools for propagation, devices and offline data.
-  # TODO(maintainer): Reach Around is not in the profile README; this one-line
-  # wording is a draft (maintainer ruling 2026-11-05). Confirm or reword it.
+    line: I build open-source tooling that turns Debian-family Linux systems into practical amateur radio and RF workstations.
   - name: Reach Around
     url: https://github.com/ChiefGyk3D/Reach-Around
-    line: A privacy-first link page with creator analytics. Open source.
+    line: I'm building an open-source, privacy-first link page with useful creator analytics and no invasive tracking.
   - name: Skid Finder
     url: https://github.com/ChiefGyk3D/Skid-Finder
-    line: Defensive Bluetooth Low Energy monitoring for conference floors that detects scripted spam tooling and helps find the source.
+    line: I built a defensive toolkit that detects scripted BLE spam and helps foxhunt its source at conferences.
 
 credentials:
   - CISSP
@@ -65,11 +64,12 @@ credentials:
   - CompTIA A+
   - Associate degree in Network System Administration, ITT Tech, 2016
   - Amateur radio operator, General class license
-  - Ordained Priest, Church of the Latter Day Dude
+  - Ordained Priest, Church of the Latter Day Dude. I can secure the network and officiate the wedding afterward.
 
 community:
   - "YouTube and Twitch streaming: tutorials, security breakdowns and livestreams."
   - "Open-source maintainer: everything I build is open source."
 
 contact: "Employers: references, job history and a phone number are available on request via the contact section on /about/#contact."
+employers_note: Professional history and references are available directly to prospective employers.
 contact_url: /about/#contact
