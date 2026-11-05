@@ -71,8 +71,17 @@ catches a bad value.
   document seen here); add it to `static/fonts/` with an `approved-assets.txt`
   line only after review. Until then the wordmark is used as an image and is
   never retyped in CSS or HTML.
-- Orbitron (OFL 1.1) is approved in the kit for readable display headings; it
-  is not used here and not bundled.
+- Orbitron (OFL 1.1, kit decision X1) is approved for readable display
+  headings. The variable TTF (wght 400-900) is self-hosted unmodified as
+  `static/fonts/orbitron-wght.ttf` with its license text in
+  `static/fonts/OFL-Orbitron.txt` (both from google/fonts `ofl/orbitron`). It
+  is kept as shipped because the OFL Reserved Font Name "Orbitron" forbids a
+  converted copy under that name. TODO: no `@font-face` or token uses it yet
+  (the token generator has one font face); wire it when a page needs display
+  headings.
+- Generated art: `scripts/gen-brand-assets.py` builds the mascot WebP set
+  (128/256/512), favicons, the 1200x630 OG card and the social icons from the
+  kit; see `brand/assets-build.json` and `brand/ICONS.md`.
 
 ## Mascot
 
