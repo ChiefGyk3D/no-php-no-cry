@@ -2,26 +2,17 @@
 
 Usage: python3 -I scripts/check-contrast.py [tokens.css]
 
-tokens.css is generated from brand/tokens.json (scripts/gen-tokens.py). The
-check reads every block the generator emits, so a hand-edited copy cannot
-drift:
-  dark                  :root (the dark base)
-  light                 @media (prefers-color-scheme: light) :root:not([data-theme])
-  light[data-theme]     :root[data-theme="light"]
-  dark[data-theme]      :root[data-theme="dark"]
-Each light block is the dark base plus its overrides; the three light sets
-must be identical, and the pinned dark set must equal the base. Text pairs
-need 4.5:1 (WCAG AA); the focus ring and the theme-toggle border need 3:1
-(non-text contrast). Highlight colors (--code-*) are text on --surface.
-Carbon, plate and ghost are dark-mode surfaces, so their pairs run in the dark
-blocks only. Prints one line per pair; exits 1 on any failure, missing token,
-missing block or drift between blocks.
+tokens.css is generated from brand/tokens.json (scripts/gen-tokens.py). Dark
+only (brand kit decision L): the one :root block is checked. Text pairs need
+4.5:1 (WCAG AA); the focus ring and non-text accents need 3:1. Highlight colors
+(--code-*) are text on --surface. Prints one line per pair; exits 1 on any
+failure, missing token or missing block. A leftover light or data-theme block
+also fails, so light mode cannot come back unnoticed.
 """
 import re
 import sys
 
-# (foreground, background, minimum ratio[, modes]); modes defaults to both.
-DARK = ("dark",)
+# (foreground, background, minimum ratio)
 PAIRS = [
     ("text", "bg", 4.5),
     ("text", "surface", 4.5),
@@ -32,23 +23,19 @@ PAIRS = [
     ("on-accent", "accent", 4.5),
     ("focus", "bg", 3.0),
     ("focus", "surface", 3.0),
-    # Theme toggle: control border and icon (link color) on the page, both modes.
-    ("link", "bg", 3.0),
-    # Carbon, plate and ghost surfaces (dark mode only, brief section 6).
-    ("focus", "carbon-base", 3.0, DARK),
-    ("focus", "carbon-line", 3.0, DARK),
-    ("focus", "plate", 3.0, DARK),
-    ("focus", "ghost", 3.0, DARK),
-    ("text", "carbon-base", 4.5, DARK),
-    ("text", "carbon-line", 4.5, DARK),
-    ("text", "plate", 4.5, DARK),
-    ("muted", "carbon-base", 4.5, DARK),
-    ("muted", "carbon-line", 4.5, DARK),
-    ("muted", "plate", 4.5, DARK),
-    # Cream plate: same in both modes; focus ring and link text use #8A5A00.
-    ("focus-on-plate", "plate-light", 3.0),
-    ("focus-on-plate", "plate-light", 4.5),
-    ("on-accent", "plate-light", 4.5),
+    # Kit gray: text on the ground, a 3:1 accent on the charcoal surface.
+    ("gray", "bg", 4.5),
+    ("gray", "surface", 3.0),
+    # Carbon and plate surfaces (brief section 6).
+    ("focus", "carbon-base", 3.0),
+    ("focus", "carbon-line", 3.0),
+    ("focus", "plate", 3.0),
+    ("text", "carbon-base", 4.5),
+    ("text", "carbon-line", 4.5),
+    ("text", "plate", 4.5),
+    ("muted", "carbon-base", 4.5),
+    ("muted", "carbon-line", 4.5),
+    ("muted", "plate", 4.5),
     # Syntax highlighting is drawn on the code-block background (--surface).
     ("code-keyword", "surface", 4.5),
     ("code-string", "surface", 4.5),
@@ -61,12 +48,7 @@ PAIRS = [
 
 REQUIRED = sorted({name for pair in PAIRS for name in pair[:2]})
 
-# Block selectors, as they appear after whitespace is collapsed. A leading
-# "@media (...)" is part of the path for nested rules.
 DARK_BASE = ":root"
-LIGHT_MEDIA = "@media (prefers-color-scheme: light) :root:not([data-theme])"
-LIGHT_FORCED = ':root[data-theme="light"]'
-DARK_FORCED = ':root[data-theme="dark"]'
 
 
 def strip_comments(css):
@@ -119,55 +101,29 @@ def main(path):
         css = handle.read()
     found = blocks(css)
     failed = False
-    for sel in (DARK_BASE, LIGHT_MEDIA, LIGHT_FORCED, DARK_FORCED):
-        if sel not in found:
-            print("FAIL block missing: expected '%s'" % sel)
-            failed = True
-    if failed:
+    if DARK_BASE not in found:
+        print("FAIL block missing: expected '%s'" % DARK_BASE)
         return 1
-
-    dark = parse(found[DARK_BASE])
-    light = dict(dark)
-    light.update(parse(found[LIGHT_MEDIA]))
-    light_forced = dict(dark)
-    light_forced.update(parse(found[LIGHT_FORCED]))
-    dark_forced = dict(dark)
-    dark_forced.update(parse(found[DARK_FORCED]))
-
-    for label, other, ref in (
-        ("light[data-theme] differs from light", light_forced, light),
-        ("dark[data-theme] differs from dark", dark_forced, dark),
-    ):
-        diff = sorted(k for k in set(other) | set(ref) if other.get(k) != ref.get(k))
-        if diff:
-            print("FAIL drift: %s in --%s" % (label, ", --".join(diff)))
+    for sel in found:
+        if sel != DARK_BASE and not sel.startswith("@font-face"):
+            print("FAIL unexpected block '%s': the brand is dark only" % sel)
             failed = True
-
-    modes = (
-        ("dark", "dark", dark),
-        ("light", "light", light),
-        ("dark[data-theme]", "dark", dark_forced),
-        ("light[data-theme]", "light", light_forced),
-    )
-    for mode, kind, tokens in modes:
-        for name in REQUIRED:
-            if name not in tokens:
-                print("FAIL %s: token --%s missing" % (mode, name))
-                failed = True
-        for pair in PAIRS:
-            fg, bg, need = pair[:3]
-            if kind not in (pair[3] if len(pair) > 3 else ("dark", "light")):
-                continue
-            if fg not in tokens or bg not in tokens:
-                continue
-            got = ratio(tokens[fg], tokens[bg])
-            status = "ok  " if got >= need else "FAIL"
-            if got < need:
-                failed = True
-            print(
-                "%s %s: %s on %s %s on %s = %.2f:1 (need %.1f)"
-                % (status, mode, fg, bg, tokens[fg], tokens[bg], got, need)
-            )
+    tokens = parse(found[DARK_BASE])
+    for name in REQUIRED:
+        if name not in tokens:
+            print("FAIL dark: token --%s missing" % name)
+            failed = True
+    for fg, bg, need in PAIRS:
+        if fg not in tokens or bg not in tokens:
+            continue
+        got = ratio(tokens[fg], tokens[bg])
+        status = "ok  " if got >= need else "FAIL"
+        if got < need:
+            failed = True
+        print(
+            "%s dark: %s on %s %s on %s = %.2f:1 (need %.1f)"
+            % (status, fg, bg, tokens[fg], tokens[bg], got, need)
+        )
     return 1 if failed else 0
 
 
