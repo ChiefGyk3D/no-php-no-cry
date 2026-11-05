@@ -71,8 +71,17 @@ catches a bad value.
   document seen here); add it to `static/fonts/` with an `approved-assets.txt`
   line only after review. Until then the wordmark is used as an image and is
   never retyped in CSS or HTML.
-- Orbitron (OFL 1.1) is approved in the kit for readable display headings; it
-  is not used here and not bundled.
+- Orbitron (OFL 1.1, kit decision X1) is approved for readable display
+  headings. The variable TTF (wght 400-900) is self-hosted unmodified as
+  `static/fonts/orbitron-wght.ttf` with its license text in
+  `static/fonts/OFL-Orbitron.txt` (both from google/fonts `ofl/orbitron`). It
+  is kept as shipped because the OFL Reserved Font Name "Orbitron" forbids a
+  converted copy under that name. TODO: no `@font-face` or token uses it yet
+  (the token generator has one font face); wire it when a page needs display
+  headings.
+- Generated art: `scripts/gen-brand-assets.py` builds the mascot WebP set
+  (128/256/512), favicons, the 1200x630 OG card and the social icons from the
+  kit; see `brand/assets-build.json` and `brand/ICONS.md`.
 
 ## Mascot
 
@@ -81,12 +90,17 @@ The master is Renegade Tux (kit decision T): the 900 px JPEG
 `approved-assets.txt`), the source for any new avatar or profile art. It is not
 committed here. No star variant is ever used.
 
-Two approved derivative files are committed, both star-free and checked by eye
-(details in `approved-assets.txt`):
+Approved derivatives are committed under `static/brand/`, all star-free and
+listed with sha256 in `approved-assets.txt`:
 
-- `static/brand/penguin-color.png`: full-color penguin on the dark ground (avatar, Open Graph).
-- `static/brand/penguin-glyph.svg`: single-color glyph, used as the SVG favicon.
-  The brand is dark only; this is not a light-mode asset.
+- `penguin-color.png`: full-color penguin on the dark ground (avatar source).
+- `penguin-glyph.svg`: single-color glyph, used as the SVG favicon. The brand
+  is dark only; this is not a light-mode asset.
+- `mascot-128.webp`, `mascot-256.webp`, `mascot-512.webp`: the mascot WebP set.
+- `favicon-32.png`, `favicon-192.png`, `favicon-512.png` and
+  `apple-touch-icon-180.png`: the PNG favicon and touch icons.
+- `og-card.png`: the 1200x630 Open Graph image, the default in `head-meta.html`.
+- `icons/`: the ten social glyphs (see `ICONS.md`).
 
 `.brand-mark` sizes the image. Third-party marks are not republished; see
 `EXCLUDED.md`.
