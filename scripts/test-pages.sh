@@ -213,6 +213,8 @@ def about(p, errs, repo):
     for name in ("Stream Daemon", "Reach Around", "Clouds Against Humanity"):
         if name not in flat:
             errs.append("project tile %r missing" % name)
+    if "/resume/" not in hrefs:
+        errs.append("the About body must link to /resume/")
     if "mailto:" in " ".join(h or "" for h in hrefs):
         errs.append("the email address must be plain text, not a mailto: link")
     if "TODO" not in repo["html"] and "email address will be added" not in flat.lower():
