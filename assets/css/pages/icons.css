@@ -39,6 +39,10 @@
   --icon: url("../brand/icons/mastodon.svg");
 }
 
+.icon-matrix {
+  --icon: url("../brand/icons/matrix.svg");
+}
+
 .icon-threads {
   --icon: url("../brand/icons/threads.svg");
 }
