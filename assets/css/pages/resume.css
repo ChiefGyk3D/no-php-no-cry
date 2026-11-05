@@ -1,0 +1,89 @@
+/* /resume/ (issue #86). Screen: dark, tokens only. */
+.resume section {
+  margin-top: var(--space-5);
+}
+
+.resume-title {
+  color: var(--muted);
+  font-size: var(--text-lg, var(--text-base));
+}
+
+.resume-aka {
+  color: var(--muted);
+  font-size: var(--text-base);
+}
+
+.resume-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.resume-list li {
+  margin-bottom: var(--space-2);
+}
+
+.resume-skills {
+  margin: var(--space-2) 0 0;
+}
+
+.resume-skills dt {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.resume-skills dd {
+  margin: 0 0 var(--space-2);
+}
+
+/* Print: the one documented light-on-white exception (dark stays the screen
+ * rule). It uses the browser's system colors under color-scheme: light, so no
+ * color value is hard-coded here and there is no contrast pair to check:
+ * Canvas (white) with CanvasText (black), and LinkText for links, are the
+ * user agent's own legible pairs. Site chrome is hidden; links print their URL.
+ */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: Canvas;
+    background-image: none;
+    color: CanvasText;
+    font-size: 11pt;
+  }
+
+  .skip-link,
+  .site-header,
+  .site-footer {
+    display: none;
+  }
+
+  main {
+    padding: 0;
+  }
+
+  .resume a {
+    color: LinkText;
+  }
+
+  .resume a[href^="https://"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+  }
+
+  .resume-title,
+  .resume-aka,
+  .resume-skills dt {
+    color: CanvasText;
+  }
+
+  .hud-heading::after {
+    border-top-color: CanvasText;
+  }
+
+  .resume section {
+    break-inside: avoid;
+    margin-top: 12pt;
+  }
+}
