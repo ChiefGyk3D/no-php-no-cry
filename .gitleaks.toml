@@ -5,6 +5,15 @@
 # "discord". The brand manifests record the SHA-256 of static/brand/icons/discord.svg
 # on such lines (issue #87). Those are content hashes, not tokens.
 #
+# Path status: only brand/approved-assets.txt exists on main today. The other
+# two files (brand/assets-build.json, scripts/gen-brand-assets.py) arrive with
+# the parked brand-assets branch, which this change unblocks; until then those
+# two entries match nothing. They are listed here, not left for later, because
+# this file is read from the BASE commit: the allowlist must already be on main
+# when that branch's pull request is scanned. Paths are anchored at both ends,
+# relative to the repository root, so a same-named file in a subdirectory is
+# still scanned.
+#
 # One allowlist, kept narrow on purpose. condition = "AND" means a finding is
 # ignored only when it is this rule, in one of these three files, AND the
 # matched value is a bare 64-hex-digit string. Any other rule, any other file
@@ -20,9 +29,9 @@ description = "SHA-256 content hashes in the brand manifests (rule discord-api-t
 condition = "AND"
 targetRules = ["discord-api-token"]
 paths = [
-  '''(^|/)brand/assets-build\.json$''',
-  '''(^|/)scripts/gen-brand-assets\.py$''',
-  '''(^|/)brand/approved-assets\.txt$''',
+  '''^brand/assets-build\.json$''',
+  '''^scripts/gen-brand-assets\.py$''',
+  '''^brand/approved-assets\.txt$''',
 ]
 regexTarget = "secret"
 regexes = ['''(?i)\b[0-9a-f]{64}\b''']
