@@ -66,11 +66,9 @@ while IFS= read -r -d '' p; do
     report reserved-name "${p#"$dir"/}"
 done < <(find "$dir" -iname '_worker*' -print0 | sort -z)
 
-for name in functions; do
-    while IFS= read -r -d '' p; do
-        report reserved-name "${p#"$dir"/}"
-    done < <(find "$dir" -mindepth 1 -maxdepth 1 -iname "$name" -print0)
-done
+while IFS= read -r -d '' p; do
+    report reserved-name "${p#"$dir"/}"
+done < <(find "$dir" -mindepth 1 -maxdepth 1 -iname functions -print0)
 
 while IFS= read -r -d '' p; do
     report symlink "${p#"$dir"/}"
