@@ -77,6 +77,11 @@ class Page(HTMLParser):
 
 
 def check(html):
+    # The shell (header mark, footer links) is checked elsewhere; the content
+    # rules apply to <main> when the page has one.
+    m = re.search(r"<main\b.*?</main>", html, re.S)
+    if m:
+        html = m.group(0)
     p = Page()
     p.feed(html)
     out = []
@@ -175,6 +180,13 @@ printf '<h2>Skills</h2><p>ITIL N0CALL <img src="https://x.example/a.png"></p>' >
 if python3 -I "$asserter" "$bad" >/dev/null; then
     fail "guard: asserter accepted a bad page"
 else pass "guard: asserter rejects a bad page"; fi
+
+# An img inside <main> still fails when the page has the shell around it.
+printf '<header><img src="/brand/mascot-128.webp"></header><main><h2>Skills</h2><img src="/x.png"></main>' >"$bad"
+out="$(python3 -I "$asserter" "$bad" || true)"
+if grep -q 'forbidden element/attribute: img' <<<"$out"; then
+    pass "guard: an img inside main is still rejected"
+else fail "guard: an img inside main was not flagged"; fi
 
 if [[ $failures -ne 0 ]]; then
     echo "$failures failure(s)"
