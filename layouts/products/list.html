@@ -1,0 +1,26 @@
+{{ define "main" }}
+<h1>{{ .Title }}</h1>
+{{- /* The disclosure comes first, in a bracket-frame panel, before any product. The paragraph is the approved copy: change it only with the maintainer's word. The Amazon Associates line is the one the converter adds under old posts. */}}
+<div class="panel disclosure" role="note">
+  <p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. I only list products I use myself or would recommend.</p>
+  <p class="meta">As an Amazon Associate I earn from qualifying purchases.</p>
+</div>
+{{ .Content }}
+{{- range site.Data.products }}
+<section class="product-group" aria-labelledby="group-{{ .group | urlize }}">
+  <h2 id="group-{{ .group | urlize }}" class="hud-heading">{{ .group }}</h2>
+  <ul class="product-list">
+    {{- range .items }}
+    <li class="product">
+      <h3>{{ .name }}</h3>
+      <p class="product-line">{{ .line }}</p>
+      <p class="product-checked meta">Price checked on <time datetime="{{ (time.AsTime .checked).Format "2006-01-02" }}">{{ (time.AsTime .checked).Format "January 2, 2006" }}</time></p>
+      {{- if strings.HasPrefix .url "https://" }}
+      <a class="btn btn-ghost" href="{{ .url }}" rel="sponsored noopener">View product<span class="visually-hidden">: {{ .name }} (affiliate link, external site)</span></a>
+      {{- end }}
+    </li>
+    {{- end }}
+  </ul>
+</section>
+{{- end }}
+{{ end }}

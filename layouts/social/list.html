@@ -1,0 +1,27 @@
+{{ define "main" }}
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+<ul class="tile-grid social-grid">
+  {{- range site.Data.socials }}
+  {{- $live := strings.HasPrefix .url "https://" }}
+  <li class="tile-item">
+    {{- if $live }}
+    <a class="tile social-tile" href="{{ .url }}" rel="{{ if .rel_me }}me {{ end }}noopener">
+      <span class="social-icon social-icon--{{ .icon }}" aria-hidden="true"></span>
+      <span class="social-name">{{ .name }}</span>
+      <span class="social-handle">{{ .handle }}</span>
+      <span class="social-role">{{ .blurb }}</span>
+      <span class="visually-hidden"> (external site)</span>
+    </a>
+    {{- else }}
+    <div class="tile social-tile social-tile--soon">
+      <span class="social-icon social-icon--placeholder" aria-hidden="true"></span>
+      <span class="social-name">{{ .name }}</span>
+      <span class="social-handle">{{ .handle }}</span>
+      <span class="social-role">{{ .blurb }}</span>
+    </div>
+    {{- end }}
+  </li>
+  {{- end }}
+</ul>
+{{ end }}
