@@ -42,7 +42,7 @@ PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
             "Skid Finder"]
 FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"\bWGU\b", r"Western Governors",
-             r"\bMoshe\b", r"\bTODO\b"]
+             r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
 GRID = r"\b[A-R]{2}\d\d(?:[a-x]{2})?\b"
 
