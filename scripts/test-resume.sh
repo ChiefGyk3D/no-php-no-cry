@@ -29,12 +29,15 @@ import re
 import sys
 from html.parser import HTMLParser
 
-HEADINGS = ["Summary", "Skills", "Knowledge", "Projects", "Credentials",
-            "Community and content", "Contact"]
+HEADINGS = ["Summary", "Core Skills", "Technical Knowledge",
+            "Open-Source Projects", "Certifications", "Community", "Contact"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+",
     "Network System Administration", "2016", "General class",
     "Ordained Priest, Church of the Latter Day Dude",
+    "I can secure the network and officiate the wedding afterward.",
+    "Professional history and references are available directly to prospective "
+    "employers.",
     "Employers: references, job history and a phone number are available on "
     "request via the contact section on /about/#contact.",
 ]
@@ -98,7 +101,7 @@ def check(html):
         if i < 0:
             out.append("missing project: " + name)
     if "Clouds Against Humanity" in text:
-        projs = text[text.find("Projects"):]
+        projs = text[text.find("Open-Source Projects"):]
         for name in PROJECTS[1:]:
             if name in projs and projs.find(name) < projs.find("Clouds Against Humanity"):
                 out.append("Clouds Against Humanity is not first: " + name)
@@ -110,6 +113,8 @@ def check(html):
     for pat in FORBIDDEN:
         if re.search(pat, text):
             out.append("forbidden: " + pat)
+    if "—" in text or "–" in text:
+        out.append("em or en dash in text")
     if re.search(CALLSIGN, text):
         out.append("callsign-shaped text")
     if re.search(GRID, text):
@@ -181,13 +186,13 @@ else fail "built stylesheet has no @media print"; fi
 
 # Guard self-test: the asserter must bite.
 bad="$work/bad.html"
-printf '<h2>Skills</h2><p>ITIL N0CALL <img src="https://x.example/a.png"></p>' >"$bad"
+printf '<h2>Core Skills</h2><p>ITIL N0CALL <img src="https://x.example/a.png"></p>' >"$bad"
 if python3 -I "$asserter" "$bad" >/dev/null; then
     fail "guard: asserter accepted a bad page"
 else pass "guard: asserter rejects a bad page"; fi
 
 # An img inside <main> still fails when the page has the shell around it.
-printf '<header><img src="/brand/mascot-128.webp"></header><main><h2>Skills</h2><img src="/x.png"></main>' >"$bad"
+printf '<header><img src="/brand/mascot-128.webp"></header><main><h2>Core Skills</h2><img src="/x.png"></main>' >"$bad"
 out="$(python3 -I "$asserter" "$bad" || true)"
 if grep -q 'forbidden element/attribute: img' <<<"$out"; then
     pass "guard: an img inside main is still rejected"

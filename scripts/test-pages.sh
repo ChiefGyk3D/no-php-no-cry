@@ -195,8 +195,10 @@ def about(p, errs, repo):
     if p.h1 != ["About"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
-    if "DRAFT" not in flat:
-        errs.append("no DRAFT bio marker")
+    if "DRAFT" in flat:
+        errs.append("DRAFT marker still on the page")
+    if "I'm ChiefGyk3D, a cybersecurity engineer, creator, and open-source builder" not in flat or "If you need references, contact me directly." not in flat:
+        errs.append("chosen bio text missing")
     if not any(t == "img" and (a.get("alt") or "") and (a.get("src") or "").startswith("/brand/") for t, a in p.tags):
         errs.append("no mascot image with alt text")
     if p.ids.get("contact") not in ("h2", "h3", "section"):
