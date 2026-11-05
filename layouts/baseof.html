@@ -22,7 +22,7 @@
   <a class="skip-link" href="#main">Skip to main content</a>
   <header class="site-header">
     <div class="wrap">
-      <a class="site-title" href="{{ "/" | relURL }}">{{ site.Title }}</a>
+      <a class="site-title" href="{{ "/" | relURL }}"><img class="site-mark" src="{{ "brand/mascot-128.webp" | relURL }}" width="36" height="36" alt="">{{ site.Title }}</a>
       {{- /* Phones: the list sits in a native details menu (no script). From 40rem up, CSS shows the list without opening it. */}}
       <nav class="site-nav" aria-label="Main">
         <details class="nav-menu">
@@ -75,6 +75,7 @@
         {{- end }}{{ end }}
       </ul>
       {{- end }}
+      <p class="credit">&copy; {{ now.Year }} ChiefGyk3D</p>
     </div>
   </footer>
 </body>

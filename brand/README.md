@@ -76,9 +76,10 @@ catches a bad value.
   `static/fonts/orbitron-wght.ttf` with its license text in
   `static/fonts/OFL-Orbitron.txt` (both from google/fonts `ofl/orbitron`). It
   is kept as shipped because the OFL Reserved Font Name "Orbitron" forbids a
-  converted copy under that name. TODO: no `@font-face` or token uses it yet
-  (the token generator has one font face); wire it when a page needs display
-  headings.
+  converted copy under that name. `brand/tokens.json` lists both font faces
+  (`fontFace`); the generator emits one `@font-face` each (`font-display:
+  swap`), and `--font-display` is `"Cyber City", Orbitron, Jost, ...`. The CSS
+  uses it for h1, h2, HUD headings and the wordmark only, never body text.
 - Generated art: `scripts/gen-brand-assets.py` builds the mascot WebP set
   (128/256/512), favicons, the 1200x630 OG card and the social icons from the
   kit; see `brand/assets-build.json` and `brand/ICONS.md`.

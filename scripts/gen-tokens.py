@@ -31,10 +31,12 @@ HEADER = """\
  * check can read them. Nothing else in the CSS hard-codes a color or a font.
  * Specification: brand/README.md.
  *
- * Jost is self-hosted from /fonts (SIL OFL 1.1, license text beside it); no
- * font host is contacted. Cyber City is the logo, wordmark and display font
- * only (--font-display); TODO: its file is not bundled (license document not
- * seen here), so the stack falls through to Jost. The wordmark is used as an
+ * Jost and Orbitron are self-hosted from /fonts (SIL OFL 1.1, license text
+ * beside each); no font host is contacted. Orbitron is the display face for
+ * headings only (--font-display, kit decision X1), never body text. Cyber City
+ * is the logo, wordmark and display font only (--font-display); TODO: its
+ * file is not bundled (license document not seen here), so the stack falls
+ * through to Orbitron, then Jost. The wordmark is used as an
  * image, never typeset.
  */
 """
@@ -69,8 +71,14 @@ def load(path):
                 raise SourceError(
                     "%s: --%s: %r is not a 6-digit uppercase hex color" % (path, name, value)
                 )
-    if not data.get("groups") or "fontFace" not in data:
-        raise SourceError("%s: needs groups and fontFace" % path)
+    faces = data.get("fontFace")
+    if not data.get("groups") or not isinstance(faces, list) or not faces:
+        raise SourceError("%s: needs groups and a fontFace list" % path)
+    for face in faces:
+        if not isinstance(face, dict) or set(face) != {"family", "weight", "src", "format"}:
+            raise SourceError("%s: each fontFace needs family, weight, src and format" % path)
+        if not all(isinstance(v, str) and re.match(r"^[A-Za-z0-9 ./_-]+$", v) for v in face.values()):
+            raise SourceError("%s: fontFace values may only hold letters, digits and ./_- " % path)
     return data
 
 
@@ -95,17 +103,17 @@ def block(selector, groups, level, extra=()):
 
 
 def generate(data):
-    face = data["fontFace"]
     out = [HEADER]
-    out.append(
-        "@font-face {\n"
-        "  font-family: %s;\n"
-        "  font-style: normal;\n"
-        "  font-weight: %s;\n"
-        "  font-display: swap;\n"
-        '  src: url("%s") format("woff2");\n'
-        "}\n" % (face["family"], face["weight"], face["src"])
-    )
+    for face in data["fontFace"]:
+        out.append(
+            "@font-face {\n"
+            "  font-family: %s;\n"
+            "  font-style: normal;\n"
+            "  font-weight: %s;\n"
+            "  font-display: swap;\n"
+            '  src: url("%s") format("%s");\n'
+            "}\n" % (face["family"], face["weight"], face["src"], face["format"])
+        )
     out.append(block(":root", data["groups"], 0, extra=["color-scheme: dark;"]))
     return "\n".join(out) + "\n"
 

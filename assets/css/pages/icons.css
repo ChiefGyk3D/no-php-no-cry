@@ -1,0 +1,56 @@
+/* Social icons (#55). The glyphs in static/brand/icons/*.svg carry no fill and
+ * draw black, so each one is a CSS mask over the link's text color. The class
+ * is icon-<slug>, from data/socials.yaml. The label stays visible beside the
+ * glyph, so the glyph is decoration only. Paths are relative to /css/site.css
+ * (img-src 'self' covers the mask fetch). */
+[class^="icon-"]::before {
+  content: "";
+  display: inline-block;
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  margin-right: var(--space-2);
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.icon-bluesky {
+  --icon: url("../brand/icons/bluesky.svg");
+}
+
+.icon-discord {
+  --icon: url("../brand/icons/discord.svg");
+}
+
+.icon-github {
+  --icon: url("../brand/icons/github.svg");
+}
+
+.icon-instagram {
+  --icon: url("../brand/icons/instagram.svg");
+}
+
+.icon-kick {
+  --icon: url("../brand/icons/kick.svg");
+}
+
+.icon-mastodon {
+  --icon: url("../brand/icons/mastodon.svg");
+}
+
+.icon-threads {
+  --icon: url("../brand/icons/threads.svg");
+}
+
+.icon-tiktok {
+  --icon: url("../brand/icons/tiktok.svg");
+}
+
+.icon-twitch {
+  --icon: url("../brand/icons/twitch.svg");
+}
+
+.icon-youtube {
+  --icon: url("../brand/icons/youtube.svg");
+}

@@ -36,7 +36,7 @@ make_good() {
     local archive_body='<h1>Posts</h1><a href=/posts/index.xml>RSS</a><h2 class=archive-year>2023</h2><ul><li><a href=/posts/sample-post/>Sample post</a></ul>'
     local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/social/>Find me online</a>"
     local post_body='<article><h1>Sample post</h1><time datetime=2023-02-10>February 10, 2023</time> <span class=reading-time>1 min read</span></article>'
-    local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
+    local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta name=theme-color content=#0F0F0F><meta name=twitter:image content=https://test-blog.chiefgyk3d.com/brand/og-card.png><link rel=manifest href=/site.webmanifest><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
     printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${home_body}${shell_close}</body></html>" >"$dir/index.html"
     printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${post_body}${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
     plain_page() { printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><title>t</title></head><body>${shell_open}$1${shell_close}</body></html>" >"$2"; }
@@ -486,7 +486,7 @@ EXPECT_ENV=bogus expect_fail bad-expect-env env-mismatch "$good"
 # Head tags (issue 30): required on the home page and on every post and journal
 # entry; each one removed in turn must be reported by name.
 drop_tag() { sed -i -E "s#<(meta|link)[^>]*${TAG}[^>]*>##" "$1/$PAGE"; }
-for tag in 'name=description' 'rel=canonical' 'rel=icon' 'rel=apple-touch-icon' 'property=og:title' 'property=og:description' 'property=og:type' 'property=og:url' 'property=og:image ' 'property=og:site_name' 'name=twitter:card'; do
+for tag in 'name=description' 'rel=canonical' 'rel=icon' 'rel=apple-touch-icon' 'property=og:title' 'property=og:description' 'property=og:type' 'property=og:url' 'property=og:image ' 'property=og:site_name' 'name=twitter:card' 'name=theme-color' 'name=twitter:image' 'rel=manifest'; do
     TAG="$tag" PAGE=index.html variant "home-without-${tag//[^a-z:]/}" missing-head-tag drop_tag
     TAG="$tag" PAGE=posts/sample-post/index.html variant "post-without-${tag//[^a-z:]/}" missing-head-tag drop_tag
 done
@@ -497,6 +497,8 @@ PAGE=posts/sample-post/index.html variant post-without-png-icon missing-head-tag
 TAG='property=article:published_time' PAGE=posts/sample-post/index.html variant post-without-published-time missing-head-tag drop_tag
 relative_og_image() { sed -i -E 's#(property=og:image content=)https://test-blog.chiefgyk3d.com#\1#' "$1/index.html"; }
 variant relative-og-image bad-head-value relative_og_image
+relative_twitter_image() { sed -i -E 's#(name=twitter:image content=)https://test-blog.chiefgyk3d.com#\1#' "$1/index.html"; }
+variant relative-twitter-image bad-head-value relative_twitter_image
 foreign_og_url() { sed -i -E 's#(property=og:url content=)https://test-blog.chiefgyk3d.com#\1https://example.org#' "$1/index.html"; }
 variant foreign-og-url bad-head-value foreign_og_url
 home_as_article() { sed -i 's#property=og:type content=website#property=og:type content=article#' "$1/index.html"; }

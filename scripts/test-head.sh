@@ -37,6 +37,7 @@ from html.parser import HTMLParser
 
 EXPECTED = {
     ("name", "description"), ("name", "twitter:card"),
+    ("name", "twitter:image"), ("name", "theme-color"),
     ("property", "og:site_name"), ("property", "og:title"),
     ("property", "og:description"), ("property", "og:type"),
     ("property", "og:url"), ("property", "og:image"),
