@@ -29,6 +29,9 @@
           <summary class="btn btn-ghost">Menu</summary>
           <ul>
             <li><a href="{{ "/posts/" | relURL }}">Posts</a></li>
+            {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
+            <li><a href="{{ "/journal/" | relURL }}">Journal</a></li>
+            {{- end }}{{ end }}
             <li><a href="{{ "/products/" | relURL }}">Products</a></li>
             <li><a href="{{ "/social/" | relURL }}">Social</a></li>
             <li><a href="{{ "/support/" | relURL }}">Support</a></li>
@@ -52,19 +55,18 @@
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/index.xml" | relURL }}">RSS</a></li>
       </ul>
-      {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me is the fallback when that file is absent. */ -}}
+      {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me adds more identity links beside it. */ -}}
       {{- with site.Data.socials }}
       <ul class="footer-row social-row" aria-label="Social">
         {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
         <li><a class="icon-{{ $s.icon }}"{{ if $s.rel_me }} rel="me"{{ end }} href="{{ $s.url }}">{{ $s.name }}</a></li>
         {{- end }}{{ end }}
       </ul>
-      {{- else }}
+      {{- end }}
       {{- with site.Params.me }}
       <p class="me-links">
         {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }} <a rel="me" href="{{ $l.url }}">{{ $l.name }}</a>{{ end }}{{ end -}}
       </p>
-      {{- end }}
       {{- end }}
       {{- with site.Data.support }}
       <ul class="footer-row support-row" aria-label="Support">

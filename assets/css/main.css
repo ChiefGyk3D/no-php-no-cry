@@ -403,3 +403,37 @@ details.accordion > :not(summary) {
     border-color: CanvasText;
   }
 }
+
+/* Reusable HUD surfaces (tokens only). */
+.carbon {
+  background: var(--carbon-base);
+  border: 1px solid var(--carbon-line);
+}
+
+.glow {
+  box-shadow: 0 0 1rem var(--glow-strong);
+}
+
+@media print {
+  .skip-link,
+  .site-header,
+  .site-footer {
+    display: none;
+  }
+
+  body {
+    background: Canvas none;
+    color: CanvasText;
+  }
+
+  a {
+    color: LinkText;
+  }
+
+  .carbon,
+  .glow {
+    background: none;
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
