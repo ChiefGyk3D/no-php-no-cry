@@ -26,9 +26,12 @@ make_good() {
     mkdir -p "$dir/posts/sample-post"
     # Heads as Hugo's minifier writes them (attribute quotes dropped where legal).
     # Home is a website page; a post is an article with a published time.
+    # The shell Hugo writes: skip link first, then header, the Main nav, main, footer.
+    local shell_open='<a class=skip-link href=#main>Skip to main content</a><header><a class=site-title href=/>t</a><nav aria-label=Main><ul><li><a href=/posts/>Posts</a></ul></nav></header><main id=main>'
+    local shell_close='</main><footer><a href=/about/#contact>Contact</a></footer>'
     local common='<meta name=description content="A description."><meta name=twitter:card content=summary><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:description content="A description."><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
-    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>" >"$dir/index.html"
-    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body><a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x></body></html>" >"$dir/posts/sample-post/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${shell_close}</body></html>" >"$dir/index.html"
+    printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/></head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
     # Hugo's meta-refresh alias pages: one directory-style, one ending in .html.
     mkdir -p "$dir/2023/02/10/sample-post" "$dir/css"
     alias_page='<!doctype html><html lang=en-us><head><title>https://test-blog.chiefgyk3d.com/posts/sample-post/</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/><meta name=robots content=noindex><meta http-equiv=refresh content="0; url=https://test-blog.chiefgyk3d.com/posts/sample-post/"></head></html>'
@@ -86,6 +89,19 @@ variant() {
 }
 
 append_html() { printf '%s\n' "$APPEND" >>"$1/index.html"; }
+
+# Landmarks: skip link first and targeting main, one header, one nav labeled
+# Main, one main#main, one footer, on every page (not alias stubs).
+swap_index() { sed -i "s|$FROM|$TO|" "$1/index.html"; }
+FROM='<a class=skip-link href=#main>Skip to main content</a>' TO='' variant no-skip-link skip-link swap_index
+FROM='<a class=skip-link href=#main>' TO='<a class=skip-link href=#content>' variant skip-link-wrong-target skip-link swap_index
+FROM='<header>' TO='<div>' variant no-header landmark swap_index
+FROM='</header>' TO='</div>' variant no-header-close landmark swap_index
+FROM='<nav aria-label=Main>' TO='<nav>' variant nav-unlabeled landmark swap_index
+FROM='<footer>' TO='<div>' variant no-footer landmark swap_index
+FROM='<main id=main>' TO='<main>' variant main-without-id landmark swap_index
+FROM='</main>' TO='</main><main id=again></main>' variant two-mains landmark swap_index
+FROM='<footer>' TO='<footer></footer><footer>' variant two-footers landmark swap_index
 
 APPEND='<script>alert(1)</script>' variant inline-script inline-script append_html
 APPEND='<style>body{color:red}</style>' variant style-element style-element append_html

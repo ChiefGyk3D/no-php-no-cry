@@ -1,0 +1,5 @@
+# Support row in the footer: name and url (https only). Order is display order.
+# TODO: add Tip, Ko-fi and Patreon with their real URLs (not in the repo;
+# owner to supply and recheck before publish).
+- name: Shop
+  url: https://shop.chiefgyk3d.com

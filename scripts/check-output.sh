@@ -11,7 +11,7 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
+# skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, missing-output.
@@ -48,6 +48,9 @@
 # sitemap, and every page carries noindex. Production allows everything, names
 # the sitemap on the site's own host, and no page carries noindex (alias pages
 # are meta refresh stubs and always carry one). A tree that mixes the two fails.
+#
+# Landmarks: every page has the skip link first (to #main), one header, one
+# nav aria-label=Main, one main#main and one footer (scripts/check-landmarks.py).
 #
 # Head: the home page and every post and journal entry carry a description,
 # canonical and icon links, Open Graph and Twitter card tags (og:url and
@@ -230,6 +233,13 @@ while IFS= read -r -d '' f; do
     while IFS= read -r rule; do
         [[ -n "$rule" ]] && report "$rule" "$rel"
     done < <(decoded_findings "$site_host" "$f")
+
+    # Landmarks and the skip link, on every page except Hugo's alias stubs.
+    if ! grep -qEi 'http-equiv=["'"'"']?refresh' "$f"; then
+        while IFS= read -r rule; do
+            [[ -n "$rule" ]] && report "$rule" "$rel"
+        done < <(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-landmarks.py" "$f")
+    fi
 
     # Absolute URLs inside tags that load something (anchors are not assets).
     urls="$(grep -oEi "$asset_tag" "$f" | grep -oEi "$url_attr" || true)"
