@@ -34,7 +34,7 @@
   <h2 id="find-me" class="hud-heading">Find me online</h2>
   <ul class="home-social">
     {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
-    <li><a class="icon-{{ $s.icon }}"{{ if $s.rel_me }} rel="me"{{ end }} href="{{ $s.url }}">{{ $s.name }}</a></li>
+    <li><a class="icon-{{ $s.icon }}" href="{{ $s.url }}">{{ $s.name }}</a></li>
     {{- end }}{{ end }}
   </ul>
 </section>
