@@ -8,11 +8,6 @@
   font-size: var(--text-lg, var(--text-base));
 }
 
-.resume-aka {
-  color: var(--muted);
-  font-size: var(--text-base);
-}
-
 .resume-list {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
@@ -73,7 +68,6 @@
   }
 
   .resume-title,
-  .resume-aka,
   .resume-skills dt {
     color: CanvasText;
   }

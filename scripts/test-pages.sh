@@ -305,6 +305,36 @@ for coin in btc xmr eth sol; do
     fi
 done
 
+# The whole built file must equal a fresh encoding of data/support.yaml, so the
+# encoded modules are verified and not only the <desc> text. Needs the
+# hash-pinned segno from scripts/requirements-qr.txt (network access to the
+# package index); a failure to install is a failure here, not a skip.
+if out="$("$root/scripts/gen-support-qr.sh" --check --dir "$pub/support" 2>&1)"; then
+    pass "built QR files equal a fresh encoding of data/support.yaml"
+else
+    fail "built QR files differ from a fresh encoding: $out"
+fi
+# Guard: a file whose <desc> is intact but whose modules changed, and one whose
+# <desc> changed but whose modules did not, must each fail the same check.
+qrbad="$work/qrbad"
+mkdir -p "$qrbad"
+cp "$pub"/support/qr-*.svg "$qrbad/"
+sed -i 's/M4 4.5h7/M4 4.5h6/' "$qrbad/qr-btc.svg"
+if cmp -s "$qrbad/qr-btc.svg" "$pub/support/qr-btc.svg"; then
+    fail "guard: could not alter the modules of the test copy"
+elif "$root/scripts/gen-support-qr.sh" --check --dir "$qrbad" >/dev/null 2>&1; then
+    fail "guard: altered modules with an intact <desc> were accepted"
+else
+    pass "guard: altered modules with an intact <desc> are rejected"
+fi
+cp "$pub/support/qr-btc.svg" "$qrbad/qr-btc.svg"
+sed -i 's#<desc>bc1q#<desc>bc1p#' "$qrbad/qr-btc.svg"
+if "$root/scripts/gen-support-qr.sh" --check --dir "$qrbad" >/dev/null 2>&1; then
+    fail "guard: an altered <desc> with intact modules was accepted"
+else
+    pass "guard: an altered <desc> with intact modules is rejected"
+fi
+
 # The CSP gained no frame-src (Ko-fi stays a link-out until the framing test).
 if grep -i 'Content-Security-Policy' "$pub/_headers" | grep -qi 'frame-src'; then
     fail "_headers has a frame-src"

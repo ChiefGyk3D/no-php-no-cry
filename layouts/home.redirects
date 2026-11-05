@@ -5,12 +5,19 @@
   slash, and a mistyped one may not). An alias ending in .html is a file, so it
   gets exactly one line. With no aliases the file holds only the
   comment line. Sorted and de-duplicated so the file is stable between builds.
-  Cloudflare allows 2000 static rules.
+  An alias_fragment must match the fragment grammar (letters, digits, '.', '_',
+  '~', '-') or the build fails. Cloudflare allows 2000 static rules.
 */ -}}
 {{- $lines := slice -}}
 {{- range site.Pages -}}
   {{- $target := .RelPermalink -}}
-  {{- with .Params.alias_fragment }}{{ $target = printf "%s#%s" $target . }}{{ end -}}
+  {{- with .Params.alias_fragment -}}
+    {{- $frag := printf "%v" . -}}
+    {{- if not (findRE `^[A-Za-z0-9._~-]+$` $frag 1) -}}
+      {{- errorf "alias_fragment %q on %s must use only letters, digits, '.', '_', '~' and '-'" $frag $.File.Path -}}
+    {{- end -}}
+    {{- $target = printf "%s#%s" $target $frag -}}
+  {{- end -}}
   {{- range .Aliases -}}
     {{- $from := strings.TrimSuffix "/" . -}}
     {{- if not (hasPrefix $from "/") }}{{ $from = printf "/%s" $from }}{{ end -}}

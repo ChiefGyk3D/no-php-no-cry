@@ -2,8 +2,6 @@
 # names, no job dates, no callsign, no grid square. Source: the GitHub profile
 # README (approved for reuse). Wording is a draft for ChatGPT/maintainer review.
 name: ChiefGyk3D
-# TODO(maintainer): optional, his call at review. Uncomment to show "aka Moshe".
-# aka: Moshe
 title: Cybersecurity Engineer (CISSP)
 summary:
   - 15 years in IT and cybersecurity, working across IAM, EDR, SOAR, ZTNA, SASE and cloud security.

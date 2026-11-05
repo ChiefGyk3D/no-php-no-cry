@@ -2,7 +2,10 @@
 """Write static/support/qr-<coin>.svg for every crypto entry in data/support.yaml.
 
 Usage (through scripts/gen-support-qr.sh, which installs the pinned segno):
-    gen-support-qr.py [--check]
+    gen-support-qr.py [--check] [--dir DIR]
+
+--dir names the directory to write to or check (default static/support). The
+page tests use it to compare the built site's copies with a fresh encoding.
 
 The data file is read with a small line parser (the Python standard library has
 no YAML reader); it understands only the "- key: value" list that
@@ -49,9 +52,13 @@ def render(text):
 
 
 def main():
-    check = "--check" in sys.argv[1:]
+    args = sys.argv[1:]
+    check = "--check" in args
     out_dir = root / "static" / "support"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if "--dir" in args:
+        out_dir = pathlib.Path(args[args.index("--dir") + 1]).resolve()
+    if not check:
+        out_dir.mkdir(parents=True, exist_ok=True)
     bad = 0
     n = 0
     for e in entries(root / "data" / "support.yaml"):
@@ -62,11 +69,11 @@ def main():
         target = out_dir / ("qr-%s.svg" % e["coin"])
         if check:
             if not target.exists() or target.read_bytes() != data:
-                print("differs: %s" % target.relative_to(root))
+                print("differs: %s" % target)
                 bad = 1
         else:
             target.write_bytes(data)
-            print("wrote %s" % target.relative_to(root))
+            print("wrote %s" % target)
     if n != 4:
         print("expected 4 crypto entries, found %d" % n)
         return 1
