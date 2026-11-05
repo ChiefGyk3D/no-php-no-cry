@@ -4,6 +4,11 @@
 uses no analytics, cookies, embeds, or third-party requests, and collects
 nothing.
 
+The collector is built but not deployed (issue 84): see
+`docs/analytics-deploy.md`. The replacement text is drafted in
+`docs/privacy-with-analytics.md` and goes live with the first deploy that binds
+the database.
+
 TODO (issue 84): when analytics lands, the same pull request that adds the
 collector must change this text to say what is collected, why, and how to opt
 out. The page, the collector and `static/_headers` change together; do not add a

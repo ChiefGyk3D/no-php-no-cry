@@ -68,9 +68,67 @@ make_good
 printf 'x\n' >"$site/posts/a/_worker-extra.mjs"
 expect_fail "nested _worker* file" reserved-name
 
+# _routes.json: allowed at the root only, and only byte for byte the repository's
+# static/_routes.json, which must itself be the strict shape (routes_policy_ok).
 make_good
-printf '{}\n' >"$site/_routes.json"
-expect_fail "_routes.json" reserved-name
+cp "$root/static/_routes.json" "$site/_routes.json"
+rc=0
+out="$("$checker" "$site" 2>&1)" || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: the repository's _routes.json passes"
+else
+    echo "FAIL: the repository's _routes.json was rejected (rc=$rc)"
+    echo "$out"
+    failures=$((failures + 1))
+fi
+
+make_good
+printf '{"version":1,"include":["/*"],"exclude":[]}\n' >"$site/_routes.json"
+expect_fail "_routes.json that differs from the repository's" routes-differ
+
+make_good
+cp "$root/static/_routes.json" "$site/posts/a/_routes.json"
+expect_fail "_routes.json below the root" unexpected-file
+
+make_good
+cp "$root/static/_routes.json" "$work/real-routes.json"
+ln -s "$work/real-routes.json" "$site/_routes.json"
+expect_fail "_routes.json as a symlink" routes-invalid
+
+make_good
+mkdir "$site/_routes.json"
+expect_fail "_routes.json as a directory" routes-invalid
+
+# routes_bad <name> <json>: the site file equals an expected file that is not the
+# strict shape, so only the shape rule can reject it.
+routes_bad() {
+    make_good
+    printf '%s\n' "$2" >"$work/bad-routes.json"
+    cp "$work/bad-routes.json" "$site/_routes.json"
+    local out rc=0
+    out="$(ROUTES_FILE="$work/bad-routes.json" "$checker" "$site" 2>&1)" || rc=$?
+    if [[ $rc -eq 1 && "$out" == *"[routes-invalid]"* ]]; then
+        echo "ok: routes shape: $1"
+    else
+        echo "FAIL: routes shape: $1 (rc=$rc, wanted rc=1 and [routes-invalid])"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+routes_bad "not JSON" 'not json'
+routes_bad "a list" '[]'
+routes_bad "version 2" '{"version":2,"include":["/*"],"exclude":[]}'
+routes_bad "version true" '{"version":true,"include":["/*"],"exclude":[]}'
+routes_bad "missing exclude" '{"version":1,"include":["/*"]}'
+routes_bad "extra key" '{"version":1,"include":["/*"],"exclude":[],"x":1}'
+routes_bad "empty include" '{"version":1,"include":[],"exclude":["/a/*"]}'
+routes_bad "rule without a slash" '{"version":1,"include":["*"],"exclude":[]}'
+routes_bad "rule with a space" '{"version":1,"include":["/a b"],"exclude":[]}'
+routes_bad "rule with a backslash" '{"version":1,"include":["/a\\\\b"],"exclude":[]}'
+routes_bad "rule over 100 characters" "{\"version\":1,\"include\":[\"/$(printf 'a%.0s' {1..100})\"],\"exclude\":[]}"
+routes_bad "non-string rule" '{"version":1,"include":["/*"],"exclude":[5]}'
+routes_bad "duplicate key" '{"version":1,"include":["/*"],"include":["/x"],"exclude":[]}'
+routes_bad "101 rules" "{\"version\":1,\"include\":[\"/*\"],\"exclude\":[$(printf '"/a%s",' {1..100} | sed 's/,$//')]}"
 
 make_good
 mkdir "$site/functions"

@@ -15,13 +15,13 @@
 #      (headers_policy_ok), so nothing detaches or overrides a header per path.
 
 # artifact_name_ok <path relative to the site root>: succeeds for a file the
-# build may carry. The two control files only at the root; everything else needs
+# build may carry. The three control files only at the root; everything else needs
 # a listed extension, so no extension, a trailing dot, a dotfile and an unlisted
 # extension (json, map, php, js, ...) all fail. /theme.js is checked by the caller.
 artifact_name_ok() {
     local base="${1##*/}" ext
     case "$1" in
-        _headers | _redirects) return 0 ;;
+        _headers | _redirects | _routes.json) return 0 ;;
     esac
     [[ "$base" == *.* && "$base" != .* && "$base" != *. ]] || return 1
     ext="${base##*.}"
@@ -74,4 +74,43 @@ headers_policy_ok() {
         /^[^ \t]/ { blocks++; if ($0 != "/*") bad = 1; next }
         { line = $0; sub(/^[ \t]+/, "", line); if (substr(line, 1, 1) == "!") bad = 1; if (blocks != 1) bad = 1 }
         END { exit (blocks != 1 || bad) }' "$1"
+}
+
+# routes_policy_ok <_routes.json file>: succeeds when the file is the strict
+# subset of Cloudflare's routing file this site uses: a JSON object with exactly
+# the keys version (1), include and exclude, both non-empty-or-empty lists of
+# strings; every rule starts with "/", is at most 100 characters and has no
+# space, control character or backslash; include and exclude together hold at
+# most 100 rules; "include" has at least one rule; no duplicate JSON keys. The
+# file only chooses which paths run the Pages Function; it cannot add code, but
+# a loose file could silently send every asset request through the Function and
+# spend the free request quota, so the shape is pinned. Needs python3.
+routes_policy_ok() {
+    python3 -I - "$1" <<'PY'
+import json, sys
+
+def pairs(items):
+    keys = [k for k, _ in items]
+    if len(keys) != len(set(keys)):
+        raise ValueError("duplicate key")
+    return dict(items)
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        data = json.load(f, object_pairs_hook=pairs)
+except (OSError, ValueError, RecursionError):
+    sys.exit(1)
+
+def rule_ok(r):
+    return (isinstance(r, str) and r.startswith("/") and len(r) <= 100
+            and all(32 < ord(c) < 127 and c != "\\" for c in r))
+
+ok = (isinstance(data, dict) and set(data) == {"version", "include", "exclude"}
+      and data["version"] == 1 and type(data["version"]) is int
+      and isinstance(data["include"], list) and isinstance(data["exclude"], list)
+      and len(data["include"]) >= 1
+      and len(data["include"]) + len(data["exclude"]) <= 100
+      and all(rule_ok(r) for r in data["include"] + data["exclude"]))
+sys.exit(0 if ok else 1)
+PY
 }
