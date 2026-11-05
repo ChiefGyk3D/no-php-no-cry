@@ -227,7 +227,7 @@ printf 'x\n' >"$site/trailing."
 expect_fail "trailing dot" unexpected-file
 
 make_good
-for f in a.html b.css c.svg d.xml e.txt f.png g.jpg h.jpeg i.gif j.webp k.avif l.ico m.woff n.woff2 p.ttf O.PNG; do
+for f in a.html b.css c.svg d.xml e.txt f.png g.jpg h.jpeg i.gif j.webp k.avif l.ico m.woff n.woff2 p.ttf q.webmanifest O.PNG; do
     printf 'x\n' >"$site/$f"
 done
 printf '<svg xmlns="http://www.w3.org/2000/svg"/>\n' >"$site/c.svg"

@@ -109,6 +109,16 @@ if grep -q 'color-scheme: dark;' "$tokens"; then ok ":root declares color-scheme
 if grep -q -e '^ *--font-display: "Cyber City"' "$tokens"; then ok "Cyber City is a display token"; else bad "--font-display token missing"; fi
 if find "$root/static" -type f -iname '*cyber*' | grep -q .; then bad "a Cyber City font file is bundled"; else ok "no Cyber City font file is bundled"; fi
 
+# Orbitron: one self-hosted @font-face (ttf, swap) and a display token that names it.
+if grep -q -e '^  font-family: Orbitron;' "$tokens" && grep -q -e 'src: url("../fonts/orbitron-wght.ttf") format("truetype");' "$tokens"; then ok "Orbitron has a self-hosted ttf @font-face"; else bad "no Orbitron @font-face"; fi
+if [[ "$(grep -c -e '^  font-display: swap;' "$tokens")" -eq 2 ]]; then ok "both @font-face rules use font-display: swap"; else bad "@font-face rules lack font-display: swap"; fi
+if grep -q -e '^ *--font-display: .*Orbitron' "$tokens"; then ok "--font-display names Orbitron"; else bad "--font-display does not name Orbitron"; fi
+if grep -q -e '^ *--font-body: Jost' "$tokens" && ! grep -q -e '^ *--font-body:.*Orbitron' "$tokens"; then ok "body font is Jost, never Orbitron"; else bad "body font token names Orbitron"; fi
+# The display font is used on headings only: --font-display appears in main.css
+# for h1/h2/HUD headings and the wordmark, and body never sets it.
+if grep -n 'var(--font-display)' "$root/assets/css/main.css" | grep -q .; then ok "main.css uses --font-display"; else bad "--font-display is unused"; fi
+if awk '/^body *\{/,/^\}/' "$root/assets/css/main.css" | grep -q 'font-display'; then bad "body sets the display font"; else ok "body does not set the display font"; fi
+
 # --- token generator ------------------------------------------------------
 expect_pass "tokens.css is current with brand/tokens.json" python3 -I "$gen" --check
 python3 -I "$gen" --out "$work/gen1.css"

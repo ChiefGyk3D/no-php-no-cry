@@ -53,7 +53,7 @@
 # nav aria-label=Main, one main#main and one footer (scripts/check-landmarks.py).
 #
 # Head: the home page and every post and journal entry carry a description,
-# canonical and icon links, Open Graph and Twitter card tags (og:url and
+# theme-color, a manifest link, canonical and icon links, Open Graph and Twitter card tags (og:url and
 # og:image absolute on the site's own host); entries are og:type article with
 # article:published_time, the home page is a website.
 #
@@ -303,14 +303,14 @@ head_link() {
 # check_head <file> <website|article>
 check_head() {
     local f="$1" kind="$2" rel="${1#"$dir"/}" pair attr name val
-    for pair in name:description name:twitter:card property:og:title property:og:description \
+    for pair in name:description name:twitter:card name:twitter:image name:theme-color property:og:title property:og:description \
         property:og:type property:og:url property:og:image property:og:site_name; do
         attr="${pair%%:*}"
         name="${pair#*:}"
         val="$(head_meta "$f" "$attr" "$name")"
         [[ -z "$val" ]] && report missing-head-tag "$rel (${name})"
     done
-    for name in canonical apple-touch-icon; do
+    for name in canonical apple-touch-icon manifest; do
         head_link "$f" "$name" || report missing-head-tag "$rel (link rel=${name})"
     done
     # Two rel=icon links (the SVG and the PNG).
@@ -323,6 +323,10 @@ check_head() {
             report bad-head-value "$rel (${name} must be an absolute URL on ${site_host})"
         fi
     done
+    val="$(head_meta "$f" name twitter:image)"
+    if [[ -n "$val" && ! "$val" =~ ^https://${site_host//./\\.}/ ]]; then
+        report bad-head-value "$rel (twitter:image must be an absolute URL on ${site_host})"
+    fi
     val="$(head_meta "$f" property og:type)"
     if [[ -n "$val" && "$val" != "$kind" ]]; then
         report bad-head-value "$rel (og:type must be ${kind})"
