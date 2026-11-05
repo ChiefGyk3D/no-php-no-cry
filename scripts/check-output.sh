@@ -459,6 +459,8 @@ else
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
         report weak-csp "_headers (script-src must be exactly 'self', once, with no script-src-elem or script-src-attr)"
+    elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
+        report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi
 fi
 
