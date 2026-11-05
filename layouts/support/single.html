@@ -1,49 +1,71 @@
 {{- /*
-  /support/ ("accordion stack"): the four ways to pay are visible buttons, then
-  one native details block for crypto. Buttons come from the link entries in
-  data/support.yaml (those with a "button" label); crypto from the entries with
-  kind: crypto. No script: the page works as plain HTML.
+  /support/: the old support.chiefgyk3d.com layout in the site's own brand. Four
+  ways to chip in as tiles (the link entries in data/support.yaml that carry a
+  "button" label), then one panel per cryptocurrency (the entries with kind:
+  cryptocurrency): coin mark, QR code with the coin mark in its middle, the
+  address as selectable text, and a Copy button.
+
+  Copy buttons are progressive enhancement. The address is always visible text
+  (selectable with one click). The button carries the hidden attribute and
+  /copy.js, the one pinned script (docs/pinned-script.md), reveals it; with no
+  script there is no dead control. The script is included here, at the end of
+  this page's article, so no other page loads it.
 
   StreamElements and Patreon send X-Frame-Options: sameorigin, so they are link-outs
   only. TODO(ko-fi-embed): Ko-fi is a link-out for now. A click-to-load embed
   facade (one iframe made only on click) needs frame-src https://ko-fi.com in
   static/_headers, which waits on a real-browser framing test (Ko-fi's framing
   headers were not observable from a script). Do not add frame-src before then.
-  TODO(copy-buttons): copy buttons need a second pinned script; the pin
-  mechanism (scripts/pin-theme.sh and the checks) is hard-wired to /theme.js,
-  so they are not shipped. Addresses are in <code> with user-select: all.
 */ -}}
 {{ define "main" }}
 <article class="page-support">
   <h1>{{ .Title }}</h1>
   <p class="lede">Want to help keep the streams, videos, and projects going? Pick an option below, and thanks for the support.</p>
-  <ul class="support-buttons">
+  <ul class="tile-grid support-tiles">
     {{- range site.Data.support }}{{ if and .button (strings.HasPrefix .url "https://") }}
-    <li><a class="btn btn-primary" href="{{ .url }}" target="_blank" rel="noopener">{{ .button }}<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+    <li class="tile-item">
+      <a class="tile support-tile" href="{{ .url }}" target="_blank" rel="noopener">
+        <span class="support-tile-name">{{ .button }}</span>
+        {{- with .blurb }}
+        <span class="support-tile-blurb">{{ . }}</span>
+        {{- end }}
+        <span class="visually-hidden"> (opens in a new tab)</span>
+      </a>
+    </li>
     {{- end }}{{ end }}
   </ul>
   <p class="meta">StreamElements tips get a live thank-you during the stream.</p>
 
-  <details class="accordion crypto">
-    <summary><strong>Crypto</strong> <span class="summary-note">Bitcoin, Monero, Ethereum, and Solana, with QR codes</span></summary>
+  <section class="support-coins" aria-labelledby="coins-h">
+    <h2 id="coins-h" class="hud-heading">Cryptocurrency tips</h2>
+    <p>Scan a code with your wallet app, or copy the address. Check the first and last few characters before you send.</p>
     <ul class="coin-list">
-      {{- range site.Data.support }}{{ if eq .kind "crypto" }}
-      <li class="coin">
-        <h2 class="coin-name">{{ .name }}</h2>
-        <code class="address">{{ .address }}</code>
-        <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="148" height="148" alt="QR code for the {{ .name }} address" loading="lazy">
+      {{- range site.Data.support }}{{ if eq .kind "cryptocurrency" }}
+      <li class="coin panel">
+        <div class="coin-head">
+          <img class="coin-mark" src="{{ printf "support/coin-%s.svg" .coin | relURL }}" width="40" height="40" alt="">
+          <h3 class="coin-name">{{ .name }}</h3>
+          <span class="coin-ticker">{{ .ticker }}</span>
+        </div>
+        <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
+        <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+        <div class="coin-actions">
+          <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
+          <span class="copy-status" role="status"></span>
+        </div>
       </li>
       {{- end }}{{ end }}
     </ul>
-  </details>
+  </section>
 
   <section class="support-social" aria-labelledby="support-social-h">
-    <h2 id="support-social-h">Also find me on</h2>
+    <h2 id="support-social-h" class="hud-heading">Also find me on</h2>
     {{- /* TODO: move these two into data/socials.yaml when the socials hub lands (issue 60). Pixelfed is not linked until the sync is fixed (maintainer ruling, issue 62). */}}
     <ul class="social-links">
       <li><a href="https://www.instagram.com/chiefgyk3d/" target="_blank" rel="noopener">Instagram<span class="visually-hidden"> (opens in a new tab)</span></a></li>
       <li><span class="coming-soon">Pixelfed <span class="meta">(coming soon)</span></span></li>
     </ul>
   </section>
+  <script src="{{ "copy.js" | relURL }}"></script>
 </article>
 {{ end }}

@@ -1,2 +1,13 @@
-# Pinned QR generator for scripts/gen-support-qr.py (pure Python, no dependencies).
+# Pinned packages for scripts/gen-support-qr.py (install with --require-hashes).
+# segno encodes the codes (pure Python, no dependencies). opencv-python-headless
+# and numpy are only used by --decode, which proves each rendered SVG reads back
+# to the exact address; numpy has one wheel per CPython 3.12, 3.13 and 3.14 on
+# 64-bit Linux, so a runner on another interpreter or platform needs a line added.
 segno==1.6.6 --hash=sha256:28c7d081ed0cf935e0411293a465efd4d500704072cdb039778a2ab8736190c7
+numpy==2.5.4 \
+    --hash=sha256:fbde6962867ee75b48b0ee29b2b9372ec5d617799dbaf38e82dc0596f2f7738a \
+    --hash=sha256:6ffa07666f8da0eef81d149934a626d0d95fbd6838432a33e66245423a9062c0 \
+    --hash=sha256:d549420b8858885cea8838a727842249218b9c1da24dd517e25c9c7a948310a3
+opencv-python-headless==5.0.0.93 \
+    --hash=sha256:09a872a157c1376ab922a69bbf22f9a95bcc7b658a9d8b436a60212b02b2eeb4 \
+    --hash=sha256:ed709fdf9aa0bd1f2ed8549e71d19449b03a675bb581eb292285f6861953be37
