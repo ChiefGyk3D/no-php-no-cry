@@ -61,7 +61,7 @@ make_good() {
 RED
     cat >"$dir/_headers" <<'HDR'
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self'
   X-Content-Type-Options: nosniff
 HDR
 }
@@ -349,6 +349,8 @@ csp_script_src_elem() { sed -i "s#script-src 'self'#script-src 'self'; script-sr
 variant csp-script-src-elem weak-csp csp_script_src_elem
 csp_script_src_attr() { sed -i "s#script-src 'self'#script-src 'self'; script-src-attr 'unsafe-hashes'#" "$1/_headers"; }
 variant csp-script-src-attr weak-csp csp_script_src_attr
+csp_no_manifest_src() { sed -i "s#manifest-src 'self'; ##" "$1/_headers"; }
+variant csp-without-manifest-src weak-csp csp_no_manifest_src
 csp_default_open() { sed -i "s#default-src 'none'#default-src 'self'#" "$1/_headers"; }
 variant csp-default-src-self weak-csp csp_default_open
 csp_second_line() { printf '/other/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "'none'" >>"$1/_headers"; }
