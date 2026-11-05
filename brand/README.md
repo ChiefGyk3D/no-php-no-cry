@@ -90,12 +90,17 @@ The master is Renegade Tux (kit decision T): the 900 px JPEG
 `approved-assets.txt`), the source for any new avatar or profile art. It is not
 committed here. No star variant is ever used.
 
-Two approved derivative files are committed, both star-free and checked by eye
-(details in `approved-assets.txt`):
+Approved derivatives are committed under `static/brand/`, all star-free and
+listed with sha256 in `approved-assets.txt`:
 
-- `static/brand/penguin-color.png`: full-color penguin on the dark ground (avatar, Open Graph).
-- `static/brand/penguin-glyph.svg`: single-color glyph, used as the SVG favicon.
-  The brand is dark only; this is not a light-mode asset.
+- `penguin-color.png`: full-color penguin on the dark ground (avatar source).
+- `penguin-glyph.svg`: single-color glyph, used as the SVG favicon. The brand
+  is dark only; this is not a light-mode asset.
+- `mascot-128.webp`, `mascot-256.webp`, `mascot-512.webp`: the mascot WebP set.
+- `favicon-32.png`, `favicon-192.png`, `favicon-512.png` and
+  `apple-touch-icon-180.png`: the PNG favicon and touch icons.
+- `og-card.png`: the 1200x630 Open Graph image, the default in `head-meta.html`.
+- `icons/`: the ten social glyphs (see `ICONS.md`).
 
 `.brand-mark` sizes the image. Third-party marks are not republished; see
 `EXCLUDED.md`.
