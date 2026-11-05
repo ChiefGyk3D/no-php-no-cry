@@ -1,0 +1,66 @@
+{
+  "note": "Written by scripts/gen-brand-assets.py. Output bytes depend on the Pillow build.",
+  "pillow": "11.1.0",
+  "sources": {
+    "master": {
+      "kit_path": "assets/masters/mascot-rifle-penguin-900.jpg",
+      "sha256": "82edc2004ced79de845a04c466ac39604ffd3e9c961e89f205f4bee4be361189"
+    },
+    "kit_derivative_001": {
+      "kit_path": "assets/derivatives/penguin-color.png",
+      "sha256": "0f34d05fe06348bb158190269cb85f28693a2f37b789c3d6808e0259d72fc4d8"
+    },
+    "simple_icons_16.36.0": {
+      "twitch": "dbe27bc02a01b8d89b6259cacef328c9fa70bb13c29f38c36eb1421863f6f0b6",
+      "youtube": "5038808acbbc4e6edda16cbeb1cc6dec80e4e4ee4e227e039c41229fa222aa8c",
+      "kick": "ef6002e2eedaeb685a23ccabcafa970f04b53f109bf931d6c645fc1957a0d135",
+      "mastodon": "b27197d1e47e19f31a80bf5d08b3dc9a8d073083436215f672e8e1016178cbe4",
+      "bluesky": "49752973164fbbf4464fbb4776f011c1eff207e5d7ad9254e031af025814eb75",
+      "tiktok": "6f54ac8d325faacea8935bdc44cbed60206a6b408641799e5fea1cba7c1a0af7",
+      "instagram": "f53af2d1fc5292ba1433b5c1faf50005ce6a997fa302d1816989929f379a59dc",
+      "threads": "3511f687f9a5713a3700130627f8d3611fb4cd54d3a9757071c93652c7fe16e8",
+      "discord": "1d364b72c9eaf1fe37d17ca88cd8fb541308dc0f3b09e2ab3b824f380b3493d5",
+      "github": "3bf8cceead820aec50d4ee825a3fd02c5a1cd6665cc9cf4cbf3d9c8861a204bb"
+    }
+  },
+  "parameters": {
+    "mascot_webp": {
+      "sizes": [
+        128,
+        256,
+        512
+      ],
+      "quality": 82,
+      "method": 6,
+      "resample": "LANCZOS"
+    },
+    "og_card": {
+      "size": [
+        1200,
+        630
+      ],
+      "ground": "#0F0F0F",
+      "accent": "#FBB03B"
+    }
+  },
+  "outputs": {
+    "static/brand/apple-touch-icon-180.png": "5956b90d95ba3c761a4e3721e147c2366c9aa1ebebfbaeff693b5c7dfb369c24",
+    "static/brand/favicon-192.png": "6f488d9c9c97d0a36e11aaff1585a6562113b72574b00932526f7b06b0ac42f8",
+    "static/brand/favicon-32.png": "4a3f05545b76221fc001accf13c08c78c9bd5acd09f3d8012fe08bf901a5ddc1",
+    "static/brand/favicon-512.png": "ac9cec7702751bfc92f868b5940ec88742cd8e07a46ca033e8bb324e21c4ac93",
+    "static/brand/icons/bluesky.svg": "49752973164fbbf4464fbb4776f011c1eff207e5d7ad9254e031af025814eb75",
+    "static/brand/icons/discord.svg": "1d364b72c9eaf1fe37d17ca88cd8fb541308dc0f3b09e2ab3b824f380b3493d5",
+    "static/brand/icons/github.svg": "3bf8cceead820aec50d4ee825a3fd02c5a1cd6665cc9cf4cbf3d9c8861a204bb",
+    "static/brand/icons/instagram.svg": "f53af2d1fc5292ba1433b5c1faf50005ce6a997fa302d1816989929f379a59dc",
+    "static/brand/icons/kick.svg": "ef6002e2eedaeb685a23ccabcafa970f04b53f109bf931d6c645fc1957a0d135",
+    "static/brand/icons/mastodon.svg": "b27197d1e47e19f31a80bf5d08b3dc9a8d073083436215f672e8e1016178cbe4",
+    "static/brand/icons/threads.svg": "3511f687f9a5713a3700130627f8d3611fb4cd54d3a9757071c93652c7fe16e8",
+    "static/brand/icons/tiktok.svg": "6f54ac8d325faacea8935bdc44cbed60206a6b408641799e5fea1cba7c1a0af7",
+    "static/brand/icons/twitch.svg": "dbe27bc02a01b8d89b6259cacef328c9fa70bb13c29f38c36eb1421863f6f0b6",
+    "static/brand/icons/youtube.svg": "5038808acbbc4e6edda16cbeb1cc6dec80e4e4ee4e227e039c41229fa222aa8c",
+    "static/brand/mascot-128.webp": "49a01b2099b62a84d796252168b1e2ac91a7fe7efe641cccf6cbce11e69e4071",
+    "static/brand/mascot-256.webp": "a5b063148961741eaa29e0fa775f5e30098d7677435363228f0f3671ce91967d",
+    "static/brand/mascot-512.webp": "5403dfd4a2c4b41dccc2805360b14928357a5ceb3426409bb9093dc8c1f09a51",
+    "static/brand/og-card.png": "89cb11c9886193a7bb39ca6b90f0fe67dff4dd8a996c5c069d79405ef488d576"
+  }
+}

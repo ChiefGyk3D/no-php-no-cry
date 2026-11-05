@@ -143,7 +143,7 @@ expect_pass "asset manifest matches the tree" "$assets" "$root"
 mk_tree() {
     rm -rf "$1"
     mkdir -p "$1"
-    cp -R "$root/static" "$root/brand" "$1/"
+    cp -R "$root/static" "$root/brand" "$root/content" "$root/assets" "$1/"
 }
 
 mk_tree "$work/t1"
@@ -169,6 +169,70 @@ expect_fail "banned file name is caught" "banned" "$assets" "$work/t5"
 mk_tree "$work/t6"
 rm "$work/t6/static/fonts/OFL.txt"
 expect_fail "font without license text is caught" "OFL.txt" "$assets" "$work/t6"
+
+mk_tree "$work/t7"
+rm "$work/t7/static/fonts/OFL-Orbitron.txt"
+expect_fail "Orbitron without its own license text is caught" "OFL-Orbitron.txt" "$assets" "$work/t7"
+
+mk_tree "$work/t8"
+cp "$work/t8/static/fonts/orbitron-wght.ttf" "$work/t8/static/fonts/Cyber City.otf"
+expect_fail "a Cyber City font file is caught" "banned" "$assets" "$work/t8"
+
+mk_tree "$work/t9"
+cp "$work/t9/static/brand/og-card.png" "$work/t9/content/posts/sample-post/extra.png"
+expect_fail "unlisted image under content/ is caught" "extra.png is not in approved-assets.txt" "$assets" "$work/t9"
+
+mk_tree "$work/t10"
+cp "$work/t10/static/brand/og-card.png" "$work/t10/static/brand/star-card.png"
+expect_fail "a starred file name is caught" "banned" "$assets" "$work/t10"
+
+# Every tracked image and font is listed (git is the source of truth).
+if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
+    tracked="$(git -C "$root" ls-files | grep -i -E '\.(png|jpe?g|webp|gif|ico|avif|woff2?|ttf|otf|svg)$' || true)"
+    if [[ -z "$tracked" ]]; then bad "no tracked images found (check is blind)"; fi
+    unlisted=0
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        if ! grep -q -F -e "$f | " "$root/brand/approved-assets.txt"; then
+            printf 'tracked binary not in approved-assets.txt: %s\n' "$f"
+            unlisted=1
+        fi
+    done <<<"$tracked"
+    if ((unlisted)); then bad "tracked binaries missing from the manifest"; else ok "every tracked image and font is in approved-assets.txt"; fi
+fi
+
+# No excluded or starred file is present under static/ (names from
+# brand/EXCLUDED.md), and no Cyber City file is tracked.
+if find "$root/static" -type f | grep -i -E 'star|twitter|soundcloud|tinker|do not use|linux ?penguin|linux[ _]a[ _]v2|linux white|freebsd|kisspng|png-clipart|png-transparent|beasty|banhammer|dealwithit|penguinhype|penguinrip|cyber|[.]stl$|[.]pdf$' >"$work/excl.txt"; then
+    bad "an excluded or starred file is present"
+    cat "$work/excl.txt"
+else
+    ok "no excluded or starred file under static/"
+fi
+if git -C "$root" ls-files | grep -i -E 'cyber' >"$work/cyber.txt"; then
+    bad "a Cyber City file is tracked"
+    cat "$work/cyber.txt"
+else
+    ok "no Cyber City file is tracked"
+fi
+
+# Image sizes, and the checker bites on a wrong size.
+dims="$root/scripts/check-brand-dims.py"
+expect_pass "brand image dimensions" python3 -I "$dims" "$root/static/brand"
+mk_tree "$work/t11"
+cp "$work/t11/static/brand/mascot-128.webp" "$work/t11/static/brand/mascot-256.webp"
+expect_fail "a wrongly sized mascot WebP is caught" "mascot-256.webp: size" python3 -I "$dims" "$work/t11/static/brand"
+mkdir -p "$work/empty"
+expect_fail "a folder with no images is caught" "no WebP files found" python3 -I "$dims" "$work/empty"
+
+# Generator: refuses a wrong master before writing anything.
+printf 'not the master' >"$work/fake-master.jpg"
+mkdir -p "$work/kit" "$work/gen-root"
+expect_fail "generator rejects a master with the wrong hash" "sha256 mismatch" python3 -I "$root/scripts/gen-brand-assets.py" --master "$work/fake-master.jpg" --kit "$work/kit" --out-root "$work/gen-root"
+if [[ -z "$(find "$work/gen-root" -type f)" ]]; then ok "generator wrote nothing for a wrong master"; else bad "generator wrote files for a wrong master"; fi
+
+# The build record names the approved master's hash.
+if grep -q '"sha256": "82edc2004ced79de845a04c466ac39604ffd3e9c961e89f205f4bee4be361189"' "$root/brand/assets-build.json"; then ok "build record carries the master sha256"; else bad "build record lacks the master sha256"; fi
 
 if ((failures > 0)); then
     printf '%d failure(s)\n' "$failures"
