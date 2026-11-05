@@ -1,0 +1,11 @@
+# Social networks: the footer icon row (and later the hub and home strip).
+# One entry per network: name, icon (slug for a CSS class), url (https only),
+# handle (public handle), rel_me (true renders rel="me" for identity
+# verification), blurb. Add the other networks (docs/redesign-brief.md section
+# 5) with their real public URLs; none is guessed here.
+- name: GitHub
+  icon: github
+  url: https://github.com/ChiefGyk3D
+  handle: ChiefGyk3D
+  rel_me: true
+  blurb: Code and projects.

@@ -118,6 +118,15 @@ run_asserter() { python3 -I "$asserter" "$@"; }
 site="$work/site"
 mkdir -p "$site/content/posts/hostile" "$site/content/posts/plain"
 cp -r "$root/layouts" "$root/assets" "$root/static" "$site/"
+# data/socials.yaml exists in the real site, so the test has one too: the
+# data-driven row and params.me must both render.
+mkdir -p "$site/data"
+cat >"$site/data/socials.yaml" <<'YAML'
+- name: Data one
+  icon: dataone
+  url: https://data.example/@one
+  rel_me: true
+YAML
 # The repository config with output minification off, so attribute values and
 # newlines reach the parser as the templates wrote them.
 sed 's/^  minifyOutput = true/  minifyOutput = false/' "$root/hugo.toml" >"$site/hugo.toml"
@@ -182,7 +191,7 @@ else
     fail "plain page: $out"
 fi
 
-if out="$(run_asserter "$site/public/index.html" "Placeholder site description." "no-php-no-cry" "https://social.example/@name" 2>&1)"; then
+if out="$(run_asserter "$site/public/index.html" "Placeholder site description." "no-php-no-cry" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
     pass "rel=me links render; the javascript: link is not emitted"
 else
     fail "home page: $out"
@@ -198,6 +207,39 @@ if grep -q 'property="article:published_time" content="2024-01-02T03:04:05-05:00
     pass "article:published_time comes from the front matter date"
 else
     fail "article:published_time is missing or wrong"
+fi
+
+# Journal is in the Main nav only once /journal has a published page.
+if grep -q 'href="/journal/"' "$site/public/index.html"; then
+    fail "Journal is in the nav with no journal entry"
+else
+    pass "Journal is hidden from the nav while /journal is empty"
+fi
+mkdir -p "$site/content/journal/entry"
+printf -- '---\ntitle: "Journal"\n---\n' >"$site/content/journal/_index.md"
+printf -- '---\ntitle: "Entry"\ndate: 2024-01-04T03:04:05-05:00\n---\n\nBody.\n' >"$site/content/journal/entry/index.md"
+(cd "$site" && hugo --quiet --destination "$site/public2") || {
+    echo "FAIL: hugo could not build the test site with a journal entry"
+    exit 1
+}
+if grep -q '<a href="/journal/">Journal</a>' "$site/public2/index.html"; then
+    pass "Journal shows in the nav once an entry is published"
+else
+    fail "Journal is missing from the nav with a published entry"
+fi
+
+# Print: chrome hidden, system colors only, inside @media print.
+css="$(cat "$site/public/css/"site*.css 2>/dev/null || true)"
+if printf '%s' "$css" | grep -q '@media print'; then
+    pass "stylesheet has @media print rules"
+else
+    fail "stylesheet has no @media print rules"
+fi
+# Reusable HUD surfaces use the carbon tokens.
+if printf '%s' "$css" | grep -q '\.carbon{' && printf '%s' "$css" | grep -q '\.glow{'; then
+    pass "stylesheet defines .carbon and .glow"
+else
+    fail "stylesheet is missing .carbon or .glow"
 fi
 
 # Production leaves robots to robots.txt; the default environment adds no meta.

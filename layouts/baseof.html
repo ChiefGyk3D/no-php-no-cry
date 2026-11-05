@@ -23,11 +23,22 @@
   <header class="site-header">
     <div class="wrap">
       <a class="site-title" href="{{ "/" | relURL }}">{{ site.Title }}</a>
+      {{- /* Phones: the list sits in a native details menu (no script). From 40rem up, CSS shows the list without opening it. */}}
       <nav class="site-nav" aria-label="Main">
-        <ul>
-          <li><a href="{{ "/posts/" | relURL }}">Posts</a></li>
-          <li><a href="{{ "/journal/" | relURL }}">Journal</a></li>
-        </ul>
+        <details class="nav-menu">
+          <summary class="btn btn-ghost">Menu</summary>
+          <ul>
+            <li><a href="{{ "/posts/" | relURL }}">Posts</a></li>
+            {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
+            <li><a href="{{ "/journal/" | relURL }}">Journal</a></li>
+            {{- end }}{{ end }}
+            <li><a href="{{ "/products/" | relURL }}">Products</a></li>
+            <li><a href="{{ "/social/" | relURL }}">Social</a></li>
+            <li><a href="{{ "/support/" | relURL }}">Support</a></li>
+            <li><a href="{{ "/about/" | relURL }}">About</a></li>
+            <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
+          </ul>
+        </details>
       </nav>
     </div>
   </header>
@@ -38,12 +49,31 @@
   </main>
   <footer class="site-footer">
     <div class="wrap">
-      <p>Placeholder footer. <a href="{{ "/index.xml" | relURL }}">RSS</a></p>
+      <ul class="footer-row">
+        <li><a href="{{ "/about/" | relURL }}">About</a></li>
+        <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
+        <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
+        <li><a href="{{ "/index.xml" | relURL }}">RSS</a></li>
+      </ul>
+      {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me adds more identity links beside it. */ -}}
+      {{- with site.Data.socials }}
+      <ul class="footer-row social-row" aria-label="Social">
+        {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
+        <li><a class="icon-{{ $s.icon }}"{{ if $s.rel_me }} rel="me"{{ end }} href="{{ $s.url }}">{{ $s.name }}</a></li>
+        {{- end }}{{ end }}
+      </ul>
+      {{- end }}
       {{- with site.Params.me }}
       <p class="me-links">
-        {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. */ -}}
         {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }} <a rel="me" href="{{ $l.url }}">{{ $l.name }}</a>{{ end }}{{ end -}}
       </p>
+      {{- end }}
+      {{- with site.Data.support }}
+      <ul class="footer-row support-row" aria-label="Support">
+        {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }}
+        <li><a href="{{ $l.url }}" rel="noopener">{{ $l.name }}</a></li>
+        {{- end }}{{ end }}
+      </ul>
       {{- end }}
     </div>
   </footer>
