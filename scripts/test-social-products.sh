@@ -241,6 +241,14 @@ def check_products(page, root, bad):
             bad.append("item lacks a 'Price checked on <date>' note: " + label)
         if re.search(r"[$]\s*\d", label):
             bad.append("item shows a price: " + label)
+    if "https://affil.trezor.io/aff_c?offer_id=133&aff_id=32739" not in seen:
+        bad.append("missing Trezor affiliate link")
+    page_text = main.all_text()
+    if "As an Amazon Associate I earn from qualifying purchases." not in page_text:
+        bad.append("Amazon Associate line missing")
+    for a in main.find("a"):
+        if "public.com" in (a.attrs.get("href") or ""):
+            bad.append("brokerage referral is listed (maintainer ruling: not on this page)")
     for code in POST_LINKS:
         if "https://amzn.to/" + code not in seen:
             bad.append("missing affiliate link " + code)

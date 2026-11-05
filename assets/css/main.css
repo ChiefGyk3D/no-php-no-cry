@@ -183,6 +183,14 @@ a:focus-visible {
   }
 }
 
+/* Current page: aria-current="page" on a header link gets an amber underline. */
+.nav-menu li a[aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: var(--rule-accent-width);
+  text-underline-offset: 0.35em;
+}
+
 main {
   flex: 1 0 auto;
   padding: var(--space-6) 0;

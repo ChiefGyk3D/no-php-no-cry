@@ -28,14 +28,15 @@
         <details class="nav-menu">
           <summary class="btn btn-ghost">Menu</summary>
           <ul>
-            <li><a href="{{ "/posts/" | relURL }}">Posts</a></li>
+            {{- /* aria-current="page" marks the link whose URL is this page; a post under /posts/ is not that page, so the Posts link stays plain there. */}}
+            {{- $here := .RelPermalink }}
+            <li><a href="{{ "/posts/" | relURL }}"{{ if eq $here ("/posts/" | relURL) }} aria-current="page"{{ end }}>Posts</a></li>
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
-            <li><a href="{{ "/journal/" | relURL }}">Journal</a></li>
+            <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            <li><a href="{{ "/products/" | relURL }}">Products</a></li>
-            <li><a href="{{ "/social/" | relURL }}">Social</a></li>
-            <li><a href="{{ "/support/" | relURL }}">Support</a></li>
-            <li><a href="{{ "/about/" | relURL }}">About</a></li>
+            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Social") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") }}
+            <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
+            {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
           </ul>
         </details>

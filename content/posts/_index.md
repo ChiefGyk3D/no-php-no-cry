@@ -2,4 +2,4 @@
 title: "Posts"
 ---
 
-Placeholder posts section.
+Newest first.
