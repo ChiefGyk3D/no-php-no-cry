@@ -51,8 +51,11 @@ projects:
   - name: Hammunition family
     url: https://github.com/Renegade-Penguin/Hammunition
     line: Turns a Debian-family install into an amateur radio and SDR workstation, with companion tools for propagation, devices and offline data.
-  # TODO(maintainer): Reach Around is not in the profile README, so there is no
-  # source line or link yet. Add name, url and line here to show it.
+  # TODO(maintainer): Reach Around is not in the profile README; this one-line
+  # wording is a draft (maintainer ruling 2026-11-05). Confirm or reword it.
+  - name: Reach Around
+    url: https://github.com/ChiefGyk3D/Reach-Around
+    line: A privacy-first link page with creator analytics. Open source.
   - name: Skid Finder
     url: https://github.com/ChiefGyk3D/Skid-Finder
     line: Defensive Bluetooth Low Energy monitoring for conference floors that detects scripted spam tooling and helps find the source.

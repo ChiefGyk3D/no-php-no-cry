@@ -40,7 +40,7 @@ REQUIRED = [
 ]
 PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
-            "Skid Finder"]
+            "Reach Around", "Skid Finder"]
 FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"\bWGU\b", r"Western Governors",
              r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
@@ -102,6 +102,11 @@ def check(html):
         for name in PROJECTS[1:]:
             if name in projs and projs.find(name) < projs.find("Clouds Against Humanity"):
                 out.append("Clouds Against Humanity is not first: " + name)
+    h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
+    if m and (not h1 or re.sub(r"<[^>]+>", "", h1.group(1)).strip() != "ChiefGyk3D"):
+        out.append("name line is not exactly ChiefGyk3D")
+    if "https://github.com/ChiefGyk3D/Reach-Around" not in p.links:
+        out.append("missing Reach Around link")
     for pat in FORBIDDEN:
         if re.search(pat, text):
             out.append("forbidden: " + pat)

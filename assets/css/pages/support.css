@@ -5,15 +5,28 @@
 
 .support-buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space);
   list-style: none;
   margin: var(--space-5) 0 var(--space-2);
   padding: 0;
 }
 
+.support-buttons li {
+  display: flex;
+}
+
 .support-buttons .btn {
   width: 100%;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@media (min-width: 40rem) {
+  .support-buttons {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .page-support details.accordion {

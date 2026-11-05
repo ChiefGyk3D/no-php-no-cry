@@ -315,6 +315,82 @@ if [[ -e "$pub/support.js" ]]; then
     fail "support.js shipped without a pin (this change ships no copy-button script)"
 fi
 
+# Render-review polish (issue 61): built pages and stylesheet.
+css="$(cat "$pub"/css/*.css 2>/dev/null || true)"
+src_css() { cat "$root"/assets/css/pages/"$1".css; }
+sup="$(src_css support)"
+if grep -Eq 'support-buttons[^}]*grid-template-columns: *repeat\(4, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")" &&
+    grep -Eq 'support-buttons[^}]*grid-template-columns: *repeat\(2, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")"; then
+    pass "support buttons: 4 equal columns wide, 2x2 narrow"
+else
+    fail "support buttons are not a 4-column grid with a 2-column phone layout"
+fi
+if grep -q 'auto-fill' <<<"$sup"; then
+    fail "support buttons still use auto-fill (they wrap unevenly)"
+else
+    pass "support buttons do not use auto-fill"
+fi
+if grep -Eq 'support-buttons li[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<"$sup")"; then
+    pass "support button cells stretch to one height"
+else
+    fail "support button cells do not stretch to one height"
+fi
+hero="$(src_css home | tr '\n' ' ')"
+if grep -Eq '\.hero-actions[^}]*flex-wrap: *wrap' <<<"$hero" && grep -Eq '\.hero-mascot[^}]*align-self: *flex-start' <<<"$hero"; then
+    pass "home hero: wrapping CTA row, top-aligned mascot"
+else
+    fail "home hero: CTA row must wrap and the mascot must be top-aligned"
+fi
+if grep -Eq '\.hero-actions[^}]*flex-direction: *column' <<<"$hero"; then
+    fail "home hero CTAs are a stacked column"
+fi
+if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
+    fail "posts index still says 'Placeholder posts section.'"
+elif grep -q '^Newest first\.$' "$root/content/posts/_index.md"; then
+    pass "posts index intro is 'Newest first.'"
+else
+    fail "posts index intro is not 'Newest first.'"
+fi
+if tr '\n' ' ' <<<"$(src_css posts)" | grep -Eq '\.archive-links[^}]*margin-bottom|\.archive-tags[^}]*margin: *var\(--space-5\)'; then
+    pass "tag list has spacing under the RSS link"
+else
+    fail "tag list has no spacing under the RSS link"
+fi
+# Nav: the current section carries aria-current="page" and no other link does.
+nav_current() { # <html> -> text of the aria-current links in the main nav
+    python3 -I - "$1" <<'PY'
+import re, sys
+h = open(sys.argv[1], encoding="utf-8").read()
+nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
+nav = nav.group(0) if nav else ""
+for m in re.finditer(r"<a\b[^>]*aria-current=\"?page\"?[^>]*>(.*?)</a>", nav, re.S):
+    print(re.sub(r"<[^>]+>", "", m.group(1)).strip())
+PY
+}
+for pair in "posts:Posts" "products:Products" "social:Social" "support:Support" "about:About"; do
+    got="$(nav_current "$pub/${pair%%:*}/index.html")"
+    if [[ "$got" == "${pair##*:}" ]]; then
+        pass "nav marks ${pair##*:} current on /${pair%%:*}/"
+    else
+        fail "nav on /${pair%%:*}/ marks '$got', expected '${pair##*:}'"
+    fi
+done
+if [[ -z "$(nav_current "$pub/index.html")" ]]; then
+    pass "nav marks nothing current on the home page"
+else
+    fail "nav marks something current on the home page"
+fi
+if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
+    pass "stylesheet styles [aria-current]"
+else
+    fail "stylesheet has no [aria-current=page] rule (amber underline)"
+fi
+if tr '\n' ' ' <"$root/assets/css/main.css" | grep -Eq 'aria-current[^}]*(text-decoration|border-bottom|box-shadow)[^}]*var\(--accent\)'; then
+    pass "current-page indicator uses the accent token"
+else
+    fail "current-page indicator does not use var(--accent)"
+fi
+
 # Guard self-test: each broken page must fail the asserter.
 good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"

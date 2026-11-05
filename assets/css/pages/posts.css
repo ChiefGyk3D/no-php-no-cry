@@ -19,8 +19,12 @@
   overflow: hidden;
 }
 
+.archive-links {
+  margin-bottom: var(--space-5);
+}
+
 .archive-tags {
-  margin: var(--space) 0;
+  margin: var(--space-5) 0;
 }
 
 .archive-tags .tag-list li {
