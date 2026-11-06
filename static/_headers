@@ -2,7 +2,7 @@
 # frame-src is added per embed provider later, one provider at a time, with
 # the matching cookie-free embed. script-src 'self' allows every same-origin
 # script; it cannot name one file. The build checks and the hash pin of
-# /theme.js (theme.js.sha256) make sure the only script is /theme.js: no inline
+# /copy.js (copy.js.sha256) make sure the only script is /copy.js: no inline
 # script, no other script, no third-party source (scripts/check-output.sh and
 # check-site-artifact.sh).
 /*

@@ -14,14 +14,14 @@
 #                 only value is nosniff
 #   redirect      the first 301 line of <public-dir>/_redirects answers 301
 #                 with the expected Location
-#   theme-hash    when the build has a theme.js, the deployed /theme.js has the
-#                 sha256 pinned in theme.js.sha256 (THEME_HASH_FILE overrides)
+#   script-hash    when the build has a copy.js, the deployed /copy.js has the
+#                 sha256 pinned in copy.js.sha256 (SCRIPT_HASH_FILE overrides)
 #   script-not-allowed / script-count / event-handler / javascript-url /
 #   external-asset / http-reference / base-element
 #                 the bytes each page SERVES (the same response as its headers)
 #                 are read with scripts/scan-markup.py, the build check's parser:
-#                 no script element other than one <script src=/theme.js></script>
-#                 (and none at all without a pinned theme), no handler, no
+#                 no script element other than one <script src=/copy.js></script>
+#                 (and none at all without a pinned script), no handler, no
 #                 javascript: URL. It reads the served page only; it does not
 #                 fetch or inspect any other script file (the build checks do).
 # Pages checked, one per template, taken from the build: the home page, the
@@ -60,8 +60,8 @@ if [[ -z "$csp_expected" ]]; then
     exit 2
 fi
 
-# The build's policy must allow scripts from 'self' only (the theme file): one
-# script-src, exactly 'self'. 'none' would mean the header and the theme script
+# The build's policy must allow scripts from 'self' only (the copy script): one
+# script-src, exactly 'self'. 'none' would mean the header and the copy script
 # drifted apart; anything looser is a weaker site than the one reviewed.
 if ! awk -v csp="$csp_expected" 'BEGIN {
         n = split(csp, d, ";")
@@ -96,19 +96,19 @@ first_page() {
     printf '%s/\n' "${p%/index.html}"
 }
 
-# The theme script: a theme.js in the build must match the pinned hash (else
-# exit 2), and the deployed /theme.js must be exactly those bytes.
-theme_hash_file="${THEME_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/theme.js.sha256}"
-theme_pinned=""
-if [[ -f "$dir/theme.js" ]]; then
+# The copy script: a copy.js in the build must match the pinned hash (else
+# exit 2), and the deployed /copy.js must be exactly those bytes.
+script_hash_file="${SCRIPT_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/copy.js.sha256}"
+script_pinned=""
+if [[ -f "$dir/copy.js" ]]; then
     rc=0
-    theme_pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+    script_pinned="$(script_hash_state "$script_hash_file")" || rc=$?
     if [[ $rc -ne 0 ]]; then
-        echo "input: ${dir}/theme.js is in the build but there is no valid pinned hash at ${theme_hash_file}"
+        echo "input: ${dir}/copy.js is in the build but there is no valid pinned hash at ${script_hash_file}"
         exit 2
     fi
-    if [[ "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$theme_pinned" ]]; then
-        echo "input: ${dir}/theme.js does not match the pinned hash in ${theme_hash_file}"
+    if [[ "$(sha256sum "$dir/copy.js" | cut -d' ' -f1)" != "$script_pinned" ]]; then
+        echo "input: ${dir}/copy.js does not match the pinned hash in ${script_hash_file}"
         exit 2
     fi
 fi
@@ -134,7 +134,7 @@ if [[ ${#singles[@]} -eq 0 || ${#lists[@]} -eq 0 ]]; then
 fi
 pages+=("${singles[@]}" "${lists[@]}")
 [[ -f "$dir/index.xml" ]] && pages+=(/index.xml)
-[[ -n "$theme_pinned" ]] && pages+=(/theme.js)
+[[ -n "$script_pinned" ]] && pages+=(/copy.js)
 
 from="" to=""
 if [[ -f "$dir/_redirects" ]]; then
@@ -205,18 +205,18 @@ check_page() {
         echo "wrong-nosniff: ${path} must have exactly one X-Content-Type-Options header with the value nosniff"
         failed=1
     fi
-    if [[ "$path" == /theme.js ]]; then
+    if [[ "$path" == /copy.js ]]; then
         got="$(sha256sum <"$body_file" | cut -d' ' -f1)"
-        if [[ "$got" != "$theme_pinned" ]]; then
-            echo "theme-hash: ${path} served by the site does not match the pinned sha256"
+        if [[ "$got" != "$script_pinned" ]]; then
+            echo "script-hash: ${path} served by the site does not match the pinned sha256"
             failed=1
         fi
     fi
     # What the site serves, read with the build check's parser (same request as
     # the headers above): no extra, inline, remote or handler scripts.
-    if [[ "$path" != /theme.js && $ok -eq 1 ]]; then
+    if [[ "$path" != /copy.js && $ok -eq 1 ]]; then
         local opts=(--scripts none) found rule
-        [[ -n "$theme_pinned" ]] && opts=(--scripts theme)
+        [[ -n "$script_pinned" ]] && opts=(--scripts pinned)
         [[ "$path" == *.xml ]] && opts=(--markup)
         found="$(python3 -I "$scan_py" "${opts[@]}" "$site_host" "$body_file")" || found="unparseable-html"
         while IFS= read -r rule; do

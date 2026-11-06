@@ -113,3 +113,12 @@ listed with sha256 in `approved-assets.txt`:
 2. Optimize it, copy it to `static/brand/`, and add a line to
    `approved-assets.txt` with its sha256, source path and verification.
 3. Run `scripts/test-brand.sh`.
+
+## Wording
+
+Never use the short form of the word cryptocurrency, on the site or in data,
+docs, scripts or class names. It means cryptography in this project's voice, so
+write "cryptocurrency" or name the coin (Bitcoin, Monero, Ethereum, Solana).
+Genuine cryptography words (cryptography, cryptographic) are fine.
+`scripts/check-wording.sh` fails the build on the bare short form and
+`scripts/test-check-wording.sh` proves the guard bites; both run in CI.

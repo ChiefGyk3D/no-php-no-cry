@@ -183,7 +183,7 @@ jobs:
           echo "egress canary: allowed hosts accept TCP 443"
 
       # Checked out: deploy/ (a package.json and its lockfile), static/_headers
-      # (the expected headers file), theme.js.sha256 (the pinned theme script
+      # (the expected headers file), copy.js.sha256 (the pinned script
       # hash), the shared rules file and two scripts. scripts/test-deploy-sparse.sh
       # fails CI if a file these scripts need is missing from this list. Repository code that runs
       # BEFORE the credentials load: check-site-artifact.sh (reads the
@@ -199,7 +199,7 @@ jobs:
           sparse-checkout: |
             /deploy/
             /static/_headers
-            /theme.js.sha256
+            /copy.js.sha256
             /scripts/artifact-rules.sh
             /scripts/check-site-artifact.sh
             /scripts/ensure-pages-project.sh
@@ -239,7 +239,7 @@ jobs:
         run: scripts/check-site-artifact.sh site static/_headers
 
       - name: Fetch Cloudflare credentials from Doppler
-        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@7501cb3fa19d83d0e0a131cb040e7c4da32a9504 # v1.28.0
+        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@ddc98a545c1195f15b02341fa1f263fa3588bfd2 # v1.29.0
         with:
           project: cloudflare
           config: prd
