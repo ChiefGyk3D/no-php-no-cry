@@ -228,7 +228,7 @@ RULES
     host="https://test-blog.chiefgyk3d.com"
     # feed_check <feed-file> <index.html> <post.html> <_headers>: prints each failure.
     feed_check() {
-        python3 -I - "$1" "$host" <<'PY' || echo "feed: not a valid RSS 2.0 feed with the self link on /feed/index.xml and full bodies"
+        python3 -I - "$1" "$host" 2>/dev/null <<'PY' || echo "feed: not a valid RSS 2.0 feed with the self link on /feed/index.xml and full bodies"
 import sys
 import xml.etree.ElementTree as ET
 
