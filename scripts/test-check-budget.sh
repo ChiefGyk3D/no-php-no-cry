@@ -59,8 +59,10 @@ mutate() { # mutate <name> <rule> <command run inside a copy of the good tree>
     expect_fail "$1" "$2" "$d"
 }
 
-mutate second-js js-count 'printf x > other.js'
+mutate second-js js-name 'printf x > other.js'
 mutate wrong-js-name js-name 'mv theme.js app.js; sed -i "s#/theme.js#/app.js#" index.html posts/hello/index.html'
+mutate copy-js-elsewhere js-page 'printf x > copy.js; sed -i "s#<script src=/theme.js>#<script src=/copy.js></script><script src=/theme.js>#" index.html'
+mutate three-js js-count 'printf x > copy.js; printf x > other.js'
 mutate big-js js-size 'head -c 20000 /dev/urandom | base64 > theme.js'
 mutate big-css css-size 'head -c 60000 /dev/urandom | base64 > css/site.css'
 mutate two-stylesheets css-count 'cp css/site.css css/two.css; sed -i "s#<script#<link rel=stylesheet href=/css/two.css><script#" index.html'
@@ -72,6 +74,18 @@ mutate huge-image-file image-file-size 'head -c 310000 /dev/urandom > brand/og.p
 mutate page-over-total page-total 'head -c 100000 /dev/urandom > brand/pic.webp; head -c 29000 /dev/urandom > fonts/j.woff2; printf "%s" "@font-face{src:url(../fonts/j.woff2)}@font-face{src:url(../fonts/k.woff2)}" > css/site.css; head -c 29000 /dev/urandom > fonts/k.woff2'
 mutate post-text-heavy post-no-images 'head -c 28000 /dev/urandom > fonts/j.woff2; head -c 29000 /dev/urandom > fonts/k.woff2; head -c 29000 /dev/urandom > brand/x.bin; printf "%s" "body{background:url(../brand/x.bin)}@font-face{src:url(../fonts/j.woff2)}@font-face{src:url(../fonts/k.woff2)}" > css/site.css'
 mutate missing-file missing-asset 'rm brand/pic.webp'
+
+# The pinned copy script is allowed, on the support page only.
+ok_copy="$work/ok-copy"
+cp -r "$good" "$ok_copy"
+mkdir -p "$ok_copy/support"
+printf 'x' >"$ok_copy/copy.js"
+printf '%s' '<!doctype html><title>t</title><link rel=stylesheet href=/css/site.css><script src=/copy.js></script>' >"$ok_copy/support/index.html"
+if python3 -I "$root/scripts/check-budget.py" "$ok_copy" >"$work/ok-copy.out" 2>&1; then
+    pass "/copy.js on /support/ passes"
+else
+    fail "/copy.js on /support/ failed: $(cat "$work/ok-copy.out")"
+fi
 
 empty="$work/empty"
 mkdir -p "$empty"

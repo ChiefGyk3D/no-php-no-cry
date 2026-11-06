@@ -12,7 +12,7 @@ The upper bound is used wherever the browser chooses: all url() references in
 CSS count, and an <img srcset> counts its largest candidate.
 
 Findings print as "[rule] path detail" and the exit status is 1; page content
-is never printed. Rules: js-count, js-name, js-size, css-count, css-size,
+is never printed. Rules: js-count, js-name, js-page, js-size, css-count, css-size,
 font-count, font-size, html-size, image-size, image-file-size, page-total,
 post-no-images, missing-asset, no-pages.
 
@@ -27,8 +27,9 @@ from html.parser import HTMLParser
 
 KB = 1024
 LIMITS = {
-    # Brief section 10: one same-origin script, /theme.js, under 1 KB gzip.
-    "js_files": 1,
+    # Brief section 10: same-origin scripts only, each under 1 KB gzip: /theme.js
+    # (not shipped yet) and the hash-pinned /copy.js, which only /support/ loads.
+    "js_files": 2,
     "js_gzip": 1 * KB,
     # One stylesheet per page, 20 KB gzip (brief target 12 KB; today 4.1 KB).
     "css_files_per_page": 1,
@@ -49,7 +50,8 @@ LIMITS = {
 TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "js", "webmanifest"}
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp", "avif", "ico", "svg"}
 FONT_EXT = {"woff", "woff2", "ttf"}
-ALLOWED_JS = "/theme.js"
+ALLOWED_JS = ("/theme.js", "/copy.js")
+COPY_JS_PAGE = "/support/index.html"
 
 
 def ext(path):
@@ -125,8 +127,8 @@ def main():
     if len(js) > LIMITS["js_files"]:
         bad("js-count", "/", "%d script files, at most %d" % (len(js), LIMITS["js_files"]))
     for f in js:
-        if f != ALLOWED_JS:
-            bad("js-name", f, "only %s may ship" % ALLOWED_JS)
+        if f not in ALLOWED_JS:
+            bad("js-name", f, "only %s may ship" % " and ".join(ALLOWED_JS))
         if size(fs(f)) > LIMITS["js_gzip"]:
             bad("js-size", f, "%d bytes gzip, limit %d" % (size(fs(f)), LIMITS["js_gzip"]))
     for f in allfiles:
@@ -193,6 +195,8 @@ def main():
             u = local(s, page)
             if u:
                 count(u, "js")
+                if u == "/copy.js" and page != COPY_JS_PAGE:
+                    bad("js-page", page, "/copy.js may load only on %s" % COPY_JS_PAGE)
         for cands in refs.img:
             urls = [u for u in (local(c, page) for c in cands) if u]
             sizes = []
