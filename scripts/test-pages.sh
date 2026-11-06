@@ -42,7 +42,7 @@ ADDRESSES = {
     "sol": "5T8h3HbyvHgLxwXgchRYbHSqRjZyAr8J7uwjLN9Fh8Jh",
 }
 BUTTONS = {
-    "Tip during a stream": "https://streamelements.com/chiefgyk3d/tip",
+    "StreamElements": "https://streamelements.com/chiefgyk3d/tip",
     "Ko-fi": "https://ko-fi.com/chiefgyk3d",
     "Patreon": "https://patreon.com/chiefgyk3d",
     "Merch shop": "https://shop.chiefgyk3d.com/",
@@ -133,6 +133,9 @@ def external_ok(a):
 
 def support(p, errs, repo):
     common(p, errs)
+    # /support/ alone may carry the one pinned script; it is checked below.
+    if "a <script> element" in errs:
+        errs.remove("a <script> element")
     if p.h1 != ["Support my work"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
@@ -143,7 +146,7 @@ def support(p, errs, repo):
     if "StreamElements tips get a live thank-you during the stream." not in flat:
         errs.append("StreamElements note missing")
     for name, url in BUTTONS.items():
-        hits = [a for a, t in p.links if t == name]
+        hits = [a for a, t in p.links if re.sub(r"\s+", " ", t).startswith(name + " ")]
         if len(hits) != 1:
             errs.append("button %r appears %d times" % (name, len(hits)))
             continue
@@ -151,18 +154,26 @@ def support(p, errs, repo):
             errs.append("button %r points to %r" % (name, hits[0].get("href")))
         if not external_ok(hits[0]):
             errs.append("button %r lacks target=_blank rel=noopener" % name)
-        if "btn" not in (hits[0].get("class") or "").split():
-            errs.append("button %r is not styled as a button" % name)
-    want = "Bitcoin, Monero, Ethereum, and Solana, with QR codes"
-    if not any(want in s for s in p.summaries):
-        errs.append("crypto summary missing: %r" % p.summaries)
-    if p.count("details") < 1:
-        errs.append("no details element")
-    # Visible buttons come before the collapsible block (zero clicks to pay).
+        if "tile" not in (hits[0].get("class") or "").split():
+            errs.append("button %r is not styled as a tile" % name)
+    # The cryptocurrency section follows the four tiles (zero clicks to pay).
     html = repo["html"]
-    m = re.search(r"<details[^>]*crypto", html)
-    if not m or html.find("Merch shop") > m.start():
-        errs.append("the four buttons must precede the details block")
+    if "Cryptocurrency tips" not in flat or html.find("Merch shop") > html.find("Cryptocurrency tips"):
+        errs.append("the cryptocurrency section must follow the four tiles")
+    if any(t == "details" and "coin" in (a.get("class") or "") for t, a in p.tags):
+        errs.append("the cryptocurrency block is always open, not a details element")
+    # One Copy button per address: hidden until the script reveals it, named for
+    # the coin, wired to the id of that coin's address, with a live status region.
+    for coin, addr in ADDRESSES.items():
+        m = re.search(r'<button[^>]*data-copy=("?)addr-%s\1[^>]*>' % coin, html)
+        if not m or "hidden" not in m.group(0).rstrip(">").split():
+            errs.append("%s Copy button missing or not hidden by default" % coin)
+        if not re.search(r"id=\"?addr-%s\"?" % coin, html):
+            errs.append("%s address has no id for the Copy button" % coin)
+    if len(re.findall(r"role=status", html)) != len(ADDRESSES):
+        errs.append("each Copy button needs one role=status region")
+    if html.count("<script") != 1 or "<script src=/copy.js></script>" not in html:
+        errs.append("/support/ must carry exactly the one pinned <script src=/copy.js></script>")
     # Addresses: verbatim, in a <code> element each, once.
     for coin, addr in ADDRESSES.items():
         if flat.count(addr) != 1:
@@ -321,7 +332,7 @@ fi
 qrbad="$work/qrbad"
 mkdir -p "$qrbad"
 cp "$pub"/support/qr-*.svg "$qrbad/"
-sed -i 's/M4 4.5h7/M4 4.5h6/' "$qrbad/qr-btc.svg"
+sed -i 's/M4 4h7v1h-7z/M4 4h6v1h-6z/' "$qrbad/qr-btc.svg"
 if cmp -s "$qrbad/qr-btc.svg" "$pub/support/qr-btc.svg"; then
     fail "guard: could not alter the modules of the test copy"
 elif "$root/scripts/gen-support-qr.sh" --check --dir "$qrbad" >/dev/null 2>&1; then
@@ -336,6 +347,25 @@ if "$root/scripts/gen-support-qr.sh" --check --dir "$qrbad" >/dev/null 2>&1; the
 else
     pass "guard: an altered <desc> with intact modules is rejected"
 fi
+# The decode proof must bite: a code with its modules blanked, desc intact, fails.
+if command -v google-chrome >/dev/null 2>&1 || command -v chromium >/dev/null 2>&1; then
+    cp "$pub/support/qr-btc.svg" "$qrbad/qr-btc.svg"
+    sed -i -E 's#<path fill="\#000000" d="[^"]*"/>##' "$qrbad/qr-btc.svg"
+    if out="$("$root/scripts/gen-support-qr.sh" --check --decode --dir "$qrbad" 2>&1)"; then
+        fail "guard: a blanked QR code passed --check --decode"
+    elif grep -q 'decode FAILED: qr-btc.svg' <<<"$out"; then
+        pass "guard: a QR code that does not decode is rejected by --decode"
+    else
+        fail "guard: --decode did not report the blanked code: $out"
+    fi
+    if out="$("$root/scripts/gen-support-qr.sh" --check --decode --dir "$pub/support" 2>&1)"; then
+        pass "every built QR code decodes to the exact address (headless Chrome + OpenCV)"
+    else
+        fail "built QR codes do not decode: $out"
+    fi
+else
+    echo "skip: no Chrome or Chromium for the QR decode proof"
+fi
 
 # The CSP gained no frame-src (Ko-fi stays a link-out until the framing test).
 if grep -i 'Content-Security-Policy' "$pub/_headers" | grep -qi 'frame-src'; then
@@ -344,25 +374,31 @@ else
     pass "no frame-src in _headers"
 fi
 if [[ -e "$pub/support.js" ]]; then
-    fail "support.js shipped without a pin (this change ships no copy-button script)"
+    fail "support.js shipped: the only script is the pinned /copy.js"
+fi
+# Only /support/ loads the copy script.
+if grep -rl --include=index.html --include=404.html '/copy.js' "$pub" | grep -v '^'"$pub"'/support/index.html$' | grep -q .; then
+    fail "a page other than /support/ loads /copy.js"
+else
+    pass "only /support/ loads /copy.js"
 fi
 
 # Render-review polish (issue 61): built pages and stylesheet.
 css="$(cat "$pub"/css/*.css 2>/dev/null || true)"
 src_css() { cat "$root"/assets/css/pages/"$1".css; }
 sup="$(src_css support)"
-if grep -Eq 'support-buttons[^}]*grid-template-columns: *repeat\(4, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")" &&
-    grep -Eq 'support-buttons[^}]*grid-template-columns: *repeat\(2, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")"; then
-    pass "support buttons: 4 equal columns wide, 2x2 narrow"
+if grep -Eq 'support-tiles[^}]*grid-template-columns: *repeat\(4, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")" &&
+    grep -Eq 'support-tiles[^}]*grid-template-columns: *repeat\(2, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")"; then
+    pass "support tiles: 4 equal columns wide, 2x2 narrow"
 else
-    fail "support buttons are not a 4-column grid with a 2-column phone layout"
+    fail "support tiles are not a 4-column grid with a 2-column phone layout"
 fi
 if grep -q 'auto-fill' <<<"$sup"; then
-    fail "support buttons still use auto-fill (they wrap unevenly)"
+    fail "support tiles still use auto-fill (they wrap unevenly)"
 else
-    pass "support buttons do not use auto-fill"
+    pass "support tiles do not use auto-fill"
 fi
-if grep -Eq 'support-buttons li[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<"$sup")"; then
+if grep -Eq 'support-tiles \.tile-item[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<"$sup")"; then
     pass "support button cells stretch to one height"
 else
     fail "support button cells do not stretch to one height"

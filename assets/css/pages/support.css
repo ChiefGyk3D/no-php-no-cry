@@ -1,73 +1,145 @@
-/* /support/ (issue 62). Tokens only. */
+/* /support/ (issues 62 and 95). Tokens only. */
 .page-support .lede {
   font-size: var(--text-lg);
 }
 
-.support-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space);
-  list-style: none;
-  margin: var(--space-5) 0 var(--space-2);
-  padding: 0;
+.page-support h2.hud-heading {
+  margin: var(--space-6) 0 var(--space);
+  font-size: var(--text-lg);
 }
 
-.support-buttons li {
+/* Ways to chip in: tiles, 2 across on a phone, 4 across from 40rem. */
+.support-tiles {
+  grid-template-columns: repeat(2, 1fr);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+.support-tiles .tile-item {
   display: flex;
 }
 
-.support-buttons .btn {
+.support-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
   width: 100%;
-  padding: 0 var(--space-2);
-  font-size: var(--text-sm);
   text-align: center;
 }
 
-@media (min-width: 40rem) {
-  .support-buttons {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.support-tile-name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent);
 }
 
-.page-support details.accordion {
-  margin-top: var(--space-5);
-}
-
-.crypto .summary-note {
+.support-tile-blurb {
   color: var(--muted);
   font-size: var(--text-sm);
 }
 
+@media (min-width: 40rem) {
+  .support-tiles {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* One panel per cryptocurrency: 1 column on a phone, 2 from 40rem. */
 .coin-list {
   display: grid;
+  grid-template-columns: 1fr;
   gap: var(--space-5);
   list-style: none;
-  margin: 0;
-  padding: var(--space) 0 0;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+}
+
+@media (min-width: 40rem) {
+  .coin-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .coin {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space);
+  align-content: start;
   justify-items: start;
+  min-width: 0;
+}
+
+.coin-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.coin-mark {
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .coin-name {
   margin: 0;
+  font-family: var(--font-display);
   font-size: var(--text-lg);
+}
+
+.coin-ticker {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+}
+
+.qr {
+  width: min(100%, 14rem);
+  height: auto;
+  aspect-ratio: 1;
+  background: var(--text);
+  border: var(--rule-accent-width) solid var(--text);
+  border-radius: var(--radius);
 }
 
 .address {
   display: block;
+  box-sizing: border-box;
   max-width: 100%;
   padding: var(--space-2) var(--space);
   overflow-wrap: anywhere;
+  background: var(--bg);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
   user-select: all;
 }
 
-.qr {
-  background: var(--text);
-  border: var(--rule-accent-width) solid var(--text);
+.coin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space);
+}
+
+.copy-btn[hidden] {
+  display: none;
+}
+
+.copy-status {
+  min-width: 8rem;
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
+/* The off-screen field the copy script uses when the Clipboard API is missing. */
+.copy-scratch {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 .social-links {

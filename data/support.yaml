@@ -1,45 +1,57 @@
 # Support data. Order is display order. Two kinds of entry share this file:
 #
 # Links (the footer Support row and the buttons on /support/): name, url (https
-# only), button (the label on /support/, when different from the footer name).
+# only), button (the label on /support/, when different from the footer name),
+# blurb (the short line under it on /support/).
 # Each link is rechecked before publish.
 #
-# Crypto (the /support/ Crypto block): kind: crypto, name, coin (btc, xmr, eth
-# or sol; names static/support/qr-<coin>.svg), address, and an empty url so the
-# footer, which lists only https urls, skips it.
+# Cryptocurrency (the /support/ cryptocurrency block): kind: cryptocurrency, name,
+# ticker, coin (btc, xmr, eth or sol; names static/support/qr-<coin>.svg and
+# static/support/coin-<coin>.svg, the mark drawn in the middle of the QR code),
+# address, and an empty url so the footer, which lists only https urls, skips it.
+# The short form of the word never appears anywhere in the repository;
+# scripts/check-wording.sh enforces that (brand/README.md, Wording).
 # Addresses are copied verbatim from the authoritative source, the public repo
 # github.com/ChiefGyk3D/support-me (SIGNATURE.md, read 2026-11-04). When an
 # address changes there, change it here, run scripts/gen-support-qr.sh and
 # update scripts/test-pages.sh in the same pull request.
 - name: Tip
-  button: Tip during a stream
+  button: StreamElements
+  blurb: Tip me on stream
   url: https://streamelements.com/chiefgyk3d/tip
 - name: Ko-fi
   button: Ko-fi
+  blurb: Buy me a coffee
   url: https://ko-fi.com/chiefgyk3d
 - name: Patreon
   button: Patreon
+  blurb: Monthly support
   url: https://patreon.com/chiefgyk3d
 - name: Shop
   button: Merch shop
+  blurb: Get some gear
   url: https://shop.chiefgyk3d.com/
-- kind: crypto
+- kind: cryptocurrency
   name: Bitcoin
+  ticker: BTC
   coin: btc
   address: bc1qztdzcy2wyavj2tsuandu4p0tcklzttvdnzalla
   url: ""
-- kind: crypto
+- kind: cryptocurrency
   name: Monero
+  ticker: XMR
   coin: xmr
   address: 84Y34QubRwQYK2HNviezeH9r6aRcPvgWmKtDkN3EwiuVbp6sNLhm9ffRgs6BA9X1n9jY7wEN16ZEpiEngZbecXseUrW8SeQ
   url: ""
-- kind: crypto
+- kind: cryptocurrency
   name: Ethereum
+  ticker: ETH
   coin: eth
   address: "0x554f18cfB684889c3A60219BDBE7b050C39335ED"
   url: ""
-- kind: crypto
+- kind: cryptocurrency
   name: Solana
+  ticker: SOL
   coin: sol
   address: 5T8h3HbyvHgLxwXgchRYbHSqRjZyAr8J7uwjLN9Fh8Jh
   url: ""

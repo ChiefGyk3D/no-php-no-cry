@@ -39,20 +39,22 @@ scripts/test-check-site-artifact.sh
 scripts/test-pages.sh          # Support, About and Privacy pages, the /contact/ redirect, wallet addresses and QR files
 scripts/test-redirects.sh      # _redirects fragment grammar and line shape
 scripts/gen-support-qr.sh --check   # QR SVGs equal a fresh encoding of data/support.yaml
-scripts/test-pin-theme.sh
+scripts/test-pin-script.sh
 scripts/test-deploy-sparse.sh   # the deploy job's sparse checkout lists every file its scripts need
 scripts/test-check-output.sh     # negative tests for the checker
 scripts/test-head.sh             # head tags and rel=me links against hostile front matter
 scripts/test-social-products.sh  # /social/ tiles and /products/ disclosure, items and affiliate links
 scripts/test-check-hugo-version.sh
 scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
+scripts/test-wxr2hugo-webp.sh   # WebP step tests (pinned Pillow in a throwaway venv, needs the package index)
+scripts/test-migration.sh       # converter output builds: drafts, redirect rules, banners, alt guard
 ```
 
 `check-output.sh` fails the build output on any of: any `<script>` element
-other than `<script src=/theme.js></script>` once per page (`script-src 'self'`
-allows same-origin scripts; these checks and the hash pin make /theme.js the
+other than `<script src=/copy.js></script>` once per page (`script-src 'self'`
+allows same-origin scripts; these checks and the hash pin make /copy.js the
 only one; inline scripts are also reported separately), a
-second script file, a `theme.js` of 1 KB gzip or more, `javascript:` URLs,
+second script file, a `copy.js` of 1 KB gzip or more, `javascript:` URLs,
 `<style>`, `style=` attributes, `on*=` handlers, `http://` references, external assets in
 HTML, an external `@import` or `url()` (including `//host`) in CSS or SVG, an
 `xml-stylesheet` instruction in a feed or SVG, any `*.xml` that does not parse,
@@ -63,9 +65,9 @@ entry missing its description, canonical, icon, Open Graph or Twitter card tags.
 
 `script-src 'self'` allows every same-origin response, not one file, so the
 checks also refuse any file of an unlisted type (including one with no
-extension), a `theme.js` whose sha256 is not the one in the committed
-`theme.js.sha256` (no hash file means no script at all; see
-`docs/theme-script.md` and `scripts/pin-theme.sh`), an SVG with script, and
+extension), a `copy.js` whose sha256 is not the one in the committed
+`copy.js.sha256` (no hash file means no script at all; see
+`docs/pinned-script.md` and `scripts/pin-script.sh`), an SVG with script, and
 `_headers` that is not one `/*` block with exactly one `nosniff`. URLs are judged after character references are
 decoded, attributes are read quote-aware (a `>` or `=` inside a quoted value is
 text), the same rules apply to `.svg`, `.xml` and `.xhtml` outputs, and a
@@ -126,7 +128,8 @@ repository, and the tool refuses a path inside it.
 
 ```sh
 python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR \
-    [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR]
+    [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR] \
+    [--draft-all] [--posts-only] [--annotations tools/wxr2hugo/annotations.json]
 ```
 
 It writes `posts/<slug>/index.md` for posts and `<slug>/index.md` for pages, at
@@ -136,11 +139,36 @@ A page slug that collides with `posts`, `journal` or any other top-level
 directory stops the run with exit 2 and nothing is overwritten. A page with an
 empty body (the old front page) is skipped and listed under `skipped` in the
 log. An old permalink that equals the page's own URL is not written as an alias.
-Drafts get `draft: true`. `syndicate` mirrors the old Mastodon share flag for
-posts (so old posts are not re-announced) and is always false for pages. Only
+`--posts-only` writes the posts and lists the pages under `pages_not_migrated`
+(the new site has its own About, Support and Social pages; the old `/blog/`,
+`/support-me/`, `/social-media/`, `/contact/` and `/sample-page/` URLs are aliases
+on those pages in `content/`). Drafts get `draft: true`; `--draft-all` makes every post and page a draft while
+the old permalinks still become `aliases` (Hugo builds no draft, so no redirect
+rule goes live until the owner removes `draft`). `syndicate` is always false for
+converted content, so the deploy job never announces old posts again; where the
+old site recorded its Mastodon announcement, the https URL becomes
+`syndicated.mastodon` (any other value is dropped and logged as
+`bad-syndicated-url`). An old permalink that is not a plain path (whitespace,
+quotes, `..`, `//`) gets no alias and is logged as `bad-old-permalink`; non-ASCII
+paths are percent-encoded. Image file names are reduced to `[A-Za-z0-9._-]`. Only
 approved comments are kept, and ActivityPub items are dropped. Links to the old
 temporary Bluehost domain are rewritten to `--site-url`; builder pages take
 their text from the builder JSON.
+
+Images without alt text in the source get the alt `TODO alt text` and an
+`alt-todo` warning; `layouts/_markup/render-image.html` fails the build for a
+published page that still has it. `--annotations` adds the front matter the
+export cannot carry (`archive` banner text, `supersededBy` forward link) from a
+reviewed JSON file keyed by post slug; an entry that matches no post is logged
+as `annotation-unmatched`. `decision-log.json` has a `review` list: each page
+the owner must look at before it goes public, with the reasons.
+
+`tools/wxr2hugo/webp.py DIR` then converts the PNG and JPEG images in the
+bundles to WebP (smaller files only; EXIF and GPS dropped; orientation applied;
+non-images, decompression bombs, animated PNGs and symlinks refused and left
+alone) and updates the references in `index.md`. It needs Pillow, pinned with
+hashes in `tools/wxr2hugo/requirements-webp.txt`; run it from a venv that
+installed that file.
 
 Every post with an `amzn.to` link gets one line, "As an Amazon Associate I earn
 from qualifying purchases.", appended once. The log records it per post under

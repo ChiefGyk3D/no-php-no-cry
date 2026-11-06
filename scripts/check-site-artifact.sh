@@ -9,14 +9,14 @@
 #   - symlinks anywhere (an artifact must be plain files)
 #   - _headers that differs byte for byte from the repository's static/_headers
 #     (the expected file must also carry script-src exactly 'self')
-#   - any script file (.js, .mjs, .cjs, any depth) other than /theme.js, and a
-#     /theme.js that is 1 KB gzip (1024 bytes) or more
+#   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js, and a
+#     /copy.js that is 1 KB gzip (1024 bytes) or more
 #   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
 #     webp avif ico woff woff2 ttf webmanifest, plus _headers and _redirects at the root),
 #     whatever its content or name: script-src 'self' authorizes every
 #     same-origin response, so there must be no file a script could load
-#   - /theme.js whose sha256 is not the one in the committed theme.js.sha256
-#     (THEME_HASH_FILE overrides the path); with no such file no script at all
+#   - /copy.js whose sha256 is not the one in the committed copy.js.sha256
+#     (SCRIPT_HASH_FILE overrides the path); with no such file no script at all
 #   - a _headers that is not exactly one "/*" block, or has a removal directive
 #   - an SVG with a script element, event handler or javascript: URL
 #   - expected headers without X-Content-Type-Options: nosniff
@@ -37,7 +37,7 @@ fi
 dir="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 expected_headers="${2:-$root/static/_headers}"
-theme_hash_file="${THEME_HASH_FILE:-$root/theme.js.sha256}"
+script_hash_file="${SCRIPT_HASH_FILE:-$root/copy.js.sha256}"
 [[ -d "$dir" ]] || {
     echo "check-site-artifact: not a directory: $dir" >&2
     exit 2
@@ -104,7 +104,7 @@ if ! headers_nosniff_ok "$expected_headers"; then
 fi
 
 # Every file must be of a listed type (js files are reported below, and
-# /theme.js is checked for what it can do).
+# /copy.js is checked for what it can do).
 while IFS= read -r -d '' p; do
     rel="${p#"$dir"/}"
     case "${rel,,}" in
@@ -116,29 +116,29 @@ while IFS= read -r -d '' p; do
     fi
 done < <(find "$dir" -type f -print0 | sort -z)
 
-# Script files: the CSP allows 'self' scripts, so the only one is /theme.js, and
+# Script files: the CSP allows 'self' scripts, so the only one is /copy.js, and
 # only if its sha256 is the one pinned in the committed hash file. No hash file,
 # no script.
 pinned=""
 rc=0
-pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+pinned="$(script_hash_state "$script_hash_file")" || rc=$?
 if [[ $rc -eq 2 ]]; then
-    report theme-hash-file "$(basename "$theme_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+    report script-hash-file "$(basename "$script_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
     pinned=""
 fi
 while IFS= read -r -d '' p; do
     rel="${p#"$dir"/}"
-    if [[ "$rel" != theme.js || -z "$pinned" ]]; then
+    if [[ "$rel" != copy.js || -z "$pinned" ]]; then
         report extra-script "$rel"
     fi
 done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
-if [[ -f "$dir/theme.js" && ! -L "$dir/theme.js" ]]; then
-    if [[ -n "$pinned" && "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$pinned" ]]; then
-        report theme-hash "theme.js does not match the sha256 pinned in $(basename "$theme_hash_file")"
+if [[ -f "$dir/copy.js" && ! -L "$dir/copy.js" ]]; then
+    if [[ -n "$pinned" && "$(sha256sum "$dir/copy.js" | cut -d' ' -f1)" != "$pinned" ]]; then
+        report script-hash "copy.js does not match the sha256 pinned in $(basename "$script_hash_file")"
     fi
-    gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
+    gz="$(gzip -9 -n -c "$dir/copy.js" | wc -c)"
     if ((gz >= 1024)); then
-        report js-budget "theme.js is ${gz} bytes gzip (budget: under 1024)"
+        report js-budget "copy.js is ${gz} bytes gzip (budget: under 1024)"
     fi
 fi
 

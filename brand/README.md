@@ -82,7 +82,7 @@ catches a bad value.
   uses it for h1, h2, HUD headings and the wordmark only, never body text.
 - Generated art: `scripts/gen-brand-assets.py` builds the mascot WebP set
   (128/256/512), favicons, the 1200x630 OG card and the social icons from the
-  kit; see `brand/assets-build.json` and `brand/ICONS.md`.
+  kit (Pixelfed from a Simple Icons checkout, `--simple-icons`); see `brand/assets-build.json` and `brand/ICONS.md`.
 
 ## Mascot
 
@@ -101,7 +101,7 @@ listed with sha256 in `approved-assets.txt`:
 - `favicon-32.png`, `favicon-192.png`, `favicon-512.png` and
   `apple-touch-icon-180.png`: the PNG favicon and touch icons.
 - `og-card.png`: the 1200x630 Open Graph image, the default in `head-meta.html`.
-- `icons/`: the ten social glyphs (see `ICONS.md`).
+- `icons/`: the twelve social glyphs: eleven from the kit, Pixelfed from Simple Icons 16.36.0 (see `ICONS.md`).
 
 `.brand-mark` sizes the image. Third-party marks are not republished; see
 `EXCLUDED.md`.
@@ -113,3 +113,12 @@ listed with sha256 in `approved-assets.txt`:
 2. Optimize it, copy it to `static/brand/`, and add a line to
    `approved-assets.txt` with its sha256, source path and verification.
 3. Run `scripts/test-brand.sh`.
+
+## Wording
+
+Never use the short form of the word cryptocurrency, on the site or in data,
+docs, scripts or class names. It means cryptography in this project's voice, so
+write "cryptocurrency" or name the coin (Bitcoin, Monero, Ethereum, Solana).
+Genuine cryptography words (cryptography, cryptographic) are fine.
+`scripts/check-wording.sh` fails the build on the bare short form and
+`scripts/test-check-wording.sh` proves the guard bites; both run in CI.

@@ -13,26 +13,50 @@
 }
 
 .product-group {
-  margin-top: var(--space-6);
+  margin-top: var(--space);
 }
 
+/* The h2 lives inside the summary: keep it one line of heading size beside the count. */
+.product-group > details > summary {
+  justify-content: space-between;
+  min-height: var(--tap);
+  padding-block: var(--space-2);
+}
+
+.product-group > details > summary h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.product-count {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Rows, not cards in a grid: text on the left, the button on the right. */
 .product-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: var(--space);
   list-style: none;
-  margin: var(--space) 0 0;
+  margin: 0;
+  padding: 0;
+}
+
+.product-group > details > .product-list {
   padding: 0;
 }
 
 .product {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space);
-  background: var(--surface);
-  border: var(--rule-width) solid var(--border);
-  border-radius: var(--radius);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  padding: var(--space) var(--space);
+  border-top: var(--rule-width) solid var(--border);
+}
+
+.product-text {
+  min-width: 0;
 }
 
 .product h3 {
@@ -44,12 +68,25 @@
   margin: 0;
 }
 
-.product-line {
-  flex: 1;
+.product-checked {
+  display: block;
+  font-size: var(--text-sm);
 }
 
 .product .btn {
-  align-self: flex-start;
+  flex: none;
+  padding: 0 var(--space);
+}
+
+@media (max-width: 40rem) {
+  .product {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .product .btn {
+    width: 100%;
+  }
 }
 
 @media (forced-colors: active) {

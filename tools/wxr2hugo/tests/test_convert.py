@@ -60,7 +60,7 @@ class BasicConversionTests(unittest.TestCase):
         self.assertIn('slug: "first-post"\n', head)
         self.assertIn('categories: ["Reviews"]\n', head)
         self.assertIn('tags: ["alpha"]\n', head)
-        self.assertIn("syndicate: true\n", head)
+        self.assertIn("syndicate: false\n", head)
         self.assertIn("draft: false\n", head)
         self.assertIn('  - "/2023/02/10/first-post/"\n', head)
 
@@ -277,9 +277,9 @@ class SyndicateTests(unittest.TestCase):
         head = (out / rel).read_text().split("---\n")[1]
         return [l for l in head.splitlines() if l.startswith("syndicate:")]
 
-    def test_post_mirrors_the_old_share_flag_and_pages_are_false(self):
+    def test_migrated_posts_and_pages_are_never_announced_again(self):
         proc, out, _ = basic()
-        self.assertEqual(self.flags(out, "posts/first-post/index.md"), ["syndicate: true"])
+        self.assertEqual(self.flags(out, "posts/first-post/index.md"), ["syndicate: false"])
         self.assertEqual(self.flags(out, "posts/second-post/index.md"), ["syndicate: false"])
         self.assertEqual(self.flags(out, "team/index.md"), ["syndicate: false"])
 
