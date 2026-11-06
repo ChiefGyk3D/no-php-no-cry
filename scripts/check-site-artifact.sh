@@ -12,9 +12,10 @@
 #   - symlinks anywhere (an artifact must be plain files)
 #   - _headers that differs byte for byte from the repository's static/_headers
 #     (the expected file must also carry script-src exactly 'self')
-#   - _routes.json, when present, that is not the strict routing shape
-#     (routes_policy_ok) or differs byte for byte from the repository's
-#     static/_routes.json (ROUTES_FILE overrides the path); only at the root
+#   - _routes.json, REQUIRED at the root (with the Pages Function enabled, no
+#     file would leave nothing limiting execution to HTML routes), that is not
+#     the strict routing shape (routes_policy_ok) or differs byte for byte from
+#     the repository's static/_routes.json (ROUTES_FILE overrides the path)
 #   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js, and a
 #     /copy.js that is 1 KB gzip (1024 bytes) or more
 #   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
@@ -81,9 +82,11 @@ elif ! cmp -s "$dir/_headers" "$expected_headers"; then
     report headers-differ "_headers differs from the repository's static/_headers"
 fi
 
-# _routes.json (optional): byte for byte the repository's file, and that file
+# _routes.json (required): byte for byte the repository's file, and that file
 # must itself be the strict shape. It decides which paths run the Function.
-if [[ -e "$dir/_routes.json" || -L "$dir/_routes.json" ]]; then
+if [[ ! -e "$dir/_routes.json" && ! -L "$dir/_routes.json" ]]; then
+    report routes-missing "_routes.json"
+else
     if [[ -L "$dir/_routes.json" || ! -f "$dir/_routes.json" ]]; then
         report routes-invalid "_routes.json must be a plain file"
     elif [[ ! -f "$expected_routes" ]]; then

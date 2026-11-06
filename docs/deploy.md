@@ -11,7 +11,7 @@ a secret.
    `scripts/check-output.sh` and `scripts/check-site-artifact.sh`, and uploads
    `public/` as the `site` artifact. The artifact check fails on anything
    Cloudflare Pages treats as code or routing (`_worker.js`, a root
-   `functions/` directory, any name beginning `_worker`), on a `_routes.json`
+   `functions/` directory, any name beginning `_worker`), on a missing `_routes.json`, or one
    that is not the strict shape or differs byte for byte from
    `static/_routes.json`, on a `_headers`
    that differs byte for byte from `static/_headers`, and on a `_redirects`

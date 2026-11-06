@@ -18,6 +18,14 @@ if ((major < 20)); then
     exit 2
 fi
 
-node --test analytics/test/
+# Files are listed, not the directory: Node 22 reads a directory argument as a
+# module path (the CI runner failed on it); Node 20 accepted it. A shell glob
+# works on both. The check below keeps an empty glob from passing as no tests.
+tests=(analytics/test/*.test.mjs)
+[[ -e "${tests[0]}" ]] || {
+    echo "test-analytics: no analytics/test/*.test.mjs files found" >&2
+    exit 2
+}
+node --test "${tests[@]}"
 python3 -I -W ignore scripts/test-analytics-sql.py
 echo "test-analytics: ok"

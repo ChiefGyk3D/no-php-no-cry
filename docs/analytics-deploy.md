@@ -16,7 +16,7 @@ later. Alpha: every default here is provisional.
 | `analytics/migrations/0001_page_views.sql` | Tables, the 5-view floor (`report_*` views) and the funnel view. |
 | `analytics/maintenance.sql` | Daily rollup and retention (7 days raw, 90 days aggregates). Not scheduled yet. |
 | `analytics/wrangler.toml.example` | The D1 binding template. |
-| `static/_routes.json` | Limits the Function to HTML routes. Copied into the upload by Hugo. |
+| `static/_routes.json` | Limits the Function to HTML routes: the HTML pages (including `/support/`) run it; the CSS, fonts, brand files, images and the support QR and coin SVGs (`/support/qr-*.svg`, `/support/coin-*.svg`) do not. Required in the upload; copied there by Hugo. |
 | `docs/privacy-with-analytics.md` | The draft `/privacy/` text. Not live. |
 
 ## What was reused from Reach Around
@@ -48,8 +48,8 @@ shared collector is an open question for later (design section 5.2).
 
 | Rule | Change | Why |
 | --- | --- | --- |
-| `artifact_name_ok` (`scripts/artifact-rules.sh`) | `_routes.json` is allowed at the root of the upload, like `_headers` and `_redirects`. Any other `.json` and any nested `_routes.json` is still rejected. | Pages reads `_routes.json` from the upload directory. |
-| `check-site-artifact.sh`: `_routes.json` reserved name | Removed from the reserved list. Replaced by two checks: the file must be byte for byte `static/_routes.json`, and that expected file must pass `routes_policy_ok` (exactly `version` 1, `include`, `exclude`; rules start with `/`, at most 100 characters each, at most 100 rules in all; no duplicate keys). | A routing file cannot add code, but a loose one could send every asset request through the Function and burn the free request quota. Pinning it like `_headers` keeps it a reviewed change. |
+| `artifact_name_ok` (`scripts/artifact-rules.sh`) | `_routes.json` is allowed (and, see the check below, required) at the root of the upload, like `_headers` and `_redirects`. Any other `.json` and any nested `_routes.json` is still rejected. | Pages reads `_routes.json` from the upload directory. |
+| `check-site-artifact.sh`: `_routes.json` reserved name | Removed from the reserved list. Replaced by three checks: the file must exist in the upload (`routes-missing`; with the Function enabled, no file would leave nothing limiting execution to HTML routes), it must be byte for byte `static/_routes.json`, and that expected file must pass `routes_policy_ok` (exactly `version` 1, `include`, `exclude`; rules start with `/`, at most 100 characters each, at most 100 rules in all; no duplicate keys). | A routing file cannot add code, but a loose one could send every asset request through the Function and burn the free request quota. Pinning it like `_headers` keeps it a reviewed change. |
 | `check-site-artifact.sh`: `functions` reserved name | Not loosened. A `functions/` directory inside the upload is still rejected. | The Functions source is not in the upload directory. Wrangler compiles `functions/` from the project root. The upload (`public/` or the `site` artifact) never needs it, so allowing it there would only widen what the check lets through. Deviation from the brief wording; see the PR. |
 | `check-deploy-sparse.py`, `deploy.yml` sparse list | `static/_routes.json` added, because the artifact check now reads it before any secret exists. | The sparse test fails CI if a file a script needs is not checked out. |
 | `static/_headers`, CSP | Unchanged. | The collector is server side. No script is added to any page. |
@@ -90,7 +90,7 @@ the deploy token if the cleanup runs under its own token.
    removed (fail open). Run `wrangler pages functions build` once locally to see
    the `_routes.json` it generates and compare with `static/_routes.json`.
 5. Check these, which this slice could not (all marked UNVERIFIED):
-   - The `/*.css` style glob is valid in `_routes.json` and `*` crosses `/`.
+   - The `/*.css` style glob is valid in `_routes.json`. Verified in the Pages routing docs (developers.cloudflare.com/pages/functions/routing/, page dated 2026-09-18): wildcards match any number of path segments, `exclude` takes priority over `include`, at least one `include` rule, at most 100 rules combined, at most 100 characters per rule. Inferred, not shown on that page: a mid-pattern `*` such as `/*.css` or `/support/qr-*.svg` behaves the same way.
    - `request.cf` is present in Pages Functions on the free plan, and `T1` is
      the Tor pseudo-country in `cf.country`.
    - Whether a static asset or a cached HTML page still runs the Function, and
