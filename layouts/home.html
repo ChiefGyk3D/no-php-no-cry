@@ -1,4 +1,5 @@
 {{ define "main" }}
+<div class="home-grid">
 <section class="hero">
   <img class="hero-mascot" src="{{ "/brand/mascot-256.webp" | relURL }}" srcset="{{ "/brand/mascot-256.webp" | relURL }} 256w, {{ "/brand/mascot-512.webp" | relURL }} 512w" sizes="(min-width: 40rem) 12rem, 10rem" width="256" height="256" alt="Renegade Tux, the penguin mascot">
   <div class="hero-text">
@@ -12,7 +13,7 @@
   </div>
 </section>
 {{ .Content }}
-<section class="panel home-panel" aria-labelledby="latest-posts">
+<section class="panel home-panel home-latest" aria-labelledby="latest-posts">
   <h2 id="latest-posts" class="hud-heading">Latest posts</h2>
   {{ with where site.RegularPages "Section" "posts" }}
   <ul class="post-list">
@@ -30,7 +31,7 @@
   {{ end }}
 </section>
 {{- with site.Data.socials }}
-<section class="panel home-panel" aria-labelledby="find-me">
+<section class="panel home-panel home-find" aria-labelledby="find-me">
   <h2 id="find-me" class="hud-heading">Find me online</h2>
   <ul class="home-social">
     {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
@@ -39,4 +40,5 @@
   </ul>
 </section>
 {{- end }}
+</div>
 {{ end }}

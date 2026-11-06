@@ -52,6 +52,8 @@ ANNOTATION_KEYS = {"archive", "supersededBy"}
 SLUG_KEY = re.compile(r"^[a-z0-9][a-z0-9-]{0,199}$")
 SITE_PATH = re.compile(r"^/(?:[A-Za-z0-9._~-]+/)*$")
 UPLOADS = re.compile(r"/wp-content/uploads/([^?#]+)")
+# The grammar layouts/home.redirects accepts for an upload redirect source.
+UPLOAD_PATH_OK = re.compile(r"^/wp-content/uploads/[A-Za-z0-9._~/%-]+$")
 SIZE_SUFFIX = re.compile(r"-\d+x\d+(?=\.[^./]+$)")
 
 
@@ -151,6 +153,13 @@ def clean_alt(text):
     return re.sub(r"\s+", " ", text).strip()[:250]
 
 
+def legacy_upload_source(rel):
+    """The old public address of an uploads file (a Cloudflare _redirects source),
+    or None when it cannot be one safely (see layouts/home.redirects)."""
+    path = "/wp-content/uploads/" + quote(rel, safe="/")
+    return path if UPLOAD_PATH_OK.match(path) else None
+
+
 def url_dest(url):
     return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
 
@@ -234,6 +243,7 @@ class PageCtx:
         self.site = site
         self.page_path = page_path
         self.bundle = {}  # file name -> source path
+        self.uploads = []  # (uploads-relative path as the old page used it, bundle file name)
         self.affiliate_links = 0
 
     def _bundle_name(self, path):
@@ -290,6 +300,7 @@ class PageCtx:
                 # layouts/_markup/render-image.html only accepts JPEG, PNG and WebP
                 self.site.warnings.append({"file": self.page_path, "kind": "unsupported-image-format", "detail": name})
             self.site.image_files.add((self.page_path, name))
+            self.uploads.append((rel, name))
             if todo:
                 self.site.warnings.append({"file": self.page_path, "kind": "alt-todo", "detail": name})
             if self.site.temp_re and self.site.temp_re.match(src):
@@ -837,6 +848,7 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
         "disclosures_added": 0,
     }
     skipped, disclosures = [], []
+    upload_redirects = {}
     annotated, review = set(), {}
     pending = {}
 
@@ -929,6 +941,15 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
 
         for name, source_path in sorted(ctx.bundle.items()):
             media["%s/%s" % (bundle, name)] = source_path
+        # Old /wp-content/uploads/ addresses of the images this post shows; the
+        # page is /<bundle>/, so the redirect target is the bundle file.
+        if kind == "post":
+            for rel, name in ctx.uploads:
+                source = legacy_upload_source(rel)
+                if source is None:
+                    site.warnings.append({"file": page_path, "kind": "bad-upload-path", "detail": name})
+                else:
+                    upload_redirects[source] = "/%s/%s" % (bundle, name)
 
         approved = [
             c
@@ -995,6 +1016,9 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
 
     pmap.sort(key=lambda e: e["id"])
     files["permalink-map.json"] = dump_json(pmap).encode("utf-8")
+    # data/legacy_uploads.json for the site (docs/cutover.md, "Feed and legacy URLs").
+    files["legacy-uploads.json"] = dump_json([{"from": k, "to": v} for k, v in sorted(upload_redirects.items())]).encode("utf-8")
+    counts["upload_redirects"] = len(upload_redirects)
 
     counts["images"] = len(site.image_files)
     counts["affiliate_links"] = len(site.affiliate)

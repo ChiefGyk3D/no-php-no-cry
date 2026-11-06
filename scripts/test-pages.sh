@@ -185,17 +185,19 @@ def support(p, errs, repo):
             errs.append("%s QR image appears %d times" % (coin, len(imgs)))
         elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
             errs.append("%s QR image needs alt, width and height" % coin)
-    # Socials: Instagram is a link; Pixelfed is marked coming soon and not a link.
+    # Socials: Instagram and Pixelfed are links that open in a new tab.
     insta = [a for a, t in p.links if t == "Instagram"]
     if len(insta) != 1 or insta[0].get("href") != "https://www.instagram.com/chiefgyk3d/":
         errs.append("Instagram link missing or wrong")
     elif not external_ok(insta[0]):
         errs.append("Instagram link lacks target=_blank rel=noopener")
-    if "Pixelfed" not in flat or "coming soon" not in flat.lower():
-        errs.append("Pixelfed not marked coming soon")
-    for a, t in p.links:
-        if "pics.chiefgyk3d.com" in (a.get("href") or "") or t.startswith("Pixelfed"):
-            errs.append("Pixelfed must not be a link")
+    pixel = [a for a, t in p.links if t.startswith("Pixelfed")]
+    if len(pixel) != 1 or pixel[0].get("href") != "https://pics.chiefgyk3d.com/ChiefGyk3D":
+        errs.append("Pixelfed link missing or wrong")
+    elif not external_ok(pixel[0]):
+        errs.append("Pixelfed link lacks target=_blank rel=noopener")
+    if "coming soon" in flat.lower():
+        errs.append("Pixelfed is live: no 'coming soon' text")
     # Ko-fi stays a link-out until the framing test; the TODO is in the template.
     if repo.get("template") is not None and "TODO" not in repo["template"]:
         errs.append("the Ko-fi embed TODO marker is missing from the template")
@@ -402,6 +404,43 @@ if grep -Eq 'support-tiles \.tile-item[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<
     pass "support button cells stretch to one height"
 else
     fail "support button cells do not stretch to one height"
+fi
+# Rule order (issue 107): the desktop .coin-name override sits inside a media
+# query at equal specificity, so it must come AFTER the base rule or it never
+# applies. Compares the line of the base rule (column 0) with the override.
+coin_name_after_base() {
+    awk '/^\.coin-name \{/ { if (!b) b = NR } /^ +\.coin-name \{/ { if (!o) o = NR } END { exit !(b && o && o > b) }'
+}
+if coin_name_after_base <"$root/assets/css/pages/support.css"; then
+    pass "support desktop .coin-name override follows the base rule"
+else
+    fail "support desktop .coin-name override precedes the base rule (it would never apply)"
+fi
+if printf '%s\n' '  .coin-name {' '}' '.coin-name {' '}' | coin_name_after_base; then
+    fail "rule-order check accepts an override placed before the base rule"
+else
+    pass "rule-order check rejects an override placed before the base rule"
+fi
+# Desktop layout widths (issue 107): the page container widens in steps, the
+# reading column stays at --measure, and running text keeps a line-length cap.
+main_css="$(tr '\n' ' ' <"$root"/assets/css/main.css)"
+if grep -Eq '\.wrap \{[^}]*max-width: *var\(--page-max\)' <<<"$main_css" &&
+    grep -Eq -- '--page-max: *var\(--measure\)' <<<"$main_css" &&
+    grep -Eq 'min-width: *120rem\) \{ *:root \{ *--page-max: *90rem' <<<"$main_css"; then
+    pass "page container: --page-max starts at --measure and widens to 90rem"
+else
+    fail "page container: .wrap must use --page-max (42rem base, up to 90rem)"
+fi
+if grep -Eq 'main p \{[^}]*max-width: *var\(--prose-max\)' <<<"$main_css" &&
+    grep -Eq -- '--prose-max: *75ch' <<<"$main_css"; then
+    pass "running text is capped at 75ch"
+else
+    fail "running text must be capped at 75ch (--prose-max)"
+fi
+if grep -Eq '\.post \{[^}]*max-width: *var\(--measure\)' <<<"$(src_css posts | tr '\n' ' ')"; then
+    pass "post keeps the --measure reading column"
+else
+    fail "post must keep the --measure reading column"
 fi
 hero="$(src_css home | tr '\n' ' ')"
 if grep -Eq '\.hero-actions[^}]*flex-wrap: *wrap' <<<"$hero" && grep -Eq '\.hero-mascot[^}]*align-self: *flex-start' <<<"$hero"; then

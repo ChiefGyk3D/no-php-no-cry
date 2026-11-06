@@ -144,17 +144,22 @@ def site(root, host, env):
     for d, rels in sorted(descs.items()):
         if len(rels) > 1:
             out.append(("duplicate-description", ", ".join(sorted(rels))))
-    feed = os.path.join(root, "index.xml")
-    if os.path.isfile(feed):
+    # /index.xml needs the atom self link on the site host; the site feed
+    # must name exactly its own address.
+    for name, want in (("index.xml", None), ("feed/index.xml", "https://%s/feed/index.xml" % host)):
+        feed = os.path.join(root, name)
+        if not os.path.isfile(feed):
+            continue
         ok = False
         try:
             atom = "{http://www.w3.org/2005/Atom}"
             ls = [l for l in load_xml(feed).iter(atom + "link") if l.get("rel") == "self"]
-            ok = len(ls) == 1 and (ls[0].get("href") or "").startswith("https://%s/" % host)
+            href = (ls[0].get("href") or "") if len(ls) == 1 else ""
+            ok = href == want if want else href.startswith("https://%s/" % host)
         except (ET.ParseError, OSError):
             pass
         if not ok:
-            out.append(("bad-feed", "index.xml (needs one atom:link rel=self on %s)" % host))
+            out.append(("bad-feed", "%s (needs one atom:link rel=self on %s)" % (name, want or "https://%s/" % host)))
     if env == "production":
         sm = os.path.join(root, "sitemap.xml")
         if not os.path.isfile(sm) or os.path.getsize(sm) == 0:
