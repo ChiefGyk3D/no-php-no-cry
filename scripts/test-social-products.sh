@@ -6,8 +6,8 @@
 # HTML parser:
 #   social:   title and intro, one tile per data/socials.yaml entry, icon mask
 #             classes with a CSS rule and a committed SVG each, Pixelfed is a live
-#             link with rel="me" like the other verifying networks, rel="me" on
-#             exactly the networks marked rel_me in the data, https only;
+#             link to its profile, rel="me" on exactly the networks whose rel_me
+#             field in the data says true (the test follows the data), https only;
 #   products: the disclosure copy in a bracket-frame panel before any item, the
 #             groups in the order of data/products.yaml (security first, creator
 #             and social media tools last, the first one open, a count in each
@@ -62,7 +62,6 @@ VENDORS = {"Amazon", "Direct"}
 MIN_ITEMS = 32
 FIRST_GROUP_WORD = "Security"
 LAST_GROUP = "Creator and social media tools"
-VERIFY_RME = {"Mastodon", "Pixelfed", "GitHub"}
 MATRIX_SHA = "07e6a16f5437fb0e7704c15b97bd50f46f3fa8968e022af2b9f2395fe0419d72"
 
 
@@ -177,8 +176,10 @@ def check_social(page, root, bad):
         if a.attrs.get("href") != e["url"]:
             bad.append("%s href differs from data" % name)
         rel = (a.attrs.get("rel") or "").split()
-        if (name in VERIFY_RME) != ("me" in rel):
-            bad.append("%s rel=me wrong (%r)" % (name, rel))
+        if e.get("rel_me") not in ("true", "false"):
+            bad.append("%s rel_me in the data is not true or false: %r" % (name, e.get("rel_me")))
+        elif (e["rel_me"] == "true") != ("me" in rel):
+            bad.append("%s rel=me wrong for rel_me %s (%r)" % (name, e["rel_me"], rel))
         if "noopener" not in rel:
             bad.append("%s link lacks noopener" % name)
         icon = a.find("span", "social-icon")
@@ -399,7 +400,42 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "disclosure changed" products "$products" 's/at no extra cost to you/at a cost to you/'
     guard "direct note dropped" products "$products" 's/Some products I link directly/Some products I link/'
     guard "price note removed" products "$products" 's/Price checked on/Seen on/'
+    guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
+fi
+
+# Mutation check: the rel="me" assertion follows data/socials.yaml. Flip one rel_me value
+# in a copy of the repository, rebuild, and the asserter must still pass (the template follows
+# the data, so the test must too). Then run the asserter on the ORIGINAL page against the
+# changed data: it must fail, proving the data is what the test compares against.
+if [[ -f "$social" ]]; then
+    mroot="$work/mutroot"
+    mkdir -p "$mroot"
+    for d in archetypes assets content data layouts static i18n; do
+        [[ -e "$root/$d" ]] && cp -R "$root/$d" "$mroot/$d"
+    done
+    for f in hugo.toml hugo.yaml config.toml .hugo-version; do
+        [[ -f "$root/$f" ]] && cp "$root/$f" "$mroot/$f"
+    done
+    [[ -d "$root/config" ]] && cp -R "$root/config" "$mroot/config"
+    # Flip the first rel_me: false (Twitch) to true.
+    sed -i '0,/rel_me: false/s//rel_me: true/' "$mroot/data/socials.yaml"
+    if cmp -s "$root/data/socials.yaml" "$mroot/data/socials.yaml"; then
+        fail "mutation did not change the data (the test is stale)"
+    elif (cd "$mroot" && HUGO_MINIFY_MINIFYOUTPUT=false hugo --destination "$work/mutpublic" --quiet >"$work/mutbuild.log" 2>&1); then
+        if python3 -I "$asserter" social "$work/mutpublic/social/index.html" "$mroot" >/dev/null 2>&1; then
+            pass "mutation: flipped rel_me in the data, rebuilt page, test follows the data"
+        else
+            fail "mutation: test failed falsely after a rel_me change in the data"
+        fi
+        if python3 -I "$asserter" social "$social" "$mroot" >/dev/null 2>&1; then
+            fail "mutation: stale page accepted against changed data"
+        else
+            pass "mutation: page not matching the changed data is caught"
+        fi
+    else
+        fail "mutation build failed ($(tail -n 3 "$work/mutbuild.log" | tr '\n' ' '))"
+    fi
 fi
 
 if ((failures > 0)); then
