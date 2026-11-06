@@ -31,7 +31,7 @@ Delete the comments you do not need before you open the pull request.
 | --- | --- | --- |
 | `title` | yes | The page title and the headline in feeds and cards. |
 | `date` | yes | Publication date. The archetype fills in now. A future date is not built until that day. |
-| `draft` | yes | `true` keeps the page out of every build. Set `false` to publish. |
+| `draft` | yes | `true` keeps the page out of the normal production build. Set `false` to publish. `hugo server --buildDrafts` (section 7) is the exception: it renders drafts so you can preview them. A draft that shows in that preview, or is absent from the production site, is working as intended. |
 | `description` | yes, to publish | One or two plain sentences. Used for the page description, the social card and the announcement text. Each page needs its own; the output check refuses duplicates. |
 | `slug` | yes | The last part of the URL. The archetype sets it from the folder name. |
 | `categories` | yes | One broad topic, for example `["Linux"]`. Reuse an existing category before you add one. |

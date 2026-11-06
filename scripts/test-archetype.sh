@@ -105,11 +105,29 @@ if (cd "$site" && hugo --minify --destination "$site/public" >"$work/pub.log" 2>
     else
         fail "check-output.sh failed: $(tail -n 5 "$work/check.log")"
     fi
+    # The throwaway site sits inside the repository's worktree, where git would
+    # list only tracked files and skip the ignored tmp/ tree. The ceiling makes
+    # git stop looking above tmp/, so the checker takes its find fallback and
+    # scans the generated pages.
+    export GIT_CEILING_DIRECTORIES="$root/tmp"
     if "$root/scripts/check-wording.sh" "$site" >"$work/wording.log" 2>&1; then
         pass "scripts/check-wording.sh passes on the new pages"
     else
         fail "check-wording.sh failed: $(tail -n 3 "$work/wording.log")"
     fi
+    # Negative case: a generated page with the banned short form (built from
+    # pieces so this file does not contain it) must make the checker fail,
+    # which proves it really scans the generated site.
+    banned="$(printf 'cry%s' pto)"
+    printf 'We talk about %s prices.\n' "$banned" >>"$post"
+    if "$root/scripts/check-wording.sh" "$site" >"$work/wording-neg.log" 2>&1; then
+        fail "guard: check-wording.sh passed on a page with the banned short form"
+    elif grep -q 'example-post/index.md' "$work/wording-neg.log"; then
+        pass "check-wording.sh flags the banned short form in a generated page"
+    else
+        fail "check-wording.sh failed for another reason: $(tail -n 3 "$work/wording-neg.log")"
+    fi
+    sed -i '$d' "$post"
 else
     fail "the published site did not build: $(tail -n 5 "$work/pub.log")"
 fi
