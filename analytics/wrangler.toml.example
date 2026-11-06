@@ -1,0 +1,25 @@
+# TEMPLATE, not used by anything today. Copy to ./wrangler.toml at the
+# repository root at deploy time (docs/analytics-deploy.md, step 3). Nothing in
+# this file is a secret. No Cloudflare call is made by having this file here.
+#
+# A wrangler.toml with pages_build_output_dir makes this a configuration-managed
+# Pages project: bindings are then set here, and the dashboard shows them read
+# only. UNVERIFIED: how this interacts with `wrangler pages deploy site` in
+# .github/workflows/deploy.yml (the directory argument versus
+# pages_build_output_dir). Check it on a preview deployment first.
+name = "no-php-no-cry"
+pages_build_output_dir = "public"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "no-php-no-cry-analytics"
+# Printed by `wrangler d1 create`; paste it here. Not a secret.
+database_id = "REPLACE-AT-DEPLOY-TIME"
+migrations_dir = "analytics/migrations"
+
+# Optional non-secret settings, read by analytics/middleware.mjs and collect.mjs:
+# [vars]
+# GEO_LEVEL = "city"            # city (default), region or country
+# ANALYTICS_TIMEOUT_MS = "1500" # bound on the background write, 50 to 5000
+# ANALYTICS_OFF = "1"           # kill switch: record nothing

@@ -37,7 +37,7 @@ H="$HOME/.local/share/no-php-no-cry-dev/hugo"
 "$H" --minify --gc               # production build into public/
 scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition only
 scripts/check-output.sh public   # see the rules below
-scripts/check-site-artifact.sh public   # no Pages worker/routes/functions; _headers and _redirects pinned
+scripts/check-site-artifact.sh public   # no Pages worker/functions; _headers, _routes.json and _redirects pinned
 scripts/test-check-site-artifact.sh
 scripts/test-pages.sh          # Support, About and Privacy pages, the /contact/ redirect, wallet addresses and QR files
 scripts/test-redirects.sh      # _redirects fragment grammar and line shape
@@ -52,6 +52,7 @@ scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 scripts/test-wxr2hugo-webp.sh   # WebP step tests (pinned Pillow in a throwaway venv, needs the package index)
 scripts/test-migration.sh       # converter output builds: drafts, redirect rules, banners, alt guard
 scripts/test-archetype.sh       # hugo new content makes a post that builds and passes the checks; missing alt fails
+scripts/test-analytics.sh       # page-view collector (not deployed): node --test and the SQL, all local
 ```
 
 `check-output.sh` fails the build output on any of: any `<script>` element
