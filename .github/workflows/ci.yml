@@ -127,6 +127,9 @@ jobs:
       - name: Test the post-deploy smoke check (local fake server)
         run: scripts/test-smoke-site.sh
 
+      - name: Test the live-host verifier (local fake server)
+        run: scripts/test-verify-live.sh
+
       - name: Test the deploy gate wait (stubbed gh, no network)
         run: scripts/test-wait-for-ci-green.sh
 
