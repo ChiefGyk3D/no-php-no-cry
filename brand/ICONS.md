@@ -1,9 +1,10 @@
 # Social icons
 
-Twelve glyphs from the brand kit's Simple Icons set (release 16.36.0, kit
-decision AD2) are committed unmodified under `static/brand/icons/`:
-Twitch, YouTube, Kick, Mastodon, Bluesky, TikTok, Instagram, Threads, Discord,
-Matrix, GitHub and Pixelfed. They are self-hosted (CSP stays `img-src 'self'`) and point to the
+Twelve Simple Icons glyphs (release 16.36.0) are committed unmodified under
+`static/brand/icons/`: Twitch, YouTube, Kick, Mastodon, Bluesky, TikTok,
+Instagram, Threads, Discord, Matrix, GitHub and Pixelfed. The first eleven are
+assets of the brand kit (kit decision AD2). Pixelfed is not in the kit; it is
+sourced separately from Simple Icons 16.36.0, whose icon files are CC0 1.0. They are self-hosted (CSP stays `img-src 'self'`) and point to the
 maintainer's own accounts only. The marks belong to their owners; the per-icon
 license is UNVERIFIED for the first eleven (the project-level CC0 1.0 is source
 context only); Pixelfed is verified, see below.

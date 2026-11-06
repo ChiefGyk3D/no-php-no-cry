@@ -2,10 +2,13 @@
 """Generate the site's brand image derivatives from the approved sources.
 
 Usage:
-  python3 -I scripts/gen-brand-assets.py --master PATH --kit PATH [--out-root DIR]
+  python3 -I scripts/gen-brand-assets.py --master PATH --kit PATH
+      [--simple-icons DIR] [--out-root DIR]
 
   --master  the approved 900 px mascot JPEG (kit row mascot-master-001)
   --kit     a checkout of the brand kit (chiefgyk3d-brand), read only
+  --simple-icons  optional icons/ folder of a Simple Icons 16.36.0 checkout; used
+              for an icon the kit lacks (Pixelfed), after the kit is tried
   --out-root  repository root to write into (default: this repository)
 
 Outputs (all under static/brand/, listed in brand/approved-assets.txt):
