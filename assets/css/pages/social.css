@@ -90,3 +90,17 @@
     background-color: CanvasText;
   }
 }
+
+/* Desktop (issue 107): a denser grid, 3 across from 60rem, 4 from 80rem (12
+ * tiles divide evenly into both). */
+@media (min-width: 60rem) {
+  .social-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 80rem) {
+  .social-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

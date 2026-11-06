@@ -100,3 +100,45 @@
     justify-content: flex-start;
   }
 }
+
+/* Desktop (issue 107): hero beside the latest posts, the social strip across the
+ * bottom. Phones and tablets keep the single column above. */
+@media (min-width: 60rem) {
+  .home-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+
+  .home-grid > .hero {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .home-grid > .home-latest {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .home-grid > .home-find {
+    grid-column: 1 / -1;
+  }
+
+  .home-grid > :not(.hero, .home-panel) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 80rem) {
+  .home-grid > .hero {
+    padding-top: var(--space-6);
+  }
+
+  .home-grid .hero h1 {
+    font-size: var(--text-2xl);
+  }
+}
