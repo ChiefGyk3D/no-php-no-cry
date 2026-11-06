@@ -70,7 +70,9 @@
   mask: none;
 }
 
-/* A tile that is not a link yet: no hover glow, quieter text. */
+/* A tile that is not a link yet: no hover glow, quieter text. data/socials.yaml
+ * allows an empty url ("not live"), and layouts/social/list.html renders that
+ * entry as this tile. No entry is empty today; keep the rule for the next one. */
 .social-tile--soon {
   border-style: dashed;
 }

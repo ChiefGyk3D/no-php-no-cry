@@ -14,6 +14,8 @@
       <span class="visually-hidden"> (external site)</span>
     </a>
     {{- else }}
+    {{- /* Kept on purpose: data/socials.yaml allows an empty url ("not live"), which
+      renders here as a tile that is not a link. No entry is empty today. */ -}}
     <div class="tile social-tile social-tile--soon">
       <span class="social-icon social-icon--{{ .icon | default "placeholder" }}" aria-hidden="true"></span>
       <span class="social-name">{{ .name }}</span>

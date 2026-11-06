@@ -178,7 +178,3 @@
   align-items: center;
   min-height: var(--tap);
 }
-
-.coming-soon {
-  color: var(--muted);
-}
