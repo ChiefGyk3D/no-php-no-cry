@@ -1,0 +1,2 @@
+{{- /* The site feed, published as /feed/index.xml: /feed/ is where the WordPress site served its feed, and layouts/home.redirects sends the old addresses here. Same body as /index.xml. */ -}}
+{{- partial "feed.xml" (dict "page" . "format" "feed") -}}

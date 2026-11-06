@@ -9,11 +9,13 @@
   <meta name="robots" content="noindex, nofollow">
   {{- end }}
   <link rel="canonical" href="{{ .Permalink }}">
-  {{- range .AlternativeOutputFormats }}
-  {{- if eq .Name "rss" }}
+  {{- /* The site feed (/feed/index.xml) on every page; a list page also names its own feed. */}}
+  {{- with site.Home.OutputFormats.Get "feed" }}
   <link rel="alternate" type="application/rss+xml" title="{{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}
-  {{- end }}
+  {{- if not .IsHome }}{{ with .OutputFormats.Get "rss" }}
+  <link rel="alternate" type="application/rss+xml" title="{{ $.Title }} | {{ site.Title }}" href="{{ .Permalink }}">
+  {{- end }}{{ end }}
   {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css")) | minify | fingerprint }}
   <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
   {{- end }}
@@ -55,7 +57,7 @@
         <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
-        <li><a href="{{ "/index.xml" | relURL }}">RSS</a></li>
+        <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>
       </ul>
       {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me adds more identity links beside it. */ -}}
       {{- with site.Data.socials }}

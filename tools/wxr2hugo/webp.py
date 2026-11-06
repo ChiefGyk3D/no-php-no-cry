@@ -123,6 +123,24 @@ def process_bundle(directory, root, quality, report):
         index.write_text(text, encoding="utf-8")
 
 
+def follow_legacy_uploads(root, report):
+    """Point legacy-uploads.json (written by convert.py beside the bundles) at the
+    new .webp names, so the site's redirect for an old /wp-content/uploads/
+    address lands on a file that exists. Entries for files that were kept or
+    refused are left alone."""
+    path = root / "legacy-uploads.json"
+    if path.is_symlink() or not path.is_file():
+        return
+    renamed = {}
+    for item in report["converted"]:
+        old = Path(item["file"])
+        renamed["/" + old.as_posix()] = "/" + (old.parent / item["to"]).as_posix()
+    entries = json.loads(path.read_text(encoding="utf-8"))
+    for entry in entries:
+        entry["to"] = renamed.get(entry["to"], entry["to"])
+    path.write_text(json.dumps(entries, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Convert PNG and JPEG images in page bundles to WebP.")
     parser.add_argument("directory")
@@ -144,6 +162,7 @@ def main(argv=None):
     for base, dirs, _ in os.walk(root, followlinks=False):
         dirs.sort()
         process_bundle(Path(base), root, args.quality, report)
+    follow_legacy_uploads(root, report)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 1 if report["refused"] else 0
 
