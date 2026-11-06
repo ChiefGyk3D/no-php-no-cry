@@ -4,4 +4,6 @@ description: "Ways to support the streams, videos, and projects: a stream tip, K
 date: 2026-11-04
 draft: false
 syndicate: false
+aliases:
+  - /support-me/
 ---

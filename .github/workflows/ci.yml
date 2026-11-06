@@ -129,6 +129,13 @@ jobs:
       - name: Test the WordPress converter
         run: scripts/test-wxr2hugo.sh
 
+      # Needs network access to the Python package index for the hash-pinned Pillow release.
+      - name: Test the WebP conversion step (pinned Pillow)
+        run: scripts/test-wxr2hugo-webp.sh
+
+      - name: Test the content migration (converter output builds, redirects, banners, alt guard)
+        run: scripts/test-migration.sh
+
       - name: Check assets/css/tokens.css is generated from brand/tokens.json
         run: python3 -I scripts/gen-tokens.py --check
 
