@@ -34,3 +34,46 @@
   align-items: center;
   min-height: var(--tap);
 }
+
+/* Desktop (issue 107): the intro beside the projects, the resume link beside contact. The DOM order
+ * stays intro, resume link, projects, contact; the grid areas place them. */
+@media (min-width: 60rem) {
+  .about-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas:
+      "intro projects"
+      "link contact";
+    column-gap: var(--space-6);
+    align-content: start;
+    align-items: start;
+  }
+
+  .about-intro {
+    align-items: start;
+  }
+
+  .about-layout > .about-intro {
+    grid-area: intro;
+  }
+
+  .about-layout > .resume-link {
+    grid-area: link;
+  }
+
+  .about-layout > .about-projects {
+    grid-area: projects;
+  }
+
+  .about-layout > .about-contact {
+    grid-area: contact;
+  }
+
+  .about-projects h2 {
+    margin-top: 0;
+  }
+
+  .about-projects .tile-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -9,11 +9,13 @@
   <meta name="robots" content="noindex, nofollow">
   {{- end }}
   <link rel="canonical" href="{{ .Permalink }}">
-  {{- range .AlternativeOutputFormats }}
-  {{- if eq .Name "rss" }}
+  {{- /* The site feed (/feed/index.xml) on every page; a list page also names its own feed. */}}
+  {{- with site.Home.OutputFormats.Get "feed" }}
   <link rel="alternate" type="application/rss+xml" title="{{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}
-  {{- end }}
+  {{- if not .IsHome }}{{ with .OutputFormats.Get "rss" }}
+  <link rel="alternate" type="application/rss+xml" title="{{ $.Title }} | {{ site.Title }}" href="{{ .Permalink }}">
+  {{- end }}{{ end }}
   {{- /* Preload both fonts (the files the @font-face rules in tokens.css name). With font-display: swap a font that arrives after first paint reflows the text; on a phone-class connection that was a Cumulative Layout Shift of 0.05 to 0.11 on four templates (scripts/browser-gate.py). crossorigin is required for fonts, also same-origin. */}}
   <link rel="preload" href="{{ "fonts/jost-latin-wght-normal.woff2" | relURL }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ "fonts/orbitron-wght.ttf" | relURL }}" as="font" type="font/ttf" crossorigin>
@@ -58,7 +60,7 @@
         <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
-        <li><a href="{{ "/index.xml" | relURL }}">RSS</a></li>
+        <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>
       </ul>
       {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me adds more identity links beside it. */ -}}
       {{- with site.Data.socials }}

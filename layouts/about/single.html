@@ -1,6 +1,7 @@
 {{ define "main" }}
 <article class="page-about">
   <h1>{{ .Title }}</h1>
+  <div class="about-layout">
   <div class="about-intro">
     <img class="about-mascot" src="{{ "brand/mascot-256.webp" | relURL }}" width="256" height="256" alt="ChiefGyk3D's penguin mascot">
     <div class="panel">
@@ -10,14 +11,16 @@
 
   <p class="resume-link">Looking for my work history? Read the <a href="{{ "/resume/" | relURL }}">resume</a>.</p>
 
+  <div class="about-projects">
   <h2>Current projects</h2>
   <ul class="tile-grid project-tiles">
     <li><a class="tile" href="https://github.com/ChiefGyk3D/Stream-Daemon" target="_blank" rel="noopener"><strong>Stream Daemon</strong><span class="meta"> Announces your live streams to Mastodon, Bluesky, Discord, and Matrix.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
     <li><a class="tile" href="https://github.com/ChiefGyk3D/Reach-Around" target="_blank" rel="noopener"><strong>Reach Around</strong><span class="meta"> One pane for creator analytics, a link page, and a media kit.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
     <li><a class="tile" href="https://github.com/ChiefGyk3D/Clouds-Against-Humanity" target="_blank" rel="noopener"><strong>Clouds Against Humanity</strong><span class="meta"> Learn cloud security by building it, in an open-source homelab.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
   </ul>
+  </div>
 
-  <section aria-labelledby="contact">
+  <section class="about-contact" aria-labelledby="contact">
     <h2 id="contact">Contact</h2>
     <p>There's no contact form. Reach me on Matrix or Discord, or use the email address listed as plain text.</p>
     <ul class="contact-links">
@@ -27,5 +30,6 @@
     {{- /* TODO: the maintainer supplies the public email address (plain text, never a mailto: link or a form). */}}
     <p class="email-todo">Email: <span class="meta">TODO: address to be added.</span></p>
   </section>
+  </div>
 </article>
 {{ end }}

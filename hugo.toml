@@ -16,10 +16,11 @@ timeZone = "America/New_York"
   category = "categories"
   tag = "tags"
 
-# Home, posts and journal publish a feed. Home also publishes _redirects and
+# Home, posts and journal publish a feed. Home also publishes the site feed at
+# /feed/index.xml (see [outputFormats.feed]), _redirects and
 # robots.txt.
 [outputs]
-  home = ["html", "rss", "redirects", "robots"]
+  home = ["html", "rss", "feed", "redirects", "robots"]
   section = ["html", "rss"]
   page = ["html"]
   term = ["html"]
@@ -35,6 +36,17 @@ timeZone = "America/New_York"
   baseName = "_redirects"
   isPlainText = true
   notAlternative = true
+
+# The site feed. WordPress served its RSS at /feed/; the same feed is published
+# as the real file feed/index.xml, and layouts/home.redirects sends the old
+# feed addresses (/feed/, /feed/atom/, /comments/feed/) to it. Cloudflare Pages
+# has no directory index for XML, and the artifact check pins _headers to one
+# /* block and _redirects to 301/302 lines, so /feed/ itself is a redirect.
+[outputFormats.feed]
+  mediaType = "application/rss+xml"
+  baseName = "index"
+  path = "feed"
+  rel = "alternate"
 
 [minify]
   minifyOutput = true

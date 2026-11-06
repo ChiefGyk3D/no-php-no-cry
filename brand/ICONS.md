@@ -23,7 +23,8 @@ in the brand kit yet, so `scripts/gen-brand-assets.py` takes it from
 `--simple-icons DIR` when the kit lacks it. License verified 2026-11-05 from the
 release's own `LICENSE.md` (tag 16.36.0): CC0 1.0 Universal for the project's
 icon files. The Pixelfed mark itself remains its owner's. The Pixelfed tile on
-/social/ shows it beside "Coming soon" and is not a link until the account is live.
+/social/ is a live link to https://pics.chiefgyk3d.com/ChiefGyk3D (issue 106) with
+rel="me", and the footer row carries it like the other profiles.
 
 Regenerate or verify with `scripts/gen-brand-assets.py` (it checks each source
 against the kit's sha256 before copying).

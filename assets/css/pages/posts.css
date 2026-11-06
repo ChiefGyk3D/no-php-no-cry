@@ -84,3 +84,86 @@
   margin-left: auto;
   text-align: right;
 }
+
+/* Wide desktops (issue 107): the post keeps its reading column and gains a side
+ * column for the date, reading time and tags (beside the title) and the
+ * canonical and Discuss links (beside the text). The DOM order is unchanged, so
+ * phones, tablets and screen readers still get title, meta, text, links. */
+@media (min-width: 80rem) {
+  .post {
+    display: grid;
+    grid-auto-flow: row dense;
+    grid-template-columns: minmax(0, var(--measure)) 15rem;
+    column-gap: var(--space-6);
+    justify-content: center;
+    max-width: none;
+  }
+
+  .post > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .post > .archive-banner,
+  .post > .superseded-note {
+    grid-column: 1 / -1;
+  }
+
+  .post > .meta,
+  .post > .syndication {
+    grid-column: 2;
+    align-self: start;
+  }
+
+  .post > .meta {
+    margin-top: var(--space-4);
+  }
+
+  .post > .syndication {
+    margin: 0;
+    padding-top: var(--space-3);
+    border-top: var(--rule-width) solid var(--rule);
+  }
+}
+
+/* Prose pages (a post, the privacy page) keep the reading column centered in
+ * the wider desktop container. */
+.page-privacy {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+/* Desktop (issue 107): each year's entries are a card grid, 2 across from
+ * 60rem and 3 across from 80rem. Phones and tablets keep the plain list. */
+@media (min-width: 60rem) {
+  .archive-group .post-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+
+  .archive-group .post-list li {
+    padding: var(--space-5);
+    background: var(--surface);
+    border: var(--rule-width) solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .archive-group .post-list li:hover,
+  .archive-group .post-list li:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 1rem var(--glow);
+  }
+
+  .archive-group .post-list a {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}
+
+@media (min-width: 80rem) {
+  .archive-group .post-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

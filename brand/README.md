@@ -48,7 +48,10 @@ catches a bad value.
 ## Spacing, type, UI elements
 
 - Space: `--space-1` to `--space-6` on a 4-point rhythm (`--space` is an alias for `--space-4`, 1rem),
-  `--measure` 42rem, `--radius`, `--tap` 44 px minimum target.
+  `--measure` 42rem (the reading column), `--radius`, `--tap` 44 px minimum target.
+- Page container: `--page-max` (site-local, in `assets/css/main.css`, not generated)
+  is 42rem on phones and tablets, 60rem from 60rem, 72rem from 80rem, 80rem from
+  100rem and 90rem from 120rem. Running text is capped at `--prose-max` (75ch).
 - Type scale: `--text-sm` to `--text-2xl`; body is `--text-base` (1.125rem) with
   `--line-height` 1.6.
 - Rules: `--rule-width` for dividers, `--rule-accent-width` for the amber bar

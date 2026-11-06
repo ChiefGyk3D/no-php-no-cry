@@ -4,6 +4,42 @@
   box-sizing: border-box;
 }
 
+/* Layout tokens (site-local; tokens.css is generated from brand/tokens.json and
+ * stays untouched). --measure (42rem, about 70 characters) is the reading column
+ * for article text. --page-max is the page container: it equals the reading
+ * column on phones and tablets (so those layouts do not change) and widens in
+ * steps on desktops so a full computer screen is used, up to 90rem. */
+:root {
+  --page-max: var(--measure);
+  --page-gutter: var(--space);
+  --prose-max: 75ch;
+}
+
+@media (min-width: 60rem) {
+  :root {
+    --page-max: 60rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  :root {
+    --page-max: 72rem;
+    --page-gutter: var(--space-5);
+  }
+}
+
+@media (min-width: 100rem) {
+  :root {
+    --page-max: 80rem;
+  }
+}
+
+@media (min-width: 120rem) {
+  :root {
+    --page-max: 90rem;
+  }
+}
+
 body {
   display: flex;
   flex-direction: column;
@@ -21,9 +57,14 @@ body {
 
 .wrap {
   width: 100%;
-  max-width: var(--measure);
+  max-width: var(--page-max);
   margin: 0 auto;
-  padding: 0 var(--space);
+  padding: 0 var(--page-gutter);
+}
+
+/* Running text keeps a readable line length however wide the container is. */
+main p {
+  max-width: var(--prose-max);
 }
 
 /* Display face (Orbitron, via --font-display) on the page headings only; body
@@ -73,7 +114,7 @@ a:focus-visible {
 }
 
 /* One row: the wordmark left, the nav right. The header column is wider than the
- * reading column (42rem) because the seven links plus the wordmark do not fit
+ * reading column (42rem) and never narrower than the page container because the seven links plus the wordmark do not fit
  * in it, and a wrapped second row looked broken. Below 52rem the list collapses
  * into the Menu button instead of wrapping. */
 .site-header .wrap {
@@ -82,7 +123,7 @@ a:focus-visible {
   gap: var(--space);
   align-items: center;
   justify-content: space-between;
-  max-width: 60rem;
+  max-width: max(60rem, var(--page-max));
 }
 
 .site-title {
@@ -270,6 +311,18 @@ main {
 .credit {
   flex-basis: 100%;
   margin: var(--space-2) 0 0;
+}
+
+/* Wide screens: the credit joins the link rows and sits at the far edge. */
+@media (min-width: 80rem) {
+  .site-footer .wrap {
+    gap: 0 var(--space-6);
+  }
+
+  .credit {
+    flex-basis: auto;
+    margin: 0 0 0 auto;
+  }
 }
 
 .meta {
