@@ -78,7 +78,12 @@ def mutate(d, m):
     elif m == "no-skip-link":
         edit(d, "index.html", '<a class="skip" href="#main">Skip to main content</a>', "")
     elif m == "layout-shift":
-        edit(d, "index.html", "<h1>Fixture</h1>", '<img src="/late.png" alt="x"><h1>Fixture</h1>')
+        # Deterministic: a block is inserted above the heading 400 ms after the
+        # script runs, long after first paint and inside the gate's 700 ms window.
+        # (An image that arrives late shifts only if its size is learned after
+        # first paint, which is a race that a fast runner can win.)
+        write(d, "shift.js", "setTimeout(function () { var b = document.createElement('div'); b.style.height = '300px'; document.body.insertBefore(b, document.body.firstChild); }, 400);")
+        edit(d, "index.html", "</head>", '<script src="/shift.js"></script></head>')
     elif m == "slow-lcp":
         edit(d, "index.html", '<img src="/pic.png" width="64" height="64"', '<img src="/big.png" width="512" height="512"')
     elif m == "toggle-missing":
@@ -96,7 +101,6 @@ def main():
     os.makedirs(d, exist_ok=True)
     png(d + "/pic.png", 64, 64, False)
     png(d + "/big.png", 512, 512, True)  # about 780 KB, stored: seconds on a 1.6 Mbps link
-    png(d + "/late.png", 300, 300, True)  # about 270 KB: arrives after first paint
     write(d, "site.css", GOOD_CSS)
     write(d, "index.html", GOOD_HTML)
 
