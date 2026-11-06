@@ -5,12 +5,18 @@
 # repository's gitignored tmp/, never /tmp, then asserts with Python's stdlib
 # HTML parser:
 #   social:   title and intro, one tile per data/socials.yaml entry, icon mask
-#             classes with a CSS rule and a committed SVG each, Pixelfed is not a
-#             link, rel="me" on exactly the verifying networks, https only;
-#   products: the approved disclosure copy in a bracket-frame panel before any
-#             item, the four groups in order, every item with name, line, a
-#             "Price checked on" note and an https link with
-#             rel="sponsored noopener", all 22 affiliate links from the old posts.
+#             classes with a CSS rule and a committed SVG each, Pixelfed is a live
+#             link to its profile, rel="me" on exactly the networks whose rel_me
+#             field in the data says true (the test follows the data), https only;
+#   products: the disclosure copy in a bracket-frame panel before any item, the
+#             groups in the order of data/products.yaml (security first, creator
+#             and social media tools last, the first one open, a count in each
+#             summary), and every item of the data file on the page with a name,
+#             a line, a "Price checked on" note, an https link with
+#             rel="sponsored noopener" and the vendor label the data says (none
+#             when unset). The test reads the data file, so the maintainer can
+#             swap links and vendors without touching it; a floor on the item
+#             count catches an item lost by accident.
 # A guard self-test feeds each asserter a broken page and requires it to fail,
 # so a green run cannot come from an asserter that checks nothing. Needs the
 # pinned Hugo; a missing Hugo is a failure, not a skip.
@@ -44,16 +50,18 @@ from html.parser import HTMLParser
 
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 
+# Reading the page: some links are affiliate links, some go straight to the company.
 DISCLOSURE = (
     "Some links on this page are affiliate links. If you buy something through one, "
-    "I may earn a commission at no extra cost to you. I only list products I use "
-    "myself or would recommend."
+    "I may earn a commission at no extra cost to you. Some products I link directly "
+    "to the company instead of a store. I only list products I use myself or would recommend."
 )
-GROUPS = ["Audio", "3D printing and PC repair", "Air quality", "Software and services"]
-# The 22 amzn.to links of the three old affiliate posts (docs/baseline-chiefgyk3d-com.md).
-POST_LINKS = """426GlTk 3LljKfH 3JEiy69 3JBRGDC 3yBttak 3ZHCWss 3JCuOnG 401gsCy 3FnNyVs 3Tf7oIf
-3Fm0LxN 3mFk52A 3JBzTwg 41bnwNJ 3K1j8tu 3nu4F1y 3GbQGUI 3Ga4VJs 40xqyMg 41ifQJi 3zMszbu 41dhv2Q""".split()
-VERIFY_RME = {"Mastodon", "GitHub"}
+ASSOCIATE = "As an Amazon Associate I earn from qualifying purchases."
+VENDORS = {"Amazon", "Direct"}
+# Floor, not an exact count: 32 items on 2026-11-06. Lower it only on purpose.
+MIN_ITEMS = 32
+FIRST_GROUP_WORD = "Security"
+LAST_GROUP = "Creator and social media tools"
 MATRIX_SHA = "07e6a16f5437fb0e7704c15b97bd50f46f3fa8968e022af2b9f2395fe0419d72"
 
 
@@ -157,15 +165,10 @@ def check_social(page, root, bad):
             bad.append("%s tile lacks name" % name)
         links = tile.find("a")
         if name == "Pixelfed":
-            if links:
-                bad.append("Pixelfed tile is a link")
-            if "coming soon" not in text.lower():
-                bad.append("Pixelfed tile lacks 'coming soon'")
-            if not tile.find("span", "social-icon--pixelfed"):
-                bad.append("Pixelfed tile lacks the Pixelfed icon")
-            if not pathlib.Path(root, "static/brand/icons/pixelfed.svg").is_file():
-                bad.append("Pixelfed icon file missing")
-            continue
+            if e["url"] != "https://pics.chiefgyk3d.com/ChiefGyk3D":
+                bad.append("Pixelfed url is not the profile on pics.chiefgyk3d.com")
+            if "coming soon" in text.lower() or tile.find("div", "social-tile--soon"):
+                bad.append("Pixelfed tile still has the coming-soon treatment")
         if len(links) != 1:
             bad.append("%s tile has %d links" % (name, len(links)))
             continue
@@ -173,8 +176,10 @@ def check_social(page, root, bad):
         if a.attrs.get("href") != e["url"]:
             bad.append("%s href differs from data" % name)
         rel = (a.attrs.get("rel") or "").split()
-        if (name in VERIFY_RME) != ("me" in rel):
-            bad.append("%s rel=me wrong (%r)" % (name, rel))
+        if e.get("rel_me") not in ("true", "false"):
+            bad.append("%s rel_me in the data is not true or false: %r" % (name, e.get("rel_me")))
+        elif (e["rel_me"] == "true") != ("me" in rel):
+            bad.append("%s rel=me wrong for rel_me %s (%r)" % (name, e["rel_me"], rel))
         if "noopener" not in rel:
             bad.append("%s link lacks noopener" % name)
         icon = a.find("span", "social-icon")
@@ -189,6 +194,20 @@ def check_social(page, root, bad):
     if hashlib.sha256(pathlib.Path(root, "static/brand/icons/matrix.svg").read_bytes()).hexdigest() != MATRIX_SHA:
         bad.append("matrix.svg differs from the kit hash")
     return len(tiles)
+
+
+def load_products(root):
+    """data/products.yaml read without a YAML library: groups, then items with simple scalar keys."""
+    groups = []
+    for line in pathlib.Path(root, "data/products.yaml").read_text().splitlines():
+        if line.startswith("- group:"):
+            groups.append({"group": line.split(":", 1)[1].strip(), "items": []})
+        elif line.startswith("    - name:"):
+            groups[-1]["items"].append({"name": line.split(":", 1)[1].strip()})
+        elif groups and groups[-1]["items"] and re.match(r"      [a-z_]+:", line):
+            k, v = line.strip().split(":", 1)
+            groups[-1]["items"][-1][k] = v.strip()
+    return groups
 
 
 def check_products(page, root, bad):
@@ -215,11 +234,33 @@ def check_products(page, root, bad):
             break
         if n.tag in ("a", "li"):
             bad.append("link or item before the disclosure")
+    data = load_products(root)
     names = [g.find("h2")[0].all_text() if g.find("h2") else "" for g in first_group]
-    if names != GROUPS:
-        bad.append("groups %r" % names)
+    if names != [g["group"] for g in data]:
+        bad.append("groups %r differ from data/products.yaml" % names)
+    if not names or FIRST_GROUP_WORD not in names[0]:
+        bad.append("first group is not a security group: %r" % names[:1])
+    if names and names[-1] != LAST_GROUP:
+        bad.append("last group is not %r" % LAST_GROUP)
+    for i, (g, dg) in enumerate(zip(first_group, data)):
+        det = g.find("details")
+        if len(det) != 1:
+            bad.append("group %d is not one details element" % i)
+            continue
+        if ("open" in det[0].attrs) != (i == 0):
+            bad.append("only the first group starts open (group %d)" % i)
+        count = g.find("span", "product-count")
+        want = "%d %s" % (len(dg["items"]), "item" if len(dg["items"]) == 1 else "items")
+        if not count or count[0].all_text() != want:
+            bad.append("group %d count is not %r" % (i, want))
     items = main.find("li", "product")
+    all_data = [it for g in data for it in g["items"]]
+    if len(all_data) < MIN_ITEMS:
+        bad.append("data/products.yaml has %d items, fewer than %d" % (len(all_data), MIN_ITEMS))
+    if len(items) != len(all_data):
+        bad.append("page has %d items, data has %d" % (len(items), len(all_data)))
     seen = []
+    labels = []
     for it in items:
         links = it.find("a")
         label = it.all_text()[:40]
@@ -234,6 +275,10 @@ def check_products(page, root, bad):
         if not href.startswith("https://"):
             bad.append("item link not https: " + label)
         seen.append(href)
+        v = it.find("span", "product-vendor")
+        labels.append(v[0].all_text() if v else "")
+        if v and v[0].all_text() not in VENDORS:
+            bad.append("unknown vendor label %r: %s" % (v[0].all_text(), label))
         if not it.find("h3"):
             bad.append("item has no name: " + label)
         if len(it.find("p", "product-line")) != 1 or not it.find("p", "product-line")[0].all_text():
@@ -243,17 +288,23 @@ def check_products(page, root, bad):
             bad.append("item lacks a 'Price checked on <date>' note: " + label)
         if re.search(r"[$]\s*\d", label):
             bad.append("item shows a price: " + label)
-    if "https://affil.trezor.io/aff_c?offer_id=133&aff_id=32739" not in seen:
-        bad.append("missing Trezor affiliate link")
+    # Audit: every item of the data file is on the page, in order, with its link and vendor label.
+    if [i["name"] for i in all_data] != [i.find("h3")[0].all_text() for i in items if i.find("h3")]:
+        bad.append("item names or order differ from data/products.yaml")
+    if [i.get("url") for i in all_data] != seen:
+        bad.append("item links differ from data/products.yaml")
+    if [i.get("vendor", "") for i in all_data] != labels:
+        bad.append("vendor labels differ from data/products.yaml")
+    for i in all_data:
+        if i.get("vendor", "") not in VENDORS | {""}:
+            bad.append("data vendor not Amazon or Direct: " + i["name"])
     page_text = main.all_text()
-    if "As an Amazon Associate I earn from qualifying purchases." not in page_text:
-        bad.append("Amazon Associate line missing")
+    amazon_in_data = any(i.get("vendor") == "Amazon" for i in all_data)
+    if amazon_in_data != (ASSOCIATE in page_text):
+        bad.append("Amazon Associate line must show exactly when an item has vendor Amazon")
     for a in main.find("a"):
         if "public.com" in (a.attrs.get("href") or ""):
             bad.append("brokerage referral is listed (maintainer ruling: not on this page)")
-    for code in POST_LINKS:
-        if "https://amzn.to/" + code not in seen:
-            bad.append("missing affiliate link " + code)
     for g in first_group:
         if not g.find("li", "product"):
             bad.append("empty group")
@@ -340,12 +391,51 @@ if [[ -f "$social" && -f "$products" ]]; then
         fi
     }
     guard "rel=me dropped" social "$social" 's/rel="me noopener"/rel="noopener"/g'
-    guard "pixelfed linked" social "$social" 's/<span class="social-icon social-icon--pixelfed"/<a href="https:\/\/x.example\/"><span class="social-icon social-icon--pixelfed"/'
+    guard "pixelfed href altered" social "$social" 's/<a class="tile social-tile" href="https:\/\/pics\.chiefgyk3d\.com\/ChiefGyk3D" rel="me noopener">/<a class="tile social-tile" href="https:\/\/x.example\/" rel="me noopener">/'
     guard "pixelfed icon dropped" social "$social" 's/social-icon--pixelfed/social-icon--placeholder/'
+    guard "vendor label wrong" products "$products" '0,/product-vendor">Amazon</{s/Amazon/Direct/}'
+    guard "item dropped" products "$products" '0,/<li class="product">/s//<li class="product-x">/'
+    guard "first group closed" products "$products" 's/<details class="accordion" open>/<details class="accordion">/'
     guard "sponsored dropped" products "$products" 's/rel="sponsored noopener"/rel="noopener"/'
     guard "disclosure changed" products "$products" 's/at no extra cost to you/at a cost to you/'
+    guard "direct note dropped" products "$products" 's/Some products I link directly/Some products I link/'
     guard "price note removed" products "$products" 's/Price checked on/Seen on/'
+    guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
+fi
+
+# Mutation check: the rel="me" assertion follows data/socials.yaml. Flip one rel_me value
+# in a copy of the repository, rebuild, and the asserter must still pass (the template follows
+# the data, so the test must too). Then run the asserter on the ORIGINAL page against the
+# changed data: it must fail, proving the data is what the test compares against.
+if [[ -f "$social" ]]; then
+    mroot="$work/mutroot"
+    mkdir -p "$mroot"
+    for d in archetypes assets content data layouts static i18n; do
+        [[ -e "$root/$d" ]] && cp -R "$root/$d" "$mroot/$d"
+    done
+    for f in hugo.toml hugo.yaml config.toml .hugo-version; do
+        [[ -f "$root/$f" ]] && cp "$root/$f" "$mroot/$f"
+    done
+    [[ -d "$root/config" ]] && cp -R "$root/config" "$mroot/config"
+    # Flip the first rel_me: false (Twitch) to true.
+    sed -i '0,/rel_me: false/s//rel_me: true/' "$mroot/data/socials.yaml"
+    if cmp -s "$root/data/socials.yaml" "$mroot/data/socials.yaml"; then
+        fail "mutation did not change the data (the test is stale)"
+    elif (cd "$mroot" && HUGO_MINIFY_MINIFYOUTPUT=false hugo --destination "$work/mutpublic" --quiet >"$work/mutbuild.log" 2>&1); then
+        if python3 -I "$asserter" social "$work/mutpublic/social/index.html" "$mroot" >/dev/null 2>&1; then
+            pass "mutation: flipped rel_me in the data, rebuilt page, test follows the data"
+        else
+            fail "mutation: test failed falsely after a rel_me change in the data"
+        fi
+        if python3 -I "$asserter" social "$social" "$mroot" >/dev/null 2>&1; then
+            fail "mutation: stale page accepted against changed data"
+        else
+            pass "mutation: page not matching the changed data is caught"
+        fi
+    else
+        fail "mutation build failed ($(tail -n 3 "$work/mutbuild.log" | tr '\n' ' '))"
+    fi
 fi
 
 if ((failures > 0)); then

@@ -59,9 +59,26 @@
   min-width: 0;
 }
 
+.product-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
 .product h3 {
   margin: 0;
   font-size: var(--text-base);
+}
+
+/* A small neutral label for where the link goes ("Amazon", "Direct"). Not a link. */
+.product-vendor {
+  padding: 0 var(--space-2);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--line-height);
 }
 
 .product p {
@@ -90,7 +107,8 @@
 }
 
 @media (forced-colors: active) {
-  .product {
+  .product,
+  .product-vendor {
     border-color: CanvasText;
   }
 }
