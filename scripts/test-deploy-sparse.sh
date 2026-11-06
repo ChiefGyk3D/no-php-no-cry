@@ -40,7 +40,7 @@ expect_missing() {
 }
 
 # The sparse list of the deploy job, minus one entry at a time.
-for entry in /scripts/artifact-rules.sh /copy.js.sha256 /static/_headers /scripts/check-site-artifact.sh /scripts/ensure-pages-project.sh; do
+for entry in /scripts/artifact-rules.sh /copy.js.sha256 /static/_headers /static/_routes.json /scripts/check-site-artifact.sh /scripts/ensure-pages-project.sh; do
     grep -vxF "            $entry" "$wf" >"$work/wf.yml"
     if cmp -s "$work/wf.yml" "$wf"; then
         echo "FAIL: the entry $entry is not in the workflow's sparse list"

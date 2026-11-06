@@ -4,7 +4,7 @@ Usage: python3 -I scripts/check-deploy-sparse.py <workflow.yml> <repo-root>
 
 For each job of the workflow whose checkout step has a `sparse-checkout:` list,
 the job's commands (comments and the sparse list itself removed) are searched for
-the repository files they run or read: scripts/*.sh, static/_headers and the
+the repository files they run or read: scripts/*.sh, static/_headers, static/_routes.json and the
 script hash file. Each script is then read, and the scripts it sources or runs and
 the data files it names are added, until nothing new appears. Any needed file
 that the job's sparse list does not cover is printed as "job: path" and the exit
@@ -14,7 +14,7 @@ import os
 import re
 import sys
 
-DATA = ("static/_headers", "copy.js.sha256")
+DATA = ("static/_headers", "static/_routes.json", "copy.js.sha256")
 
 
 def jobs(text):

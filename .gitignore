@@ -9,6 +9,9 @@ db/
 *.zip
 *.sql
 *.sql.gz
+# ...except the analytics migration and maintenance SQL (reviewed code, issue 84)
+!analytics/migrations/*.sql
+!analytics/maintenance.sql
 *.wpress
 *.wxr
 *WordPress.*.xml
