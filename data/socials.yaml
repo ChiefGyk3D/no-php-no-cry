@@ -56,9 +56,10 @@
   blurb: Photos
 # Pixelfed is not live yet: no url, so the tile is not a link and the footer row
 # skips it. Its address (https://pics.chiefgyk3d.com/ChiefGyk3D, from the GitHub
-# README) goes in url when the account is live. No icon in the kit (brand/ICONS.md).
+# README) goes in url when the account is live. The icon is committed (issue 95,
+# brand/ICONS.md), so the tile shows the mark beside "Coming soon".
 - name: Pixelfed
-  icon: ""
+  icon: pixelfed
   url: ""
   handle: "@ChiefGyk3D"
   rel_me: false

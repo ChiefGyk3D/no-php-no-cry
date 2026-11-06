@@ -82,7 +82,7 @@ catches a bad value.
   uses it for h1, h2, HUD headings and the wordmark only, never body text.
 - Generated art: `scripts/gen-brand-assets.py` builds the mascot WebP set
   (128/256/512), favicons, the 1200x630 OG card and the social icons from the
-  kit; see `brand/assets-build.json` and `brand/ICONS.md`.
+  kit (Pixelfed from a Simple Icons checkout, `--simple-icons`); see `brand/assets-build.json` and `brand/ICONS.md`.
 
 ## Mascot
 
@@ -101,7 +101,7 @@ listed with sha256 in `approved-assets.txt`:
 - `favicon-32.png`, `favicon-192.png`, `favicon-512.png` and
   `apple-touch-icon-180.png`: the PNG favicon and touch icons.
 - `og-card.png`: the 1200x630 Open Graph image, the default in `head-meta.html`.
-- `icons/`: the ten social glyphs (see `ICONS.md`).
+- `icons/`: the twelve social glyphs: eleven from the kit, Pixelfed from Simple Icons 16.36.0 (see `ICONS.md`).
 
 `.brand-mark` sizes the image. Third-party marks are not republished; see
 `EXCLUDED.md`.

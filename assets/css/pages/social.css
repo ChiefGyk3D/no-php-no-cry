@@ -55,12 +55,13 @@
 .social-icon--bluesky { --icon: url("/brand/icons/bluesky.svg"); }
 .social-icon--tiktok { --icon: url("/brand/icons/tiktok.svg"); }
 .social-icon--instagram { --icon: url("/brand/icons/instagram.svg"); }
+.social-icon--pixelfed { --icon: url("/brand/icons/pixelfed.svg"); }
 .social-icon--threads { --icon: url("/brand/icons/threads.svg"); }
 .social-icon--discord { --icon: url("/brand/icons/discord.svg"); }
 .social-icon--matrix { --icon: url("/brand/icons/matrix.svg"); }
 .social-icon--github { --icon: url("/brand/icons/github.svg"); }
 
-/* Pixelfed has no icon in the kit (brand/ICONS.md): a neutral outlined square. */
+/* A tile with no icon at all keeps a neutral outlined square. */
 .social-icon--placeholder {
   background: none;
   border: var(--rule-accent-width) dashed var(--gray);
