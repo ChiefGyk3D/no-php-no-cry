@@ -43,6 +43,10 @@
   --icon: url("../brand/icons/matrix.svg");
 }
 
+.icon-pixelfed {
+  --icon: url("../brand/icons/pixelfed.svg");
+}
+
 .icon-threads {
   --icon: url("../brand/icons/threads.svg");
 }

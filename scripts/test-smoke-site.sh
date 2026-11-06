@@ -34,9 +34,9 @@ done
 printf '<!doctype html>\n' >"$pub/index.html"
 printf '<!doctype html>\n' >"$pub/404.html"
 printf '<rss/>\n' >"$pub/index.xml"
-# The pinned hash of the theme script: a file of the test's own, absent unless a
+# The pinned hash of the copy script: a file of the test's own, absent unless a
 # case pins it.
-export THEME_HASH_FILE="$work/theme.sha256"
+export SCRIPT_HASH_FILE="$work/theme.sha256"
 theme_file="$work/theme-served.js"
 known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml"
 # Requests per full attempt: nine pages (eight above and the 404) and the redirect.
@@ -98,13 +98,13 @@ class H(BaseHTTPRequestHandler):
             "handlerpage": b"<html><body onload=x()></body></html>",
             "quotedgt": b"<html><img alt=\"x>\" onerror=x()></html>",
             "jsurl": b"<html><a href=\"javascript:x()\">y</a></html>",
-            "themeref": b"<html><script src=/theme.js></script></html>",
-            "themetwice": b"<html><script src=/theme.js></script><script src=/theme.js></script></html>",
+            "themeref": b"<html><script src=/copy.js></script></html>",
+            "themetwice": b"<html><script src=/copy.js></script><script src=/copy.js></script></html>",
             "benignpage": b"<html><img alt=\"one=1\" src=/a.png><a href=\"https://example.org/\">y</a></html>",
             "badfeed": b"<rss><a onclick=\"x\"/></rss>",
         }
         is_known = self.path in known
-        if self.path == "/theme.js" and os.path.exists(os.environ["THEME_FILE"]):
+        if self.path == "/copy.js" and os.path.exists(os.environ["THEME_FILE"]):
             is_known = True
             body = open(os.environ["THEME_FILE"], "rb").read()
             if fault == "tampertheme":
@@ -265,7 +265,7 @@ expect no-headers-file input good "$work/nohdr"
 expect no-redirect-line input good "$work/noredir"
 
 # The expected policy must carry script-src exactly 'self': 'none' (the header
-# and the theme script would have drifted apart) and anything looser are refused
+# and the copy script would have drifted apart) and anything looser are refused
 # before any request is made.
 for src in "'none'" "'self' https:" "'unsafe-inline'" "*" "'self' data:"; do
     d="$work/csp-$(printf '%s' "$src" | tr -c '[:lower:]' '_')"
@@ -301,30 +301,30 @@ expect "remote script served on a list" "script-not-allowed: /journal/" remotesc
 expect "handler served on the 404 page" "event-handler: /smoke-check-missing-page/" handlerpage@'*404'
 expect "handler after a quoted > on a post" "event-handler: /posts/sample-post/" quotedgt@/posts/sample-post/
 expect "javascript URL served on a tag page" "javascript-url: /tags/lorem/" jsurl@/tags/lorem/
-expect "theme script tag served with no pinned theme" "script-not-allowed: /" themeref@/
+expect "theme script tag served with no pinned script" "script-not-allowed: /" themeref@/
 expect "handler in the served feed" "event-handler: /index.xml" badfeed@/index.xml
 expect "benign served markup passes" pass benignpage@/posts/
 
-# The theme script is judged by its pinned hash: the build's file must match it,
-# and so must the bytes the site serves. With no hash file a theme.js is refused.
+# The copy script is judged by its pinned hash: the build's file must match it,
+# and so must the bytes the site serves. With no hash file a copy.js is refused.
 tpub="$work/public-theme"
 cp -r "$pub" "$tpub"
-printf 'document.documentElement.dataset.theme="dark"\n' >"$tpub/theme.js"
-cp "$tpub/theme.js" "$theme_file"
-printf '%s  theme.js\n' "$(sha256sum "$tpub/theme.js" | cut -d' ' -f1)" >"$THEME_HASH_FILE"
-known="$known,/theme.js"
-expect "pinned theme served unchanged" pass good "$tpub"
-expect "theme served with different bytes" "theme-hash: /theme.js" tampertheme@/theme.js "$tpub"
-expect "the pinned theme script tag served passes" pass themeref@/ "$tpub"
-expect "the theme script tag served twice" "script-count: /" themetwice@/ "$tpub"
+printf 'document.documentElement.dataset.theme="dark"\n' >"$tpub/copy.js"
+cp "$tpub/copy.js" "$theme_file"
+printf '%s  copy.js\n' "$(sha256sum "$tpub/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"
+known="$known,/copy.js"
+expect "pinned script served unchanged" pass good "$tpub"
+expect "theme served with different bytes" "script-hash: /copy.js" tampertheme@/copy.js "$tpub"
+expect "the pinned script tag served passes" pass themeref@/ "$tpub"
+expect "the copy script tag served twice" "script-count: /" themetwice@/ "$tpub"
 expect "an extra script next to the theme tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
-expect "theme bytes alternate between responses" "theme-hash: /theme.js" alternatetheme@/theme.js "$tpub"
-expect "no CSP on the theme script" "missing-csp: /theme.js" nocsp@/theme.js "$tpub"
-rm -f "$THEME_HASH_FILE"
-expect "theme.js in the build with no hash file" input good "$tpub"
-printf '%s  theme.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$THEME_HASH_FILE"
-expect "build theme.js differs from the pinned hash" input good "$tpub"
-rm -f "$THEME_HASH_FILE" "$theme_file"
+expect "theme bytes alternate between responses" "script-hash: /copy.js" alternatetheme@/copy.js "$tpub"
+expect "no CSP on the copy script" "missing-csp: /copy.js" nocsp@/copy.js "$tpub"
+rm -f "$SCRIPT_HASH_FILE"
+expect "copy.js in the build with no hash file" input good "$tpub"
+printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
+expect "build copy.js differs from the pinned hash" input good "$tpub"
+rm -f "$SCRIPT_HASH_FILE" "$theme_file"
 
 # Plain http is refused unless the test switch is set.
 rc=0

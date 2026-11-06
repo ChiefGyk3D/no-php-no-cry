@@ -8,6 +8,10 @@
 {{- if not $alt -}}
   {{- errorf "image %q on page %q has no alt text" .Destination .Page.File.Path -}}
 {{- end -}}
+{{- /* The migration converter writes "TODO alt text" where the source had no alt. Drafts are never rendered, so this only stops a published page. */ -}}
+{{- if strings.HasPrefix $alt "TODO alt text" -}}
+  {{- errorf "image %q on page %q still has placeholder alt text; write a real description" .Destination .Page.File.Path -}}
+{{- end -}}
 {{- $img := .Page.Resources.Get .Destination -}}
 {{- if not $img -}}
   {{- errorf "image %q on page %q is not a page-bundle resource (remote and site-wide images are not allowed)" .Destination .Page.File.Path -}}

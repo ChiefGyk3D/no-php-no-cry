@@ -7,17 +7,17 @@
 #      (artifact_name_ok): there is no second file a script could load;
 #   2. nosniff is in the headers (headers_nosniff_ok), so a response that is not
 #      served as JavaScript is not run as a script;
-#   3. the one allowed script, /theme.js, is accepted only if its sha256 equals
-#      the value in the committed hash file (theme_hash_state): with no hash
+#   3. the one allowed script, /copy.js, is accepted only if its sha256 equals
+#      the value in the committed hash file (script_hash_state): with no hash
 #      file no script is allowed at all, and any change to the script is a
-#      reviewed change to that file (scripts/pin-theme.sh writes it);
+#      reviewed change to that file (scripts/pin-script.sh writes it);
 #   4. the headers file is one "/*" rule block with no removal directive
 #      (headers_policy_ok), so nothing detaches or overrides a header per path.
 
 # artifact_name_ok <path relative to the site root>: succeeds for a file the
 # build may carry. The three control files only at the root; everything else needs
 # a listed extension, so no extension, a trailing dot, a dotfile and an unlisted
-# extension (json, map, php, js, ...) all fail. /theme.js is checked by the caller.
+# extension (json, map, php, js, ...) all fail. /copy.js is checked by the caller.
 artifact_name_ok() {
     local base="${1##*/}" ext
     case "$1" in
@@ -32,16 +32,16 @@ artifact_name_ok() {
     return 1
 }
 
-# theme_hash_state <hash file>: prints the pinned sha256 and succeeds when the
+# script_hash_state <hash file>: prints the pinned sha256 and succeeds when the
 # file is one line, "<64 lowercase hex>" optionally followed by spaces and
-# theme.js (sha256sum format). Returns 1 for no file (no script is allowed) and
+# copy.js (sha256sum format). Returns 1 for no file (no script is allowed) and
 # 2 for a malformed one.
-theme_hash_state() {
+script_hash_state() {
     local lines=()
     [[ -f "$1" ]] || return 1
     mapfile -t lines <"$1"
     [[ ${#lines[@]} -eq 1 ]] || return 2
-    [[ "${lines[0]}" =~ ^([0-9a-f]{64})([[:space:]]+\*?theme\.js)?$ ]] || return 2
+    [[ "${lines[0]}" =~ ^([0-9a-f]{64})([[:space:]]+\*?copy\.js)?$ ]] || return 2
     printf '%s\n' "${BASH_REMATCH[1]}"
 }
 

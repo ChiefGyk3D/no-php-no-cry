@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test for scripts/check-deploy-sparse.py: every file a sparse-checkout job of the
 # deploy workflow needs (scripts it runs, scripts they source, the headers file,
-# the theme hash file) must be in that job's sparse list. The real workflow must
+# the script hash file) must be in that job's sparse list. The real workflow must
 # pass; fixtures that drop an entry, or add a script that sources an unlisted
 # one, must fail naming the file.
 set -euo pipefail
@@ -40,7 +40,7 @@ expect_missing() {
 }
 
 # The sparse list of the deploy job, minus one entry at a time.
-for entry in /scripts/artifact-rules.sh /theme.js.sha256 /static/_headers /static/_routes.json /scripts/check-site-artifact.sh /scripts/ensure-pages-project.sh; do
+for entry in /scripts/artifact-rules.sh /copy.js.sha256 /static/_headers /static/_routes.json /scripts/check-site-artifact.sh /scripts/ensure-pages-project.sh; do
     grep -vxF "            $entry" "$wf" >"$work/wf.yml"
     if cmp -s "$work/wf.yml" "$wf"; then
         echo "FAIL: the entry $entry is not in the workflow's sparse list"

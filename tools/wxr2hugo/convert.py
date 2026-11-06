@@ -2,7 +2,8 @@
 """Convert a WordPress WXR export into Hugo page bundles.
 
     python3 -I tools/wxr2hugo/convert.py --wxr PATH --out DIR \
-        [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR]
+        [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR] \
+        [--draft-all] [--posts-only] [--annotations FILE]
 
 Stdlib only. The export, the terms file and the output all live outside the
 repository; the tool refuses paths inside it. `--scrub-terms -` reads the
@@ -27,7 +28,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -40,6 +41,16 @@ RESERVED_ROOTS = {"posts", "journal", "categories", "tags", "page", "index.xml",
 
 WP = "{http://wordpress.org/export/1.2/}"
 CONTENT = "{http://purl.org/rss/1.0/modules/content/}encoded"
+ALT_TODO = "TODO alt text"
+# Old-permalink grammar: what a Cloudflare _redirects source line may hold (the
+# same characters layouts/home.redirects and scripts/test-redirects.sh allow).
+OLD_PATH_OK = re.compile(r"^/(?:[A-Za-z0-9._~-]|%[0-9A-Fa-f]{2}|/)*$")
+BAD_LINK_CHARS = re.compile(r"[\x00-\x20\x7f\"'<>\\^`{|}]")
+# A recorded announcement URL: https only, a dotted host, no credentials.
+ANNOUNCE_URL = re.compile(r"^https://[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?::\d{1,5})?(?:/[A-Za-z0-9._~@%+-]*)*$")
+ANNOTATION_KEYS = {"archive", "supersededBy"}
+SLUG_KEY = re.compile(r"^[a-z0-9][a-z0-9-]{0,199}$")
+SITE_PATH = re.compile(r"^/(?:[A-Za-z0-9._~-]+/)*$")
 UPLOADS = re.compile(r"/wp-content/uploads/([^?#]+)")
 SIZE_SUFFIX = re.compile(r"-\d+x\d+(?=\.[^./]+$)")
 
@@ -133,6 +144,13 @@ def esc_line_start(text):
     return re.sub(r"^(\s*)(#|>|\+|-(?= )|\d+(?=[.)] ))", r"\1\\\2", text)
 
 
+def clean_alt(text):
+    """Alt text that cannot reshape the image syntax: no tags, brackets, backslashes or backticks."""
+    text = re.sub(r"<[^>]*>?", " ", text)
+    text = re.sub(r"[\[\]\\`]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()[:250]
+
+
 def url_dest(url):
     return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
 
@@ -219,8 +237,11 @@ class PageCtx:
         self.affiliate_links = 0
 
     def _bundle_name(self, path):
-        name = path.name
-        stem, suffix = path.stem, path.suffix
+        # Only [A-Za-z0-9._-] survives: a file name must not be able to reshape
+        # the Markdown link or image that points at it.
+        stem = re.sub(r"[^A-Za-z0-9._-]+", "-", path.stem).strip("-.") or "file"
+        suffix = re.sub(r"[^A-Za-z0-9.]+", "", path.suffix.lower())
+        name = stem + suffix
         n = 1
         while name in self.bundle and self.bundle[name] != path:
             n += 1
@@ -258,16 +279,19 @@ class PageCtx:
         src = src.strip()
         path, rel = self.site.find_media(src)
         info = self.site.attachment_info(rel) if rel else {}
-        alt = (alt or "").strip() or info.get("alt") or info.get("title") or ""
-        if not alt:
-            stem = Path(rel or urlsplit(src).path).stem
-            alt = re.sub(r"[-_]+", " ", SIZE_SUFFIX.sub("", stem + ".x")[:-2]).strip() or "image"
+        # An attachment title is usually the file name, so it is not alt text.
+        alt = clean_alt((alt or "").strip() or info.get("alt") or "")
+        todo = not alt
+        if todo:
+            alt = ALT_TODO
         if path is not None:
             name = self._bundle_name(path)
             if path.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
                 # layouts/_markup/render-image.html only accepts JPEG, PNG and WebP
                 self.site.warnings.append({"file": self.page_path, "kind": "unsupported-image-format", "detail": name})
             self.site.image_files.add((self.page_path, name))
+            if todo:
+                self.site.warnings.append({"file": self.page_path, "kind": "alt-todo", "detail": name})
             if self.site.temp_re and self.site.temp_re.match(src):
                 self.site.counts["temp_host_images_localized"] += 1
             return name, alt
@@ -275,6 +299,8 @@ class PageCtx:
             self.site.warnings.append({"file": self.page_path, "kind": "missing-media-image", "detail": rel})
         else:
             self.site.warnings.append({"file": self.page_path, "kind": "external-image", "detail": urlsplit(src).netloc})
+        if todo:
+            self.site.warnings.append({"file": self.page_path, "kind": "alt-todo", "detail": "external image"})
         return url_dest(self.rewrite_text(src)), alt
 
 
@@ -647,13 +673,33 @@ def read_item(el):
 
 
 def old_permalink(link):
-    parts = urlsplit(link)
+    """(path, ok). ok is False for a permalink that cannot be a safe redirect source."""
+    if BAD_LINK_CHARS.search(link):
+        return None, False
+    if link.startswith("/"):
+        if link.startswith("//"):  # protocol-relative: a different host, not a local path
+            return None, False
+    elif not re.match(r"https?://[^/?#]", link, re.I):
+        return None, False
+    try:
+        parts = urlsplit(link)
+        parts.port  # noqa: B018 - raises ValueError on a malformed port
+    except ValueError:
+        return None, False
     if parts.query or parts.fragment:
-        return None
+        return None, True
     path = parts.path
     if path in ("", "/"):
-        return None
-    return path if path.startswith("/") else "/" + path
+        return None, True
+    if not path.startswith("/"):
+        path = "/" + path
+    path = quote(path, safe="/%~._-")
+    if not OLD_PATH_OK.match(path):
+        return None, False
+    segments = path.split("/")[1:]
+    if any(not seg for seg in segments[:-1]) or any(unquote(seg) in (".", "..") for seg in segments):
+        return None, False
+    return path, True
 
 
 def find_media_root(wxr_path):
@@ -680,6 +726,9 @@ def front_matter(fields):
             lines.append("%s: %s" % (key, "true" if value else "false"))
         elif key == "date":
             lines.append("date: %s" % value)
+        elif isinstance(value, dict):
+            lines.append("%s:" % key)
+            lines.extend("  %s: %s" % (k, q(v)) for k, v in sorted(value.items()))
         elif isinstance(value, list) and key == "aliases":
             if value:
                 lines.append("aliases:")
@@ -691,7 +740,56 @@ def front_matter(fields):
     return "---\n" + "\n".join(lines) + "\n---\n"
 
 
-def convert(wxr_path, site_url, media_root):
+def _no_duplicates(pairs):
+    seen = {}
+    for key, value in pairs:
+        if key in seen:
+            raise ValueError("duplicate key")
+        seen[key] = value
+    return seen
+
+
+def load_annotations(path):
+    """Per-slug front matter the export cannot carry: archive banner, forward link.
+
+    A JSON object {slug: {"archive": true|text, "supersededBy": site path|https URL}}.
+    Anything else is refused; messages never quote the file's values.
+    """
+    path = Path(path).expanduser()
+    if not path.is_file():
+        raise UsageError("--annotations is not a file")
+    data = path.read_bytes()
+    if len(data) > 65536:
+        raise UsageError("--annotations is larger than 64 KiB")
+    try:
+        obj = json.loads(data.decode("utf-8"), object_pairs_hook=_no_duplicates)
+    except (ValueError, UnicodeDecodeError):
+        raise UsageError("--annotations is not valid JSON with unique keys")
+    if not isinstance(obj, dict):
+        raise UsageError("--annotations must be a JSON object keyed by post slug")
+    for slug, entry in obj.items():
+        if not SLUG_KEY.match(slug) or not isinstance(entry, dict) or not entry:
+            raise UsageError("--annotations has an entry that is not a slug with an object")
+        if set(entry) - ANNOTATION_KEYS:
+            raise UsageError("--annotations entry %s has a key other than archive or supersededBy" % slug)
+        archive = entry.get("archive")
+        if "archive" in entry and not (
+            archive is True
+            or (isinstance(archive, str) and 0 < len(archive) <= 300 and not re.search(r"[\x00-\x1f\x7f<>]", archive))
+        ):
+            raise UsageError("--annotations entry %s: archive must be true or one line of text (300 characters, no markup)" % slug)
+        target = entry.get("supersededBy")
+        if "supersededBy" in entry:
+            ok = isinstance(target, str) and (
+                (SITE_PATH.match(target) and "." not in target.split("/") and ".." not in target.split("/"))
+                or (len(target) <= 300 and ANNOUNCE_URL.match(target))
+            )
+            if not ok:
+                raise UsageError("--annotations entry %s: supersededBy must be a site path like /posts/x/ or an https URL" % slug)
+    return obj
+
+
+def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, posts_only=False):
     """Returns (files, media, summary_pieces). Pure with respect to the disk."""
     root, raw_text = read_wxr(wxr_path)
     channel = root.find("channel")
@@ -714,9 +812,12 @@ def convert(wxr_path, site_url, media_root):
     site = Site(site_url, temp_hosts, own_hosts, media_root, attachments)
     taken_roots = existing_roots() | RESERVED_ROOTS
     dropped = {}
-    wanted = []
+    wanted, not_migrated = [], []
     for item in items:
-        if item["type"] in ("post", "page") and item["status"] in ("publish", "draft"):
+        if item["type"] == "page" and posts_only and item["status"] in ("publish", "draft"):
+            old, _ = (None, True) if item["status"] == "draft" else old_permalink(item["link"])
+            not_migrated.append({"id": item["id"], "slug": safe_slug(item["slug"]) or slugify(html_text(item["title"])) or "page-%d" % item["id"], "old": old})
+        elif item["type"] in ("post", "page") and item["status"] in ("publish", "draft"):
             wanted.append(item)
         elif item["type"] not in ("attachment", "extb_post_json"):
             dropped[item["type"]] = dropped.get(item["type"], 0) + 1
@@ -736,6 +837,8 @@ def convert(wxr_path, site_url, media_root):
         "disclosures_added": 0,
     }
     skipped, disclosures = [], []
+    annotated, review = set(), {}
+    pending = {}
 
     for item in wanted:
         kind = item["type"]
@@ -748,7 +851,8 @@ def convert(wxr_path, site_url, media_root):
         bundle = "%s/%s" % (section, slug) if section else slug
         page_path = bundle + "/index.md"
         ctx = PageCtx(site, page_path)
-        draft = item["status"] == "draft"
+        wp_draft = item["status"] == "draft"
+        draft = wp_draft or draft_all
 
         body, builder_id = None, None
         found = re.search(r's:4:"json";i:(\d+);', item["meta"].get("extend_builder", ""))
@@ -785,10 +889,25 @@ def convert(wxr_path, site_url, media_root):
                     entry["disclosure"] = "added" if disclosed else "already present"
 
         new_url = "/%s/%s/" % (section, slug) if section else "/%s/" % slug
-        old = None if draft else old_permalink(item["link"])
+        # A WordPress draft was never public, so it has no old URL to keep. A
+        # published page held back by --draft-all keeps its alias.
+        old, old_ok = (None, True) if wp_draft else old_permalink(item["link"])
+        if not old_ok:
+            site.warnings.append({"file": page_path, "kind": "bad-old-permalink", "detail": "id %d" % item["id"]})
         # An alias equal to the page's own URL would overwrite the page.
         aliases = [old] if old and old.rstrip("/") != new_url.rstrip("/") else []
-        counts["aliases"] += len(aliases)
+
+        syndicated = None
+        announced = item["meta"].get("_share_on_mastodon_url", "").strip()
+        if kind == "post" and announced:
+            if ANNOUNCE_URL.match(announced) and len(announced) <= 300:
+                syndicated = {"mastodon": announced}
+            else:
+                site.warnings.append({"file": page_path, "kind": "bad-syndicated-url", "detail": "id %d" % item["id"]})
+
+        note = annotations.get(slug) if kind == "post" and annotations else None
+        if note:
+            annotated.add(slug)
         fields = [
             ("title", html_text(item["title"])),
             ("date", iso_date(item["date"], item["date_gmt"])),
@@ -796,12 +915,17 @@ def convert(wxr_path, site_url, media_root):
             ("slug", slug),
             ("categories", item["categories"]),
             ("tags", item["tags"]),
-            ("syndicate", kind == "post" and item["meta"].get("_share_on_mastodon") == "1"),
+            # Migrated posts are history: never announced again (docs/redesign-brief.md
+            # section 5). Where the old site recorded an announcement, keep its link.
+            ("syndicate", False),
+            ("syndicated", syndicated),
+            ("archive", note.get("archive") if note else None),
+            ("supersededBy", note.get("supersededBy") if note else None),
             ("url", new_url if kind == "page" else None),
             ("aliases", aliases),
         ]
-        text = front_matter(fields) + ("\n" + body + "\n" if body else "")
-        files[page_path] = text.encode("utf-8")
+        # Aliases are settled after every page has a URL (see resolve_aliases).
+        pending[page_path] = {"fields": fields, "body": body, "aliases": aliases, "new": new_url}
 
         for name, source_path in sorted(ctx.bundle.items()):
             media["%s/%s" % (bundle, name)] = source_path
@@ -827,6 +951,17 @@ def convert(wxr_path, site_url, media_root):
             files[bundle + "/comments.json"] = dump_json(data).encode("utf-8")
             counts["comments"] += len(approved)
 
+        reasons = set()
+        if draft_all:
+            reasons.add("migrated-draft")
+        if ctx.affiliate_links:
+            reasons.add("affiliate-links")
+        if approved:
+            reasons.add("approved-comments")
+        if note:
+            reasons.add("annotation")
+        review[page_path] = reasons
+
         counts["posts" if kind == "post" else "pages"] += 1
         counts["drafts"] += 1 if draft else 0
         pmap.append(
@@ -841,6 +976,23 @@ def convert(wxr_path, site_url, media_root):
             }
         )
 
+    resolve_aliases(pending, site)
+    for page_path, entry in pending.items():
+        fields = [(k, entry["aliases"] if k == "aliases" else v) for k, v in entry["fields"]]
+        body = entry["body"]
+        files[page_path] = (front_matter(fields) + ("\n" + body + "\n" if body else "")).encode("utf-8")
+        counts["aliases"] += len(entry["aliases"])
+
+    for slug in sorted(set(annotations or {}) - annotated):
+        site.warnings.append({"file": "annotations", "kind": "annotation-unmatched", "detail": slug})
+
+    # Everything the owner has to look at before a draft goes public: the
+    # reasons recorded above plus any warning raised for the page.
+    for warning in site.warnings:
+        if warning["file"] in review:
+            review[warning["file"]].add(warning["kind"])
+    review_list = [{"file": f, "reasons": sorted(r)} for f, r in sorted(review.items()) if r]
+
     pmap.sort(key=lambda e: e["id"])
     files["permalink-map.json"] = dump_json(pmap).encode("utf-8")
 
@@ -854,12 +1006,53 @@ def convert(wxr_path, site_url, media_root):
         "summary": counts,
         "affiliate_links": site.affiliate,
         "disclosures": disclosures,
+        "review": review_list,
+        "pages_not_migrated": sorted(not_migrated, key=lambda p: p["id"]),
         "skipped": skipped,
         "warnings": site.warnings,
         "dropped_item_types": dropped,
     }
     files["decision-log.json"] = dump_json(log).encode("utf-8")
     return files, media, counts
+
+
+def site_owned_paths():
+    """Lower-cased URL paths (no trailing slash) the site already serves: every
+    directory under content/ and static/."""
+    owned = set()
+    for base in ("content", "static"):
+        top = REPO / base
+        if top.is_dir():
+            for dirpath, dirs, _ in os.walk(top):
+                dirs.sort()
+                rel = Path(dirpath).relative_to(top).as_posix()
+                if rel != ".":
+                    owned.add(("/" + rel).lower())
+    return owned
+
+
+def resolve_aliases(pending, site):
+    """Give each old path to one page only. Pages are visited in conversion order
+    (date, then id), so the first claimant keeps the path and later ones lose it
+    with a logged warning. An old path that is any migrated page's new URL, a
+    reserved root or a path the site already serves is never aliased."""
+    owned = {"/" + r for r in RESERVED_ROOTS} | site_owned_paths()
+    new_owner = {e["new"].rstrip("/").lower(): path for path, e in pending.items()}
+    claimed = {}
+    for page_path, entry in pending.items():
+        kept = []
+        for alias in entry["aliases"]:
+            key = alias.rstrip("/").lower()
+            if key in new_owner:
+                site.warnings.append({"file": page_path, "kind": "alias-conflict", "detail": "%s is the URL of %s" % (alias, new_owner[key])})
+            elif key in owned:
+                site.warnings.append({"file": page_path, "kind": "alias-conflict", "detail": "%s is a path the site already serves" % alias})
+            elif key in claimed:
+                site.warnings.append({"file": page_path, "kind": "alias-conflict", "detail": "%s is already claimed by %s" % (alias, claimed[key])})
+            else:
+                claimed[key] = page_path
+                kept.append(alias)
+        entry["aliases"] = kept
 
 
 def existing_roots():
@@ -941,7 +1134,8 @@ def run(args):
     prepare_out(out)
 
     media_root = Path(args.media).expanduser() if args.media else find_media_root(wxr)
-    files, media, counts = convert(wxr, args.site_url, media_root)
+    annotations = load_annotations(args.annotations) if args.annotations else None
+    files, media, counts = convert(wxr, args.site_url, media_root, draft_all=args.draft_all, annotations=annotations, posts_only=args.posts_only)
     status = scrub.status(rules)
     counts["scrub"] = status
     log = json.loads(files["decision-log.json"])
@@ -971,6 +1165,9 @@ def main(argv=None):
     parser.add_argument("--require-terms", action="store_true", help="exit 2 unless --scrub-terms is given and the file or stdin holds at least one employer, hostname or serial term")
     parser.add_argument("--site-url", default=DEFAULT_SITE_URL, help="current site URL for rewritten links")
     parser.add_argument("--media", help="wp-content/uploads directory (default: found under raw/ beside the export)")
+    parser.add_argument("--draft-all", action="store_true", help="write every post and page with draft: true (old permalinks still become aliases)")
+    parser.add_argument("--posts-only", action="store_true", help="write posts only; pages are listed in the log as pages_not_migrated (the new site has its own About, Support and Social pages)")
+    parser.add_argument("--annotations", help="JSON file of per-slug archive and supersededBy front matter (see tools/wxr2hugo/annotations.json)")
     args = parser.parse_args(argv)
     try:
         run(args)

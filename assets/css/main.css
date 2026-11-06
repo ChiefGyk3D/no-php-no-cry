@@ -72,12 +72,17 @@ a:focus-visible {
   padding: var(--space) 0;
 }
 
+/* One row: the wordmark left, the nav right. The header column is wider than the
+ * reading column (42rem) because the seven links plus the wordmark do not fit
+ * in it, and a wrapped second row looked broken. Below 52rem the list collapses
+ * into the Menu button instead of wrapping. */
 .site-header .wrap {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space);
   align-items: center;
   justify-content: space-between;
+  max-width: 60rem;
 }
 
 .site-title {
@@ -109,12 +114,41 @@ a:focus-visible {
   border: 0;
 }
 
-/* Header menu: a native details on phones, the plain list from 40rem up. */
+/* Header menu: a native details below 52rem (phones and tablets), the plain
+ * list from 52rem up. No script: the summary is the button, the browser keeps
+ * the open state, and following a link reloads the page with the menu closed. */
 .nav-menu summary {
+  display: inline-flex;
+  gap: var(--space-2);
   list-style: none;
   cursor: pointer;
 }
 
+.nav-menu summary::after {
+  content: "";
+  width: var(--chevron-size);
+  height: var(--chevron-size);
+  margin-top: calc(var(--chevron-size) / -2);
+  border-right: var(--chevron-width) solid currentColor;
+  border-bottom: var(--chevron-width) solid currentColor;
+  transform: rotate(45deg);
+  transform-origin: 65% 65%;
+  transition: transform var(--duration) ease;
+}
+
+.nav-menu[open] summary {
+  background: var(--glow);
+}
+
+.nav-menu[open] summary::after {
+  transform: rotate(-135deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-menu summary::after {
+    transition: none;
+  }
+}
 .nav-menu summary::-webkit-details-marker {
   display: none;
 }
@@ -152,7 +186,19 @@ a:focus-visible {
   min-height: var(--tap);
 }
 
-@media (min-width: 40rem) {
+/* Tablets, menu open: a compact panel under the Menu button, right edge on the
+ * header's content edge, instead of a full-bleed sheet. */
+@media (min-width: 36rem) and (max-width: 51.99rem) {
+  .nav-menu ul {
+    left: auto;
+    right: var(--space);
+    width: 18rem;
+    border: var(--rule-width) solid var(--rule);
+    border-top: 0;
+  }
+}
+
+@media (min-width: 52rem) {
   .nav-menu summary {
     display: none;
   }

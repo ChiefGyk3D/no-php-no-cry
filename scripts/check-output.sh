@@ -11,7 +11,7 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, theme-hash, theme-hash-file, headers-structure,
+# skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
@@ -19,19 +19,19 @@
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pin of
-# /theme.js make the theme script the only one. The only script element allowed is <script src=/theme.js></script>
+# /copy.js make the copy script the only one. The only script element allowed is <script src=/copy.js></script>
 # (quotes optional, no other attribute, no body), at most once per page. No
 # other script element, no inline script, no event-handler attribute, no
-# javascript: URL. The only script file in the build is /theme.js, under 1 KB
+# javascript: URL. The only script file in the build is /copy.js, under 1 KB
 # gzip (docs/redesign-brief.md section 10). The CSP must carry exactly one
 # script-src, and it must be 'self'.
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
 # nosniff is in _headers, _headers is one /* block with no removal directive
-# (headers-structure), and theme.js is accepted only if its sha256 equals the
-# one in the committed theme.js.sha256 (THEME_HASH_FILE overrides the path;
-# theme-hash, theme-hash-file). With no hash file no script element and no js
+# (headers-structure), and copy.js is accepted only if its sha256 equals the
+# one in the committed copy.js.sha256 (SCRIPT_HASH_FILE overrides the path;
+# script-hash, script-hash-file). With no hash file no script element and no js
 # file may exist. URLs are judged as the browser reads them, after character
 # references are decoded and tabs and newlines dropped (a parser pass per page):
 # javascript: URLs, http: and scheme-relative or backslash URLs to another host
@@ -80,7 +80,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
 
 dir="${1:-public}"
-theme_hash_file="${THEME_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/theme.js.sha256}"
+script_hash_file="${SCRIPT_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/copy.js.sha256}"
 site_host="${SITE_HOST:-test-blog.chiefgyk3d.com}"
 expect_alias="${EXPECT_ALIAS:-/2023/02/10/sample-post/}"
 findings=0
@@ -194,12 +194,12 @@ case "${EXPECT_ENV:-}" in
     *) report env-mismatch "EXPECT_ENV must be staging or production" ;;
 esac
 
-# The pinned theme hash: absent means no script is allowed in the build.
+# The pinned script hash: absent means no script is allowed in the build.
 pinned=""
 rc=0
-pinned="$(theme_hash_state "$theme_hash_file")" || rc=$?
+pinned="$(script_hash_state "$script_hash_file")" || rc=$?
 if [[ $rc -eq 2 ]]; then
-    report theme-hash-file "$(basename "$theme_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+    report script-hash-file "$(basename "$script_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
     pinned=""
 fi
 
@@ -223,21 +223,21 @@ while IFS= read -r -d '' f; do
     if grep -oEi '<script([^a-z0-9_>-][^>]*)?>' <<<"$flat" | grep -qiv 'src='; then
         report inline-script "$rel"
     fi
-    # Every script element must be exactly the theme script. Any other form
+    # Every script element must be exactly the copy script. Any other form
     # (a body, another attribute, another file, a tag with no closing >) is
     # blocked or unreviewed.
     script_total="$(grep -oEi '<script([^a-z0-9_-]|$)' <<<"$flat" | wc -l || true)"
-    script_theme="$(grep -oEi "<script src=(\"/theme\\.js\"|'/theme\\.js'|/theme\\.js)></script>" <<<"$flat" | wc -l || true)"
-    if [[ "$script_total" -ne "$script_theme" ]]; then
+    script_copy="$(grep -oEi "<script src=(\"/copy\\.js\"|'/copy\\.js'|/copy\\.js)></script>" <<<"$flat" | wc -l || true)"
+    if [[ "$script_total" -ne "$script_copy" ]]; then
         report script-not-allowed "$rel"
-    elif [[ "$script_theme" -gt 1 ]]; then
+    elif [[ "$script_copy" -gt 1 ]]; then
         report script-count "$rel"
     fi
     if [[ -z "$pinned" && "$script_total" -gt 0 ]]; then
-        report script-not-allowed "$rel (no pinned theme script: no script is allowed)"
+        report script-not-allowed "$rel (no pinned script: no script is allowed)"
     fi
-    if [[ "$script_theme" -ge 1 && ! -f "$dir/theme.js" ]]; then
-        report missing-script "$rel (references /theme.js, which is not in the build)"
+    if [[ "$script_copy" -ge 1 && ! -f "$dir/copy.js" ]]; then
+        report missing-script "$rel (references /copy.js, which is not in the build)"
     fi
     if grep -qEi '<style[ >]' "$f"; then
         report style-element "$rel"
@@ -521,21 +521,21 @@ while IFS= read -r -d '' f; do
     fi
 done < <(find "$dir" -type f -print0 | sort -z)
 
-# Script files: /theme.js only, only if its sha256 is the pinned one, under 1 KB
+# Script files: /copy.js only, only if its sha256 is the pinned one, under 1 KB
 # gzip. No hash file, no script.
 while IFS= read -r -d '' f; do
     rel="${f#"$dir"/}"
-    if [[ "$rel" != theme.js || -z "$pinned" ]]; then
+    if [[ "$rel" != copy.js || -z "$pinned" ]]; then
         report extra-script-file "$rel"
     fi
 done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
-if [[ -f "$dir/theme.js" ]]; then
-    if [[ -n "$pinned" && "$(sha256sum "$dir/theme.js" | cut -d' ' -f1)" != "$pinned" ]]; then
-        report theme-hash "theme.js (does not match the pinned sha256)"
+if [[ -f "$dir/copy.js" ]]; then
+    if [[ -n "$pinned" && "$(sha256sum "$dir/copy.js" | cut -d' ' -f1)" != "$pinned" ]]; then
+        report script-hash "copy.js (does not match the pinned sha256)"
     fi
-    gz="$(gzip -9 -n -c "$dir/theme.js" | wc -c)"
+    gz="$(gzip -9 -n -c "$dir/copy.js" | wc -c)"
     if [[ "$gz" -ge 1024 ]]; then
-        report js-budget "theme.js (${gz} bytes gzip, budget is under 1024)"
+        report js-budget "copy.js (${gz} bytes gzip, budget is under 1024)"
     fi
 fi
 
