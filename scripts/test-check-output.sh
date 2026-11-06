@@ -55,6 +55,8 @@ make_good() {
     printf '%s\n' "$alias_page" >"$dir/sample-post.html"
     printf 'body{background:url(data:image/png;base64,AAAA);color:red}\n' >"$dir/css/site.min.css"
     printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/index.xml" rel="self" type="application/rss+xml"/></channel></rss>\n' >"$dir/index.xml"
+    mkdir -p "$dir/feed"
+    printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/feed/index.xml" rel="self" type="application/rss+xml"/></channel></rss>\n' >"$dir/feed/index.xml"
     printf '<?xml version="1.0" encoding="utf-8" standalone="yes"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://test-blog.chiefgyk3d.com/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url><url><loc>https://test-blog.chiefgyk3d.com/posts/sample-post/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url></urlset>\n' >"$dir/sitemap.xml"
     printf 'User-agent: *\nAllow: /\n\nSitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >"$dir/robots.txt"
     cat >"$dir/_redirects" <<'RED'
@@ -317,6 +319,7 @@ variant other-bad-xml bad-xml other_bad_xml
 rm_file() { rm -f "$2/$1"; }
 variant no-redirects missing-redirects rm_file _redirects
 variant no-feed missing-feed rm_file index.xml
+variant no-site-feed missing-feed rm_file feed/index.xml
 variant no-headers missing-headers rm_file _headers
 
 no_alias() { printf '# generated\n' >"$1/_redirects"; }
@@ -564,6 +567,9 @@ FROM='<url><loc>https://test-blog.chiefgyk3d.com/posts/sample-post/</loc><lastmo
 feed_edit() { sed -i "s#${FROM}#${TO}#" "$1/index.xml"; }
 FROM='rel="self"' TO='rel="alternate"' variant feed-without-self-link bad-feed feed_edit
 FROM='https://test-blog.chiefgyk3d.com/index.xml' TO='https://example.org/index.xml' variant feed-self-link-foreign-host bad-feed feed_edit
+site_feed_edit() { sed -i "s#${FROM}#${TO}#" "$1/feed/index.xml"; }
+FROM='https://test-blog.chiefgyk3d.com/feed/index.xml' TO='https://test-blog.chiefgyk3d.com/index.xml' variant site-feed-self-link-not-feed bad-feed site_feed_edit
+FROM='rel="self"' TO='rel="alternate"' variant site-feed-without-self-link bad-feed site_feed_edit
 FROM='<rss' TO='<!DOCTYPE rss [<!ENTITY e "x">]><rss' variant feed-with-doctype bad-feed feed_edit
 FROM='<urlset' TO='<!DOCTYPE urlset [<!ENTITY e "x">]><urlset' variant sitemap-with-doctype bad-sitemap sitemap_edit
 

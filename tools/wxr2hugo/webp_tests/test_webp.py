@@ -128,6 +128,28 @@ class ConvertTests(unittest.TestCase):
         for c in report["converted"]:
             self.assertLess(c["after"], c["before"])
 
+    def test_legacy_upload_map_follows_the_new_file_names(self):
+        # convert.py writes legacy-uploads.json (old address -> bundle file); the
+        # redirect target must be the .webp that now exists, and an image that
+        # was kept or refused keeps its target.
+        root = scratch()
+        d = bundle(root, index="![one](a.png)\n\n![two](b.png)\n")
+        (d / "a.png").write_bytes(png_bytes((600, 400)))
+        (d / "b.png").write_bytes(b"not a png")
+        before = [
+            {"from": "/wp-content/uploads/2023/05/a-300x200.png", "to": "/posts/p/a.png"},
+            {"from": "/wp-content/uploads/2023/05/a.png", "to": "/posts/p/a.png"},
+            {"from": "/wp-content/uploads/2023/05/b.png", "to": "/posts/p/b.png"},
+        ]
+        (root / "legacy-uploads.json").write_text(json.dumps(before), encoding="utf-8")
+        proc = run(root)
+        self.assertEqual(proc.returncode, 1, proc.stderr)  # b.png is refused
+        after = json.loads((root / "legacy-uploads.json").read_text())
+        self.assertEqual([e["to"] for e in after], ["/posts/p/a.webp", "/posts/p/a.webp", "/posts/p/b.png"])
+        self.assertEqual([e["from"] for e in after], [e["from"] for e in before])
+        for entry in after:
+            self.assertTrue((root / entry["to"].lstrip("/")).is_file(), entry)
+
     def test_link_and_image_to_the_same_file_both_follow(self):
         root = scratch()
         d = bundle(root)

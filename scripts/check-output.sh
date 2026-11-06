@@ -486,6 +486,11 @@ fi
 if [[ ! -s "$dir/index.xml" ]]; then
     report missing-feed "index.xml"
 fi
+# The site feed, /feed/index.xml: the _redirects rules for the old WordPress
+# feed addresses (layouts/home.redirects) land on this file.
+if [[ ! -s "$dir/feed/index.xml" ]]; then
+    report missing-feed "feed/index.xml"
+fi
 
 if [[ ! -s "$dir/_headers" ]]; then
     report missing-headers "_headers"

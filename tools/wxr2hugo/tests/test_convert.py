@@ -12,6 +12,7 @@ from helpers import (
     PNG,
     REPO,
     convert,
+    load_module,
     make_media,
     only_items,
     run,
@@ -45,6 +46,16 @@ class BasicConversionTests(unittest.TestCase):
         self.assertEqual(counts["affiliate_links"], 3)
         self.assertEqual(counts["temp_host_links_rewritten"], 1)
         self.assertEqual(counts["images"], 1)
+
+    def test_legacy_upload_redirects_list_only_post_images(self):
+        # data/legacy_uploads.json for the site: the old image address and the
+        # page-bundle file that replaces it, from the one image the post uses.
+        found = json.loads((self.out / "legacy-uploads.json").read_text())
+        self.assertEqual(
+            found,
+            [{"from": "/wp-content/uploads/2023/02/pic.png", "to": "/posts/first-post/pic.png"}],
+        )
+        self.assertEqual(json.loads(self.proc.stdout)["upload_redirects"], 1)
 
     def test_only_posts_and_pages_become_bundles(self):
         names = sorted(p.parent.relative_to(self.out).as_posix() for p in self.out.rglob("index.md"))
@@ -138,6 +149,28 @@ class BasicConversionTests(unittest.TestCase):
         self.assertEqual(by_id[13]["new"], "/team/")
         self.assertEqual(by_id[14]["old"], None)
         self.assertTrue(by_id[14]["draft"])
+
+
+class LegacyUploadSourceTests(unittest.TestCase):
+    """The old address becomes a _redirects source line: only the narrow grammar."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = staticmethod(load_module("convert").legacy_upload_source)
+
+    def test_plain_and_encoded_paths(self):
+        self.assertEqual(self.source("2023/02/pic-300x200.png"), "/wp-content/uploads/2023/02/pic-300x200.png")
+        self.assertEqual(self.source("2023/02/my pic.png"), "/wp-content/uploads/2023/02/my%20pic.png")
+
+    def test_unsafe_paths_are_refused_or_encoded(self):
+        self.assertIsNone(self.source(""))
+        # Quoting turns every other character into %XX, so no space, newline,
+        # splat, query or fragment reaches the _redirects line.
+        for rel in ("a/b\nc /evil", "a/*", "a/b?c", "a/b#c", "a/é.png"):
+            with self.subTest(rel=rel):
+                found = self.source(rel)
+                self.assertRegex(found, r"^/wp-content/uploads/[A-Za-z0-9._~/%-]+$")
+                self.assertNotIn("*", found)
 
 
 class RootPageTests(unittest.TestCase):
