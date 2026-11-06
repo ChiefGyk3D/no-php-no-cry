@@ -1,6 +1,6 @@
 """Reads a page, svg or xml file the way a browser reads its tags.
 
-Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|theme] <site-host> <file>
+Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] <site-host> <file>
 
 Prints one rule name per line, never page content. Attributes are read from real
 attributes by a quote-aware parser (a ">" or "=" inside a quoted value is just
@@ -11,9 +11,9 @@ Rules, for any file: event-handler (an on* attribute), javascript-url.
 HTML mode (default) also: base-element, http-reference, external-asset (an
 http:, https:, scheme-relative or backslash URL to another host on a tag that
 loads something). --markup (svg, xml, xhtml) also: script-not-allowed for any
-script element. --scripts none|theme (HTML only, used on served pages) also
+script element. --scripts none|pinned (HTML only, used on served pages) also
 judges script elements: with "none" any script element is script-not-allowed;
-with "theme" only one <script src=/theme.js></script> is allowed (a second is
+with "pinned" only one <script src=/copy.js></script> is allowed (a second is
 script-count, any other form, attribute or body is script-not-allowed).
 A <script type="application/ld+json"> data block (that one attribute, nothing
 else) is not a script in either mode: a browser never runs it and script-src
@@ -53,7 +53,7 @@ class Scan(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.host, self.markup, self.scripts = host, markup, scripts
         self.found = set()
-        self.theme_tags = 0
+        self.pinned_tags = 0
         self.in_script = False
 
     def handle_startendtag(self, tag, attrs):
@@ -76,12 +76,12 @@ class Scan(HTMLParser):
                 self.in_script = False
             elif self.markup or self.scripts == "none":
                 self.found.add("script-not-allowed")
-            elif self.scripts == "theme":
+            elif self.scripts == "pinned":
                 self.in_script = True
                 plain = [(n.lower(), clean(v)) for n, v in attrs]
-                if plain == [("src", "/theme.js")]:
-                    self.theme_tags += 1
-                    if self.theme_tags > 1:
+                if plain == [("src", "/copy.js")]:
+                    self.pinned_tags += 1
+                    if self.pinned_tags > 1:
                         self.found.add("script-count")
                 else:
                     self.found.add("script-not-allowed")

@@ -15,11 +15,11 @@ failures=0
 site="$work/site"
 # The pinned hash of the one allowed script lives in a committed file; tests use
 # their own, absent unless a case pins it.
-export THEME_HASH_FILE="$work/theme.sha256"
-pin_theme() { printf '%s  theme.js\n' "$(sha256sum "$site/theme.js" | cut -d' ' -f1)" >"$THEME_HASH_FILE"; }
+export SCRIPT_HASH_FILE="$work/theme.sha256"
+pin_script() { printf '%s  copy.js\n' "$(sha256sum "$site/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"; }
 
 make_good() {
-    rm -f "$THEME_HASH_FILE"
+    rm -f "$SCRIPT_HASH_FILE"
     rm -rf "$site"
     mkdir -p "$site/posts/a"
     printf '<!doctype html><title>t</title>\n' >"$site/index.html"
@@ -89,59 +89,59 @@ make_good
 printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
 
-# Script files: the CSP allows 'self' scripts, so the artifact may hold /theme.js
+# Script files: the CSP allows 'self' scripts, so the artifact may hold /copy.js
 # (under 1 KB gzip) only when its sha256 equals the one in the committed hash
 # file, and no other script file. With no hash file no script is allowed.
 make_good
-printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
-pin_theme
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/copy.js"
+pin_script
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
-    echo "ok: a pinned theme.js passes"
+    echo "ok: a pinned copy.js passes"
 else
-    echo "FAIL: a pinned theme.js was rejected (rc=$rc)"
+    echo "FAIL: a pinned copy.js was rejected (rc=$rc)"
     failures=$((failures + 1))
 fi
 
 make_good
-printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
-expect_fail "theme.js with no hash file" extra-script
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/copy.js"
+expect_fail "copy.js with no hash file" extra-script
 
 make_good
-printf 'document.documentElement.dataset.theme="dark"\n' >"$site/theme.js"
-pin_theme
-printf 'document.documentElement.dataset.theme="light"\n' >"$site/theme.js"
-expect_fail "theme.js changed after pinning" theme-hash
+printf 'document.documentElement.dataset.theme="dark"\n' >"$site/copy.js"
+pin_script
+printf 'document.documentElement.dataset.theme="light"\n' >"$site/copy.js"
+expect_fail "copy.js changed after pinning" script-hash
 
 make_good
-printf 'x\n' >"$site/theme.js"
-pin_theme
-printf '%s\n' "/\"/;eval('x');//\"" >"$site/theme.js"
-expect_fail "theme.js with unusual quoting, not the pinned one" theme-hash
+printf 'x\n' >"$site/copy.js"
+pin_script
+printf '%s\n' "/\"/;eval('x');//\"" >"$site/copy.js"
+expect_fail "copy.js with unusual quoting, not the pinned one" script-hash
 
 make_good
-printf 'x\n' >"$site/theme.js"
-printf '%s  theme.js\n' "$(printf 'y\n' | sha256sum | cut -d' ' -f1)" >"$THEME_HASH_FILE"
-expect_fail "theme.js pinned to another file's hash" theme-hash
+printf 'x\n' >"$site/copy.js"
+printf '%s  copy.js\n' "$(printf 'y\n' | sha256sum | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"
+expect_fail "copy.js pinned to another file's hash" script-hash
 
-for bad in 'not a hash' "$(printf 'a%.0s' $(seq 1 63))" "$(printf 'a%.0s' $(seq 1 64))  other.js" "$(printf 'A%.0s' $(seq 1 64))" "$(printf 'a%.0s' $(seq 1 64))  theme.js extra" ''; do
+for bad in 'not a hash' "$(printf 'a%.0s' $(seq 1 63))" "$(printf 'a%.0s' $(seq 1 64))  other.js" "$(printf 'A%.0s' $(seq 1 64))" "$(printf 'a%.0s' $(seq 1 64))  copy.js extra" ''; do
     make_good
-    printf 'x\n' >"$site/theme.js"
-    printf '%s\n' "$bad" >"$THEME_HASH_FILE"
-    expect_fail "malformed hash file ($bad)" theme-hash-file
+    printf 'x\n' >"$site/copy.js"
+    printf '%s\n' "$bad" >"$SCRIPT_HASH_FILE"
+    expect_fail "malformed hash file ($bad)" script-hash-file
 done
 make_good
-printf 'x\n' >"$site/theme.js"
+printf 'x\n' >"$site/copy.js"
 {
-    sha256sum "$site/theme.js" | cut -d' ' -f1
-    sha256sum "$site/theme.js" | cut -d' ' -f1
-} >"$THEME_HASH_FILE"
-expect_fail "two-line hash file" theme-hash-file
+    sha256sum "$site/copy.js" | cut -d' ' -f1
+    sha256sum "$site/copy.js" | cut -d' ' -f1
+} >"$SCRIPT_HASH_FILE"
+expect_fail "two-line hash file" script-hash-file
 
 make_good
-printf 'x\n' >"$site/theme.js"
-pin_theme
+printf 'x\n' >"$site/copy.js"
+pin_script
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
@@ -152,12 +152,12 @@ else
 fi
 make_good
 rc=0
-printf '%s\n' "$(printf 'a%.0s' $(seq 1 64))" >"$THEME_HASH_FILE"
+printf '%s\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
-    echo "ok: a hash file with no theme.js in the build passes"
+    echo "ok: a hash file with no copy.js in the build passes"
 else
-    echo "FAIL: a hash file with no theme.js was rejected (rc=$rc)"
+    echo "FAIL: a hash file with no copy.js was rejected (rc=$rc)"
     failures=$((failures + 1))
 fi
 
@@ -167,32 +167,32 @@ expect_fail "second script file" extra-script
 
 make_good
 mkdir -p "$site/js"
-printf 'x\n' >"$site/js/theme.js"
-expect_fail "theme.js in a subdirectory" extra-script
+printf 'x\n' >"$site/js/copy.js"
+expect_fail "copy.js in a subdirectory" extra-script
 
 make_good
 printf 'x\n' >"$site/lib.MJS"
 expect_fail "uppercase .mjs" extra-script
 
 make_good
-head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/theme.js"
-pin_theme
-expect_fail "theme.js over 1 KB gzip" js-budget
+head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/copy.js"
+pin_script
+expect_fail "copy.js over 1 KB gzip" js-budget
 
 make_good
-for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$site/theme.js"
-pin_theme
+for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$site/copy.js"
+pin_script
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
-    echo "ok: a large but compressible theme.js under 1 KB gzip passes"
+    echo "ok: a large but compressible copy.js under 1 KB gzip passes"
 else
-    echo "FAIL: compressible theme.js under 1 KB gzip was rejected (rc=$rc)"
+    echo "FAIL: compressible copy.js under 1 KB gzip was rejected (rc=$rc)"
     failures=$((failures + 1))
 fi
 
 # 'self' authorizes any same-origin response, so the build may hold only files
-# of known non-script types (plus /theme.js): a file with no extension or an
+# of known non-script types (plus /copy.js): a file with no extension or an
 # unlisted one is refused whatever it contains, in any directory.
 make_good
 printf 'x\n' >"$site/payload"
@@ -215,7 +215,7 @@ printf 'x\n' >"$site/.hidden"
 expect_fail "dotfile" unexpected-file
 
 make_good
-printf 'x\n' >"$site/theme.js.map"
+printf 'x\n' >"$site/copy.js.map"
 expect_fail "unlisted double extension" unexpected-file
 
 make_good
@@ -306,7 +306,7 @@ headers_variant "per-path override of nosniff" headers-structure '/api/*\n  X-Co
 headers_variant "per-path override of the policy" headers-structure "/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'\\n"
 headers_variant "rule block with a different path" headers-structure '/a\n  X-Test: 1\n'
 
-# The pinned _headers must carry script-src 'self' (not 'none') once the theme
+# The pinned _headers must carry script-src 'self' (not 'none') once the copy script
 # script ships. The repository's own file is checked here, so a revert to
 # 'none' in static/_headers is caught even if the build is byte-identical.
 make_good
@@ -391,11 +391,11 @@ rc=0
 
 # A real build, when present, must pass too.
 if [[ -f "$root/public/index.html" ]]; then
-    if "$checker" "$root/public" >/dev/null 2>&1; then
+    if env -u SCRIPT_HASH_FILE "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: public/ passes"
     else
         echo "FAIL: public/ fails the artifact check"
-        "$checker" "$root/public" || true
+        env -u SCRIPT_HASH_FILE "$checker" "$root/public" || true
         failures=$((failures + 1))
     fi
 fi

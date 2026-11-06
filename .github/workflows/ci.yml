@@ -107,12 +107,19 @@ jobs:
       # Re-encodes data/support.yaml with the hash-pinned segno (scripts/
       # requirements-qr.txt, installed with --require-hashes) and compares the
       # whole committed SVGs, so the QR modules are verified, not only <desc>.
-      # Needs network access to the Python package index for that one package.
-      - name: Check the support QR files against data/support.yaml
-        run: scripts/gen-support-qr.sh --check
+      # Needs network access to the Python package index for the pinned packages.
+      # --decode also renders each SVG in the runner's Chrome and decodes it with
+      # the hash-pinned OpenCV (scripts/requirements-qr-decode.txt): every code must read back to the exact address.
+      - name: Check the support QR files against data/support.yaml and decode them
+        run: scripts/gen-support-qr.sh --check --decode
 
-      - name: Test the theme script pinning
-        run: scripts/test-pin-theme.sh
+      - name: Check the wording rule (no short form of cryptocurrency)
+        run: |
+          scripts/check-wording.sh
+          scripts/test-check-wording.sh
+
+      - name: Test the copy script pinning
+        run: scripts/test-pin-script.sh
 
       - name: Test the Hugo version check
         run: scripts/test-check-hugo-version.sh
