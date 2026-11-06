@@ -120,9 +120,18 @@ build_legacy() { # build_legacy <dir> <uploads-json-or-empty>
         mkdir -p "$site/content/posts/$1"
         printf -- '---\ntitle: "Post %s"\ndate: %s\ncategories: %s\n%s---\n\nFULLBODY-%s paragraph.\n' "$1" "$2" "$3" "$4" "$1" >"$site/content/posts/$1/index.md"
     }
-    mkpost x 2024-01-02T03:04:05-05:00 '["Home Lab"]' 'aliases:
-  - /old-x/
+    # TAGS=1 gives post x two tags and the draft one of its own (a tag only a
+    # draft uses has no term page, so it must leave no rule).
+    local xtags="" dtags=""
+    if [[ -n "${TAGS:-}" ]]; then
+        xtags='tags: ["Foo Bar", "zeta"]
 '
+        dtags='tags: ["Draft Tag"]
+'
+    fi
+    mkpost x 2024-01-02T03:04:05-05:00 '["Home Lab"]' "aliases:
+  - /old-x/
+$xtags"
     mkpost z 2024-01-20T10:00:00-05:00 '["Security"]' ''
     mkpost y 2023-05-17T10:00:00-04:00 '["Security"]' ''
     # Post y shows a 2000 px wide image, so the page serves resized copies; the
@@ -138,8 +147,8 @@ png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 0, 
 open(sys.argv[1], "wb").write(png)
 ' "$site/content/posts/y/pic.png"
     printf '\n![A test pattern](pic.png)\n' >>"$site/content/posts/y/index.md"
-    mkpost d 2022-09-09T10:00:00-04:00 '["Draft Only"]' 'draft: true
-'
+    mkpost d 2022-09-09T10:00:00-04:00 '["Draft Only"]' "draft: true
+$dtags"
     # UNCAT=1 adds a published post in the Uncategorized category (same month as
     # y, so no new date rule): the legacy mapping must still send it to /posts/.
     [[ -z "${UNCAT:-}" ]] || mkpost u 2023-05-18T10:00:00-04:00 '["Uncategorized"]' ''
@@ -329,6 +338,49 @@ reject_upload "control character in target" '[{"from": "/wp-content/uploads/a.jp
 reject_upload "carriage return in target" '[{"from": "/wp-content/uploads/a.jpg", "to": "/posts/y/a\rb.webp"}]'
 reject_upload "backslash in source" '[{"from": "/wp-content/uploads/a\\b.jpg", "to": "/posts/y/a.webp"}]'
 
+# --- tag redirects --------------------------------------------------------------
+# /tag/<slug>/ (the WordPress tag address) goes to the tag page, only for tags a
+# published post uses; the rules sit among the static ones in byte order.
+tagged="$work/tagged"
+if TAGS=1 build_legacy "$tagged" "$legacy_uploads"; then
+    {
+        grep -v '^/wp-content/' "$work/legacy.want" | grep -v '^/category/\*\|^/page/\*'
+        printf '%s\n' '/tag/foo-bar /tags/foo-bar/ 301' '/tag/foo-bar/ /tags/foo-bar/ 301' '/tag/zeta /tags/zeta/ 301' '/tag/zeta/ /tags/zeta/ 301'
+    } | LC_ALL=C sort >"$work/tagged.want"
+    {
+        grep '^/wp-content/' "$work/legacy.want"
+        grep '\*' "$work/legacy.want"
+    } >>"$work/tagged.want"
+    if diff -u "$work/tagged.want" <(grep -v '^#' "$tagged/public/_redirects") >"$work/tagged.diff"; then
+        pass "tag rules: /tag/<slug>/ goes to /tags/<slug>/ for used tags, none for a draft-only tag"
+    else
+        fail "tag rules differ from the expected lines: $(cat "$work/tagged.diff")"
+    fi
+    if out="$(check_lines "$tagged/public/_redirects" 2>&1)"; then
+        pass "tag rules: every line is well formed"
+    else
+        fail "tag rules: $out"
+    fi
+    # Every tag redirect lands on a page the build publishes.
+    bad_tag=""
+    while read -r t; do
+        [[ -f "$tagged/public${t}index.html" ]] || bad_tag="$bad_tag $t"
+    done < <(awk '$1 ~ /^\/tag\// { print $2 }' "$tagged/public/_redirects")
+    if [[ -z "$bad_tag" ]] && grep -q '^/tag/zeta/ ' "$tagged/public/_redirects"; then
+        pass "tag rules: every target is a published tag page"
+    else
+        fail "tag rules: targets not published:${bad_tag:- none checked}"
+    fi
+else
+    fail "the tagged site did not build: $(tail -n 3 "$tagged/build.log")"
+fi
+# With no tags there is no /tag/ rule at all (the plain legacy site above).
+if grep -q '^/tag/' "$legacy/public/_redirects"; then
+    fail "an untagged site has a /tag/ rule"
+else
+    pass "no tags: no /tag/ rule"
+fi
+
 # --- a post in the Uncategorized category -------------------------------------
 # The legacy mapping sends /category/uncategorized/ to /posts/ whether or not
 # Hugo makes a term page, so a post using that category must not change it.
@@ -349,16 +401,26 @@ fi
 # a header line and two dynamic rules, so 1997 static rules is the most that
 # fits. A bare site holds 8 static rules (6 feed, 2 uncategorized); the rest
 # are one-line .html aliases on one page.
-build_count() { # build_count <dir> <static-rule-total>
-    local site="$1" n="$2" i
+build_count() { # build_count <dir> <static-rule-total> [<tags>]
+    local site="$1" n="$2" ntags="${3:-0}" i base=8
     mkdir -p "$site/content/posts"
     cp -r "$root/layouts" "$root/assets" "$root/static" "$site/"
     cp "$root/hugo.toml" "$site/hugo.toml"
     printf -- '---\ntitle: "Home"\n---\n' >"$site/content/_index.md"
     printf -- '---\ntitle: "Posts"\n---\n' >"$site/content/posts/_index.md"
+    if ((ntags > 0)); then
+        # One dated post with the tags: 4 date rules and 2 rules per tag.
+        mkdir -p "$site/content/posts/t"
+        {
+            printf -- '---\ntitle: "T"\ndate: 2024-01-02T03:04:05-05:00\ntags:\n'
+            for ((i = 1; i <= ntags; i++)); do printf '  - tag%d\n' "$i"; done
+            printf -- '---\n\nBody.\n'
+        } >"$site/content/posts/t/index.md"
+        base=$((8 + 4 + 2 * ntags))
+    fi
     {
         printf -- '---\ntitle: "Home"\naliases:\n'
-        for ((i = 1; i <= n - 8; i++)); do printf '  - /a%d.html\n' "$i"; done
+        for ((i = 1; i <= n - base; i++)); do printf '  - /a%d.html\n' "$i"; done
         printf -- '---\n'
     } >"$site/content/posts/_index.md"
     (cd "$site" && hugo --destination "$site/public" >"$site/build.log" 2>&1)
@@ -384,6 +446,27 @@ for n in 1998 2000 2001; do
         fail "$n static rules: the build failed for another reason: $(tail -n 3 "$c/build.log")"
     fi
 done
+
+# Tag rules count toward the same cap: 5 tags add 10 static rules.
+c="$work/count-tags-1997"
+if build_count "$c" 1997 5; then
+    lines="$(wc -l <"$c/public/_redirects")"
+    if ((lines == 2000)) && grep -q '^/tag/tag5/ ' "$c/public/_redirects" && "$root/scripts/check-site-artifact.sh" "$c/public" >"$work/count.log" 2>&1; then
+        pass "1997 static rules including 5 tags: 2000 lines, tag rules present, artifact check accepts it"
+    else
+        fail "1997 static rules with tags: $lines lines, artifact check: $(tail -n 3 "$work/count.log")"
+    fi
+else
+    fail "1997 static rules with tags should build: $(tail -n 3 "$c/build.log")"
+fi
+c="$work/count-tags-1998"
+if build_count "$c" 1998 5; then
+    fail "1998 static rules including tags: the build should have failed"
+elif grep -q '_redirects' "$c/build.log"; then
+    pass "1998 static rules including tags: the build fails and names _redirects"
+else
+    fail "1998 static rules including tags: failed for another reason: $(tail -n 3 "$c/build.log")"
+fi
 
 # --- guard self-test: the line checker must reject bad lines -------------------
 i=0
