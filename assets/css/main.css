@@ -146,10 +146,19 @@ a:focus-visible {
   min-height: var(--tap);
 }
 
-.footer-row a {
+/* Standalone links are at least --tap square: a short word like "RSS" or "Tip"
+ * would otherwise be a target 18 to 30 px wide. Links inside running text keep
+ * their line height (WCAG 2.5.8 inline exception). scripts/browser-gate.py
+ * measures every control on every template. */
+.footer-row a,
+.archive-links a,
+.tag-list a,
+.post-list li > a,
+.more-link a {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
+  min-width: var(--tap);
 }
 
 @media (min-width: 40rem) {
