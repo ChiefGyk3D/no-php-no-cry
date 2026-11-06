@@ -403,6 +403,27 @@ if grep -Eq 'support-tiles \.tile-item[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<
 else
     fail "support button cells do not stretch to one height"
 fi
+# Desktop layout widths (issue 107): the page container widens in steps, the
+# reading column stays at --measure, and running text keeps a line-length cap.
+main_css="$(tr '\n' ' ' <"$root"/assets/css/main.css)"
+if grep -Eq '\.wrap \{[^}]*max-width: *var\(--page-max\)' <<<"$main_css" &&
+    grep -Eq -- '--page-max: *var\(--measure\)' <<<"$main_css" &&
+    grep -Eq 'min-width: *120rem\) \{ *:root \{ *--page-max: *90rem' <<<"$main_css"; then
+    pass "page container: --page-max starts at --measure and widens to 90rem"
+else
+    fail "page container: .wrap must use --page-max (42rem base, up to 90rem)"
+fi
+if grep -Eq 'main p \{[^}]*max-width: *var\(--prose-max\)' <<<"$main_css" &&
+    grep -Eq -- '--prose-max: *75ch' <<<"$main_css"; then
+    pass "running text is capped at 75ch"
+else
+    fail "running text must be capped at 75ch (--prose-max)"
+fi
+if grep -Eq '\.post \{[^}]*max-width: *var\(--measure\)' <<<"$(src_css posts | tr '\n' ' ')"; then
+    pass "post keeps the --measure reading column"
+else
+    fail "post must keep the --measure reading column"
+fi
 hero="$(src_css home | tr '\n' ' ')"
 if grep -Eq '\.hero-actions[^}]*flex-wrap: *wrap' <<<"$hero" && grep -Eq '\.hero-mascot[^}]*align-self: *flex-start' <<<"$hero"; then
     pass "home hero: wrapping CTA row, top-aligned mascot"

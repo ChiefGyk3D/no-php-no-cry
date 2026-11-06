@@ -30,6 +30,29 @@
   margin: 0 0 var(--space-2);
 }
 
+/* Desktop screens (issue 107): the sections flow into two columns, in document
+ * order (summary and skills first). Screen only, so the print layout below is
+ * untouched; the head and the contact section span both columns. */
+@media screen and (min-width: 60rem) {
+  .resume {
+    column-count: 2;
+    column-gap: var(--space-6);
+  }
+
+  .resume-head,
+  .resume section:last-child {
+    column-span: all;
+  }
+
+  /* Padding, not margin, spaces the sections: a margin at the top of a column
+   * is dropped, which would leave the two columns starting at different heights. */
+  .resume section {
+    break-inside: avoid;
+    margin-top: 0;
+    padding-top: var(--space-5);
+  }
+}
+
 /* Print: the one documented light-on-white exception (dark stays the screen
  * rule). It uses the browser's system colors under color-scheme: light, so no
  * color value is hard-coded here and there is no contrast pair to check:
