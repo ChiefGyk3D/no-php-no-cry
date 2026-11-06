@@ -61,27 +61,6 @@
   }
 }
 
-/* Desktop (issue 107): the four coin cards sit in one row from 80rem (they stay
- * 2 across below that). Wider screens only add gutter, not columns. */
-@media (min-width: 80rem) {
-  .coin-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space);
-  }
-
-  .coin.panel {
-    padding: var(--space);
-  }
-
-  .coin-head {
-    flex-wrap: wrap;
-  }
-
-  .coin-name {
-    font-size: var(--text-base);
-  }
-}
-
 .coin {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -113,6 +92,27 @@
   color: var(--muted);
   font-size: var(--text-sm);
   letter-spacing: 0.08em;
+}
+
+/* Desktop (issue 107): the four coin cards sit in one row from 80rem (they stay
+ * 2 across below that). Wider screens only add gutter, not columns. */
+@media (min-width: 80rem) {
+  .coin-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space);
+  }
+
+  .coin.panel {
+    padding: var(--space);
+  }
+
+  .coin-head {
+    flex-wrap: wrap;
+  }
+
+  .coin-name {
+    font-size: var(--text-base);
+  }
 }
 
 .qr {

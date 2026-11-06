@@ -403,6 +403,22 @@ if grep -Eq 'support-tiles \.tile-item[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<
 else
     fail "support button cells do not stretch to one height"
 fi
+# Rule order (issue 107): the desktop .coin-name override sits inside a media
+# query at equal specificity, so it must come AFTER the base rule or it never
+# applies. Compares the line of the base rule (column 0) with the override.
+coin_name_after_base() {
+    awk '/^\.coin-name \{/ { if (!b) b = NR } /^ +\.coin-name \{/ { if (!o) o = NR } END { exit !(b && o && o > b) }'
+}
+if coin_name_after_base <"$root/assets/css/pages/support.css"; then
+    pass "support desktop .coin-name override follows the base rule"
+else
+    fail "support desktop .coin-name override precedes the base rule (it would never apply)"
+fi
+if printf '%s\n' '  .coin-name {' '}' '.coin-name {' '}' | coin_name_after_base; then
+    fail "rule-order check accepts an override placed before the base rule"
+else
+    pass "rule-order check rejects an override placed before the base rule"
+fi
 # Desktop layout widths (issue 107): the page container widens in steps, the
 # reading column stays at --measure, and running text keeps a line-length cap.
 main_css="$(tr '\n' ' ' <"$root"/assets/css/main.css)"
