@@ -78,7 +78,9 @@ one splat per rule, and redirects run before headers. The file has two dynamic
 rules (`/category/*`, `/page/*`). Date archives are static lines per real month
 on purpose: a placeholder such as `/:year/:month/` matches any one-segment path
 and would capture `/posts/<slug>/`. `layouts/home.redirects` fails the build
-above 2,000 static rules.
+when the file would pass 2,000 lines in all (the header and the two dynamic
+rules count, so 1,997 static rules is the most), the limit
+`scripts/check-site-artifact.sh` enforces.
 
 Not verified, because the site is alpha and nothing was written to Cloudflare:
 after the first deploy to the staging host, run

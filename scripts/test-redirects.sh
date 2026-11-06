@@ -140,6 +140,9 @@ open(sys.argv[1], "wb").write(png)
     printf '\n![A test pattern](pic.png)\n' >>"$site/content/posts/y/index.md"
     mkpost d 2022-09-09T10:00:00-04:00 '["Draft Only"]' 'draft: true
 '
+    # UNCAT=1 adds a published post in the Uncategorized category (same month as
+    # y, so no new date rule): the legacy mapping must still send it to /posts/.
+    [[ -z "${UNCAT:-}" ]] || mkpost u 2023-05-18T10:00:00-04:00 '["Uncategorized"]' ''
     [[ -n "$uploads" ]] && printf '%s\n' "$uploads" >"$site/data/legacy_uploads.json"
     (cd "$site" && hugo --destination "$site/public" >"$site/build.log" 2>&1)
 }
@@ -318,6 +321,69 @@ reject_upload "newline in source" '[{"from": "/wp-content/uploads/a.jpg\n/evil /
 reject_upload "space in target" '[{"from": "/wp-content/uploads/a.jpg", "to": "/posts/y/a b.webp"}]'
 reject_upload "splat in source" '[{"from": "/wp-content/uploads/*", "to": "/posts/y/a.webp"}]'
 reject_upload "missing target" '[{"from": "/wp-content/uploads/a.jpg"}]'
+reject_upload "scheme-relative target" '[{"from": "/wp-content/uploads/a.jpg", "to": "//evil.example/image"}]'
+reject_upload "scheme-relative target with a path only" '[{"from": "/wp-content/uploads/a.jpg", "to": "//posts/y/a.webp"}]'
+reject_upload "backslash target" '[{"from": "/wp-content/uploads/a.jpg", "to": "/\\evil.example/image"}]'
+reject_upload "backslash after the first segment" '[{"from": "/wp-content/uploads/a.jpg", "to": "/posts\\y/a.webp"}]'
+reject_upload "control character in target" '[{"from": "/wp-content/uploads/a.jpg", "to": "/posts/y/a\tb.webp"}]'
+reject_upload "carriage return in target" '[{"from": "/wp-content/uploads/a.jpg", "to": "/posts/y/a\rb.webp"}]'
+reject_upload "backslash in source" '[{"from": "/wp-content/uploads/a\\b.jpg", "to": "/posts/y/a.webp"}]'
+
+# --- a post in the Uncategorized category -------------------------------------
+# The legacy mapping sends /category/uncategorized/ to /posts/ whether or not
+# Hugo makes a term page, so a post using that category must not change it.
+uncat="$work/uncat"
+if UNCAT=1 build_legacy "$uncat" "$legacy_uploads"; then
+    if diff -u "$work/legacy.want" <(grep -v '^#' "$uncat/public/_redirects") >"$work/uncat.diff"; then
+        pass "uncategorized post: /category/uncategorized/ still goes to /posts/, no term-page rule"
+    else
+        fail "uncategorized post changes the rules: $(cat "$work/uncat.diff")"
+    fi
+else
+    fail "the site with an uncategorized post did not build: $(tail -n 3 "$uncat/build.log")"
+fi
+
+# --- the file-size limit counts every line ------------------------------------
+# Cloudflare Pages allows 2000 static rules and 100 dynamic ones, and
+# scripts/check-site-artifact.sh allows 2000 lines in all. The file always adds
+# a header line and two dynamic rules, so 1997 static rules is the most that
+# fits. A bare site holds 8 static rules (6 feed, 2 uncategorized); the rest
+# are one-line .html aliases on one page.
+build_count() { # build_count <dir> <static-rule-total>
+    local site="$1" n="$2" i
+    mkdir -p "$site/content/posts"
+    cp -r "$root/layouts" "$root/assets" "$root/static" "$site/"
+    cp "$root/hugo.toml" "$site/hugo.toml"
+    printf -- '---\ntitle: "Home"\n---\n' >"$site/content/_index.md"
+    printf -- '---\ntitle: "Posts"\n---\n' >"$site/content/posts/_index.md"
+    {
+        printf -- '---\ntitle: "Home"\naliases:\n'
+        for ((i = 1; i <= n - 8; i++)); do printf '  - /a%d.html\n' "$i"; done
+        printf -- '---\n'
+    } >"$site/content/posts/_index.md"
+    (cd "$site" && hugo --destination "$site/public" >"$site/build.log" 2>&1)
+}
+c="$work/count-1997"
+if build_count "$c" 1997; then
+    lines="$(wc -l <"$c/public/_redirects")"
+    if ((lines == 2000)) && "$root/scripts/check-site-artifact.sh" "$c/public" >"$work/count.log" 2>&1; then
+        pass "1997 static rules: 2000 lines in all, and the artifact check accepts it"
+    else
+        fail "1997 static rules: $lines lines, artifact check: $(tail -n 3 "$work/count.log")"
+    fi
+else
+    fail "1997 static rules should build: $(tail -n 3 "$c/build.log")"
+fi
+for n in 1998 2000 2001; do
+    c="$work/count-$n"
+    if build_count "$c" "$n"; then
+        fail "$n static rules: the build should have failed (the file would exceed 2000 lines)"
+    elif grep -q '_redirects' "$c/build.log"; then
+        pass "$n static rules: the build fails and names _redirects"
+    else
+        fail "$n static rules: the build failed for another reason: $(tail -n 3 "$c/build.log")"
+    fi
+done
 
 # --- guard self-test: the line checker must reject bad lines -------------------
 i=0
