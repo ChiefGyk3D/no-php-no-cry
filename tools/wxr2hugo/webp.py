@@ -66,6 +66,26 @@ def free_name(directory, stem):
     return name
 
 
+def write_new(path, data):
+    """Create path exclusively (never following a symlink) and write data.
+    A leftover regular file is removed first; anything else (symlink,
+    directory, device) is refused and left alone. Returns False when refused."""
+    if os.path.lexists(path):
+        if path.is_symlink() or not path.is_file():
+            return False
+        path.unlink()
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags, 0o600)
+    except FileExistsError:
+        return False
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+    return True
+
+
 def process_bundle(directory, root, quality, report):
     index = directory / "index.md"
     if index.is_symlink() or not index.is_file():
@@ -90,7 +110,9 @@ def process_bundle(directory, root, quality, report):
         name = free_name(directory, src.stem)
         target = directory / name
         tmp = directory / (name + ".partial")
-        tmp.write_bytes(data)
+        if not write_new(tmp, data):
+            report["refused"].append({"file": rel, "reason": "leftover temporary file is not a regular file"})
+            continue
         os.replace(tmp, target)
         pattern = re.compile(r"\]\(" + re.escape(src.name) + r"\)")
         text = pattern.sub("](%s)" % name, text)

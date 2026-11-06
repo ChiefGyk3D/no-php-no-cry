@@ -67,6 +67,47 @@ def run(directory, *extra):
     )
 
 
+class HostilePartialTests(unittest.TestCase):
+    def test_symlinked_partial_is_not_followed(self):
+        root = scratch()
+        outside = scratch() / "victim.txt"
+        outside.write_text("keep me")
+        d = bundle(root)
+        (d / "a.png").write_bytes(png_bytes((600, 400)))
+        (d / "a.webp.partial").symlink_to(outside)
+        proc = run(root)
+        self.assertEqual(outside.read_text(), "keep me")
+        self.assertEqual(proc.returncode, 1, proc.stderr)  # refused, not converted
+        self.assertEqual([r["file"] for r in json.loads(proc.stdout)["refused"]], ["posts/p/a.png"])
+        self.assertTrue((d / "a.webp.partial").is_symlink())
+        self.assertFalse((d / "a.webp").exists())
+        self.assertTrue((d / "a.png").is_file())
+
+    def test_directory_named_partial_is_refused_not_crashed(self):
+        root = scratch()
+        d = bundle(root)
+        (d / "a.png").write_bytes(png_bytes((600, 400)))
+        (d / "a.webp.partial").mkdir()
+        proc = run(root)
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual(report["converted"], [])
+        self.assertEqual([r["file"] for r in report["refused"]], ["posts/p/a.png"])
+        self.assertTrue((d / "a.png").is_file())
+        self.assertTrue((d / "a.webp.partial").is_dir())
+        self.assertIn("a.png", (d / "index.md").read_text())
+
+    def test_stale_regular_partial_is_replaced(self):
+        root = scratch()
+        d = bundle(root)
+        (d / "a.png").write_bytes(png_bytes((600, 400)))
+        (d / "a.webp.partial").write_bytes(b"stale")
+        self.assertEqual(run(root).returncode, 0)
+        self.assertFalse(os.path.lexists(d / "a.webp.partial"))
+        with Image.open(d / "a.webp") as img:
+            self.assertEqual(img.format, "WEBP")
+
+
 class ConvertTests(unittest.TestCase):
     def test_png_and_jpeg_become_webp_and_references_follow(self):
         root = scratch()

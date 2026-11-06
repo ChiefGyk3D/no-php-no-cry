@@ -252,6 +252,29 @@ class HostilePermalinkTests(unittest.TestCase):
                 self.assertNotIn("aliases", fm)
                 self.assertIn("bad-old-permalink", [w["kind"] for w in log["warnings"]])
 
+    def test_protocol_relative_and_malformed_urls_are_skipped_not_fatal(self):
+        for link in (
+            "//evil.invalid/x",
+            "http://[bad",
+            "https://[::1",
+            "https://[::1]:99999999/x/",
+            "https://exa\\mple.invalid/x/",
+            "https://example.invalid/x&#9;y/",
+            "https://example.invalid/x&#13;y/",
+            "javascript:alert(1)",
+            "ftp://example.invalid/x/",
+            "x/y/",
+        ):
+            with self.subTest(link=link):
+                fm, log = self.alias_lines(link)
+                self.assertNotIn("aliases", fm)
+                self.assertIn("bad-old-permalink", [w["kind"] for w in log["warnings"]])
+
+    def test_plain_absolute_path_is_still_an_alias(self):
+        fm, log = self.alias_lines("/old/second/")
+        self.assertIn('  - "/old/second/"\n', fm)
+        self.assertFalse([w for w in log["warnings"] if w["kind"] == "bad-old-permalink"])
+
     def test_non_ascii_permalink_is_percent_encoded(self):
         fm, log = self.alias_lines("https://example.invalid/café-notes/")
         self.assertIn('  - "/caf%C3%A9-notes/"\n', fm)
@@ -341,6 +364,44 @@ class RedirectMapTests(unittest.TestCase):
         self.assertEqual(json.loads(proc.stdout)["aliases"], len(seen))
         # No alias may shadow a real page.
         self.assertFalse(set(a.rstrip("/") for a in seen) & set(e["new"].rstrip("/") for e in pmap))
+
+
+class AliasConflictTests(unittest.TestCase):
+    def two_items(self, link_a, link_b):
+        text = only_items("basic.xml", {"11", "12"})
+        text = text.replace("https://example.invalid/2023/02/10/first-post/", link_a)
+        return convert(text.replace("https://example.invalid/second-post.html", link_b))
+
+    def test_two_pages_claiming_one_old_path_keep_the_first_only(self):
+        proc, out, _ = self.two_items("https://example.invalid/same/", "https://example.invalid/same/")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('  - "/same/"\n', head(out, "posts/first-post/index.md"))
+        self.assertNotIn("aliases", head(out, "posts/second-post/index.md"))
+        log = log_of(out)
+        conflicts = [w for w in log["warnings"] if w["kind"] == "alias-conflict"]
+        self.assertEqual(len(conflicts), 1)
+        self.assertEqual(conflicts[0]["file"], "posts/second-post/index.md")
+        self.assertIn("posts/first-post/index.md", conflicts[0]["detail"])
+        self.assertEqual(log["summary"]["aliases"], 1)
+
+    def test_trailing_slash_variants_are_the_same_claim(self):
+        proc, out, _ = self.two_items("https://example.invalid/same", "https://example.invalid/same/")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("aliases", head(out, "posts/second-post/index.md"))
+
+    def test_old_path_equal_to_another_pages_new_url_is_dropped(self):
+        proc, out, _ = self.two_items("https://example.invalid/posts/second-post/", "https://example.invalid/second-post.html")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("aliases", head(out, "posts/first-post/index.md"))
+        self.assertIn("alias-conflict", [w["kind"] for w in log_of(out)["warnings"]])
+
+    def test_old_path_owned_by_the_site_is_dropped(self):
+        for link in ("https://example.invalid/about/", "https://example.invalid/posts/", "https://example.invalid/journal"):
+            with self.subTest(link=link):
+                proc, out, _ = self.two_items(link, "https://example.invalid/second-post.html")
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertNotIn("aliases", head(out, "posts/first-post/index.md"))
+                self.assertIn("alias-conflict", [w["kind"] for w in log_of(out)["warnings"]])
 
 
 if __name__ == "__main__":

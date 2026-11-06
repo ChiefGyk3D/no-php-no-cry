@@ -676,7 +676,16 @@ def old_permalink(link):
     """(path, ok). ok is False for a permalink that cannot be a safe redirect source."""
     if BAD_LINK_CHARS.search(link):
         return None, False
-    parts = urlsplit(link)
+    if link.startswith("/"):
+        if link.startswith("//"):  # protocol-relative: a different host, not a local path
+            return None, False
+    elif not re.match(r"https?://[^/?#]", link, re.I):
+        return None, False
+    try:
+        parts = urlsplit(link)
+        parts.port  # noqa: B018 - raises ValueError on a malformed port
+    except ValueError:
+        return None, False
     if parts.query or parts.fragment:
         return None, True
     path = parts.path
@@ -829,6 +838,7 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
     }
     skipped, disclosures = [], []
     annotated, review = set(), {}
+    pending = {}
 
     for item in wanted:
         kind = item["type"]
@@ -886,7 +896,6 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
             site.warnings.append({"file": page_path, "kind": "bad-old-permalink", "detail": "id %d" % item["id"]})
         # An alias equal to the page's own URL would overwrite the page.
         aliases = [old] if old and old.rstrip("/") != new_url.rstrip("/") else []
-        counts["aliases"] += len(aliases)
 
         syndicated = None
         announced = item["meta"].get("_share_on_mastodon_url", "").strip()
@@ -915,8 +924,8 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
             ("url", new_url if kind == "page" else None),
             ("aliases", aliases),
         ]
-        text = front_matter(fields) + ("\n" + body + "\n" if body else "")
-        files[page_path] = text.encode("utf-8")
+        # Aliases are settled after every page has a URL (see resolve_aliases).
+        pending[page_path] = {"fields": fields, "body": body, "aliases": aliases, "new": new_url}
 
         for name, source_path in sorted(ctx.bundle.items()):
             media["%s/%s" % (bundle, name)] = source_path
@@ -967,6 +976,13 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
             }
         )
 
+    resolve_aliases(pending, site)
+    for page_path, entry in pending.items():
+        fields = [(k, entry["aliases"] if k == "aliases" else v) for k, v in entry["fields"]]
+        body = entry["body"]
+        files[page_path] = (front_matter(fields) + ("\n" + body + "\n" if body else "")).encode("utf-8")
+        counts["aliases"] += len(entry["aliases"])
+
     for slug in sorted(set(annotations or {}) - annotated):
         site.warnings.append({"file": "annotations", "kind": "annotation-unmatched", "detail": slug})
 
@@ -998,6 +1014,45 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
     }
     files["decision-log.json"] = dump_json(log).encode("utf-8")
     return files, media, counts
+
+
+def site_owned_paths():
+    """Lower-cased URL paths (no trailing slash) the site already serves: every
+    directory under content/ and static/."""
+    owned = set()
+    for base in ("content", "static"):
+        top = REPO / base
+        if top.is_dir():
+            for dirpath, dirs, _ in os.walk(top):
+                dirs.sort()
+                rel = Path(dirpath).relative_to(top).as_posix()
+                if rel != ".":
+                    owned.add(("/" + rel).lower())
+    return owned
+
+
+def resolve_aliases(pending, site):
+    """Give each old path to one page only. Pages are visited in conversion order
+    (date, then id), so the first claimant keeps the path and later ones lose it
+    with a logged warning. An old path that is any migrated page's new URL, a
+    reserved root or a path the site already serves is never aliased."""
+    owned = {"/" + r for r in RESERVED_ROOTS} | site_owned_paths()
+    new_owner = {e["new"].rstrip("/").lower(): path for path, e in pending.items()}
+    claimed = {}
+    for page_path, entry in pending.items():
+        kept = []
+        for alias in entry["aliases"]:
+            key = alias.rstrip("/").lower()
+            if key in new_owner:
+                site.warnings.append({"file": page_path, "kind": "alias-conflict", "detail": "%s is the URL of %s" % (alias, new_owner[key])})
+            elif key in owned:
+                site.warnings.append({"file": page_path, "kind": "alias-conflict", "detail": "%s is a path the site already serves" % alias})
+            elif key in claimed:
+                site.warnings.append({"file": page_path, "kind": "alias-conflict", "detail": "%s is already claimed by %s" % (alias, claimed[key])})
+            else:
+                claimed[key] = page_path
+                kept.append(alias)
+        entry["aliases"] = kept
 
 
 def existing_roots():
