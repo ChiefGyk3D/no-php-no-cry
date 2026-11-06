@@ -185,17 +185,19 @@ def support(p, errs, repo):
             errs.append("%s QR image appears %d times" % (coin, len(imgs)))
         elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
             errs.append("%s QR image needs alt, width and height" % coin)
-    # Socials: Instagram is a link; Pixelfed is marked coming soon and not a link.
+    # Socials: Instagram and Pixelfed are links that open in a new tab.
     insta = [a for a, t in p.links if t == "Instagram"]
     if len(insta) != 1 or insta[0].get("href") != "https://www.instagram.com/chiefgyk3d/":
         errs.append("Instagram link missing or wrong")
     elif not external_ok(insta[0]):
         errs.append("Instagram link lacks target=_blank rel=noopener")
-    if "Pixelfed" not in flat or "coming soon" not in flat.lower():
-        errs.append("Pixelfed not marked coming soon")
-    for a, t in p.links:
-        if "pics.chiefgyk3d.com" in (a.get("href") or "") or t.startswith("Pixelfed"):
-            errs.append("Pixelfed must not be a link")
+    pixel = [a for a, t in p.links if t.startswith("Pixelfed")]
+    if len(pixel) != 1 or pixel[0].get("href") != "https://pics.chiefgyk3d.com/ChiefGyk3D":
+        errs.append("Pixelfed link missing or wrong")
+    elif not external_ok(pixel[0]):
+        errs.append("Pixelfed link lacks target=_blank rel=noopener")
+    if "coming soon" in flat.lower():
+        errs.append("Pixelfed is live: no 'coming soon' text")
     # Ko-fi stays a link-out until the framing test; the TODO is in the template.
     if repo.get("template") is not None and "TODO" not in repo["template"]:
         errs.append("the Ko-fi embed TODO marker is missing from the template")
