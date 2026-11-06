@@ -40,14 +40,14 @@ fx="$work/fixture"
 mkdir -p "$fx/css" "$fx/about" "$fx/posts/sample-post" "$fx/posts"
 csp="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n  Strict-Transport-Security: max-age=31536000; includeSubDomains\n' "$csp" >"$fx/_headers"
-printf '# generated\n/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 301\n/contact /about/#contact 301\n' >"$fx/_redirects"
-page='<!doctype html><html><head><meta charset=utf-8><link rel=stylesheet href=/css/site.css><meta name=robots content="noindex, nofollow"></head><body>x</body></html>'
+printf '# generated\n/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 301\n/contact /about/#contact 301\n/moved /about/ 302\n' >"$fx/_redirects"
+page='<!doctype html><html><head><meta charset=utf-8><link rel=stylesheet href=/css/site.css><link rel=alternate type=application/rss+xml href=http://FX/index.xml><meta name=robots content="noindex, nofollow"></head><body>x</body></html>'
 for p in index.html about/index.html posts/index.html posts/sample-post/index.html; do printf '%s' "$page" >"$fx/$p"; done
 printf '<!doctype html><html><head><meta name=robots content="noindex"></head><body>404</body></html>' >"$fx/404.html"
 printf 'body{color:#000}\n' >"$fx/css/site.css"
 printf 'User-agent: *\nDisallow: /\n' >"$fx/robots.txt"
 printf '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>http://FX/</loc></url></urlset>' >"$fx/sitemap.xml"
-printf '<?xml version="1.0"?><rss version="2.0"><channel><title>t</title><link>http://FX/</link><item><title>i</title><link>http://FX/posts/sample-post/</link></item></channel></rss>' >"$fx/index.xml"
+printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>t</title><link>http://FX/</link><atom:link href="http://FX/index.xml" rel="self" type="application/rss+xml"/><item><title>i</title><link>http://FX/posts/sample-post/</link></item></channel></rss>' >"$fx/index.xml"
 printf 'console.log(1)\n' >"$fx/copy.js"
 
 # --- real builds, for the real _redirects, _headers and pages ------------------------
@@ -125,6 +125,7 @@ expect_pass "--env staging agrees" "$real_stg" good "$rw_real" --public "$real_s
 
 # --- one negative case per check -----------------------------------------------------
 expect_fail "redirect: wrong status" redirect "$fx" redirect-wrong-status "$rw_fx" "${fxp[@]}"
+expect_fail "redirect: a 302 rule answered 301" redirect "$fx" redirect-302-as-301 "$rw_fx" "${fxp[@]}"
 expect_fail "redirect: wrong Location" redirect "$fx" redirect-wrong-location "$rw_fx" "${fxp[@]}"
 expect_fail "redirect: other host" redirect "$fx" redirect-other-host "$rw_fx" "${fxp[@]}"
 expect_fail "redirect: rule not served" redirect "$fx" redirect-missing "$rw_fx" "${fxp[@]}"
@@ -141,6 +142,9 @@ expect_fail "sitemap: another host" sitemap "$fx" sitemap-host "$rw_fx" "${fxp[@
 expect_fail "feed: truncated" feed "$fx" feed-bad "$rw_fx" "${fxp[@]}"
 expect_fail "feed: missing" feed "$fx" feed-missing "$rw_fx" "${fxp[@]}"
 expect_fail "feed: DOCTYPE refused" feed "$fx" feed-doctype "$rw_fx" "${fxp[@]}"
+expect_fail "feed: atom self link on another host" feed "$fx" feed-self-other "$rw_fx" "${fxp[@]}"
+expect_fail "feed: atom self link missing" feed "$fx" feed-self-missing "$rw_fx" "${fxp[@]}"
+expect_fail "feed: two atom self links" feed "$fx" feed-self-twice "$rw_fx" "${fxp[@]}"
 expect_fail "robots: missing" robots "$fx" robots-missing "$rw_fx" "${fxp[@]}"
 expect_fail "robots: production pages under a staging robots.txt" robots-meta "$real_prod" robots-flip "$rw_real" --public "$real_prod"
 expect_fail "env-mismatch: --env production against staging" env-mismatch "$real_stg" good "$rw_real" --public "$real_stg" --env production
@@ -160,6 +164,44 @@ sed -i 's#<meta name=robots content="noindex, nofollow">##' "$prod_fx/index.html
 expect_pass "fixture production, good" "$prod_fx" good "$rw_fx" --public "$prod_fx"
 printf 'User-agent: *\nAllow: /\n' >"$prod_fx/robots.txt"
 expect_fail "robots: production without a Sitemap line" robots "$prod_fx" good "$rw_fx" --public "$prod_fx"
+
+# A crawler-specific Disallow must not classify the host as staging.
+printf 'User-agent: Googlebot\nDisallow: /\n\nUser-agent: *\nAllow: /\n\nSitemap: http://FX/sitemap.xml\n' >"$prod_fx/robots.txt"
+expect_pass "robots: crawler-specific Disallow, wildcard Allow is production" "$prod_fx" good "$rw_fx" --public "$prod_fx"
+# Allow and a Sitemap line, but no User-agent: * group, decide nothing.
+printf 'User-agent: Googlebot\nAllow: /\n\nSitemap: http://FX/sitemap.xml\n' >"$prod_fx/robots.txt"
+expect_fail "robots: no wildcard group" robots "$prod_fx" good "$rw_fx" --public "$prod_fx"
+printf 'Allow: /\nSitemap: http://FX/sitemap.xml\n' >"$prod_fx/robots.txt"
+expect_fail "robots: rules before any User-agent line" robots "$prod_fx" good "$rw_fx" --public "$prod_fx"
+printf 'User-agent: *\nAllow: /\nDisallow: /private/\n\nSitemap: http://FX/sitemap.xml\n' >"$prod_fx/robots.txt"
+expect_fail "robots: production with a partial Disallow" robots "$prod_fx" good "$rw_fx" --public "$prod_fx"
+stg_fx="$work/fixture-staging2"
+cp -r "$fx" "$stg_fx"
+printf 'User-agent: Bingbot\nAllow: /\n\nUser-agent: *\nDisallow: /\n' >"$stg_fx/robots.txt"
+expect_pass "robots: staging with a crawler-specific Allow" "$stg_fx" good "$rw_fx" --public "$stg_fx"
+
+# --- the redirect status is the declared one; other statuses are refused -----------------
+bad_fx="$work/fixture-308"
+cp -r "$fx" "$bad_fx"
+printf '/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 308\n' >"$bad_fx/_redirects"
+expect_fail "redirect: unsupported status 308 in _redirects" redirect "$bad_fx" good "$rw_fx" --public "$bad_fx"
+
+# --- the feed path comes from the build (alternate link) or VERIFY_FEED_PATH -----------------
+feed_fx="$work/fixture-feedpath"
+cp -r "$fx" "$feed_fx"
+mkdir -p "$feed_fx/feed"
+mv "$feed_fx/index.xml" "$feed_fx/feed/index.xml"
+sed -i 's#http://FX/index.xml#http://FX/feed/index.xml#g' "$feed_fx/feed/index.xml" "$feed_fx/index.html" "$feed_fx/about/index.html" "$feed_fx/posts/index.html" "$feed_fx/posts/sample-post/index.html"
+expect_pass "feed at /feed/index.xml, found from the alternate link" "$feed_fx" good "$rw_fx" --public "$feed_fx"
+expect_fail "feed at /feed/index.xml: feed-missing is noticed" feed "$feed_fx" feed-missing "$rw_fx" --public "$feed_fx"
+start_server "$fx" good "$rw_fx"
+rc=0
+out="$(VERIFY_FEED_PATH=/nonexistent.xml VERIFY_ALLOW_HTTP=1 "$verify" "http://127.0.0.1:${port}" --public "$fx" 2>&1)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"FAIL: feed: /nonexistent.xml"* ]]; then
+    pass "VERIFY_FEED_PATH overrides the path found in the build"
+else
+    fail "VERIFY_FEED_PATH: exit ${rc}: $(grep -m3 -E '^(FAIL|input)' <<<"$out")"
+fi
 
 # --- --resolve-ip: a name the local resolver cannot see, mapped to loopback ----------------
 start_server "$fx" good "$rw_fx"
