@@ -234,7 +234,7 @@ while IFS= read -r -d '' f; do
         report script-count "$rel"
     fi
     if [[ -z "$pinned" && "$script_total" -gt 0 ]]; then
-        report script-not-allowed "$rel (no pinned script script: no script is allowed)"
+        report script-not-allowed "$rel (no pinned script: no script is allowed)"
     fi
     if [[ "$script_copy" -ge 1 && ! -f "$dir/copy.js" ]]; then
         report missing-script "$rel (references /copy.js, which is not in the build)"

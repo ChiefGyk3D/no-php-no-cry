@@ -109,7 +109,7 @@ jobs:
       # whole committed SVGs, so the QR modules are verified, not only <desc>.
       # Needs network access to the Python package index for the pinned packages.
       # --decode also renders each SVG in the runner's Chrome and decodes it with
-      # the hash-pinned OpenCV: every code must read back to the exact address.
+      # the hash-pinned OpenCV (scripts/requirements-qr-decode.txt): every code must read back to the exact address.
       - name: Check the support QR files against data/support.yaml and decode them
         run: scripts/gen-support-qr.sh --check --decode
 

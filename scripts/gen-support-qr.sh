@@ -10,7 +10,8 @@
 # CI runs --check --decode (it compares the whole file, so the encoded
 # modules are verified, not only the <desc> text) and test-pages.sh runs it
 # against the built site. It needs network access to the Python package index,
-# only for the hash-pinned releases in scripts/requirements-qr.txt.
+# only for the hash-pinned releases in scripts/requirements-qr.txt (and, with
+# --decode, scripts/requirements-qr-decode.txt).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,4 +20,11 @@ venv="$(mktemp -d "$root/tmp/qr-venv.XXXXXX")"
 trap 'rm -rf "$venv"' EXIT
 python3 -m venv "$venv"
 "$venv/bin/pip" install --quiet --require-hashes -r "$root/scripts/requirements-qr.txt"
+# The large decode-only wheels (OpenCV, NumPy) are installed only for --decode.
+for arg in "$@"; do
+    if [ "$arg" = "--decode" ]; then
+        "$venv/bin/pip" install --quiet --require-hashes -r "$root/scripts/requirements-qr-decode.txt"
+        break
+    fi
+done
 "$venv/bin/python" -I "$root/scripts/gen-support-qr.py" "$@"
