@@ -7,9 +7,12 @@
 # it: a rule under another crawler's group, or before any User-agent line, says
 # nothing about everyone else. Consecutive User-agent lines share one group.
 # robots_wildcard <file> prints "<has-group> <disallow-all> <allow> <other-disallow>"
-# as 0/1 flags for the wildcard group(s); comments and CRLF are ignored.
+# as 0/1 flags for the wildcard group(s); comments and CRLF are ignored. A
+# blank line ends the current group; a comment-only line does not.
 robots_wildcard() {
     awk '
+        { raw = $0; gsub(/\r/, "", raw); gsub(/^[ \t]+|[ \t]+$/, "", raw) }
+        raw == "" { prev_ua = 0; wild = 0; next }
         { sub(/#.*/, ""); gsub(/\r/, ""); gsub(/^[ \t]+|[ \t]+$/, "") }
         $0 == "" { next }
         {

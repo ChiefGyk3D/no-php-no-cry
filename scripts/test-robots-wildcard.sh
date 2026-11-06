@@ -46,6 +46,11 @@ parse "a rule before any User-agent says nothing" "1 0 1 0" 'Disallow: /\nUser-a
 parse "consecutive User-agent lines share a group" "1 1 0 0" 'User-agent: Googlebot\nUser-agent: *\nDisallow: /\n'
 parse "a new group resets the wildcard" "1 0 1 0" 'User-agent: *\nAllow: /\nUser-agent: Bingbot\nDisallow: /\n'
 parse "comments and CRLF are ignored" "1 1 0 0" 'User-agent: * # all\r\nDisallow: / # nothing\r\n'
+parse "a blank line ends the wildcard group" "1 0 0 0" 'User-agent: *\n\nUser-agent: Googlebot\nDisallow: /private/\n'
+parse "a blank line ends consecutive User-agent sharing" "1 0 0 0" 'User-agent: Googlebot\n\nUser-agent: *\nAllow:\n\nUser-agent: Bingbot\nDisallow: /\n'
+parse "a rule after a blank line has no group" "1 0 1 0" 'User-agent: *\nAllow: /\n\nDisallow: /\n'
+parse "a comment-only line stays in the group" "1 1 0 0" 'User-agent: *\n# note\nDisallow: /\n'
+parse "a whitespace-only line ends the group" "1 0 1 0" 'User-agent: *\nAllow: /\n  \t\nDisallow: /\n'
 parse "no content" "0 0 0 0" ''
 
 # Both scripts source the helper and carry no copy of the parser.
