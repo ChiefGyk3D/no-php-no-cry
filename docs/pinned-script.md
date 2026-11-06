@@ -1,8 +1,8 @@
 # The copy script is pinned by hash
 
-(This was the theme script until issue 95. No theme toggle exists, so the one
-allowed-script slot now holds the /support/ Copy-button script. Issue 82 may
-still tighten `script-src` to 'none' if that script is ever dropped.)
+(The theme toggle script is gone: the brand is dark only. The one allowed-script
+slot holds the /support/ Copy-button script. Issue 82 decided to keep
+`script-src 'self'` while that script ships; `'none'` follows if it is dropped.)
 
 `/copy.js` is loaded by `/support/` only (`layouts/support/single.html`). It
 reveals the page's Copy buttons (hidden without script), copies the address text

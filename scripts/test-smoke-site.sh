@@ -50,8 +50,8 @@ printf '<rss/>\n' >"$pub/index.xml"
 printf '<rss/>\n' >"$pub/feed/index.xml"
 # The pinned hash of the copy script: a file of the test's own, absent unless a
 # case pins it.
-export SCRIPT_HASH_FILE="$work/theme.sha256"
-theme_file="$work/theme-served.js"
+export SCRIPT_HASH_FILE="$work/copy.sha256"
+copy_file="$work/copy-served.js"
 known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml,/feed/index.xml"
 # The redirects the fake server answers (from=to, ';' apart): the required first
 # line, /feed/, and the sample (date archive, category, tag, upload).
@@ -63,7 +63,7 @@ per_attempt=16
 start_server() {
     stop_server
     rm -f "$work/port" "$work/port.count"
-    MODE="$1" CSP="$csp" KNOWN="$known" REDIRS="$redirs" THEME_FILE="$theme_file" PORTFILE="$work/port" python3 -I -c '
+    MODE="$1" CSP="$csp" KNOWN="$known" REDIRS="$redirs" COPY_FILE="$copy_file" PORTFILE="$work/port" python3 -I -c '
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -82,7 +82,7 @@ fault, _, fpath = mode.partition("@")
 # the CSP header, a 200 where the 301 belongs), then answers correctly.
 stale = int(mode.split("-")[1]) if mode.startswith("stale-") else 0
 seen = 0
-theme_seen = 0
+copy_seen = 0
 
 
 class H(BaseHTTPRequestHandler):
@@ -90,7 +90,7 @@ class H(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        global seen, theme_seen
+        global seen, copy_seen
         seen += 1
         with open(os.environ["PORTFILE"] + ".count", "w") as f:
             f.write(str(seen))
@@ -120,21 +120,21 @@ class H(BaseHTTPRequestHandler):
             "handlerpage": b"<html><body onload=x()></body></html>",
             "quotedgt": b"<html><img alt=\"x>\" onerror=x()></html>",
             "jsurl": b"<html><a href=\"javascript:x()\">y</a></html>",
-            "themeref": b"<html><script src=/copy.js></script></html>",
-            "themetwice": b"<html><script src=/copy.js></script><script src=/copy.js></script></html>",
+            "copyref": b"<html><script src=/copy.js></script></html>",
+            "copytwice": b"<html><script src=/copy.js></script><script src=/copy.js></script></html>",
             "benignpage": b"<html><img alt=\"one=1\" src=/a.png><a href=\"https://example.org/\">y</a></html>",
             "badfeed": b"<rss><a onclick=\"x\"/></rss>",
         }
         is_known = self.path in known
-        if self.path == "/copy.js" and os.path.exists(os.environ["THEME_FILE"]):
+        if self.path == "/copy.js" and os.path.exists(os.environ["COPY_FILE"]):
             is_known = True
-            body = open(os.environ["THEME_FILE"], "rb").read()
-            if fault == "tampertheme":
+            body = open(os.environ["COPY_FILE"], "rb").read()
+            if fault == "tampercopy":
                 body += b"x"
-            if fault == "alternatetheme":
+            if fault == "alternatecopy":
                 # every other request gets different bytes
-                theme_seen += 1
-                if theme_seen % 2 == 1:
+                copy_seen += 1
+                if copy_seen % 2 == 1:
                     body += b"x"
         hit = self.path == fpath or (fpath == "*404" and not is_known)
         code = 200 if is_known else 404
@@ -353,30 +353,30 @@ expect "remote script served on a list" "script-not-allowed: /journal/" remotesc
 expect "handler served on the 404 page" "event-handler: /smoke-check-missing-page/" handlerpage@'*404'
 expect "handler after a quoted > on a post" "event-handler: /posts/sample-post/" quotedgt@/posts/sample-post/
 expect "javascript URL served on a tag page" "javascript-url: /tags/lorem/" jsurl@/tags/lorem/
-expect "theme script tag served with no pinned script" "script-not-allowed: /" themeref@/
+expect "copy script tag served with no pinned script" "script-not-allowed: /" copyref@/
 expect "handler in the served feed" "event-handler: /index.xml" badfeed@/index.xml
 expect "benign served markup passes" pass benignpage@/posts/
 
 # The copy script is judged by its pinned hash: the build's file must match it,
 # and so must the bytes the site serves. With no hash file a copy.js is refused.
-tpub="$work/public-theme"
+tpub="$work/public-copy"
 cp -r "$pub" "$tpub"
-printf 'document.documentElement.dataset.theme="dark"\n' >"$tpub/copy.js"
-cp "$tpub/copy.js" "$theme_file"
+printf 'document.documentElement.dataset.copy="dark"\n' >"$tpub/copy.js"
+cp "$tpub/copy.js" "$copy_file"
 printf '%s  copy.js\n' "$(sha256sum "$tpub/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"
 known="$known,/copy.js"
 expect "pinned script served unchanged" pass good "$tpub"
-expect "theme served with different bytes" "script-hash: /copy.js" tampertheme@/copy.js "$tpub"
-expect "the pinned script tag served passes" pass themeref@/ "$tpub"
-expect "the copy script tag served twice" "script-count: /" themetwice@/ "$tpub"
-expect "an extra script next to the theme tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
-expect "theme bytes alternate between responses" "script-hash: /copy.js" alternatetheme@/copy.js "$tpub"
+expect "copy served with different bytes" "script-hash: /copy.js" tampercopy@/copy.js "$tpub"
+expect "the pinned script tag served passes" pass copyref@/ "$tpub"
+expect "the copy script tag served twice" "script-count: /" copytwice@/ "$tpub"
+expect "an extra script next to the copy tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
+expect "copy bytes alternate between responses" "script-hash: /copy.js" alternatecopy@/copy.js "$tpub"
 expect "no CSP on the copy script" "missing-csp: /copy.js" nocsp@/copy.js "$tpub"
 rm -f "$SCRIPT_HASH_FILE"
 expect "copy.js in the build with no hash file" input good "$tpub"
 printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
 expect "build copy.js differs from the pinned hash" input good "$tpub"
-rm -f "$SCRIPT_HASH_FILE" "$theme_file"
+rm -f "$SCRIPT_HASH_FILE" "$copy_file"
 
 # Plain http is refused unless the test switch is set.
 rc=0
