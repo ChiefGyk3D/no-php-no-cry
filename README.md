@@ -6,6 +6,9 @@ Staging at test-blog.chiefgyk3d.com until it replaces the apex domain.
 
 Deploys to Cloudflare Pages: see [docs/deploy.md](docs/deploy.md).
 
+Contributing and writing a post: [CONTRIBUTING.md](CONTRIBUTING.md) and
+[docs/writing-a-post.md](docs/writing-a-post.md).
+
 Status: scaffold. Content is synthetic placeholder text; design tokens are
 placeholders (brand spec: issue #2). See issue #1 for the plan.
 
@@ -48,6 +51,7 @@ scripts/test-check-hugo-version.sh
 scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
 scripts/test-wxr2hugo-webp.sh   # WebP step tests (pinned Pillow in a throwaway venv, needs the package index)
 scripts/test-migration.sh       # converter output builds: drafts, redirect rules, banners, alt guard
+scripts/test-archetype.sh       # hugo new content makes a post that builds and passes the checks; missing alt fails
 ```
 
 `check-output.sh` fails the build output on any of: any `<script>` element
@@ -201,3 +205,26 @@ Terms are never echoed, logged or written. Where the terms live, how to add
 one and what the starter content does not yet cover: [docs/scrub-terms.md](docs/scrub-terms.md).
 Exit 2 is a refused
 path, a bad terms file or a slug collision.
+
+## Learn from this project
+
+This repository is open source and meant to be read. If you want to build a
+static site the same careful way, start here.
+
+- Write a post: [docs/writing-a-post.md](docs/writing-a-post.md) walks through
+  the archetype, front matter, images, checks and the pull request.
+- Contribute: [CONTRIBUTING.md](CONTRIBUTING.md) and the
+  [Code of Conduct](CODE_OF_CONDUCT.md).
+- Deploy it: [docs/deploy.md](docs/deploy.md) and [docs/cutover.md](docs/cutover.md).
+- The redesign plan and its reasons: [docs/redesign-brief.md](docs/redesign-brief.md).
+
+A short map of how it fits together:
+
+| Piece | Where | What to learn |
+| --- | --- | --- |
+| Hugo | `hugo.toml`, `layouts/`, `archetypes/`, `.hugo-version` | A site with templates written from scratch, a pinned standard-edition Hugo, page bundles and an image render hook. |
+| Strict CSP | `static/_headers`, `scripts/check-output.sh` | A policy that allows only same-origin files, and a checker that fails the build on inline script, inline style and third-party references. |
+| Cloudflare Pages direct upload | `.github/workflows/deploy.yml`, `docs/deploy.md` | Deploying a prebuilt folder, gated on the `CI green` check, with the Pages control files checked by `scripts/check-site-artifact.sh`. |
+| CI gates | `.github/workflows/ci.yml`, `scripts/test-*.sh` | Each check has a test with a negative case that proves the check fails when it should. |
+| GYST reusable workflows | `shell` and `security` jobs in `ci.yml` | Shell lint and security scans come from [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together), pinned by commit. The Hugo build job is local. |
+| Converter tooling | `tools/wxr2hugo/` | Turning a WordPress export into page bundles, with WebP conversion and a scrub pass for private data. |

@@ -143,6 +143,9 @@ jobs:
       - name: Test the content migration (converter output builds, redirects, banners, alt guard)
         run: scripts/test-migration.sh
 
+      - name: Test the post and journal archetypes (builds, passes the checks, missing alt fails)
+        run: scripts/test-archetype.sh
+
       - name: Check assets/css/tokens.css is generated from brand/tokens.json
         run: python3 -I scripts/gen-tokens.py --check
 
