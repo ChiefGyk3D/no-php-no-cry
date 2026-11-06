@@ -40,7 +40,7 @@ fx="$work/fixture"
 mkdir -p "$fx/css" "$fx/about" "$fx/posts/sample-post" "$fx/posts"
 csp="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n  Strict-Transport-Security: max-age=31536000; includeSubDomains\n' "$csp" >"$fx/_headers"
-printf '# generated\n/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 301\n/contact /about/#contact 301\n/moved /about/ 302\n' >"$fx/_redirects"
+printf '# generated\n/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 301\n/contact /about/#contact 301\n/moved /about/ 302\n/old-tree/* /posts/ 301\n' >"$fx/_redirects"
 page='<!doctype html><html><head><meta charset=utf-8><link rel=stylesheet href=/css/site.css><link rel=alternate type=application/rss+xml href=http://FX/index.xml><meta name=robots content="noindex, nofollow"></head><body>x</body></html>'
 for p in index.html about/index.html posts/index.html posts/sample-post/index.html; do printf '%s' "$page" >"$fx/$p"; done
 printf '<!doctype html><html><head><meta name=robots content="noindex"></head><body>404</body></html>' >"$fx/404.html"
@@ -185,6 +185,12 @@ bad_fx="$work/fixture-308"
 cp -r "$fx" "$bad_fx"
 printf '/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 308\n' >"$bad_fx/_redirects"
 expect_fail "redirect: unsupported status 308 in _redirects" redirect "$bad_fx" good "$rw_fx" --public "$bad_fx"
+
+# --- placeholder rules other than a trailing splat are refused, not guessed -----------------
+ph_fx="$work/fixture-placeholder"
+cp -r "$fx" "$ph_fx"
+printf '/:year/:month/ /posts/ 301\n' >"$ph_fx/_redirects"
+expect_fail "redirect: unsupported :placeholder rule" redirect "$ph_fx" good "$rw_fx" --public "$ph_fx"
 
 # --- the feed path comes from the build (alternate link) or VERIFY_FEED_PATH -----------------
 feed_fx="$work/fixture-feedpath"

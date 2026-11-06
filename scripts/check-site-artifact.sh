@@ -4,11 +4,18 @@
 # Run on a built site directory before it is published to Cloudflare Pages. It
 # rejects the files Pages treats as code or routing control that this site does
 # not intentionally ship, and pins the two control files it does ship:
-#   - _worker.js, _routes.json, a root functions/ directory, or anything whose
-#     name begins with _worker (any depth, any type): Pages would run it
+#   - _worker.js, a root functions/ directory, or anything whose name begins
+#     with _worker (any depth, any type): Pages would run it. The Pages
+#     Functions source lives in the repository's functions/ directory, outside
+#     the upload directory that this script checks; a functions/ inside the
+#     upload is still rejected
 #   - symlinks anywhere (an artifact must be plain files)
 #   - _headers that differs byte for byte from the repository's static/_headers
 #     (the expected file must also carry script-src exactly 'self')
+#   - _routes.json, REQUIRED at the root (with the Pages Function enabled, no
+#     file would leave nothing limiting execution to HTML routes), that is not
+#     the strict routing shape (routes_policy_ok) or differs byte for byte from
+#     the repository's static/_routes.json (ROUTES_FILE overrides the path)
 #   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js, and a
 #     /copy.js that is 1 KB gzip (1024 bytes) or more
 #   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
@@ -38,6 +45,7 @@ dir="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 expected_headers="${2:-$root/static/_headers}"
 script_hash_file="${SCRIPT_HASH_FILE:-$root/copy.js.sha256}"
+expected_routes="${ROUTES_FILE:-$root/static/_routes.json}"
 [[ -d "$dir" ]] || {
     echo "check-site-artifact: not a directory: $dir" >&2
     exit 2
@@ -59,11 +67,9 @@ while IFS= read -r -d '' p; do
     report reserved-name "${p#"$dir"/}"
 done < <(find "$dir" -iname '_worker*' -print0 | sort -z)
 
-for name in _routes.json functions; do
-    while IFS= read -r -d '' p; do
-        report reserved-name "${p#"$dir"/}"
-    done < <(find "$dir" -mindepth 1 -maxdepth 1 -iname "$name" -print0)
-done
+while IFS= read -r -d '' p; do
+    report reserved-name "${p#"$dir"/}"
+done < <(find "$dir" -mindepth 1 -maxdepth 1 -iname functions -print0)
 
 while IFS= read -r -d '' p; do
     report symlink "${p#"$dir"/}"
@@ -74,6 +80,22 @@ if [[ ! -f "$dir/_headers" || -L "$dir/_headers" ]]; then
     report headers-missing "_headers"
 elif ! cmp -s "$dir/_headers" "$expected_headers"; then
     report headers-differ "_headers differs from the repository's static/_headers"
+fi
+
+# _routes.json (required): byte for byte the repository's file, and that file
+# must itself be the strict shape. It decides which paths run the Function.
+if [[ ! -e "$dir/_routes.json" && ! -L "$dir/_routes.json" ]]; then
+    report routes-missing "_routes.json"
+else
+    if [[ -L "$dir/_routes.json" || ! -f "$dir/_routes.json" ]]; then
+        report routes-invalid "_routes.json must be a plain file"
+    elif [[ ! -f "$expected_routes" ]]; then
+        report routes-missing-expected "no expected routes file at $(basename "$expected_routes")"
+    elif ! routes_policy_ok "$expected_routes"; then
+        report routes-invalid "expected routes file is not the strict shape"
+    elif ! cmp -s "$dir/_routes.json" "$expected_routes"; then
+        report routes-differ "_routes.json differs from the repository's static/_routes.json"
+    fi
 fi
 
 # The expected policy: one script-src, exactly 'self' (same-origin scripts; the checks here pin the only one),

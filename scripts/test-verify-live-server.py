@@ -61,6 +61,9 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         base = "http://%s" % self.headers.get("Host")
+        for pre in [k[:-1] for k in redirects if k.endswith("/*")]:
+            if path.startswith(pre) and path not in redirects:
+                redirects[path] = (redirects[pre + "*"][0].replace(":splat", path[len(pre):]), redirects[pre + "*"][1])
         if path in redirects and mode != "redirect-missing":
             target, status = redirects[path]
             if mode == "redirect-wrong-status":

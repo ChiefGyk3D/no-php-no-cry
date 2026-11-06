@@ -19,7 +19,9 @@
 # Expectations come from the build, so they follow the site:
 #   redirect         every rule in <public>/_redirects answers with its declared
 #                    status (301 or 302; any other status is refused) and the
-#                    expected Location (relative, or absolute on this host)
+#                    expected Location (relative, or absolute on this host).
+#                    A trailing-splat rule (/category/*) is tested with one probe
+#                    path (/category/verify-live-probe); other placeholders fail.
 #   status           the home page and every template page below answer 200
 #   not-found        a missing path answers 404 with the noindex 404 page
 #   header-*         on every page checked, each header in <public>/_headers
@@ -275,22 +277,32 @@ third_party() {
 rules=0 rule_fail=0
 while read -r from to status extra; do
     [[ -n "$from" ]] || continue
-    if [[ "$from" != /* || "$to" != /* || -n "$extra" || ! "$status" =~ ^30[12]$ ]]; then
+    # A splat rule ("/category/* /posts/ 301") matches a whole subtree, so it is
+    # tested with one probe path in place of the "*" ("/category/verify-live-probe");
+    # ":splat" in the target is replaced by the probe segment. Any other placeholder
+    # form (":name", a "*" that is not the last character) is refused, not guessed.
+    probe="verify-live-probe"
+    from_req="$from"
+    if [[ "$from" == */\* && "${from%\*}" != *[*:]* ]]; then
+        from_req="${from%\*}${probe}"
+        to="${to//:splat/${probe}}"
+    fi
+    if [[ "$from" != /* || "$to" != /* || "$from" == *:* || "$from_req" == *\** || -n "$extra" || ! "$status" =~ ^30[12]$ ]]; then
         bad "redirect" "unsupported _redirects rule '${from} ${to} ${status}${extra:+ ${extra}}' (wanted '/from /to 301|302')"
         rules=$((rules + 1))
         rule_fail=$((rule_fail + 1))
         continue
     fi
     rules=$((rules + 1))
-    if ! fetch "$from"; then
-        bad "redirect" "${from} got no response"
+    if ! fetch "$from_req"; then
+        bad "redirect" "${from_req} got no response"
         rule_fail=$((rule_fail + 1))
         continue
     fi
     loc="$(header_first location)"
     loc="${loc#"$base"}"
     if [[ "$code" != "$status" || "$loc" != "$to" ]]; then
-        bad "redirect" "${from} answered '${code}' Location '$(header_first location)', wanted ${status} to ${to}"
+        bad "redirect" "${from_req} answered '${code}' Location '$(header_first location)', wanted ${status} to ${to}"
         rule_fail=$((rule_fail + 1))
     fi
 done < <(grep -v '^#' "$dir/_redirects" || true)

@@ -30,13 +30,14 @@ fail() {
 }
 
 # check_lines <file>: every line is a '#' comment or "/from /to 301" with
-# internal paths (same grammar as scripts/test-redirects.sh).
+# internal paths (same grammar as scripts/test-redirects.sh; a source may end in
+# a '*' splat, as the legacy WordPress rules do).
 check_lines() {
     awk '
         /^#/ { next }
         {
             if (NF != 3) { print "line " NR ": " NF " fields"; bad = 1; next }
-            if ($1 !~ /^\/[A-Za-z0-9._~\/%-]*$/) { print "line " NR ": bad source"; bad = 1 }
+            if ($1 !~ /^\/[A-Za-z0-9._~\/%-]*\*?$/) { print "line " NR ": bad source"; bad = 1 }
             if ($2 !~ /^\/[A-Za-z0-9._~\/%-]*(#[A-Za-z0-9._~-]+)?$/) { print "line " NR ": bad target"; bad = 1 }
             if ($3 != "301") { print "line " NR ": status " $3; bad = 1 }
         }
@@ -87,8 +88,22 @@ if build_site "$work/plain" "$conv/drafts"; then
     else
         fail "a draft-all page was built"
     fi
-    if [[ "$(grep -vc '^#' "$work/plain/public/_redirects" || true)" == "0" ]]; then
-        pass "no redirect rule is published while the pages are drafts"
+    # What remains is the fixed set of legacy WordPress rules (feed, uncategorized
+    # category, paging): no alias, date archive or category line of a draft.
+    cat >"$work/legacy-baseline" <<'RULES'
+/category/uncategorized /posts/ 301
+/category/uncategorized/ /posts/ 301
+/comments/feed /feed/index.xml 301
+/comments/feed/ /feed/index.xml 301
+/feed /feed/index.xml 301
+/feed/ /feed/index.xml 301
+/feed/atom /feed/index.xml 301
+/feed/atom/ /feed/index.xml 301
+/category/* /posts/ 301
+/page/* /posts/ 301
+RULES
+    if [[ "$(grep -v '^#' "$work/plain/public/_redirects")" == "$(cat "$work/legacy-baseline")" ]]; then
+        pass "no alias, date or category rule is published while the pages are drafts"
     else
         fail "drafts leaked redirect rules: $(cat "$work/plain/public/_redirects")"
     fi
@@ -109,8 +124,11 @@ if build_site "$work/drafts" "$conv/drafts" --buildDrafts; then
             fail "rule missing: $want"
         fi
     done
-    if [[ "$(grep -vc '^#' "$r")" == "3" ]] && out="$(check_lines "$r" 2>&1)"; then
-        pass "exactly three well-formed rules for the two aliased posts"
+    # Alias rules are every line that is not a legacy WordPress rule (feeds,
+    # categories, paging, date archives).
+    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/category/|/page/)' "$r" || true)"
+    if [[ "$(grep -c '' <<<"$aliases_only")" == "3" ]] && out="$(check_lines "$r" 2>&1)"; then
+        pass "exactly three alias rules for the two aliased posts, all well formed"
     else
         fail "unexpected _redirects: ${out:-$(cat "$r")}"
     fi
@@ -186,14 +204,14 @@ fi
 
 # --- guard self-test: the line checker must reject bad lines -------------------
 i=0
-for bad in '/a /b' '/a /b 301 extra' '/a /b 200' '/a https://evil.example/ 301' '/a /b#c%20d 301' '/a /b 308'; do
+for bad in '/a /b' '/a /b 301 extra' '/a /b 200' '/a https://evil.example/ 301' '/a /b#c%20d 301' '/a /b 308' '/a*b /b 301'; do
     i=$((i + 1))
     printf '# header\n%s\n' "$bad" >"$work/line$i"
     if check_lines "$work/line$i" >/dev/null 2>&1; then
         fail "guard: line '$bad' was accepted"
     fi
 done
-printf '# header\n/a /b 301\n/c/ /d/#ok 301\n' >"$work/ok"
+printf '# header\n/a /b 301\n/c/ /d/#ok 301\n/e/* /f/ 301\n' >"$work/ok"
 if check_lines "$work/ok" >/dev/null 2>&1; then
     pass "guard: bad lines are rejected and good lines accepted"
 else
