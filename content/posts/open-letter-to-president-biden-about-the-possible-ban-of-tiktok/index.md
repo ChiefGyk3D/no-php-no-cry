@@ -1,5 +1,5 @@
 ---
-title: "Open Letter to President Biden about the Possible Ban of Tiktok"
+title: "Open Letter to President Biden about the Possible Ban of TikTok"
 date: 2023-03-16T15:52:10-04:00
 draft: true
 slug: "open-letter-to-president-biden-about-the-possible-ban-of-tiktok"
@@ -53,7 +53,7 @@ me to expand my career in cybersecurity and form my own LLC, I urge you to addre
 important for the well-being of Americans.\
 Additionally, I would like to express my willingness to discuss this matter further with officials or even invite you onto a\
 TikTok Live, Zoom, or Microsoft Teams I can share with my audience. I believe that a conversation on this issue could\
-provide valuable insights and perspectives that can help address the concerns surrounding TikTok and other social media..\
+provide valuable insights and perspectives that can help address the concerns surrounding TikTok and other social media.\
 Thank you for your attention to this matter, and I hope that we can work together towards a resolution that benefits all\
 Americans.\
 Sincerely,\

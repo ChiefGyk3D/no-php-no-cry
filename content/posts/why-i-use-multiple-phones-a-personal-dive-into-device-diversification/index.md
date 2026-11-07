@@ -42,4 +42,4 @@ I've become super selective with apps. My social media list is curated to essent
 
 **Wrapping It Up**
 
-So, there you have it – a peek into my multi-phone life. If you're pondering a similar setup or just curious, I hope my tale offers some insights. Let me know what you think over on [Mastodon](https://matrix.to/#/#renegade-penguin:chiefgyk3d.com), [Matrix](https://chat.openai.com/c/matrix.to/#/@chiefgyk3d:chiefgyk3d.com), [my personal Discord](https://discord.chiefgyk3d.com) devoted to Linux, tinkering, and cybersecurity, the [OwlSec Discord](https://discord.gg/owlsec) focused on Ethical Hacking, or in the comments below. I'd love to chat!
+So, there you have it – a peek into my multi-phone life. If you're pondering a similar setup or just curious, I hope my tale offers some insights. Let me know what you think over on [Mastodon](https://social.chiefgyk3d.com/@chiefgyk3d), [Matrix](https://matrix.to/#/#renegade-penguin:chiefgyk3d.com), [my personal Discord](https://discord.chiefgyk3d.com) devoted to Linux, tinkering, and cybersecurity, or the [OwlSec Discord](https://discord.gg/owlsec) focused on Ethical Hacking. I'd love to chat!

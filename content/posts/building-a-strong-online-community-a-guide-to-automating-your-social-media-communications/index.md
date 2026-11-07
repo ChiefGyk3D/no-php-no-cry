@@ -23,10 +23,10 @@ Here's a breakdown of the platforms and tools I use for automating my content di
 
 - Zapier SaaS automation platform:
     - Twitch to Twitter: Monitors my Twitch for when I am live and posts to Twitter.
-    - Wordpress to Discord: Handles new blog post alerts to my Discord server I have for my community.
-    - Youtube to Twitter: Handles when I post a video to my YouTube.
+    - WordPress to Discord: Handles new blog post alerts to my Discord server I have for my community.
+    - YouTube to Twitter: Handles when I post a video to my YouTube.
 - Mee6 Discord bot:
-    - Youtube to Discord: Handles the alerting from my main and VOD channel to my Discord.
+    - YouTube to Discord: Handles the alerting from my main and VOD channel to my Discord.
     - Twitter to Discord: Handles alerting when I have made a post on Twitter inside the Discord.
 - YentaPi Raspberry Pi locally hosted and run by me:
     - Twitch-and-toot: My own project I wrote to monitor my Twitch and post to Mastodon. You can find the code for this project on GitHub at [https://github.com/ChiefGyk3D/twitch-and-toot](https://github.com/ChiefGyk3D/twitch-and-toot).
