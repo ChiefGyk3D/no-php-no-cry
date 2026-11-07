@@ -18,7 +18,8 @@ By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 1. Fork the repository and branch from `main`.
 2. Make the smallest change that does the job. Add or update a test when you
    change behavior.
-3. Run the checks listed in the README. `shellcheck -S warning` and
+3. Run the checks with `scripts/gate.sh` (the whole gate) or `scripts/gate.sh --fast`
+   (only what your changed files touch); the README lists the individual checks. `shellcheck -S warning` and
    `shfmt -d -i 4 -ci` must pass on `scripts/*.sh`.
 4. Open a pull request with the template filled in.
 
@@ -30,6 +31,25 @@ CI uses the shared workflows from
 [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together)
 for shell checks and security scans. The Hugo build and the site checks are local
 to this repository.
+
+### The local gate
+
+`scripts/gate.sh` runs the steps of the CI `build` job plus `shfmt -d -i 4 -ci`
+and `shellcheck -S warning` on `scripts/*.sh`. Every step prints its name and exit
+code, a failure does not stop the run, and the exit code is non-zero if any step
+failed. Needs hugo, shellcheck, shfmt, python3 and Chrome or Chromium (`CHROME`);
+`GATE_TOOLS` adds directories to `PATH`.
+
+- `scripts/gate.sh --fast` runs only what the changed files touch (diff against
+  `origin/main` plus untracked files): content and data, scripts, or CSS and layout.
+- `scripts/gate.sh --plan` prints the steps without running them.
+- `scripts/gate.sh --only browser-gate` reruns one step (the browser gate can flake
+  on a loaded machine); a build it needs runs first.
+- `--keep` keeps the temp directory with the per-step logs.
+
+CI does not call the script. The `build` job runs each step natively, and the shell
+lint comes from a shared workflow, so a swap would not cover the same steps. Keep
+the two lists in step: a new CI check goes into `scripts/gate.sh` too.
 
 ## Rules that never bend
 
