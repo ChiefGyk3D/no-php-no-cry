@@ -133,7 +133,11 @@ Header, in this order: Posts, Products, Social, Support, About. Contact is the
 menu had six items; this keeps every destination but merges Home (the wordmark
 links home) and Contact.
 
-On a phone the header is a wordmark plus a native `<details>` menu. No script.
+On a phone the header is a wordmark plus a Menu button. The button is a native
+`popovertarget` that opens a `<ul popover>` list below 52rem; from 52rem up the
+list shows inline. Escape, a click outside or a second press closes the popover
+and returns focus to the button. No script. A browser without `:popover-open`
+support gets a plain list, always shown.
 A `<nav aria-label="Main">` landmark exists on every page (the baseline found
 none).
 
@@ -510,7 +514,7 @@ Constraints from `static/_headers` (one change, below):
   `script-src https:`. The comment in `static/_headers` is rewritten to say
   `script-src` is `'self'` (same-origin scripts; the build checks and the hash pin
   of `/theme.js` make it the only script).
-- Mobile menu and accordions use native elements (`<details>`) and CSS only.
+- Mobile menu is a native popover (`popovertarget` and `popover`) with no script; accordions use native `<details>` and CSS only.
 - Theme (decision 4): dark is the default; the CSS follows
   `prefers-color-scheme` (light only when the system says light, dark when it
   is unknown), so the no-script path is correct on CSS alone. With script, a
@@ -579,7 +583,7 @@ board card before work starts. Repo is this one unless noted.
 | 5 | Drift check: local script in both repos; propose moving it to GYST as a reusable check | S | 2, 4 |
 | 6 | Assets, part 1: wordmark (traced SVG, PNG fallback; dark and light; third-party marks cropped), mascot WebP derivatives, favicon set, approved-assets manifest lines, by-eye star check | M | 1 |
 | 7 | Assets, part 2: circuit SVG, nine network icons from the shared set, default 1200x630 OG card | S | 6 |
-| 8 | Shell: base layout, header and `<details>` nav, footer, landmarks, skip link, print and `forced-colors` styles; journal nav item hidden until the first entry exists | M | 2, 6 |
+| 8 | Shell: base layout, header and popover menu nav, footer, landmarks, skip link, print and `forced-colors` styles; journal nav item hidden until the first entry exists | M | 2, 6 |
 | 9 | Theme toggle: `/theme.js` (guarded storage, head-loaded, builds the button), button styles and the `data-theme` CSS hooks, keyboard and screen-reader pass, reduced-motion behavior, privacy-page wording for the stored choice | M | 2, 3, 8 |
 | 10 | HUD component CSS: bracket frame, divider, carbon surface, glow, tile, button | M | 2, 8 |
 | 11 | Templates: home (hero, latest posts, social strip) | M | 8, 10 |
