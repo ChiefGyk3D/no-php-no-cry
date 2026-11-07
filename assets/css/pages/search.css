@@ -1,0 +1,51 @@
+/* /search/ (issue 119). Tokens only. The box is hidden until /search.js reveals it. */
+.search-box[hidden],
+.page-search [hidden] {
+  display: none;
+}
+
+.search-box {
+  margin: var(--space-5) 0;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-left: var(--rule-accent-width) solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.search-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+
+.search-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  color: var(--text);
+  border: var(--rule-accent-width) solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+.search-input:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 3px;
+  border-color: var(--accent);
+}
+
+.search-status {
+  min-height: 1.5em;
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.search-tags {
+  gap: 0 var(--space-2);
+}
