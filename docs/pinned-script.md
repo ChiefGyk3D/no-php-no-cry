@@ -10,7 +10,7 @@ The site ships exactly two scripts, each loaded by one page:
 | Script | Page | What it does |
 | --- | --- | --- |
 | `/copy.js` | `/support/` (`layouts/support/single.html`) | Reveals the Copy buttons (hidden without script), copies the address text with `navigator.clipboard` or a textarea fallback, and writes "Copied" into a `role=status` region. The address stays visible, selectable text either way. |
-| `/search.js` | `/search/` (`layouts/search/list.html`) | Reveals the search box (hidden without script) and filters the page's own list in place. See "Search" below. |
+| `/search.js` | `/search/` (`layouts/search/list.html`) | Enables the search box (its input is disabled without script) and filters the page's own list in place. See "Search" below. |
 
 Neither script makes a network request, stores anything, sets a cookie or reads
 anything beyond its own page. The allowlist, script -> its only allowed page, is
@@ -50,7 +50,7 @@ is the whole page, and it is useful as it stands.
 `static/search.js` (ES5, no dependencies, under 1 KB gzip; the readable source is
 the reviewed code) then:
 
-1. reveals the hidden `<div role="search">` (a visible label and one input);
+1. enables the input of the `<div role="search">`, which is on the page from first paint with a visible label and a disabled input, so enabling it moves nothing (without script a note says filtering needs JavaScript);
 2. on each keystroke lowercases the query, splits it on whitespace and requires
    every token to appear in an `<li>`'s text (AND); `li.hidden` is toggled and a
    group with no visible entry is hidden;

@@ -14,7 +14,7 @@ import zlib
 GOOD_HTML = """<!doctype html>
 <html lang="en-us"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fixture</title><link rel="icon" href="/pic.png"><link rel="stylesheet" href="/site.css"></head>
 <body><a class="skip" href="#main">Skip to main content</a>
-<header><nav aria-label="Main"><a href="/a/">One</a> <a href="/b/">Two</a></nav></header>
+<header><nav aria-label="Main"><div class="nav-menu"><button class="nav-toggle" type="button" popovertarget="nav-list">Menu</button><ul id="nav-list" popover><li><a href="/a/">One</a></li><li><a href="/b/">Two</a></li></ul></div></nav></header>
 <main id="main"><h1>Fixture</h1><p>Some text with an <a href="/inline/">inline link</a> in it.</p><img src="/pic.png" width="64" height="64" alt="A gray square"></main>
 <footer><a href="/c/">Three</a></footer></body></html>
 """
@@ -23,6 +23,9 @@ GOOD_CSS = (
     "a{color:#fbb03b}a:focus{outline:3px solid #fbb03b;outline-offset:2px}"
     ".skip{position:absolute;left:-999px}.skip:focus{left:0;background:#000;padding:12px}"
     "nav a,footer a{display:inline-flex;align-items:center;min-height:44px;min-width:44px}"
+    ".nav-toggle{min-height:44px;min-width:44px;font:inherit}"
+    ".nav-menu ul{position:absolute;top:60px;left:0;right:0;margin:0;padding:0;list-style:none;background:#222;border:0}"
+    "@media(min-width:52rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
     "main{padding:16px}"
     ".wide{width:3000px;height:1px;background:#fff}"
     ".small{display:block;width:30px;height:20px;min-width:0;min-height:0}"
@@ -86,6 +89,9 @@ def mutate(d, m):
         edit(d, "index.html", "</head>", '<script src="/shift.js"></script></head>')
     elif m == "slow-lcp":
         edit(d, "index.html", '<img src="/pic.png" width="64" height="64"', '<img src="/big.png" width="512" height="512"')
+    elif m == "menu-escape":
+        # A manual popover has no light dismiss: Escape no longer closes it.
+        edit(d, "index.html", '<ul id="nav-list" popover>', '<ul id="nav-list" popover="manual">')
     elif m == "toggle-missing":
         write(d, "theme.js", "document.title = 'x';")
         edit(d, "index.html", "</head>", '<script src="/theme.js"></script></head>')

@@ -70,6 +70,12 @@ main p {
 /* Display face (Orbitron, via --font-display) on the page headings only; body
  * text stays Jost. Orbitron is wide, so the sizes come from the token scale. */
 h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+h1,
 h2 {
   font-family: var(--font-display);
   font-weight: 700;
@@ -131,6 +137,10 @@ a:focus-visible {
   align-items: center;
   gap: var(--space-2);
   min-height: var(--tap);
+  min-width: 0;
+  /* ChiefGyk3D has no hyphens to break at, unlike the project name it replaced;
+     at 320 px reflow it may break inside the word rather than scroll sideways. */
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-weight: 700;
   text-decoration: none;
@@ -155,17 +165,19 @@ a:focus-visible {
   border: 0;
 }
 
-/* Header menu: a native details below 52rem (phones and tablets), the plain
- * list from 52rem up. No script: the summary is the button, the browser keeps
- * the open state, and following a link reloads the page with the menu closed. */
-.nav-menu summary {
+/* Header menu: a native popover below 52rem (phones and tablets), the plain
+ * list from 52rem up. No script: the Menu button is a popovertarget, so the
+ * browser opens the list, closes it on Escape, on a click outside or on a second
+ * press, and returns focus to the button. Following a link reloads the page with
+ * the menu closed. */
+.nav-toggle {
   display: inline-flex;
+  align-items: center;
   gap: var(--space-2);
-  list-style: none;
   cursor: pointer;
 }
 
-.nav-menu summary::after {
+.nav-toggle::after {
   content: "";
   width: var(--chevron-size);
   height: var(--chevron-size);
@@ -177,36 +189,41 @@ a:focus-visible {
   transition: transform var(--duration) ease;
 }
 
-.nav-menu[open] summary {
+.nav-menu:has(:popover-open) .nav-toggle {
   background: var(--glow);
 }
 
-.nav-menu[open] summary::after {
+.nav-menu:has(:popover-open) .nav-toggle::after {
   transform: rotate(-135deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-menu summary::after {
+  .nav-toggle::after {
     transition: none;
   }
 }
-.nav-menu summary::-webkit-details-marker {
-  display: none;
-}
 
 /* Phones, menu open: a full-width stacked dropdown hung from the bottom edge of
- * the header (.site-header is the positioning box). It overlays the page, so
- * the header row keeps its height and the document does not grow. */
+ * the header. A popover sits in the top layer, so it is placed against the page
+ * (absolute, from the top edge) at the header's height; the header is not
+ * sticky, so the two stay together. It overlays the page, so the header row
+ * keeps its height and the document does not grow. */
 .nav-menu ul {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  top: calc(var(--space) * 2 + var(--tap) + var(--rule-width));
+  inset-inline: 0;
+  bottom: auto;
+  width: auto;
+  height: auto;
+  max-height: none;
+  overflow: visible;
   z-index: 5;
   list-style: none;
   margin: 0;
   padding: 0 var(--space);
   background: var(--surface);
+  color: var(--text);
+  border: 0;
   border-bottom: var(--rule-width) solid var(--rule);
   box-shadow: 0 0.75rem 1.5rem var(--shadow);
 }
@@ -219,6 +236,18 @@ a:focus-visible {
   display: flex;
   align-items: center;
   min-height: var(--tap);
+}
+
+/* A browser without popover: no button, the list is plain and always shown. */
+@supports not selector(:popover-open) {
+  .nav-menu .nav-toggle {
+    display: none;
+  }
+
+  .nav-menu ul {
+    position: static;
+    box-shadow: none;
+  }
 }
 
 /* Standalone links are at least --tap square: a short word like "RSS" or "Tip"
@@ -240,8 +269,7 @@ a:focus-visible {
  * header's content edge, instead of a full-bleed sheet. */
 @media (min-width: 36rem) and (max-width: 51.99rem) {
   .nav-menu ul {
-    left: auto;
-    right: var(--space);
+    inset-inline: auto var(--space);
     width: 18rem;
     border: var(--rule-width) solid var(--rule);
     border-top: 0;
@@ -249,13 +277,8 @@ a:focus-visible {
 }
 
 @media (min-width: 52rem) {
-  .nav-menu summary {
+  .nav-menu .nav-toggle {
     display: none;
-  }
-
-  .nav-menu::details-content {
-    content-visibility: visible;
-    display: contents;
   }
 
   .nav-menu ul {

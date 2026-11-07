@@ -567,7 +567,7 @@ fi
 
 # Search (issue 119): /search/ is a browse page first (every post and journal
 # entry, A to Z, as plain <li> entries) and the pinned script that belongs to
-# it, /search.js, reveals the search box. Only /search/ loads that script.
+# it, /search.js, enables the search box. Only /search/ loads that script.
 search_check() { # search_check <page> <site root>: prints one problem per line
     python3 -I - "$1" "$2" <<'PY'
 import glob, os, re, sys
@@ -579,8 +579,11 @@ if html.count("<script") != 1 or "<script src=/search.js></script>" not in html:
 if "<form" in html:
     errs.append("a <form> (form-action is 'none'): the box is a div role=search")
 m = re.search(r"<div[^>]*role=search[^>]*>", html)
-if not m or not re.search(r"[\s]hidden[\s>]", m.group(0)):
-    errs.append("the search control must be a div role=search that is hidden until the script reveals it")
+if not m or re.search(r"[\s]hidden[\s>]", m.group(0)):
+    errs.append("the search control must be a div role=search that is on the page from first paint (not hidden: revealing it later shifts the layout)")
+inp = re.search(r"<input[^>]*id=q[ >][^>]*>", html)
+if not inp or not re.search(r"[\s]disabled[\s>]", inp.group(0)):
+    errs.append("the input must be disabled in the HTML; the script enables it (no script, no working box)")
 if not re.search(r"<label[^>]*for=q[ >]", html) or not re.search(r"<input[^>]*id=q[ >]", html):
     errs.append("the input needs a visible label with for=q")
 if not re.search(r"<p[^>]*role=status[^>]*aria-live=polite|<p[^>]*aria-live=polite[^>]*role=status", html):
@@ -619,7 +622,7 @@ if [[ ! -f "$search_page" ]]; then
 else
     out="$(search_check "$search_page" "$pub")"
     if [[ -z "$out" ]]; then
-        pass "the search page: browse list, hidden role=search box, status region, noscript, one pinned script"
+        pass "the search page: browse list, role=search box with a disabled input, status region, noscript, one pinned script"
     else
         fail "the search page: $out"
     fi
@@ -634,7 +637,8 @@ else
     }
     bite "with an inline script" 's#<script src=/search.js></script>#<script>x()</script>#'
     bite "with a form" 's#<div id=search#<form></form><div id=search#'
-    bite "with a visible box" 's# hidden>#>#'
+    bite "with a hidden box" 's#<div id=search class=search-box role=search>#<div id=search class=search-box role=search hidden>#'
+    bite "with an enabled input" 's#(<input[^>]*id=q[^>]*) disabled#\1#'
     bite "without the status region" 's#role=status ##'
     bite "without the label" 's#<label#<span#'
     bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'
@@ -728,6 +732,58 @@ fi
 if grep -Eq '\.hero-actions[^}]*flex-direction: *column' <<<"$hero"; then
     fail "home hero CTAs are a stacked column"
 fi
+# Penguin ghost layer (issue 149): Home and 404 only, CSS only, no new asset.
+# trigger_pages lists which built pages carry a ghost trigger class; the guard
+# self-test below proves the check bites on a page that should not have one.
+has_ghost_trigger() { grep -Eq 'class="?[^>]*\b(home-grid|not-found)\b' "$1"; }
+for f in "$pub/index.html" "$pub/404.html"; do
+    if has_ghost_trigger "$f"; then
+        pass "ghost layer trigger present on ${f#"$pub"/}"
+    else
+        fail "ghost layer trigger missing on ${f#"$pub"/}"
+    fi
+done
+for f in "$pub/about/index.html" "$pub/posts/sample-post/index.html"; do
+    if has_ghost_trigger "$f"; then
+        fail "ghost layer trigger must be absent on ${f#"$pub"/}"
+    else
+        pass "ghost layer trigger absent on ${f#"$pub"/}"
+    fi
+done
+printf '<main><div class="home-grid"></div></main>\n' >"$work/ghost-yes.html"
+printf '<main><article class="post"></article></main>\n' >"$work/ghost-no.html"
+if has_ghost_trigger "$work/ghost-yes.html" && ! has_ghost_trigger "$work/ghost-no.html"; then
+    pass "guard: ghost trigger check accepts home-grid and rejects a post"
+else
+    fail "guard: ghost trigger check does not bite"
+fi
+ghost="$(src_css home | tr '\n' ' ')"
+ghost_rule="$(grep -Eo 'main:has\(\.home-grid\)::before, *main:has\(\.not-found\)::before *\{[^}]*\}' <<<"$ghost" || true)"
+ghost_ok=1
+for want in 'position: *absolute' 'width: *min\(60vw, *40rem\)' 'aspect-ratio: *1' 'opacity: *0\.(08|09|1|10|11|12)\b' 'filter: *grayscale\(1\)' 'pointer-events: *none' 'z-index: *0' '/brand/mascot-512\.webp' '(^|[ ;])mask-image: *radial-gradient' '-webkit-mask-image: *radial-gradient'; do
+    grep -Eq -- "$want" <<<"$ghost_rule" || {
+        ghost_ok=0
+        echo "  ghost rule missing: $want"
+    }
+done
+grep -Eq 'position: *fixed' <<<"$ghost_rule" && ghost_ok=0
+if [[ -n "$ghost_rule" && $ghost_ok -eq 1 ]]; then
+    pass "ghost layer CSS: absolute, no CLS, masked, faint, grayscale, inert"
+else
+    fail "ghost layer CSS rule missing or incomplete in home.css"
+fi
+ghost_targets="$(grep -Eo 'main:has\([^)]*\)' <<<"$ghost" | sort -u | tr '\n' ' ')"
+if [[ "$ghost_targets" == 'main:has(.home-grid) main:has(.not-found) ' ]]; then
+    pass "ghost layer selects only the home and 404 pages"
+else
+    fail "ghost layer must select only .home-grid and .not-found"
+fi
+if grep -q 'mascot-512.webp' "$root/brand/approved-assets.txt"; then
+    pass "ghost layer image is an approved asset"
+else
+    fail "ghost layer image is not in approved-assets.txt"
+fi
+
 if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
     fail "posts index still says 'Placeholder posts section.'"
 elif grep -q '^Newest first\.$' "$root/content/posts/_index.md"; then

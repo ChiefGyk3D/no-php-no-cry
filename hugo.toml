@@ -1,6 +1,6 @@
 baseURL = "https://test-blog.chiefgyk3d.com/"
 locale = "en-us"   # Hugo >= 0.158 name for languageCode
-title = "no-php-no-cry"
+title = "ChiefGyk3D"
 
 # Kinds this site does not use. The taxonomy index (/tags/, /categories/) is
 # not linked anywhere; term pages (one tag, one category) are used.

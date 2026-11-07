@@ -32,7 +32,9 @@ from html.parser import HTMLParser
 HEADINGS = ["Summary", "Core Skills", "Technical Knowledge",
             "Open-Source Projects", "Certifications", "Community", "Contact"]
 REQUIRED = [
-    "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+",
+    "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
+    "Yes, the order is odd. CISSP came first, in 2024. I earned all three "
+    "CompTIA certs in February 2026 while working toward my WGU bachelor",
     "Network System Administration", "2016", "General class",
     "Ordained Priest, Church of the Latter Day Dude",
     "I can secure the network and officiate the wedding afterward.",
@@ -44,7 +46,7 @@ REQUIRED = [
 PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
             "Reach Around", "Skid Finder"]
-FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"\bWGU\b", r"Western Governors",
+FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"Western Governors",
              r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
 GRID = r"\b[A-R]{2}\d\d(?:[a-x]{2})?\b"
@@ -95,6 +97,12 @@ def check(html):
     for r in REQUIRED:
         if r not in text:
             out.append("missing text: " + r)
+    cred = re.compile(
+        r"CISSP.*?2024.*?Security\+.*?February 2026.*?"
+        r"Network\+.*?February 2026.*?A\+.*?February 2026")
+    if not cred.search(text):
+        out.append("credential order: CISSP 2024, then Security+, Network+, "
+                   "A+ each with February 2026")
     pos = -1
     for name in PROJECTS:
         i = text.find(name, pos + 1) if pos >= 0 else text.find(name)
@@ -197,6 +205,32 @@ out="$(python3 -I "$asserter" "$bad" || true)"
 if grep -q 'forbidden element/attribute: img' <<<"$out"; then
     pass "guard: an img inside main is still rejected"
 else fail "guard: an img inside main was not flagged"; fi
+
+# Credential order guard: mutate the real built page and require the asserter
+# to flag each case (reordered certs, a lost date) and to accept the original.
+if [[ -f "$page" ]]; then
+    python3 -I - "$page" "$work" <<'PY'
+import sys
+src = open(sys.argv[1], encoding="utf-8").read()
+a = "CompTIA Security+, earned February 2026"
+b = "CompTIA Network+, earned February 2026"
+assert a in src and b in src, "credential entries not found in built page"
+open(sys.argv[2] + "/cred-ok.html", "w", encoding="utf-8").write(src)
+swapped = src.replace(a, "@@A@@").replace(b, a).replace("@@A@@", b)
+open(sys.argv[2] + "/cred-reordered.html", "w", encoding="utf-8").write(swapped)
+open(sys.argv[2] + "/cred-nodate.html", "w", encoding="utf-8").write(
+    src.replace(b, "CompTIA Network+, earned"))
+PY
+    if python3 -I "$asserter" "$work/cred-ok.html" >/dev/null; then
+        pass "guard: unmutated page passes the credential order rule"
+    else fail "guard: unmutated page fails the asserter"; fi
+    for c in reordered nodate; do
+        out="$(python3 -I "$asserter" "$work/cred-$c.html" || true)"
+        if grep -q 'credential order' <<<"$out"; then
+            pass "guard: credential $c is rejected"
+        else fail "guard: credential $c was not flagged"; fi
+    done
+fi
 
 if [[ $failures -ne 0 ]]; then
     echo "$failures failure(s)"

@@ -1,4 +1,4 @@
-/* /search/ (issue 119). Tokens only. The box is hidden until /search.js reveals it. */
+/* /search/ (issue 119). Tokens only. The box is on the page from first paint, input disabled until /search.js enables it, so enabling it moves nothing. */
 .search-box[hidden],
 .page-search [hidden] {
   display: none;
@@ -31,6 +31,15 @@
   border: var(--rule-accent-width) solid var(--border);
   border-radius: var(--radius);
   font: inherit;
+}
+
+.search-input:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+.search-note {
+  margin: var(--space-2) 0 0;
 }
 
 .search-input:focus-visible {

@@ -98,7 +98,7 @@ def main(path, want_desc, want_title, want_me):
         bad.append("description is %r / %r, want %r" % (d1, d2, want_desc))
     t = (seen.get(("property", "og:title")) or [None])[0]
     page_title = p.title.strip()
-    if t != want_title or page_title not in (want_title, want_title + " | no-php-no-cry"):
+    if t != want_title or page_title not in (want_title, want_title + " | ChiefGyk3D"):
         bad.append("title is %r / %r, want %r" % (t, p.title, want_title))
     if p.scripts:
         bad.append("script element present")
@@ -202,7 +202,7 @@ else
     fail "plain page: $out"
 fi
 
-if out="$(run_asserter "$site/public/index.html" "$site_desc" "no-php-no-cry" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
+if out="$(run_asserter "$site/public/index.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
     pass "rel=me renders: head links from data/socials.yaml, then params.me; the javascript: link is not emitted"
 else
     fail "home page: $out"
@@ -210,7 +210,7 @@ fi
 
 # Guard: the rel=me check bites. A page without the head link must fail.
 sed 's|<link rel="me"[^>]*>||g' "$site/public/index.html" >"$work/home-nome.html"
-if run_asserter "$work/home-nome.html" "$site_desc" "no-php-no-cry" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
+if run_asserter "$work/home-nome.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
     fail "guard: a home page without the head rel=me links passed"
 else
     pass "guard: a home page without the head rel=me links fails"
@@ -610,7 +610,7 @@ if run_asserter "$inj" "Body." "Plain" >/dev/null 2>&1; then
 else
     pass "guard: asserter fails a page with a duplicated tag"
 fi
-printf '<html><head><title>Plain | no-php-no-cry</title><meta name="description" content="x"><script>1</script></head></html>\n' >"$inj"
+printf '<html><head><title>Plain | ChiefGyk3D</title><meta name="description" content="x"><script>1</script></head></html>\n' >"$inj"
 if run_asserter "$inj" "Body." "Plain" >/dev/null 2>&1; then
     fail "guard: asserter passed a page with a script and a wrong description"
 else

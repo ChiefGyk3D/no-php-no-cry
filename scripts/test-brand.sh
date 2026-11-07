@@ -109,9 +109,9 @@ if grep -q 'color-scheme: dark;' "$tokens"; then ok ":root declares color-scheme
 if grep -q -e '^ *--font-display: "Cyber City"' "$tokens"; then ok "Cyber City is a display token"; else bad "--font-display token missing"; fi
 if find "$root/static" -type f -iname '*cyber*' | grep -q .; then bad "a Cyber City font file is bundled"; else ok "no Cyber City font file is bundled"; fi
 
-# Orbitron: one self-hosted @font-face (ttf, swap) and a display token that names it.
+# Orbitron: one self-hosted @font-face (ttf, optional) and a display token that names it.
 if grep -q -e '^  font-family: Orbitron;' "$tokens" && grep -q -e 'src: url("../fonts/orbitron-wght.ttf") format("truetype");' "$tokens"; then ok "Orbitron has a self-hosted ttf @font-face"; else bad "no Orbitron @font-face"; fi
-if [[ "$(grep -c -e '^  font-display: swap;' "$tokens")" -eq 2 ]]; then ok "both @font-face rules use font-display: swap"; else bad "@font-face rules lack font-display: swap"; fi
+if [[ "$(grep -c -e '^  font-display: optional;' "$tokens")" -eq 2 ]]; then ok "both @font-face rules use font-display: optional"; else bad "@font-face rules lack font-display: optional"; fi
 if grep -q -e '^ *--font-display: .*Orbitron' "$tokens"; then ok "--font-display names Orbitron"; else bad "--font-display does not name Orbitron"; fi
 if grep -q -e '^ *--font-body: Jost' "$tokens" && ! grep -q -e '^ *--font-body:.*Orbitron' "$tokens"; then ok "body font is Jost, never Orbitron"; else bad "body font token names Orbitron"; fi
 # The display font is used on headings only: --font-display appears in main.css
@@ -263,6 +263,35 @@ if [[ -z "$gaps" ]]; then ok "every brand icon has an .icon-<slug> rule"; else
 fi
 grep -v -F '.icon-matrix {' "$root/assets/css/pages/icons.css" >"$work/icons-nomatrix.css"
 if icon_gaps "$work/icons-nomatrix.css" | grep -q 'no .icon-matrix rule'; then ok "a missing icon rule is caught"; else bad "a missing icon rule was not caught"; fi
+
+# Coin marks are plain SVGs with a square viewBox of any size (the generator
+# scales by the box, so coin-xmr at 1068 and coin-sol at 72 both work). Collect
+# every coin file loosely, assert each is square, and require something found.
+coin_gaps() {
+    local dir="$1" f n=0 vb
+    for f in "$dir"/coin-*.svg; do
+        [[ -e "$f" ]] || continue
+        n=$((n + 1))
+        vb="$(sed -n 's/^<svg [^>]*viewBox="0 0 \([0-9][0-9]*\) \([0-9][0-9]*\)".*/\1 \2/p' "$f" | head -n 1)"
+        if [[ -z "$vb" ]]; then
+            printf '%s: no "0 0 W H" viewBox\n' "$(basename "$f")"
+        elif [[ "${vb% *}" != "${vb#* }" ]]; then
+            printf '%s: viewBox %s is not square\n' "$(basename "$f")" "$vb"
+        fi
+    done
+    ((n >= 4)) || printf 'fewer than 4 coin files found (check is blind)\n'
+}
+gaps="$(coin_gaps "$root/static/support")"
+if [[ -z "$gaps" ]]; then ok "every coin mark has a square viewBox"; else
+    printf '%s\n' "$gaps"
+    bad "coin marks without a square viewBox"
+fi
+mkdir -p "$work/coins"
+for c in btc eth xmr sol; do
+    cp "$root/static/support/coin-$c.svg" "$work/coins/"
+done
+sed -i 's/viewBox="0 0 72 72"/viewBox="0 0 72 64"/' "$work/coins/coin-sol.svg"
+if coin_gaps "$work/coins" | grep -q 'coin-sol.svg: viewBox 72 64 is not square'; then ok "a non-square coin mark is caught"; else bad "a non-square coin mark was not caught"; fi
 
 if ((failures > 0)); then
     printf '%d failure(s)\n' "$failures"

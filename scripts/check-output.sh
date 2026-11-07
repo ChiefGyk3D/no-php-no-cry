@@ -16,7 +16,7 @@
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, template-element, missing-output, missing-llms,
-# bad-llms.
+# bad-llms, old-site-name.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pins of
@@ -564,6 +564,22 @@ for name in "${script_names[@]}"; do
         report js-budget "$name (${gz} bytes gzip, budget is under $(script_gzip_budget))"
     fi
 done
+
+# The site's public name is ChiefGyk3D (hugo.toml title). The project name
+# no-php-no-cry must not appear in the output, in text, titles, meta, feeds or
+# the manifest. The one allowed form is a link to the repository, which starts
+# with https://github.com/ChiefGyk3D/no-php-no-cry followed by end, a slash, a
+# quote, whitespace or an angle bracket. Anything else is a finding.
+# html, xml and svg are read with character references decoded, as a browser
+# shows them (scripts/old-name-scan.py); the other types are read as written.
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    mode=raw
+    case "${rel,,}" in *.html | *.xml | *.svg) mode=decode ;; esac
+    if python3 -I "$(dirname "${BASH_SOURCE[0]}")/old-name-scan.py" "$mode" "$f"; then
+        report old-site-name "$rel"
+    fi
+done < <(find "$dir" -type f \( -iname '*.html' -o -iname '*.xml' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.webmanifest' -o -iname '*.svg' -o -name '_redirects' -o -name '_headers' \) -print0 | sort -z)
 
 if [[ $findings -gt 0 ]]; then
     echo "check-output: $findings finding(s)"

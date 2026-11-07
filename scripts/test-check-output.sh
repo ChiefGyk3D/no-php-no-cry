@@ -138,6 +138,47 @@ FROM='<main id=main>' TO='<main>' variant main-without-id landmark swap_index
 FROM='</main>' TO='</main><main id=again></main>' variant two-mains landmark swap_index
 FROM='<footer>' TO='<footer></footer><footer>' variant two-footers landmark swap_index
 
+# The project name is not the site name: the built output must not show it.
+# Only the repository URL on github.com is allowed.
+APPEND='<p>no-php-no-cry</p>' variant old-name-text old-site-name append_html
+APPEND='<meta property=og:site_name content=no-php-no-cry>' variant old-name-meta old-site-name append_html
+FROM='<title>t</title>' TO='<title>Posts \| no-php-no-cry</title>' variant old-name-title old-site-name swap_index
+old_name_in_feed() { printf '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel><title>no-php-no-cry</title></channel></rss>\n' >"$1/index.xml"; }
+variant old-name-feed old-site-name old_name_in_feed
+old_name_in_manifest() { printf '{"name":"no-php-no-cry"}\n' >"$1/site.webmanifest"; }
+variant old-name-manifest old-site-name old_name_in_manifest
+# The browser shows the decoded text, so character references are decoded first.
+APPEND='<p>no&#45;php&#45;no&#45;cry</p>' variant old-name-decimal-entity old-site-name append_html
+APPEND='<p>no&#x2d;php&#x2D;no&#x2d;cry</p>' variant old-name-hex-entity old-site-name append_html
+APPEND='<p>No-PHP-No-Cry</p>' variant old-name-mixed-case old-site-name append_html
+APPEND='<p>no-php&#45;no-cry</p>' variant old-name-split-entity old-site-name append_html
+APPEND='<p>n&#111;-php-n&#x6F;-cry</p>' variant old-name-letter-entity old-site-name append_html
+APPEND='<meta name=x content="no&#45;php&#45;no&#45;cry">' variant old-name-attr-entity old-site-name append_html
+# An encoded repository link is still the allowed link.
+enc_allowed="$work/old-name-enc-allowed"
+make_good "$enc_allowed"
+printf '%s\n' '<p><a href="https://github.com/ChiefGyk3D/no&#45;php&#45;no&#45;cry">source</a></p>' >>"$enc_allowed/index.html"
+if "$checker" "$enc_allowed" >/dev/null 2>&1; then
+    echo "ok: encoded repository URL is allowed"
+else
+    echo "FAIL: encoded repository URL was rejected"
+    failures=$((failures + 1))
+fi
+# Negative cases: the repository link is allowed, and so is a near miss.
+allowed="$work/old-name-allowed"
+make_good "$allowed"
+printf '%s\n' '<p><a href="https://github.com/ChiefGyk3D/no-php-no-cry">source</a> <a href=https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/docs/x.md>doc</a></p>' >>"$allowed/index.html"
+if "$checker" "$allowed" >/dev/null 2>&1; then
+    echo "ok: repository URL is allowed"
+else
+    echo "FAIL: repository URL was rejected"
+    failures=$((failures + 1))
+fi
+lookalike="$work/old-name-lookalike"
+make_good "$lookalike"
+printf '%s\n' '<p>https://example.org/ChiefGyk3D/no-php-no-cry</p>' >>"$lookalike/index.html"
+expect_fail old-name-lookalike-url old-site-name "$lookalike"
+
 APPEND='<script>alert(1)</script>' variant inline-script inline-script append_html
 APPEND='<style>body{color:red}</style>' variant style-element style-element append_html
 APPEND='<p style="color:red">x</p>' variant style-attribute style-attribute append_html
