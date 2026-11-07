@@ -32,8 +32,8 @@ against the kit's sha256 before copying).
 # Coin marks in the support QR codes
 
 `static/support/coin-<coin>.svg` are drawn in the middle of each QR code
-(`scripts/gen-support-qr.py`) and beside each coin on /support/. Each is a
-64-unit square SVG, self-hosted, no script or link. The cleared square under the
+(`scripts/gen-support-qr.py`) and beside each coin on /support/. Each is an
+SVG with a square viewBox (any size, the generator scales it), self-hosted, no script or link. The cleared square under the
 mark covers at most 12 percent of the code area; the codes use error correction
 level H and every one is decoded back to the exact address (see
 `scripts/gen-support-qr.sh --check --decode`).
