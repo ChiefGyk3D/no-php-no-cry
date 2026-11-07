@@ -16,6 +16,9 @@
   {{- if not .IsHome }}{{ with .OutputFormats.Get "rss" }}
   <link rel="alternate" type="application/rss+xml" title="{{ $.Title }} | {{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}{{ end }}
+  {{- /* Preload both fonts (the files the @font-face rules in tokens.css name). With font-display: swap a font that arrives after first paint reflows the text; on a phone-class connection that was a Cumulative Layout Shift of 0.05 to 0.11 on four templates (scripts/browser-gate.py). crossorigin is required for fonts, also same-origin. */}}
+  <link rel="preload" href="{{ "fonts/jost-latin-wght-normal.woff2" | relURL }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ "fonts/orbitron-wght.ttf" | relURL }}" as="font" type="font/ttf" crossorigin>
   {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css")) | minify | fingerprint }}
   <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
   {{- end }}

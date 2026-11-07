@@ -23,7 +23,7 @@ jobs:
   build:
     name: Hugo build and output checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -174,6 +174,22 @@ jobs:
 
       - name: Test the gitleaks allowlist (pinned gitleaks, checksum verified)
         run: scripts/test-gitleaks-config.sh
+
+      # Performance and accessibility gates (issue 65, docs/performance-gates.md).
+      # The size budget is static. The browser gate uses the Chrome that the
+      # ubuntu-24.04 runner image ships (the same browser the support QR decode
+      # uses; CHROME overrides it) and the axe-core copy vendored in tools/axe,
+      # verified against its pinned sha256 before use. No browser or axe download.
+      - name: Size budget (per page and per asset type, one pinned script)
+        run: |
+          python3 -I scripts/check-budget.py public
+          scripts/test-check-budget.sh
+
+      - name: Browser gate (LCP, CLS, axe, overflow, tap targets, keyboard; 10 templates x 4 widths)
+        run: |
+          google-chrome --version
+          python3 -I scripts/browser-gate.py public
+          scripts/test-browser-gate.sh
 
   shell:
     uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@ddc98a545c1195f15b02341fa1f263fa3588bfd2 # v1.29.0

@@ -37,4 +37,12 @@ expect cryptocurrency-ok 0 "Tips in ${short}currency are welcome"
 expect cryptography-ok 0 "TLS is ${short}graphy"
 expect cryptographic-ok 0 "a ${short}graphic hash"
 expect cryptosystem-ok 0 "a ${short}system"
+
+# The vendored axe-core build is exempt (it uses the browser's crypto object),
+# but only under tools/axe/: the same text elsewhere still fails.
+mkdir -p "$work/vendored/tools/axe" "$work/elsewhere/tools/other"
+printf 'var r=window.%s||1;\n' "$short" >"$work/vendored/tools/axe/axe.min.js"
+printf 'var r=window.%s||1;\n' "$short" >"$work/elsewhere/tools/other/axe.min.js"
+if "$root/scripts/check-wording.sh" "$work/vendored" >/dev/null 2>&1; then ok "vendored axe build is exempt"; else bad "vendored axe build was flagged"; fi
+if "$root/scripts/check-wording.sh" "$work/elsewhere" >/dev/null 2>&1; then bad "same text outside tools/axe passed"; else ok "same text outside tools/axe fails"; fi
 exit "$fail"
