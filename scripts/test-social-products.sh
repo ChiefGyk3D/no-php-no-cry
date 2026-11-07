@@ -69,6 +69,7 @@ class Node:
     def __init__(self, tag, attrs, parent):
         self.tag, self.attrs, self.parent = tag, dict(attrs), parent
         self.kids, self.text = [], []
+        self.parts = []  # text and child nodes in document order
 
     def classes(self):
         return (self.attrs.get("class") or "").split()
@@ -79,9 +80,9 @@ class Node:
             yield from k.walk()
 
     def all_text(self):
-        out = "".join(self.text)
-        for k in self.kids:
-            out += " " + k.all_text()
+        out = ""
+        for part in self.parts:
+            out += " " + (part if isinstance(part, str) else part.all_text()) + " "
         return " ".join(out.split())
 
     def find(self, tag=None, cls=None):
@@ -97,6 +98,7 @@ class Dom(HTMLParser):
     def handle_starttag(self, tag, attrs):
         n = Node(tag, attrs, self.cur)
         self.cur.kids.append(n)
+        self.cur.parts.append(n)
         if tag not in VOID:
             self.cur = n
 
@@ -109,6 +111,7 @@ class Dom(HTMLParser):
 
     def handle_data(self, data):
         self.cur.text.append(data)
+        self.cur.parts.append(data)
 
 
 def load(path):
@@ -159,7 +162,11 @@ def check_social(page, root, bad):
         name = e["name"]
         text = tile.all_text()
         for field, label in (("handle", "handle"), ("blurb", "role line")):
-            if e.get(field, "") and e[field] not in text:
+            # A fediverse handle has its inner @ in its own span (Cloudflare Email
+            # Obfuscation), and all_text() puts a space around child spans, so
+            # drop only whitespace and keep the @ in the comparison.
+            squash = (lambda t: "".join(t.split())) if field == "handle" else (lambda t: t)
+            if e.get(field, "") and squash(e[field]) not in squash(text):
                 bad.append("%s tile lacks %s" % (name, label))
         if name not in text:
             bad.append("%s tile lacks name" % name)
@@ -401,6 +408,7 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "direct note dropped" products "$products" 's/Some products I link directly/Some products I link/'
     guard "price note removed" products "$products" 's/Price checked on/Seen on/'
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
+    guard "fediverse handle loses its @" social "$social" 's#(@chiefgyk3d)<span>@</span>(social\.chiefgyk3d\.com)#\1<span></span>\2#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
 fi
 
