@@ -26,10 +26,23 @@ import sys
 from html.parser import HTMLParser
 
 KB = 1024
-# Pinned scripts (docs/pinned-script.md; scripts/check-site-artifact.sh pins their
-# hashes) and the one page each may load on. Adding a pinned script is a reviewed
-# edit here plus the docs and artifact rules; /theme.js was retired (issue 82).
-PAGE_SCRIPTS = {"/copy.js": "/support/index.html"}
+def pinned_scripts():
+    """{"/copy.js": "/support/index.html", ...} read from PINNED_SCRIPTS in
+    scripts/artifact-rules.sh, the single source of truth for the allowlist (the
+    artifact checks and check-deploy-sparse.py read the same line). Fails closed:
+    an unreadable or empty list stops the check rather than allowing no scripts."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifact-rules.sh")
+    with open(path, encoding="utf-8") as fh:
+        m = re.search(r"^PINNED_SCRIPTS=\(([^)]*)\)", fh.read(), re.M)
+    entries = re.findall(r'"([A-Za-z0-9_.-]+):([A-Za-z0-9_./-]+)"', m.group(1)) if m else []
+    if not entries:
+        sys.exit("check-budget: no PINNED_SCRIPTS entries found in scripts/artifact-rules.sh")
+    return {"/" + name: "/" + page for name, page in entries}
+
+
+# Pinned scripts (docs/pinned-script.md) and the one page each may load on, from
+# the shared allowlist; adding one is a reviewed edit there, not here.
+PAGE_SCRIPTS = pinned_scripts()
 LIMITS = {
     # Same-origin scripts only, each under 1 KB gzip, and only the hash-pinned
     # ones in PAGE_SCRIPTS (the file count limit is the size of that table).
