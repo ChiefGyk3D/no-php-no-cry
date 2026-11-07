@@ -15,7 +15,7 @@ failures=0
 site="$work/site"
 # The pinned hash of the one allowed script lives in a committed file; tests use
 # their own, absent unless a case pins it.
-export SCRIPT_HASH_FILE="$work/theme.sha256"
+export SCRIPT_HASH_FILE="$work/copy.sha256"
 pin_script() { printf '%s  copy.js\n' "$(sha256sum "$site/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"; }
 
 make_good() {
@@ -197,7 +197,7 @@ expect_fail "_headers differs by one byte" headers-differ
 # (under 1 KB gzip) only when its sha256 equals the one in the committed hash
 # file, and no other script file. With no hash file no script is allowed.
 make_good
-printf 'document.documentElement.dataset.theme="dark"\n' >"$site/copy.js"
+printf 'document.documentElement.dataset.copy="dark"\n' >"$site/copy.js"
 pin_script
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
@@ -209,13 +209,13 @@ else
 fi
 
 make_good
-printf 'document.documentElement.dataset.theme="dark"\n' >"$site/copy.js"
+printf 'document.documentElement.dataset.copy="dark"\n' >"$site/copy.js"
 expect_fail "copy.js with no hash file" extra-script
 
 make_good
-printf 'document.documentElement.dataset.theme="dark"\n' >"$site/copy.js"
+printf 'document.documentElement.dataset.copy="dark"\n' >"$site/copy.js"
 pin_script
-printf 'document.documentElement.dataset.theme="light"\n' >"$site/copy.js"
+printf 'document.documentElement.dataset.copy="light"\n' >"$site/copy.js"
 expect_fail "copy.js changed after pinning" script-hash
 
 make_good

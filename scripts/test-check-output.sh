@@ -16,7 +16,7 @@ trap 'rm -rf "$work"' EXIT
 failures=0
 # The pinned hash of the one allowed script is a committed file; tests use their
 # own, absent unless a case pins it.
-export SCRIPT_HASH_FILE="$work/theme.sha256"
+export SCRIPT_HASH_FILE="$work/copy.sha256"
 pin_dir() { printf '%s  copy.js\n' "$(sha256sum "$1/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"; }
 
 make_good() {
@@ -134,11 +134,11 @@ APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-scr
 APPEND='<script src=//cdn.example.org/x.js></script>' variant scheme-relative-script script-not-allowed append_html
 APPEND='<script src=/app.js></script>' variant local-other-script script-not-allowed append_html
 APPEND='<script>alert(1)</script>' variant inline-script-element script-not-allowed append_html
-APPEND='<script src=/copy.js>alert(1)</script>' variant theme-script-with-inline-body script-not-allowed append_html
-APPEND='<script src=/copy.js defer></script>' variant theme-script-extra-attribute script-not-allowed append_html
-APPEND='<script type=module src=/copy.js></script>' variant theme-script-module script-not-allowed append_html
+APPEND='<script src=/copy.js>alert(1)</script>' variant copy-script-with-inline-body script-not-allowed append_html
+APPEND='<script src=/copy.js defer></script>' variant copy-script-extra-attribute script-not-allowed append_html
+APPEND='<script type=module src=/copy.js></script>' variant copy-script-module script-not-allowed append_html
 APPEND='<script src=data:text/javascript,alert(1)></script>' variant data-url-script script-not-allowed append_html
-APPEND='<script src=/copy.js></script><script src=/copy.js></script>' variant theme-script-twice script-count append_html
+APPEND='<script src=/copy.js></script><script src=/copy.js></script>' variant copy-script-twice script-count append_html
 APPEND='<script src=/copy.js></script><script src=/other.js></script>' variant second-script-file script-not-allowed append_html
 APPEND='<script' variant unterminated-script-tag script-not-allowed append_html
 APPEND='<a href="javascript:alert(1)">x</a>' variant javascript-href javascript-url append_html
@@ -235,16 +235,16 @@ done
 
 # The one allowed script: <script src=/copy.js></script> (as the minifier writes
 # it, or with quotes) with a small copy.js. It is allowed once, in any page.
-with_theme() {
+with_copy() {
     printf '%s\n' "$APPEND" >>"$1/index.html"
-    printf '%s\n' "$THEME_JS" >"$1/copy.js"
+    printf '%s\n' "$COPY_JS" >"$1/copy.js"
     pin_dir "$1"
 }
-THEME_JS='document.documentElement.dataset.theme="dark"'
+COPY_JS='document.documentElement.dataset.copy="dark"'
 for form in '<script src=/copy.js></script>' '<script src="/copy.js"></script>' "<script src='/copy.js'></script>" '<SCRIPT SRC=/copy.js></SCRIPT>'; do
-    d="$work/theme-ok"
+    d="$work/copy-ok"
     make_good "$d"
-    APPEND="$form" THEME_JS="$THEME_JS" with_theme "$d"
+    APPEND="$form" COPY_JS="$COPY_JS" with_copy "$d"
     if "$checker" "$d" >/dev/null 2>&1; then
         echo "ok: the copy script is allowed ($form)"
     else
@@ -255,20 +255,20 @@ for form in '<script src=/copy.js></script>' '<script src="/copy.js"></script>' 
 done
 
 # The page references /copy.js but the file is not in the build.
-theme_missing() {
+copy_missing() {
     printf '%s\n' '<script src=/copy.js></script>' >>"$1/index.html"
     printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
 }
-variant theme-script-file-missing missing-script theme_missing
+variant copy-script-file-missing missing-script copy_missing
 
 # Script files: only /copy.js, under 1 KB gzip (brief section 10).
-good_theme() {
+good_copy() {
     printf '%s\n' '<script src=/copy.js></script>' >>"$1/index.html"
-    printf '%s\n' "$THEME_JS" >"$1/copy.js"
+    printf '%s\n' "$COPY_JS" >"$1/copy.js"
     pin_dir "$1"
 }
 extra_js() {
-    good_theme "$1"
+    good_copy "$1"
     mkdir -p "$(dirname "$1/$FILE")"
     printf 'x\n' >"$1/$FILE"
 }
@@ -276,20 +276,20 @@ FILE=app.js variant extra-js-file extra-script-file extra_js
 FILE=js/other.js variant nested-js-file extra-script-file extra_js
 FILE=other.mjs variant extra-mjs-file extra-script-file extra_js
 FILE=Other.JS variant extra-uppercase-js-file extra-script-file extra_js
-FILE=js/copy.js variant theme-js-in-subdirectory extra-script-file extra_js
+FILE=js/copy.js variant copy-js-in-subdirectory extra-script-file extra_js
 js_only_file() { printf 'x\n' >"$1/app.js"; }
 variant js-file-without-page-reference extra-script-file js_only_file
 # 4 KB of incompressible bytes is over the gzip budget; a 1 KB compressible
 # file is not.
-big_theme() {
-    good_theme "$1"
+big_copy() {
+    good_copy "$1"
     head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$1/copy.js"
     pin_dir "$1"
 }
-variant theme-js-over-budget js-budget big_theme
-d="$work/theme-compressible"
+variant copy-js-over-budget js-budget big_copy
+d="$work/copy-compressible"
 make_good "$d"
-good_theme "$d"
+good_copy "$d"
 for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$d/copy.js"
 pin_dir "$d"
 if "$checker" "$d" >/dev/null 2>&1; then
@@ -378,21 +378,21 @@ FILE=page.html.php variant double-extension unexpected-file other_file
 # a malformed hash file it fails; with no hash file no script element passes.
 no_hash_file() { rm -f "$SCRIPT_HASH_FILE"; }
 no_hash_file_with_script() {
-    good_theme "$1"
+    good_copy "$1"
     no_hash_file
 }
-variant theme-without-hash-file script-not-allowed no_hash_file_with_script
-variant theme-file-without-hash-file extra-script-file no_hash_file_with_script
-theme_changed() {
-    good_theme "$1"
+variant copy-without-hash-file script-not-allowed no_hash_file_with_script
+variant copy-file-without-hash-file extra-script-file no_hash_file_with_script
+copy_changed() {
+    good_copy "$1"
     printf '%s\n' "/\"/;eval('x');//\"" >"$1/copy.js"
 }
-variant theme-changed-after-pinning script-hash theme_changed
-theme_bad_hash_file() {
-    good_theme "$1"
+variant copy-changed-after-pinning script-hash copy_changed
+copy_bad_hash_file() {
+    good_copy "$1"
     printf 'not a hash\n' >"$SCRIPT_HASH_FILE"
 }
-variant theme-malformed-hash-file script-hash-file theme_bad_hash_file
+variant copy-malformed-hash-file script-hash-file copy_bad_hash_file
 svg_script() {
     printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>' >"$1/logo.svg"
 }
@@ -597,6 +597,22 @@ drop_404() { rm -f "$1/404.html"; }
 variant missing-404 template-element drop_404
 drop_archive() { rm -f "$1/posts/index.html"; }
 variant missing-posts-archive template-element drop_archive
+
+# email-shaped-text: a user@host handle in page text is rewritten by Cloudflare
+# Email Obfuscation (and a script injected). The split form must pass.
+APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html
+APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
+APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
+split="$work/split-handle"
+make_good "$split"
+printf '%s\n' '<p>@someone<span>@</span>social.example.org <a href=https://youtube.com/@Chan>@Chan</a></p>' >>"$split/index.html"
+if "$checker" "$split" >/dev/null 2>&1; then
+    echo "ok: split handle passes"
+else
+    echo "FAIL: split handle was rejected"
+    "$checker" "$split" || true
+    failures=$((failures + 1))
+fi
 
 if [[ -f "$root/public/index.html" ]]; then
     if env -u SCRIPT_HASH_FILE "$checker" "$root/public" >/dev/null 2>&1; then

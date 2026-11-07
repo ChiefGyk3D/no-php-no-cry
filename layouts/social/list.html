@@ -9,15 +9,17 @@
     <a class="tile social-tile" href="{{ .url }}" rel="{{ if .rel_me }}me {{ end }}noopener">
       <span class="social-icon social-icon--{{ .icon }}" aria-hidden="true"></span>
       <span class="social-name">{{ .name }}</span>
-      <span class="social-handle">{{ .handle }}</span>
+      <span class="social-handle">{{ partial "handle.html" .handle }}</span>
       <span class="social-role">{{ .blurb }}</span>
       <span class="visually-hidden"> (external site)</span>
     </a>
     {{- else }}
+    {{- /* Kept on purpose: data/socials.yaml allows an empty url ("not live"), which
+      renders here as a tile that is not a link. No entry is empty today. */ -}}
     <div class="tile social-tile social-tile--soon">
       <span class="social-icon social-icon--{{ .icon | default "placeholder" }}" aria-hidden="true"></span>
       <span class="social-name">{{ .name }}</span>
-      <span class="social-handle">{{ .handle }}</span>
+      <span class="social-handle">{{ partial "handle.html" .handle }}</span>
       <span class="social-role">{{ .blurb }}</span>
     </div>
     {{- end }}

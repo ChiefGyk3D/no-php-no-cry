@@ -20,22 +20,139 @@ the wrong environment (`env-mismatch`).
 The deploy workflow's build job sets `HUGO_PARAMS_ENVIRONMENT: staging` and
 `EXPECT_ENV: staging`. CI builds and checks both environments on every run.
 
-## At the apex cutover
+## Ruling and status
 
-Do these in one pull request, after the apex DNS and Pages custom domain are
-ready:
+Owner ruling (2026-11-06): the cutover from WordPress to this site happens only
+after both Reach Around and no-php-no-cry are done. The site is alpha now. Until
+the owner says go: no Cloudflare writes, no DNS changes, no WordPress login or
+writes (read-only GETs of public pages are fine). Everything below is a plan to
+run later, in this order. Steps marked OWNER-APPROVED WRITE change a live
+system and need the owner's own message approving that step.
 
-1. `hugo.toml`: change `baseURL` to the apex. Canonical links, the feed, the
-   sitemap, Open Graph URLs and the `Sitemap:` line all follow it.
-2. `.github/workflows/deploy.yml`, build job: set `HUGO_PARAMS_ENVIRONMENT` to
-   `production` and `EXPECT_ENV` to `production` (or delete both: production is
-   the default).
-3. CI sets `SITE_HOST` for `scripts/check-output.sh` where it differs from the
-   default (`test-blog.chiefgyk3d.com`); set it to the apex host.
-4. After the deploy, fetch `/robots.txt` on the apex and confirm it allows all
-   and names the sitemap, and that a page has no robots meta.
-5. Keep the test-blog host staging (or redirect it to the apex); do not serve a
-   production build there, or both hosts become indexable duplicates.
+## Checking a deployed host: scripts/verify-live.sh
+
+```sh
+scripts/verify-live.sh HOST [--resolve-ip IP] [--public DIR] [--env staging|production]
+```
+
+Read-only: GET requests through curl, each bounded by a 10 s connect and a 15 s
+total timeout, nothing written anywhere but a throwaway directory under `tmp/`.
+It compares the host with a build (default: it builds this repository with the
+`hugo` on PATH; `--public DIR` uses a build you already have, for example the
+`site` artifact of a deploy run). Exit 0 means every check passed, 1 means a
+check failed (each failure is a `FAIL: rule: detail` line), 2 means bad input.
+
+| Check | What it asserts |
+|---|---|
+| `redirect` | every rule of the built `_redirects` answers 301 with the expected Location |
+| `status` | the home page and one page per template answer 200 |
+| `not-found` | a missing path answers 404 with the noindex 404 page |
+| `header-*` | every header of `static/_headers` (the CSP string exactly) is on each page once, equal |
+| `sitemap`, `feed` | `/sitemap.xml` and the feed (`/feed/index.xml`, read from the build's alternate link) are well-formed XML that name only this host |
+| `robots`, `robots-meta`, `env-mismatch` | `robots.txt` and the page robots meta fit the environment; `--env` pins the expected one |
+| `copy-js` | the served `/copy.js` has the bytes of the build |
+| `third-party` | no page, the sitemap, the feed or the stylesheet loads from another host |
+
+Staging today, through a public resolver address because the laptop's resolver
+may return nothing for the name (look the address up with
+`dig +short @1.1.1.1 test-blog.chiefgyk3d.com`):
+
+```sh
+scripts/verify-live.sh test-blog.chiefgyk3d.com --resolve-ip 104.21.3.60
+```
+
+The test `scripts/test-verify-live.sh` runs it against a local fake server with
+a negative case per check (CI step "Test the live-host verifier"). It cannot show
+what Cloudflare itself adds to a response (see "Verified and inferred").
+
+## Pre-flight (nothing here writes to Cloudflare or WordPress)
+
+1. Owner decisions recorded in the issue: cutover date and time window;
+   whether `www.chiefgyk3d.com` exists and where it should go; fold or keep
+   `support.chiefgyk3d.com` (the plan below assumes a 301 to `/support/`);
+   what happens to `test-blog.chiefgyk3d.com` (cutover step 5); the public
+   contact address alias (does not block); Pixelfed and Instagram links.
+2. Reach Around is done and merged, and its link to the blog works through the
+   apex or the redirect.
+3. Content: the real WordPress content is imported (today `content/` holds only
+   sample pages). Follow `docs/scrub-terms.md`: replace the inert `employer` and
+   `serial` placeholder lines with real terms first (until then those two
+   categories are not checked), then run `tools/wxr2hugo/convert.py` with the
+   real terms on stdin and `--require-terms`; it must exit 0.
+4. Content review by the owner: every page and post read once; drafts either
+   published or dropped on purpose; affiliate links only on `/products/` with
+   the disclosure; each retained image has real alt text (the importer flags the
+   ones that do not).
+5. If anything was published on WordPress after the 2026-10-25 export, the
+   owner makes a fresh read-only export and the difference is imported.
+6. On the cutover commit: `scripts/check-wording.sh` and the full gate pass, and
+   the production build passes `EXPECT_ENV=production scripts/check-output.sh`.
+7. Rehearse the verifier on staging (command above) and keep the output.
+
+## WordPress freeze
+
+1. Announce the window. From the owner's go (T0) nothing is published or edited
+   on WordPress. The owner does this inside WordPress; no agent logs in.
+2. Keep the WordPress site and its hosting running and untouched for at least 30
+   days after cutover. It is the rollback target.
+3. After that, keep a final export offline (not in this repository; it holds
+   private material).
+
+## Cutover (ordered)
+
+Cloudflare calls, listed once with the permission each needs. This is the union
+for the whole job. No token is requested here; the owner decides how access is
+granted (`docs/deploy.md` has the account-wide caveat), and the grant is dropped
+when the job ends.
+
+| # | Call (Cloudflare API v4) | Permission | Why |
+|---|---|---|---|
+| a | `GET /zones?name=chiefgyk3d.com` | Zone: Zone Read | find the zone id |
+| b | `GET /zones/{zone}/dns_records` | Zone: DNS Read (DNS Edit covers it) | snapshot every record before a change; this is the rollback record |
+| c | `GET /accounts/{acct}/pages/projects/{project}/domains` | Account: Cloudflare Pages Read | see which domains the project already has |
+| d | `POST .../pages/projects/{project}/domains` with the apex name | Account: Cloudflare Pages Edit | attach the apex to the Pages project |
+| e | `GET .../domains/{apex}` until `active` | Cloudflare Pages Read | done means `active` and the public URL serving, not the 200 of the attach call |
+| f | create or update the apex DNS record: proxied CNAME to `{project}.pages.dev` | Zone: DNS Edit | route the apex to Pages; an API-attached domain gets no record on its own (`docs/deploy.md`) |
+| g | the same for `www`, only if the owner decided it exists | DNS Edit | same |
+| h | `GET /zones/{zone}/rulesets/phases/http_request_dynamic_redirect/entrypoint` | Zone: Single Redirect Read (Edit covers it) | read the rules already there before writing, because a PUT replaces the whole list |
+| i | `PUT` the same entrypoint with the existing rules plus the new ones | Zone: Single Redirect Edit | the `support.` 301 and the `test-blog.` decision |
+| j | `POST /zones/{zone}/purge_cache` for the apex host only | Zone: Cache Purge | only if the verifier shows old WordPress pages cached at the edge (inferred risk) |
+
+Nothing else is needed: no Zone Settings, no WAF, no Workers, no Access. If a
+step turns out to need more, stop and ask; do not widen the grant on the way.
+
+Steps:
+
+1. Reads only (calls a, b, c, h). Save the DNS snapshot and the redirect
+   entrypoint in a private place, not in this repository, and write down the
+   apex record's current type, content and proxy flag.
+2. Prepare the cutover pull request (no Cloudflare write; merge it when step 4
+   is ready):
+   - `hugo.toml`: change `baseURL` to the apex. Canonical links, the feed, the
+     sitemap, Open Graph URLs and the `Sitemap:` line all follow it.
+   - `.github/workflows/deploy.yml`, build job: set `HUGO_PARAMS_ENVIRONMENT` and
+     `EXPECT_ENV` to `production` (or delete both: production is the default).
+   - Repository variable `SITE_URL` (used by the deploy smoke job) set to the
+     apex, and `SITE_HOST` for `scripts/check-output.sh` where it differs from
+     the default (`test-blog.chiefgyk3d.com`).
+3. OWNER-APPROVED WRITE (d, e): attach the apex to the Pages project. Wait for
+   `active`.
+4. OWNER-APPROVED WRITE (f, g): point the apex at Pages. This is the moment
+   traffic moves. Merge the cutover pull request so the production build
+   deploys, in the order the owner chooses (deploy first, then DNS, is the
+   safer one).
+5. OWNER-APPROVED WRITE (i): the test host. One Pages project serves every
+   custom domain attached to it, so after step 2 the test-blog host would serve
+   the production build and become an indexable duplicate. Either remove the
+   test-blog domain from the project and 301 it to the apex with a redirect
+   rule, or keep a separate staging project. Default plan: a redirect rule from
+   test-blog to the apex (path preserved); the record stays proxied.
+6. OWNER-APPROVED WRITE (i): `support.chiefgyk3d.com`, see the section below.
+7. Verify (see "Post-cutover verification"). If anything fails and cannot be
+   fixed in minutes, roll back.
+8. Fetch `/robots.txt` on the apex by hand once: it allows all and names the
+   sitemap, and a page has no robots meta (the verifier checks both).
+9. The owner submits the sitemap to the search consoles.
 
 `static/_headers` is not part of this change.
 
@@ -108,3 +225,101 @@ so the targets carry the final names:
 A bad entry (source outside `/wp-content/uploads/`, a space, a splat, an
 external target) fails the Hugo build. The test `scripts/test-redirects.sh`
 checks each rule and that every upload target is a file the build publishes.
+
+## support.chiefgyk3d.com
+
+The old support site is a separate single page. The plan is one 301 from
+`https://support.chiefgyk3d.com/*` to `https://chiefgyk3d.com/support/` as a
+Single Redirect rule (call i). The `support` DNS record stays as it is and
+proxied, since a zone rule only sees traffic that passes through Cloudflare.
+`_redirects` cannot do this (it matches paths, not hosts). After the change:
+
+```sh
+curl -sSI https://support.chiefgyk3d.com/ | sed -n '1p;/^[Ll]ocation/p'
+```
+
+must show `301` and `location: https://chiefgyk3d.com/support/`. The
+`support-me` repository stays the source of the wallet addresses; the new page
+must match it before cutover. Retire the old project only after the owner
+confirms; that is a separate approved step.
+
+## Post-cutover verification
+
+On the apex, with the `site` artifact of the deploy run (or any build of the
+cutover commit):
+
+```sh
+scripts/verify-live.sh chiefgyk3d.com --env production
+```
+
+It must exit 0. Run it again about 5 minutes later (edge caches). Then by hand:
+open the home page and one post in a browser and check the favicon, the theme
+toggle and `/support/`; confirm `test-blog.chiefgyk3d.com` redirects (or is still
+staging, checked with `--env staging`). The verifier follows the build's
+`_redirects`: each static rule must answer with its declared status and
+Location (including the `/feed/` 301 to `/feed/index.xml`), the two splat rules
+(`/category/*`, `/page/*`) are tested with one probe path each, and the feed
+itself is fetched at the path the build advertises in its alternate link
+(`/feed/index.xml`). The deploy workflow's smoke job also runs
+`scripts/smoke-site.sh` against `SITE_URL`.
+
+## Links hand-off
+
+After the apex is verified, the owner updates every place that links to the old
+WordPress site or the staging host. Nothing here is scripted or checked by this
+repository:
+
+- Profile and bio links on the networks listed in `data/socials.yaml`, and the
+  Mastodon profile link verification (`rel="me"`), which can only verify once
+  the apex serves the link.
+- The GitHub profile and the READMEs of the owner's repositories (including the
+  `support-me` signature block).
+- Reach Around's link to the blog.
+- The `links.` (products, media kit) and `social.` (Mastodon) subdomains are
+  separate services and stay as they are; their pages should link to the apex.
+- Search consoles: add the apex property and submit the sitemap.
+
+## Rollback
+
+Trigger: the verifier fails and the cause is not fixed within the owner's chosen
+window, or the owner calls it. Each step is an OWNER-APPROVED WRITE:
+
+1. Restore the apex (and `www`) DNS records from the snapshot taken in step 1
+   (call f in reverse). WordPress is still running because of the freeze.
+2. Restore the redirect entrypoint saved in step 1 (call i in reverse).
+3. Purge the cache for the apex host if stale responses persist (call j).
+4. Check the old site by hand; unfreeze WordPress only after the owner confirms
+   it is serving.
+5. The Pages deployment can stay (it is no longer on the apex). Revert the
+   `baseURL` change only if the production flag must be kept off the staging host.
+
+Pages deployments can also be rolled back on their own (`docs/deploy.md`,
+"Checking and rolling back").
+
+## Verified and inferred
+
+Verified (observed in this work):
+
+- `scripts/verify-live.sh` ran read-only against `https://test-blog.chiefgyk3d.com`
+  with `--resolve-ip`; all 45 checks passed (output in the pull request).
+- The Rulesets API redirect calls need `Zone > Single Redirect > Edit`, and
+  `Cloudflare Pages Edit` is a listed permission (Cloudflare docs, "Create a
+  redirect rule via API" and the API token permissions reference, fetched
+  2026-11-06).
+- An API-attached Pages domain gets no DNS record (`docs/deploy.md`, measured
+  earlier on the staging host).
+- `_redirects` matches paths only (`layouts/home.redirects`).
+
+Inferred, to confirm before the owner approves the matching step:
+
+- That a Pages project serves all of its custom domains from one deployment (so
+  the test-blog host needs step 5).
+- That a zone redirect rule fires for a proxied record whatever its target is.
+- What the zone's Single Redirect entrypoint holds today (call h answers it).
+- That old WordPress responses may sit in the edge cache (call j).
+- That Cloudflare adds no second `Strict-Transport-Security` or other header on
+  the apex (a zone setting could). The verifier reports `header-duplicate` or
+  `header-wrong` if so; the fix would be a zone setting, not a repository change.
+- That the `support` record is proxied and the old project is Git-connected
+  Pages (from `support-me`'s commit check run, not from the API).
+- The `www` host was not read; it is an owner decision in pre-flight.

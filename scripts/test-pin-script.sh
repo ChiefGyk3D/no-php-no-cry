@@ -24,7 +24,7 @@ check() {
     fi
 }
 
-printf 'document.documentElement.dataset.theme="dark"\n' >"$work/copy.js"
+printf 'document.documentElement.dataset.copy="dark"\n' >"$work/copy.js"
 hashfile="$work/copy.js.sha256"
 export SCRIPT_HASH_FILE="$hashfile"
 

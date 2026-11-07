@@ -127,6 +127,12 @@ jobs:
       - name: Test the post-deploy smoke check (local fake server)
         run: scripts/test-smoke-site.sh
 
+      - name: Test the live-host verifier (local fake server)
+        run: scripts/test-verify-live.sh
+
+      - name: Test the shared robots.txt parser (both checkers use it)
+        run: scripts/test-robots-wildcard.sh
+
       - name: Test the deploy gate wait (stubbed gh, no network)
         run: scripts/test-wait-for-ci-green.sh
 
@@ -142,6 +148,9 @@ jobs:
 
       - name: Test the content migration (converter output builds, redirects, banners, alt guard)
         run: scripts/test-migration.sh
+
+      - name: Test the post and journal archetypes (builds, passes the checks, missing alt fails)
+        run: scripts/test-archetype.sh
 
       # The page-view collector (issue 84): node --test with no packages, and
       # the SQL under python's sqlite3. No Cloudflare call; the D1 binding is a fake.

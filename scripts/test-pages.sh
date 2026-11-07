@@ -49,8 +49,7 @@ BUTTONS = {
 }
 PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
            "Following a link takes you to another site. I collect nothing here.")
-CONTACT = ("There's no contact form. Reach me on Matrix or Discord, or use the email "
-           "address listed as plain text.")
+CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
 
 
 class Page(HTMLParser):
@@ -231,9 +230,9 @@ def about(p, errs, repo):
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
     if "mailto:" in " ".join(h or "" for h in hrefs):
-        errs.append("the email address must be plain text, not a mailto: link")
-    if "TODO" not in repo["html"] and "email address will be added" not in flat.lower():
-        errs.append("email placeholder not marked")
+        errs.append("there is no email address: contact is Matrix and Discord only")
+    if "TODO" in repo["html"] or "email" in flat.lower():
+        errs.append("the contact section must not mention email or carry a TODO")
 
 
 def privacy(p, errs, repo):

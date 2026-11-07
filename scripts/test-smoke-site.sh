@@ -23,45 +23,66 @@ csp="default-src 'none'; script-src 'self'"
 pub="$work/public"
 mkdir -p "$pub"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n' "$csp" >"$pub/_headers"
-printf '# generated\n/2023/02/10/sample-post/ /posts/sample-post/ 301\n/2023/02/10/sample-post /posts/sample-post/ 301\n' >"$pub/_redirects"
+# The first 301 line is the required one; the sample of the other classes (a
+# date archive, a category, a tag, an old upload) is taken from the lines below.
+# The two dynamic rules are not sampled (a splat has no one address).
+cat >"$pub/_redirects" <<'RULES'
+# generated
+/2023/02/10/sample-post/ /posts/sample-post/ 301
+/2023/02/10/sample-post /posts/sample-post/ 301
+/2023/ /posts/ 301
+/category/sample/ /categories/sample/ 301
+/feed/ /feed/index.xml 301
+/tag/lorem/ /tags/lorem/ 301
+/wp-content/uploads/2023/02/pic.jpg /posts/sample-post/pic.png 301
+/category/* /posts/ 301
+RULES
 # One page per template the deployed site serves: home, a post, a journal entry,
 # the two section lists, a tag page, a category page and the feed. The 404 page
 # is asked for by a name that does not exist.
-for p in posts/sample-post journal/sample-entry posts journal tags/lorem categories/sample; do
+for p in posts/sample-post journal/sample-entry posts journal tags/lorem categories/sample feed; do
     mkdir -p "$pub/$p"
     printf '<!doctype html>\n' >"$pub/$p/index.html"
 done
 printf '<!doctype html>\n' >"$pub/index.html"
 printf '<!doctype html>\n' >"$pub/404.html"
 printf '<rss/>\n' >"$pub/index.xml"
+printf '<rss/>\n' >"$pub/feed/index.xml"
 # The pinned hash of the copy script: a file of the test's own, absent unless a
 # case pins it.
-export SCRIPT_HASH_FILE="$work/theme.sha256"
-theme_file="$work/theme-served.js"
-known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml"
-# Requests per full attempt: nine pages (eight above and the 404) and the redirect.
-per_attempt=10
+export SCRIPT_HASH_FILE="$work/copy.sha256"
+copy_file="$work/copy-served.js"
+known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml,/feed/index.xml"
+# The redirects the fake server answers (from=to, ';' apart): the required first
+# line, /feed/, and the sample (date archive, category, tag, upload).
+redirs="/2023/02/10/sample-post/=/posts/sample-post/;/feed/=/feed/index.xml;/2023/=/posts/;/category/sample/=/categories/sample/;/tag/lorem/=/tags/lorem/;/wp-content/uploads/2023/02/pic.jpg=/posts/sample-post/pic.png"
+# Requests per full attempt: ten pages (nine above and the 404) and six redirects.
+per_attempt=16
 
 # start_server <mode>: sets $url
 start_server() {
     stop_server
     rm -f "$work/port" "$work/port.count"
-    MODE="$1" CSP="$csp" KNOWN="$known" THEME_FILE="$theme_file" PORTFILE="$work/port" python3 -I -c '
+    MODE="$1" CSP="$csp" KNOWN="$known" REDIRS="$redirs" COPY_FILE="$copy_file" PORTFILE="$work/port" python3 -I -c '
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 mode, csp = os.environ["MODE"], os.environ["CSP"]
 known = set(os.environ["KNOWN"].split(","))
+redirs = dict(r.split("=") for r in os.environ["REDIRS"].split(";"))
+first_redirect = "/2023/02/10/sample-post/"
 # "<fault>@<path>" breaks one page: nocsp (no CSP header), dupcsp (the header
 # twice, the second in lower case), joined (one header holding the policy twice),
-# diffcsp (a different policy), nonosniff, status (HTTP 500). The path "*404"
-# means the page served for a name that does not exist.
+# diffcsp (a different policy), nonosniff, status (HTTP 500). On a redirect path:
+# noredirect (answers 200), wrongredirect (a different Location), found (302).
+# On /feed/index.xml: feedhtml, feednone (Content-Type text/html, or none).
+# The path "*404" means the page served for a name that does not exist.
 fault, _, fpath = mode.partition("@")
 # "stale-N" answers the first N requests with wrong data (a 404 page without
 # the CSP header, a 200 where the 301 belongs), then answers correctly.
 stale = int(mode.split("-")[1]) if mode.startswith("stale-") else 0
 seen = 0
-theme_seen = 0
+copy_seen = 0
 
 
 class H(BaseHTTPRequestHandler):
@@ -69,7 +90,7 @@ class H(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        global seen, theme_seen
+        global seen, copy_seen
         seen += 1
         with open(os.environ["PORTFILE"] + ".count", "w") as f:
             f.write(str(seen))
@@ -78,15 +99,16 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        if self.path == "/2023/02/10/sample-post/":
-            if mode == "no-redirect":
+        if self.path in redirs:
+            first = self.path == first_redirect
+            if (mode == "no-redirect" and first) or (fault == "noredirect" and fpath == self.path):
                 self.send_response(200)
-            elif mode == "wrong-redirect":
+            elif (mode == "wrong-redirect" and first) or (fault == "wrongredirect" and fpath == self.path):
                 self.send_response(301)
                 self.send_header("Location", "/elsewhere/")
             else:
-                self.send_response(301)
-                self.send_header("Location", "/posts/sample-post/")
+                self.send_response(302 if fault == "found" and fpath == self.path else 301)
+                self.send_header("Location", redirs[self.path])
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -98,21 +120,21 @@ class H(BaseHTTPRequestHandler):
             "handlerpage": b"<html><body onload=x()></body></html>",
             "quotedgt": b"<html><img alt=\"x>\" onerror=x()></html>",
             "jsurl": b"<html><a href=\"javascript:x()\">y</a></html>",
-            "themeref": b"<html><script src=/copy.js></script></html>",
-            "themetwice": b"<html><script src=/copy.js></script><script src=/copy.js></script></html>",
+            "copyref": b"<html><script src=/copy.js></script></html>",
+            "copytwice": b"<html><script src=/copy.js></script><script src=/copy.js></script></html>",
             "benignpage": b"<html><img alt=\"one=1\" src=/a.png><a href=\"https://example.org/\">y</a></html>",
             "badfeed": b"<rss><a onclick=\"x\"/></rss>",
         }
         is_known = self.path in known
-        if self.path == "/copy.js" and os.path.exists(os.environ["THEME_FILE"]):
+        if self.path == "/copy.js" and os.path.exists(os.environ["COPY_FILE"]):
             is_known = True
-            body = open(os.environ["THEME_FILE"], "rb").read()
-            if fault == "tampertheme":
+            body = open(os.environ["COPY_FILE"], "rb").read()
+            if fault == "tampercopy":
                 body += b"x"
-            if fault == "alternatetheme":
+            if fault == "alternatecopy":
                 # every other request gets different bytes
-                theme_seen += 1
-                if theme_seen % 2 == 1:
+                copy_seen += 1
+                if copy_seen % 2 == 1:
                     body += b"x"
         hit = self.path == fpath or (fpath == "*404" and not is_known)
         code = 200 if is_known else 404
@@ -123,6 +145,8 @@ class H(BaseHTTPRequestHandler):
         if fault in pages and (self.path == fpath or (fpath == "*404" and not is_known)):
             body = pages[fault]
         self.send_response(code)
+        if self.path == "/feed/index.xml" and fault != "feednone":
+            self.send_header("Content-Type", "text/html" if fault == "feedhtml" else os.environ.get("FEED_TYPE", "application/xml"))
         if mode != "no-csp" and not (fault == "nocsp" and hit):
             value = "default-src *" if mode == "weak-csp" else csp
             if fault == "diffcsp" and hit:
@@ -195,7 +219,7 @@ expect wrong-redirect redirect wrong-redirect
 
 # The policy is checked on every page template, not on the home page alone: a
 # fault on any one page fails, naming the page and the problem.
-for page in /posts/sample-post/ /journal/sample-entry/ /posts/ /journal/ /tags/lorem/ /categories/sample/ /index.xml '*404'; do
+for page in /posts/sample-post/ /journal/sample-entry/ /posts/ /journal/ /tags/lorem/ /categories/sample/ /index.xml /feed/index.xml '*404'; do
     shown="$page"
     [[ "$page" == '*404' ]] && shown="/smoke-check-missing-page/"
     expect "no CSP on $page" "missing-csp: $shown" "nocsp@$page"
@@ -212,6 +236,26 @@ expect "server error on a post" "status: /posts/sample-post/" "status@/posts/sam
 expect "server error on the 404 page" "status: /smoke-check-missing-page/" "status@*404"
 expect "no CSP on the home page" "missing-csp: /" "nocsp@/"
 expect "duplicate CSP on the home page" "duplicate-csp: /" "dupcsp@/"
+
+# The legacy WordPress addresses answer as the build declares them: /feed/ is a
+# 301 to the real feed file, which is served as XML, and a sample of the other
+# rules (date archive, category, tag, old upload) answers with its own target.
+expect "feed file served as XML" pass good
+expect "feed redirect missing" "redirect: /feed/ answered '200'" noredirect@/feed/
+expect "feed redirect to the wrong place" "redirect: /feed/ answered '301' Location '/elsewhere/'" wrongredirect@/feed/
+expect "feed redirect is temporary" "redirect: /feed/ answered '302'" found@/feed/
+expect "feed file served as HTML" "feed-type: /feed/index.xml" feedhtml@/feed/index.xml
+expect "feed file with no content type" "feed-type: /feed/index.xml" feednone@/feed/index.xml
+expect "feed file missing" "status: /feed/index.xml" status@/feed/index.xml
+for from in /2023/ /category/sample/ /tag/lorem/ /wp-content/uploads/2023/02/pic.jpg; do
+    expect "sampled rule $from missing" "redirect: ${from} answered '200'" "noredirect@$from"
+    expect "sampled rule $from to the wrong place" "redirect: ${from} answered '301' Location '/elsewhere/'" "wrongredirect@$from"
+    expect "sampled rule $from is temporary" "redirect: ${from} answered '302'" "found@$from"
+done
+# The feed type is any XML type a reader accepts.
+for ft in application/rss+xml text/xml "application/xml; charset=utf-8"; do
+    FEED_TYPE="$ft" expect "feed served as $ft" pass good
+done
 
 # Edge propagation: wrong answers first, correct ones later. The first twenty
 # requests are two full attempts (every page, then redirect), so the third
@@ -257,12 +301,20 @@ mkdir -p "$work/nohdr" "$work/noredir"
 cp "$pub/_redirects" "$work/nohdr/"
 cp "$pub/_headers" "$work/noredir/"
 printf '# nothing\n' >"$work/noredir/_redirects"
-mkdir -p "$work/nopages"
+mkdir -p "$work/nopages" "$work/nofeed" "$work/lean"
+cp -r "$pub/." "$work/nofeed/"
+rm -r "$work/nofeed/feed"
 cp "$pub/_redirects" "$pub/_headers" "$work/nopages/"
 printf '<!doctype html>\n' >"$work/nopages/index.html"
 expect build-without-pages input good "$work/nopages"
 expect no-headers-file input good "$work/nohdr"
 expect no-redirect-line input good "$work/noredir"
+expect build-without-feed input good "$work/nofeed"
+# A build with no sampled class (only the one required 301 line) still passes:
+# the sample is whatever the build holds, so it follows the site.
+cp -r "$pub/." "$work/lean/"
+printf '# generated\n/2023/02/10/sample-post/ /posts/sample-post/ 301\n' >"$work/lean/_redirects"
+expect "build holding only the required redirect" pass good "$work/lean"
 
 # The expected policy must carry script-src exactly 'self': 'none' (the header
 # and the copy script would have drifted apart) and anything looser are refused
@@ -301,30 +353,30 @@ expect "remote script served on a list" "script-not-allowed: /journal/" remotesc
 expect "handler served on the 404 page" "event-handler: /smoke-check-missing-page/" handlerpage@'*404'
 expect "handler after a quoted > on a post" "event-handler: /posts/sample-post/" quotedgt@/posts/sample-post/
 expect "javascript URL served on a tag page" "javascript-url: /tags/lorem/" jsurl@/tags/lorem/
-expect "theme script tag served with no pinned script" "script-not-allowed: /" themeref@/
+expect "copy script tag served with no pinned script" "script-not-allowed: /" copyref@/
 expect "handler in the served feed" "event-handler: /index.xml" badfeed@/index.xml
 expect "benign served markup passes" pass benignpage@/posts/
 
 # The copy script is judged by its pinned hash: the build's file must match it,
 # and so must the bytes the site serves. With no hash file a copy.js is refused.
-tpub="$work/public-theme"
+tpub="$work/public-copy"
 cp -r "$pub" "$tpub"
-printf 'document.documentElement.dataset.theme="dark"\n' >"$tpub/copy.js"
-cp "$tpub/copy.js" "$theme_file"
+printf 'document.documentElement.dataset.copy="dark"\n' >"$tpub/copy.js"
+cp "$tpub/copy.js" "$copy_file"
 printf '%s  copy.js\n' "$(sha256sum "$tpub/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"
 known="$known,/copy.js"
 expect "pinned script served unchanged" pass good "$tpub"
-expect "theme served with different bytes" "script-hash: /copy.js" tampertheme@/copy.js "$tpub"
-expect "the pinned script tag served passes" pass themeref@/ "$tpub"
-expect "the copy script tag served twice" "script-count: /" themetwice@/ "$tpub"
-expect "an extra script next to the theme tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
-expect "theme bytes alternate between responses" "script-hash: /copy.js" alternatetheme@/copy.js "$tpub"
+expect "copy served with different bytes" "script-hash: /copy.js" tampercopy@/copy.js "$tpub"
+expect "the pinned script tag served passes" pass copyref@/ "$tpub"
+expect "the copy script tag served twice" "script-count: /" copytwice@/ "$tpub"
+expect "an extra script next to the copy tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
+expect "copy bytes alternate between responses" "script-hash: /copy.js" alternatecopy@/copy.js "$tpub"
 expect "no CSP on the copy script" "missing-csp: /copy.js" nocsp@/copy.js "$tpub"
 rm -f "$SCRIPT_HASH_FILE"
 expect "copy.js in the build with no hash file" input good "$tpub"
 printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
 expect "build copy.js differs from the pinned hash" input good "$tpub"
-rm -f "$SCRIPT_HASH_FILE" "$theme_file"
+rm -f "$SCRIPT_HASH_FILE" "$copy_file"
 
 # Plain http is refused unless the test switch is set.
 rc=0

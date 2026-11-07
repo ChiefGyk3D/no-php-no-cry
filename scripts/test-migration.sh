@@ -125,8 +125,8 @@ if build_site "$work/drafts" "$conv/drafts" --buildDrafts; then
         fi
     done
     # Alias rules are every line that is not a legacy WordPress rule (feeds,
-    # categories, paging, date archives).
-    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/category/|/page/)' "$r" || true)"
+    # categories, tags, paging, date archives).
+    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/category/|/tag/|/page/)' "$r" || true)"
     if [[ "$(grep -c '' <<<"$aliases_only")" == "3" ]] && out="$(check_lines "$r" 2>&1)"; then
         pass "exactly three alias rules for the two aliased posts, all well formed"
     else

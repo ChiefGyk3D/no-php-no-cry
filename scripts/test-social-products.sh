@@ -69,6 +69,7 @@ class Node:
     def __init__(self, tag, attrs, parent):
         self.tag, self.attrs, self.parent = tag, dict(attrs), parent
         self.kids, self.text = [], []
+        self.parts = []  # text and child nodes in document order
 
     def classes(self):
         return (self.attrs.get("class") or "").split()
@@ -79,9 +80,9 @@ class Node:
             yield from k.walk()
 
     def all_text(self):
-        out = "".join(self.text)
-        for k in self.kids:
-            out += " " + k.all_text()
+        out = ""
+        for part in self.parts:
+            out += " " + (part if isinstance(part, str) else part.all_text()) + " "
         return " ".join(out.split())
 
     def find(self, tag=None, cls=None):
@@ -97,6 +98,7 @@ class Dom(HTMLParser):
     def handle_starttag(self, tag, attrs):
         n = Node(tag, attrs, self.cur)
         self.cur.kids.append(n)
+        self.cur.parts.append(n)
         if tag not in VOID:
             self.cur = n
 
@@ -109,6 +111,7 @@ class Dom(HTMLParser):
 
     def handle_data(self, data):
         self.cur.text.append(data)
+        self.cur.parts.append(data)
 
 
 def load(path):
@@ -159,7 +162,11 @@ def check_social(page, root, bad):
         name = e["name"]
         text = tile.all_text()
         for field, label in (("handle", "handle"), ("blurb", "role line")):
-            if e.get(field, "") and e[field] not in text:
+            # A fediverse handle has its inner @ in its own span (Cloudflare Email
+            # Obfuscation), and all_text() puts a space around child spans, so
+            # drop only whitespace and keep the @ in the comparison.
+            squash = (lambda t: "".join(t.split())) if field == "handle" else (lambda t: t)
+            if e.get(field, "") and squash(e[field]) not in squash(text):
                 bad.append("%s tile lacks %s" % (name, label))
         if name not in text:
             bad.append("%s tile lacks name" % name)
@@ -401,6 +408,7 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "direct note dropped" products "$products" 's/Some products I link directly/Some products I link/'
     guard "price note removed" products "$products" 's/Price checked on/Seen on/'
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
+    guard "fediverse handle loses its @" social "$social" 's#(@chiefgyk3d)<span>@</span>(social\.chiefgyk3d\.com)#\1<span></span>\2#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
 fi
 
@@ -436,6 +444,58 @@ if [[ -f "$social" ]]; then
     else
         fail "mutation build failed ($(tail -n 3 "$work/mutbuild.log" | tr '\n' ' '))"
     fi
+fi
+
+# --- a network that is not live, and the dead .coming-soon rule ---------------
+# data/socials.yaml allows an empty url ("not live"); the template renders that
+# entry as a tile that is not a link (div.social-tile--soon), which is why the
+# fallback and its CSS stay. The class .coming-soon is rendered by nothing and
+# must not come back as a rule.
+nolive="$work/nolive"
+mkdir -p "$nolive/content" "$nolive/data"
+cp -r "$root/layouts" "$root/assets" "$root/static" "$nolive/"
+cp "$root/hugo.toml" "$nolive/hugo.toml"
+cp -r "$root/content/social" "$nolive/content/"
+printf -- '---\ntitle: "Home"\n---\n' >"$nolive/content/_index.md"
+printf -- '- name: Live\n  icon: github\n  url: https://example.org/live\n  handle: live\n  rel_me: false\n  blurb: A live one\n- name: Later\n  icon: ""\n  url: ""\n  handle: later\n  rel_me: false\n  blurb: Not live yet\n' >"$nolive/data/socials.yaml"
+if (cd "$nolive" && hugo --destination "$nolive/public" >"$nolive/build.log" 2>&1); then
+    page="$nolive/public/social/index.html"
+    if python3 -I - "$page" <<'PY'
+import re, sys
+html = open(sys.argv[1], encoding="utf-8").read()
+items = re.findall(r"<li class=\"?tile-item\"?>(.*?)</li>", html, re.S)
+assert len(items) == 2, len(items)
+assert "<a " in items[0] and "social-tile--soon" not in items[0]
+assert "<a " not in items[1] and "social-tile--soon" in items[1] and "Later" in items[1]
+assert "social-icon--placeholder" in items[1]
+PY
+    then
+        pass "an entry with an empty url renders as a tile that is not a link"
+    else
+        fail "an entry with an empty url did not render as a non-link tile"
+    fi
+    if grep -rq 'social-tile--soon' "$root/assets/css/pages/social.css"; then
+        pass "the CSS for the not-live tile is present"
+    else
+        fail "the not-live tile has no CSS rule"
+    fi
+else
+    fail "the not-live site did not build: $(tail -n 3 "$nolive/build.log")"
+fi
+dead_class() { # dead_class <dir>...: files that still mention the dead class
+    grep -rl 'coming-soon' "$@" 2>/dev/null || true
+}
+if [[ -z "$(dead_class "$root/assets" "$root/layouts" "$root/content")" ]]; then
+    pass "no .coming-soon class in the CSS, layouts or content"
+else
+    fail ".coming-soon is back: $(dead_class "$root/assets" "$root/layouts" "$root/content")"
+fi
+mkdir -p "$work/deadguard"
+printf '.coming-soon {\n  color: red;\n}\n' >"$work/deadguard/x.css"
+if [[ -n "$(dead_class "$work/deadguard")" ]]; then
+    pass "guard: a .coming-soon rule is reported"
+else
+    fail "guard: a .coming-soon rule was not reported"
 fi
 
 if ((failures > 0)); then
