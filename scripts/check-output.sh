@@ -262,7 +262,8 @@ while IFS= read -r -d '' f; do
     fi
 
     # Absolute URLs inside tags that load something (anchors are not assets).
-    urls="$(grep -oEi "$asset_tag" "$f" | grep -oEi "$url_attr" || true)"
+    # A <link rel=me> is an identity claim (Mastodon, GitHub read it); a browser fetches nothing for it.
+    urls="$(grep -oEi "$asset_tag" "$f" | grep -vEi '^<link[ ]+([^>]* )?rel=["'"'"']?me["'"'"']?[ >/]' | grep -oEi "$url_attr" || true)"
     if [[ -n "$urls" ]]; then
         if grep -qEi '=["'"'"']?http://' <<<"$urls"; then
             report http-reference "$rel"

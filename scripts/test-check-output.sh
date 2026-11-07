@@ -115,6 +115,16 @@ variant() {
 
 append_html() { printf '%s\n' "$APPEND" >>"$1/${PAGE:-index.html}"; }
 
+# A <link rel=me> to another host is an identity claim, not an asset: it must pass.
+make_good "$work/rel-me"
+printf '%s\n' '<link rel=me href=https://social.example.org/@x>' >>"$work/rel-me/index.html"
+if "$checker" "$work/rel-me" >/dev/null 2>&1; then
+    echo "ok: rel=me link to another host passes"
+else
+    echo "FAIL: rel=me link to another host was rejected"
+    failures=$((failures + 1))
+fi
+
 # Landmarks: skip link first and targeting main, one header, one nav labeled
 # Main, one main#main, one footer, on every page (not alias stubs).
 swap_index() { sed -i "s|$FROM|$TO|" "$1/index.html"; }
@@ -135,6 +145,7 @@ APPEND='<pre><code>x</code></pre>' variant pre-not-focusable pre-not-focusable a
 APPEND='<button onclick="go()">x</button>' variant event-handler event-handler append_html
 APPEND='<img src="http://example.org/a.png" alt=x>' variant http-reference http-reference append_html
 APPEND='<link rel=stylesheet href=https://fonts.example.org/css>' variant external-asset external-asset append_html
+APPEND='<link rel="me stylesheet" href=https://fonts.example.org/css>' variant rel-me-stylesheet external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script-element script-not-allowed append_html
 APPEND='<script src=//cdn.example.org/x.js></script>' variant scheme-relative-script script-not-allowed append_html
