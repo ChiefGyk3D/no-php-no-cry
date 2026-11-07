@@ -16,7 +16,7 @@
   {{- if not .IsHome }}{{ with .OutputFormats.Get "rss" }}
   <link rel="alternate" type="application/rss+xml" title="{{ $.Title }} | {{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}{{ end }}
-  {{- /* Preload both fonts (the files the @font-face rules in tokens.css name). With font-display: swap a font that arrives after first paint reflows the text; on a phone-class connection that was a Cumulative Layout Shift of 0.05 to 0.11 on four templates (scripts/browser-gate.py). crossorigin is required for fonts, also same-origin. */}}
+  {{- /* Preload both fonts (the files the @font-face rules in tokens.css name). With font-display: optional a font that misses its short load window is not swapped in after first paint (a swap reflows the text); the page keeps the fallback face until the next view, so nothing moves; on a phone-class connection that was a Cumulative Layout Shift of 0.05 to 0.11 on four templates (scripts/browser-gate.py). crossorigin is required for fonts, also same-origin. */}}
   <link rel="preload" href="{{ "fonts/jost-latin-wght-normal.woff2" | relURL }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ "fonts/orbitron-wght.ttf" | relURL }}" as="font" type="font/ttf" crossorigin>
   {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css")) | minify | fingerprint }}
@@ -28,11 +28,11 @@
   <header class="site-header">
     <div class="wrap">
       <a class="site-title" href="{{ "/" | relURL }}"><img class="site-mark" src="{{ "brand/mascot-128.webp" | relURL }}" width="36" height="36" alt="">{{ site.Title }}</a>
-      {{- /* Phones: the list sits in a native details menu (no script). From 40rem up, CSS shows the list without opening it. */}}
+      {{- /* Phones: the list sits in a native popover menu (no script): the Menu button opens it; Escape, a click outside or a second press closes it, and focus returns to the button. From 52rem up, CSS shows the list without opening it. */}}
       <nav class="site-nav" aria-label="Main">
-        <details class="nav-menu">
-          <summary class="btn btn-ghost">Menu</summary>
-          <ul>
+        <div class="nav-menu">
+          <button class="btn btn-ghost nav-toggle" type="button" popovertarget="nav-list">Menu</button>
+          <ul id="nav-list" popover>
             {{- /* aria-current="page" marks the link whose URL is this page; a post under /posts/ is not that page, so the Posts link stays plain there. */}}
             {{- $here := .RelPermalink }}
             <li><a href="{{ "/posts/" | relURL }}"{{ if eq $here ("/posts/" | relURL) }} aria-current="page"{{ end }}>Posts</a></li>
@@ -44,7 +44,7 @@
             {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
           </ul>
-        </details>
+        </div>
       </nav>
     </div>
   </header>

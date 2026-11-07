@@ -167,3 +167,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* The count sits inside the tag link, so the whole "#tag (n)" is one tap target. */
+.tag-list a {
+  gap: var(--space-2);
+}

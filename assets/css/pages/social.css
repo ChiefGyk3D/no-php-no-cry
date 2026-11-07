@@ -2,7 +2,7 @@
  * SVGs used as a mask, because the glyph files carry no fill and draw black.
  * The mask follows img-src 'self'. */
 .social-grid {
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
 }
 
 .tile-item {
