@@ -119,6 +119,9 @@ class Scan(HTMLParser):
                 self.found.add("javascript-url")
             if self.markup or tag not in LOADS:
                 continue
+            # <link rel=me> is an identity claim (Mastodon, GitHub read it); nothing is fetched.
+            if tag == "link" and clean(dict(attrs).get("rel")).lower().split() == ["me"]:
+                continue
             urls = []
             if name in URL_ATTRS:
                 urls = [v]

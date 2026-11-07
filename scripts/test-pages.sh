@@ -379,6 +379,22 @@ if __name__ == "__main__":
     fps = [norm(x) for x in re.findall(r"<p[^>]*>(.*?)</p>", fm.group(0), re.S)] if fm else []
     if FOOTER_LINE not in fps:
         errs.append("footer line missing")
+    # The footer is two calm rows: page links (with Social and Support), then the
+    # line and the copyright. No repeated social or support row.
+    if fm:
+        hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", fm.group(0), re.S)
+        names = [norm(t) for _, t in hrefs]
+        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Social", "Support"]:
+            errs.append("footer links are %r" % names)
+        targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
+        if not targets.get("Social", "").endswith("/social/"):
+            errs.append("footer Social does not point at /social/")
+        if not targets.get("Support", "").endswith("/support/"):
+            errs.append("footer Support does not point at /support/")
+        if "social-row" in fm.group(0) or "support-row" in fm.group(0) or "icon-" in fm.group(0):
+            errs.append("footer repeats the social or support row")
+        if "&copy;" not in fm.group(0) and "©" not in fm.group(0):
+            errs.append("footer copyright missing")
     for e in sorted(set(errs)):
         print(e)
     sys.exit(1 if errs else 0)
@@ -434,6 +450,32 @@ if [[ -f "$pub/about/index.html" ]]; then
         fail "guard: an About page without the footer line passed"
     else
         pass "guard: an About page without the footer line fails"
+    fi
+fi
+# rel="me" identity links: Mastodon and GitHub as head links on every page type, and the
+# /social/ tiles keep their rel="me" anchors.
+for f in index.html about/index.html social/index.html; do
+    for u in https://social.chiefgyk3d.com/@chiefgyk3d https://github.com/ChiefGyk3D; do
+        if grep -q "<link rel=me href=$u>" "$pub/$f" || grep -q "<link rel=\"me\" href=\"$u\">" "$pub/$f"; then
+            pass "head rel=me link $u on $f"
+        else
+            fail "head rel=me link $u missing on $f"
+        fi
+    done
+done
+if grep -Eq '<a[^>]*rel="?me[ "][^>]*href="?https://social.chiefgyk3d.com/@chiefgyk3d' "$pub/social/index.html" ||
+    grep -Eq '<a[^>]*href="?https://social.chiefgyk3d.com/@chiefgyk3d[^>]*rel="?me[ "]' "$pub/social/index.html"; then
+    pass "/social/ keeps the rel=me Mastodon anchor"
+else
+    fail "/social/ lost the rel=me Mastodon anchor"
+fi
+# Guard: the footer-links check bites. A repeated social row put back must fail.
+if [[ -f "$pub/about/index.html" ]]; then
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); t = s.replace("</footer>", "<ul class=social-row><li><a class=icon-twitch href=https://twitch.tv/x>Twitch</a></li></ul></footer>", 1); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$pub/about/index.html" "$work/about-socialrow.html"
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-socialrow.html" >/dev/null 2>&1; then
+        fail "guard: an About page with a footer social row passed"
+    else
+        pass "guard: an About page with a footer social row fails"
     fi
 fi
 [[ -f "$pub/privacy/index.html" ]] && assert privacy "$pub/privacy/index.html"
@@ -799,7 +841,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>The pages on this site include no analytics, embeds, or third-party requests, and the site code sets no cookies. Following a link takes you to another site, which has its own policies.</p> <p>The site is served by Cloudflare Pages. This page does not describe what the hosting provider logs on its own, such as request or security records.</p><footer><p>You'"'"'re not dead until you stop learning. Happy Hacking.</p></footer>'
+good_privacy='<h1>Privacy</h1><p>The pages on this site include no analytics, embeds, or third-party requests, and the site code sets no cookies. Following a link takes you to another site, which has its own policies.</p> <p>The site is served by Cloudflare Pages. This page does not describe what the hosting provider logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"
