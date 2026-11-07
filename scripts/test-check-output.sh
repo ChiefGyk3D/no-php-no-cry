@@ -329,6 +329,7 @@ LLMS='# t\n\n- [a](https://test-blog.chiefgyk3d.com/)\n' variant llms-no-summary
 LLMS='# t\n\n> s\n- [a](http://test-blog.chiefgyk3d.com/)\n' variant llms-http-link bad-llms llms_set
 LLMS='# t\n\n> s\n- [a](https://elsewhere.example/)\n' variant llms-no-own-link bad-llms llms_set
 LLMS='# t\n\n> s\n- [a](https://test-blog.chiefgyk3d.com/)\n<script>x</script>\n' variant llms-markup bad-llms llms_set
+LLMS='# t\n\n> <script>x</script>\n- [a](https://test-blog.chiefgyk3d.com/)\n' variant llms-markup-in-summary bad-llms llms_set
 LLMS='# t\n\n> s\nno links here\n' variant llms-no-links bad-llms llms_set
 
 no_alias() { printf '# generated\n' >"$1/_redirects"; }

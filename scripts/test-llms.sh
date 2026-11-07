@@ -26,6 +26,12 @@ fail() {
     failures=$((failures + 1))
 }
 
+# wallet_addresses: the value of every "address:" key in data/support.yaml, quotes
+# stripped, one per line.
+wallet_addresses() {
+    grep -hE '^[[:space:]]*(-[[:space:]]+)?address:' "$root/data/support.yaml" | sed -E 's/^[^:]*:[[:space:]]*//; s/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/'
+}
+
 # check_llms <file>: prints one line per violation.
 check_llms() {
     local f="$1" n=0 path url
@@ -53,7 +59,19 @@ check_llms() {
         [[ -n "$url" ]] || continue
         ! grep -qF "$url" "$f" || echo "affiliate link listed: $url"
     done < <(grep -hE '^[[:space:]]*url:[[:space:]]*https://' "$root/data/products.yaml" | sed -E 's/^[^:]*:[[:space:]]*//')
+    # Every address: in data/support.yaml (Bitcoin, Monero, Ethereum, Solana, ...).
+    n=0
+    while IFS= read -r url; do
+        [[ -n "$url" ]] || continue
+        ! grep -qF "$url" "$f" || echo "wallet address listed: ${url:0:8}..."
+        n=$((n + 1))
+    done < <(wallet_addresses)
+    [[ $n -ge 4 ]] || echo "fewer than 4 wallet addresses read (test bug)"
     ! grep -qE 'bc1q[a-z0-9]{20}|0x[0-9a-fA-F]{40}' "$f" || echo "wallet address listed"
+    # Layout: "## " only at the start of a line, and each H2 is followed by a blank
+    # line or a list item on its own line (never glued to the first item).
+    ! grep -qE '.## ' "$f" || echo "H2 marker mid-line"
+    awk '/^## / { h = $0; getline nx; if (nx !~ /^$/ && nx !~ /^- \[/) print "H2 not followed by blank or list item: " h }' "$f"
     ! grep -qE '<|javascript:|http://' "$f" || echo "markup or http link"
     return 0
 }
@@ -87,7 +105,12 @@ guard "no summary" 's/^> /x /'
 guard "dropped posts link" 's#\]\(https://[^/)]+/posts/\)#](x)#'
 guard "dropped data link" 's#\]\(https://github\.com/ChiefGyk3D\)#](x)#'
 guard "http link" 's#\(https://github#(http://github#'
-guard "wallet" '$a 0x554f18cfB684889c3A60219BDBE7b050C39335ED'
+# One planted address per coin, taken from data/support.yaml, so every coin is caught.
+while IFS= read -r addr; do
+    guard "wallet ${addr:0:6}..." "\$a ${addr}"
+done < <(wallet_addresses)
+guard "H2 glued to first item" '/^## Sections$/{N;s/\n//}'
+guard "H2 mid-line" 's/^(- \[Posts\].*)$/\1 ## x/'
 : >"$work/empty.txt"
 [[ -n "$(check_llms "$work/empty.txt")" ]] && echo "ok: guard catches empty file" || fail "guard: empty file not caught"
 

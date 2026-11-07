@@ -467,7 +467,9 @@ if [[ ! -s "$dir/feed/index.xml" ]]; then
 fi
 
 # /llms.txt (layouts/home.llms.txt): the llms.txt convention. An H1 first line,
-# a "> " summary line, https links only, and at least one link on this site.
+# a "> " summary line, https links only (no markup anywhere: the summary is
+# scanned too, minus its leading "> " marker), and at least one link on this
+# site.
 # Pages serves .txt as text/plain, so _headers (one /* block) needs no entry.
 if [[ ! -s "$dir/llms.txt" ]]; then
     report missing-llms "llms.txt"
@@ -477,7 +479,7 @@ else
         report bad-llms "llms.txt (first line must be an H1: '# name')"
     elif ! grep -qE '^> .+' "$dir/llms.txt"; then
         report bad-llms "llms.txt (no '> ' summary line)"
-    elif grep -qE '[<>]|javascript:' <<<"$(grep -v '^> ' "$dir/llms.txt")"; then
+    elif grep -qE '[<>]|javascript:' <<<"$(sed -E 's/^> //' "$dir/llms.txt")"; then
         report bad-llms "llms.txt (markup or script in a plain text file)"
     elif [[ -z "$llms_links" ]] || grep -vE '^\]\(https://' <<<"$llms_links" | grep -qE .; then
         report bad-llms "llms.txt (every link must be https)"
