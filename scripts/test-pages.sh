@@ -209,8 +209,14 @@ def about(p, errs, repo):
     flat = p.flat()
     if "DRAFT" in flat:
         errs.append("DRAFT marker still on the page")
-    if "I'm ChiefGyk3D, a cybersecurity engineer, creator, and open-source builder" not in flat or "If you need references, contact me directly." not in flat:
-        errs.append("chosen bio text missing")
+    if "Hi, I'm Moshe, and I go by ChiefGyk3D online." not in flat:
+        errs.append("bio opener missing")
+    if "I’m more than ready for a security architecture role, and that’s where I’m headed." not in flat:
+        errs.append("bio closing sentence missing")
+    if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator." not in flat:
+        errs.append("bio first paragraph missing")
+    if "about 15 years" in flat:
+        errs.append("the old bio text is still on the page")
     if not any(t == "img" and (a.get("alt") or "") and (a.get("src") or "").startswith("/brand/") for t, a in p.tags):
         errs.append("no mascot image with alt text")
     if p.ids.get("contact") not in ("h2", "h3", "section"):

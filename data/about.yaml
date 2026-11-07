@@ -1,0 +1,8 @@
+# About page bio (owner-approved wording). Edit the text here; the template
+# layouts/about/single.html only renders it. Keep it verbatim unless the owner
+# changes it. "opener" is the intro line under the page heading; "paragraphs"
+# are the body, in order.
+opener: "Hi, I'm Moshe, and I go by ChiefGyk3D online."
+paragraphs:
+  - "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator. I’m primarily self-taught through homelabbing, curiosity, and hands-on work. My work covers IAM, EDR, SOAR, ZTNA, SASE, cloud security, threat modeling, OSINT, telecom security, and SIEM/SOC work. I run Linux on desktops and servers and work with pfSense, Suricata, Wazuh, and OpenSearch."
+  - "My production-style homelab includes repurposed hardware, a dual-GPU local AI box, and self-hosted Mastodon, Matrix, and Pixelfed. I’m also a licensed ham radio operator working with SDR, Meshtastic, and LoRa. I care about end-to-end encryption, zero trust, owning my infrastructure, right to repair, and privacy rights. I’m more than ready for a security architecture role, and that’s where I’m headed."

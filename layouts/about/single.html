@@ -1,11 +1,16 @@
 {{ define "main" }}
 <article class="page-about">
   <h1>{{ .Title }}</h1>
+  {{- with site.Data.about }}
+  <p class="about-lede">{{ .opener }}</p>
+  {{- end }}
   <div class="about-layout">
   <div class="about-intro">
     <img class="about-mascot" src="{{ "brand/mascot-256.webp" | relURL }}" width="256" height="256" alt="ChiefGyk3D's penguin mascot">
     <div class="panel">
-      <p>I'm ChiefGyk3D, a cybersecurity engineer, creator, and open-source builder with about 15 years in IT and security. My homelab runs pfSense, Suricata, OpenSearch, Wazuh, and a dual-GPU local AI box because apparently I enjoy giving myself more infrastructure to maintain. I build security labs, creator tools, and open-source radio software. I also stream and make videos about what worked, what broke, and what I learned while fixing it. If you need references, contact me directly.</p>
+      {{- range site.Data.about.paragraphs }}
+      <p>{{ . }}</p>
+      {{- end }}
     </div>
   </div>
 
