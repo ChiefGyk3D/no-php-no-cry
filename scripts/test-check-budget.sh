@@ -65,7 +65,7 @@ mutate stray-upper-js js-name 'printf x > OTHER.JS'
 mutate wrong-js-name js-name 'printf x > app.js; sed -i "s#<img#<script src=/app.js></script><img#" index.html'
 mutate theme-js-retired js-name 'printf x > theme.js'
 mutate copy-js-elsewhere js-page 'printf x > copy.js; sed -i "s#<img#<script src=/copy.js></script><img#" index.html'
-mutate two-js-files js-count 'printf x > copy.js; printf x > other.js'
+mutate pinned-plus-stray-js js-name 'printf x > copy.js; printf x > other.js'
 mutate big-js js-size 'head -c 20000 /dev/urandom | base64 > copy.js'
 mutate big-mjs js-size 'head -c 20000 /dev/urandom | base64 > copy.mjs'
 mutate big-cjs js-size 'head -c 20000 /dev/urandom | base64 > copy.cjs'
@@ -91,6 +91,59 @@ if python3 -I "$root/scripts/check-budget.py" "$ok_copy" >"$work/ok-copy.out" 2>
     pass "/copy.js on /support/ passes"
 else
     fail "/copy.js on /support/ failed: $(cat "$work/ok-copy.out")"
+fi
+
+# The pinned search script is allowed, on the search page only.
+ok_search="$work/ok-search"
+cp -r "$good" "$ok_search"
+mkdir -p "$ok_search/search"
+printf 'x' >"$ok_search/search.js"
+printf '%s' '<!doctype html><title>t</title><link rel=stylesheet href=/css/site.css><script src=/search.js></script>' >"$ok_search/search/index.html"
+if python3 -I "$root/scripts/check-budget.py" "$ok_search" >"$work/ok-search.out" 2>&1; then
+    pass "/search.js on /search/ passes"
+else
+    fail "/search.js on /search/ failed: $(cat "$work/ok-search.out")"
+fi
+
+# Both pinned scripts together pass; a third script, a pinned script on the wrong
+# page, a missing pinned script and an oversize one each fail on their own rule.
+both="$work/both"
+cp -r "$ok_copy" "$both"
+cp "$ok_search/search.js" "$both/search.js"
+mkdir -p "$both/search"
+cp "$ok_search/search/index.html" "$both/search/index.html"
+if python3 -I "$root/scripts/check-budget.py" "$both" >"$work/both.out" 2>&1; then
+    pass "/copy.js and /search.js together pass"
+else
+    fail "both pinned scripts failed: $(cat "$work/both.out")"
+fi
+for t in third-js:js-name:'printf x > third.js' \
+    search-js-wrong-page:js-page:'sed -i "s#<img#<script src=/search.js></script><img#" index.html' \
+    search-js-big:js-size:'head -c 20000 /dev/urandom | base64 > search.js' \
+    copy-js-big:js-size:'head -c 20000 /dev/urandom | base64 > copy.js' \
+    search-js-missing:missing-asset:'rm search.js' \
+    copy-js-missing:missing-asset:'rm copy.js'; do
+    n="${t%%:*}"; r="${t#*:}"; cmd="${r#*:}"; r="${r%%:*}"
+    d="$work/m-$n"
+    cp -r "$both" "$d"
+    (cd "$d" && eval "$cmd")
+    expect_fail "$n" "$r" "$d"
+done
+d="$work/m-third-count"
+cp -r "$both" "$d"
+printf x >"$d/third.js"
+expect_fail "third script is over the count" js-count "$d"
+
+# The budget table must equal the shell allowlist (scripts/artifact-rules.sh),
+# the single source of truth; a mismatch makes this fail.
+shell_list="$(bash -c 'source "$1"; for n in $(pinned_script_names); do printf "/%s %s\n" "$n" "$(pinned_script_url "$n")index.html"; done | sort' _ "$root/scripts/artifact-rules.sh")"
+py_list="$(python3 -I -c 'import importlib.util,sys
+sp=importlib.util.spec_from_file_location("cb",sys.argv[1]); m=importlib.util.module_from_spec(sp); sp.loader.exec_module(m)
+print("\n".join(sorted("%s %s" % (k,v) for k,v in m.PAGE_SCRIPTS.items())))' "$root/scripts/check-budget.py")"
+if [[ -n "$shell_list" && "$shell_list" == "$py_list" ]]; then
+    pass "PAGE_SCRIPTS equals PINNED_SCRIPTS"
+else
+    fail "PAGE_SCRIPTS differs from PINNED_SCRIPTS: shell=[$shell_list] py=[$py_list]"
 fi
 
 empty="$work/empty"
