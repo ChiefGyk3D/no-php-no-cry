@@ -62,6 +62,9 @@ SKILL_GROUPS = [
     "Local AI and agents",
     "Radio, RF, and telecom",
 ]
+MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
+MISSION_END = "You're not dead until you stop learning. Happy Hacking."
+FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
 
 
@@ -261,6 +264,8 @@ def check_about_data(errs, html_src):
     for label, want in [("opener", d["opener"])] + [("bio paragraph %d" % (i + 1), t) for i, t in enumerate(d["paragraphs"])]:
         if want not in ps:
             errs.append("%s differs from data/about.yaml" % label)
+    if not d.get("mission") or d["mission"] not in ps:
+        errs.append("mission paragraph differs from data/about.yaml")
     sp = d["speaking"]
     if sp["before"] + sp["link_text"] + sp["after"] not in ps:
         errs.append("speaking sentence differs from data/about.yaml")
@@ -287,6 +292,10 @@ def about(p, errs, repo):
         errs.append("bio closing sentence missing")
     if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator." not in flat:
         errs.append("bio first paragraph missing")
+    if MISSION_START not in flat or MISSION_END not in flat:
+        errs.append("mission paragraph missing")
+    if flat.find(MISSION_START) < flat.find("In 2026 I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
+        errs.append("mission paragraph is not right after the bio and before the projects and Contact")
     if "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the Call Center Village" not in flat:
         errs.append("speaking sentence missing")
     cc = [a for a, t in p.links if t == "Call Center Village"]
@@ -356,6 +365,11 @@ if __name__ == "__main__":
         repo = {"html": f.read(), "template": tpl}
     errs = []
     KINDS[kind](p, errs, repo)
+    # Every page closes with the footer line, in the footer, as its own paragraph.
+    fm = re.search(r"<footer.*?</footer>", repo["html"], re.S)
+    fps = [norm(x) for x in re.findall(r"<p[^>]*>(.*?)</p>", fm.group(0), re.S)] if fm else []
+    if FOOTER_LINE not in fps:
+        errs.append("footer line missing")
     for e in sorted(set(errs)):
         print(e)
     sys.exit(1 if errs else 0)
@@ -395,13 +409,23 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-alt.html" "Okta, Microsoft Entra, " "Okta, "
     mutate "$work/about-omit.html" "<h3>Radio, RF, and telecom</h3>" "<h3>Radio, RF, and telecom</h3><p>x</p><!--"
     mutate "$work/about-bio.html" "right to repair" "right to fix"
-    for v in alt omit bio; do
+    mutate "$work/about-mission.html" "leaving knowledge behind a price tag" "leaving knowledge behind a paywall"
+    for v in alt omit bio mission; do
         if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
             fail "guard: an About page with $v-mutated text passed"
         else
             pass "guard: an About page with $v-mutated text fails"
         fi
     done
+fi
+# Guard: the footer check bites. The footer line removed from About must fail.
+if [[ -f "$pub/about/index.html" ]]; then
+    python3 -I -c 'import re, sys; s = open(sys.argv[1], encoding="utf-8").read(); t = re.sub(r"<p class=footer-line>.*?</p>", "", s, count=1); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$pub/about/index.html" "$work/about-nofoot.html"
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-nofoot.html" >/dev/null 2>&1; then
+        fail "guard: an About page without the footer line passed"
+    else
+        pass "guard: an About page without the footer line fails"
+    fi
 fi
 [[ -f "$pub/privacy/index.html" ]] && assert privacy "$pub/privacy/index.html"
 
@@ -710,7 +734,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p>'
+good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p><footer><p>You'"'"'re not dead until you stop learning. Happy Hacking.</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"
