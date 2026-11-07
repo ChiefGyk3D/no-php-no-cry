@@ -15,7 +15,7 @@
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
-# missing-headers, weak-csp, template-element, missing-output.
+# missing-headers, weak-csp, template-element, old-site-name, missing-output.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pin of
@@ -516,6 +516,19 @@ if [[ -f "$dir/copy.js" ]]; then
         report js-budget "copy.js (${gz} bytes gzip, budget is under 1024)"
     fi
 fi
+
+# The site's public name is ChiefGyk3D (hugo.toml title). The project name
+# no-php-no-cry must not appear in the output, in text, titles, meta, feeds or
+# the manifest. The one allowed form is a link to the repository, which starts
+# with https://github.com/ChiefGyk3D/no-php-no-cry followed by end, a slash, a
+# quote, whitespace or an angle bracket. Anything else is a finding.
+old_name_allow='https?://github\.com/ChiefGyk3D/no-php-no-cry([/"'"'"'<>[:space:]]|$)'
+while IFS= read -r -d '' f; do
+    rel="${f#"$dir"/}"
+    if sed -E "s#${old_name_allow//#/\\#}#X\1#g" "$f" | grep -qi 'no-php-no-cry'; then
+        report old-site-name "$rel"
+    fi
+done < <(find "$dir" -type f \( -iname '*.html' -o -iname '*.xml' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.webmanifest' -o -iname '*.svg' -o -name '_redirects' -o -name '_headers' \) -print0 | sort -z)
 
 if [[ $findings -gt 0 ]]; then
     echo "check-output: $findings finding(s)"
