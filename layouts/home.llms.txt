@@ -1,0 +1,36 @@
+{{- /* /llms.txt (https://llmstxt.org): H1 name, blockquote summary, then H2 sections of "- [title](url): note" links. Everything comes from front matter and data/, so it does not rot. Only public links; no affiliate links (products are described, not listed). scripts/check-output.sh checks the shape. */ -}}
+# {{ site.Title }}
+
+> {{ site.Params.description }}
+
+ChiefGyk3D's personal site: writing, a work journal, links to every place to follow along, ways to support the work, and a resume of skills. The site uses no analytics, cookies or third-party requests.
+
+## Sections
+{{ range $path := slice "/posts" "/journal" "/social" "/support" "/products" "/about" "/resume" "/privacy" -}}
+{{- with site.GetPage $path -}}
+- [{{ .Title }}]({{ .Permalink }}): {{ partial "description.html" . }}
+{{ end -}}
+{{- end }}
+## Latest posts
+{{ with site.GetPage "/posts" -}}
+{{- range first 10 .RegularPages.ByDate.Reverse -}}
+- [{{ .Title }}]({{ .Permalink }}): {{ partial "description.html" . }}
+{{ end -}}
+{{- end }}
+## Feeds
+
+- [Site feed (RSS)]({{ "feed/index.xml" | absURL }}): all posts and journal entries
+- [Sitemap]({{ "sitemap.xml" | absURL }}): every page
+
+## Find me online
+{{ range hugo.Data.socials -}}
+{{- if .url -}}
+- [{{ .name }}]({{ .url }}): {{ .blurb }}
+{{ end -}}
+{{- end }}
+## Support
+{{ range hugo.Data.support -}}
+{{- if and .url (ne .kind "cryptocurrency") -}}
+- [{{ .name }}]({{ .url }}){{ with .blurb }}: {{ . }}{{ end }}
+{{ end -}}
+{{- end }}

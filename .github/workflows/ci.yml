@@ -133,6 +133,9 @@ jobs:
       - name: Test the shared robots.txt parser (both checkers use it)
         run: scripts/test-robots-wildcard.sh
 
+      - name: Test /llms.txt (real build, both environments)
+        run: scripts/test-llms.sh
+
       - name: Test the deploy gate wait (stubbed gh, no network)
         run: scripts/test-wait-for-ci-green.sh
 
