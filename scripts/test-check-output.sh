@@ -59,6 +59,7 @@ make_good() {
     printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/feed/index.xml" rel="self" type="application/rss+xml"/></channel></rss>\n' >"$dir/feed/index.xml"
     printf '<?xml version="1.0" encoding="utf-8" standalone="yes"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://test-blog.chiefgyk3d.com/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url><url><loc>https://test-blog.chiefgyk3d.com/posts/sample-post/</loc><lastmod>2023-02-10T09:00:00-05:00</lastmod></url></urlset>\n' >"$dir/sitemap.xml"
     printf 'User-agent: *\nAllow: /\n\nSitemap: https://test-blog.chiefgyk3d.com/sitemap.xml\n' >"$dir/robots.txt"
+    printf '# t\n\n> A site.\n\n## Sections\n- [Posts](https://test-blog.chiefgyk3d.com/posts/): Posts\n- [GitHub](https://github.com/ChiefGyk3D): Code\n' >"$dir/llms.txt"
     cat >"$dir/_redirects" <<'RED'
 # generated
 /2023/02/10/sample-post /posts/sample-post/ 301
@@ -321,6 +322,14 @@ variant no-redirects missing-redirects rm_file _redirects
 variant no-feed missing-feed rm_file index.xml
 variant no-site-feed missing-feed rm_file feed/index.xml
 variant no-headers missing-headers rm_file _headers
+variant no-llms missing-llms rm_file llms.txt
+llms_set() { printf '%b' "$LLMS" >"$1/llms.txt"; }
+LLMS='no heading\n\n> s\n- [a](https://test-blog.chiefgyk3d.com/)\n' variant llms-no-h1 bad-llms llms_set
+LLMS='# t\n\n- [a](https://test-blog.chiefgyk3d.com/)\n' variant llms-no-summary bad-llms llms_set
+LLMS='# t\n\n> s\n- [a](http://test-blog.chiefgyk3d.com/)\n' variant llms-http-link bad-llms llms_set
+LLMS='# t\n\n> s\n- [a](https://elsewhere.example/)\n' variant llms-no-own-link bad-llms llms_set
+LLMS='# t\n\n> s\n- [a](https://test-blog.chiefgyk3d.com/)\n<script>x</script>\n' variant llms-markup bad-llms llms_set
+LLMS='# t\n\n> s\nno links here\n' variant llms-no-links bad-llms llms_set
 
 no_alias() { printf '# generated\n' >"$1/_redirects"; }
 variant no-alias missing-alias no_alias

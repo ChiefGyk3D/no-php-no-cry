@@ -20,7 +20,7 @@ timeZone = "America/New_York"
 # /feed/index.xml (see [outputFormats.feed]), _redirects and
 # robots.txt.
 [outputs]
-  home = ["html", "rss", "feed", "redirects", "robots"]
+  home = ["html", "rss", "feed", "redirects", "robots", "llms"]
   section = ["html", "rss"]
   page = ["html"]
   term = ["html"]
@@ -47,6 +47,16 @@ timeZone = "America/New_York"
   baseName = "index"
   path = "feed"
   rel = "alternate"
+
+# /llms.txt, the llms.txt convention (https://llmstxt.org): a Markdown summary
+# of the site for language-model readers. layouts/home.llms.txt builds it from
+# the sections' own front matter and data/*.yaml, so it follows the site.
+# scripts/check-output.sh requires it and checks its shape.
+[outputFormats.llms]
+  mediaType = "text/plain"
+  baseName = "llms"
+  isPlainText = true
+  notAlternative = true
 
 [minify]
   minifyOutput = true
