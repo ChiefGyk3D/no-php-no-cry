@@ -80,7 +80,8 @@ if (cd "$root/tools/axe" && sha256sum -c axe.min.js.sha256 >/dev/null 2>&1); the
 # The origin check compares parsed scheme/host/port, not a string prefix: a
 # request to port 123451 is not the site at port 12345.
 rc=0
-out="$(python3 -I - "$root/scripts/browser-gate.py" <<'PY' 2>&1
+out="$(
+    python3 -I - "$root/scripts/browser-gate.py" <<'PY' 2>&1
 import importlib.util
 import sys
 
