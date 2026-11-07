@@ -97,6 +97,12 @@ def check(html):
     for r in REQUIRED:
         if r not in text:
             out.append("missing text: " + r)
+    cred = re.compile(
+        r"CISSP.*?2024.*?Security\+.*?February 2026.*?"
+        r"Network\+.*?February 2026.*?A\+.*?February 2026")
+    if not cred.search(text):
+        out.append("credential order: CISSP 2024, then Security+, Network+, "
+                   "A+ each with February 2026")
     pos = -1
     for name in PROJECTS:
         i = text.find(name, pos + 1) if pos >= 0 else text.find(name)
@@ -199,6 +205,32 @@ out="$(python3 -I "$asserter" "$bad" || true)"
 if grep -q 'forbidden element/attribute: img' <<<"$out"; then
     pass "guard: an img inside main is still rejected"
 else fail "guard: an img inside main was not flagged"; fi
+
+# Credential order guard: mutate the real built page and require the asserter
+# to flag each case (reordered certs, a lost date) and to accept the original.
+if [[ -f "$page" ]]; then
+    python3 -I - "$page" "$work" <<'PY'
+import sys
+src = open(sys.argv[1], encoding="utf-8").read()
+a = "CompTIA Security+, earned February 2026"
+b = "CompTIA Network+, earned February 2026"
+assert a in src and b in src, "credential entries not found in built page"
+open(sys.argv[2] + "/cred-ok.html", "w", encoding="utf-8").write(src)
+swapped = src.replace(a, "@@A@@").replace(b, a).replace("@@A@@", b)
+open(sys.argv[2] + "/cred-reordered.html", "w", encoding="utf-8").write(swapped)
+open(sys.argv[2] + "/cred-nodate.html", "w", encoding="utf-8").write(
+    src.replace(b, "CompTIA Network+, earned"))
+PY
+    if python3 -I "$asserter" "$work/cred-ok.html" >/dev/null; then
+        pass "guard: unmutated page passes the credential order rule"
+    else fail "guard: unmutated page fails the asserter"; fi
+    for c in reordered nodate; do
+        out="$(python3 -I "$asserter" "$work/cred-$c.html" || true)"
+        if grep -q 'credential order' <<<"$out"; then
+            pass "guard: credential $c is rejected"
+        else fail "guard: credential $c was not flagged"; fi
+    done
+fi
 
 if [[ $failures -ne 0 ]]; then
     echo "$failures failure(s)"
