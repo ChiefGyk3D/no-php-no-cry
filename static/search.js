@@ -1,5 +1,5 @@
 (function () {
-  var d = document, box = d.getElementById("search"), q = d.getElementById("q"),
+  var d = document, q = d.getElementById("q"),
     st = d.getElementById("search-status"), m = /[?&]q=([^&#]*)/.exec(location.search),
     items = [].map.call(d.querySelectorAll(".search-list li"), function (li) {
       return { li: li, t: li.textContent.toLowerCase() };
@@ -15,7 +15,7 @@
     [].forEach.call(groups, function (g) { g.hidden = !g.querySelector("li:not([hidden])"); });
     st.textContent = !w.length ? "" : n ? n + (n > 1 ? " results" : " result") : "No results";
   }
-  box.hidden = false;
+  q.disabled = false;
   q.addEventListener("input", run);
   q.addEventListener("keydown", function (e) {
     if (e.key === "Escape" || e.key === "Esc") { q.value = ""; run(); }

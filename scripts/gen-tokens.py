@@ -110,7 +110,7 @@ def generate(data):
             "  font-family: %s;\n"
             "  font-style: normal;\n"
             "  font-weight: %s;\n"
-            "  font-display: swap;\n"
+            "  font-display: optional;\n"
             '  src: url("%s") format("%s");\n'
             "}\n" % (face["family"], face["weight"], face["src"], face["format"])
         )

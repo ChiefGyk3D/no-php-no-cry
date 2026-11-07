@@ -525,7 +525,7 @@ fi
 
 # Search (issue 119): /search/ is a browse page first (every post and journal
 # entry, A to Z, as plain <li> entries) and the pinned script that belongs to
-# it, /search.js, reveals the search box. Only /search/ loads that script.
+# it, /search.js, enables the search box. Only /search/ loads that script.
 search_check() { # search_check <page> <site root>: prints one problem per line
     python3 -I - "$1" "$2" <<'PY'
 import glob, os, re, sys
@@ -537,8 +537,11 @@ if html.count("<script") != 1 or "<script src=/search.js></script>" not in html:
 if "<form" in html:
     errs.append("a <form> (form-action is 'none'): the box is a div role=search")
 m = re.search(r"<div[^>]*role=search[^>]*>", html)
-if not m or not re.search(r"[\s]hidden[\s>]", m.group(0)):
-    errs.append("the search control must be a div role=search that is hidden until the script reveals it")
+if not m or re.search(r"[\s]hidden[\s>]", m.group(0)):
+    errs.append("the search control must be a div role=search that is on the page from first paint (not hidden: revealing it later shifts the layout)")
+inp = re.search(r"<input[^>]*id=q[ >][^>]*>", html)
+if not inp or not re.search(r"[\s]disabled[\s>]", inp.group(0)):
+    errs.append("the input must be disabled in the HTML; the script enables it (no script, no working box)")
 if not re.search(r"<label[^>]*for=q[ >]", html) or not re.search(r"<input[^>]*id=q[ >]", html):
     errs.append("the input needs a visible label with for=q")
 if not re.search(r"<p[^>]*role=status[^>]*aria-live=polite|<p[^>]*aria-live=polite[^>]*role=status", html):
@@ -577,7 +580,7 @@ if [[ ! -f "$search_page" ]]; then
 else
     out="$(search_check "$search_page" "$pub")"
     if [[ -z "$out" ]]; then
-        pass "the search page: browse list, hidden role=search box, status region, noscript, one pinned script"
+        pass "the search page: browse list, role=search box with a disabled input, status region, noscript, one pinned script"
     else
         fail "the search page: $out"
     fi
@@ -592,7 +595,8 @@ else
     }
     bite "with an inline script" 's#<script src=/search.js></script>#<script>x()</script>#'
     bite "with a form" 's#<div id=search#<form></form><div id=search#'
-    bite "with a visible box" 's# hidden>#>#'
+    bite "with a hidden box" 's#<div id=search class=search-box role=search>#<div id=search class=search-box role=search hidden>#'
+    bite "with an enabled input" 's#(<input[^>]*id=q[^>]*) disabled#\1#'
     bite "without the status region" 's#role=status ##'
     bite "without the label" 's#<label#<span#'
     bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'

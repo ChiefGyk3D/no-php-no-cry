@@ -2,7 +2,7 @@
 {{- with site.Taxonomies.tags.Alphabetical }}
 <nav class="archive-tags" aria-label="Browse by tag">
   <ul class="tag-list">
-    {{- range . }}<li><a href="{{ .Page.RelPermalink }}">#{{ .Page.LinkTitle }}</a> <span class="meta">({{ .Count }})</span></li>{{ end }}
+    {{- range . }}<li><a href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
   </ul>
 </nav>
 {{- end }}

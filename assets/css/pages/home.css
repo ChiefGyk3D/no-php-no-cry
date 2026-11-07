@@ -11,7 +11,7 @@
 }
 
 .hero-mascot {
-  align-self: flex-start;
+  align-self: center;
 }
 
 .hero-mascot,
@@ -89,6 +89,8 @@
   }
 
   .hero-mascot {
+    align-self: flex-start;
+    flex: none;
     width: 12rem;
   }
 

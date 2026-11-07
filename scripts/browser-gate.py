@@ -23,7 +23,7 @@ Fails (exit 1) on any of, printed as "[rule] page@width detail":
               exempt, WCAG 2.5.8 inline exception)
   tab         keyboard: the skip link is not first, the Tab order differs from
               document order, a focused control is off screen or has no focus
-              ring, or the Menu button does not open and close from the keyboard
+              ring, or the Menu button does not open and close from the keyboard (Enter and Escape)
   toggle      only if the build ships /theme.js: the theme button is missing,
               not a button, not reachable by Tab, or does not change state
   setup       axe-core does not match its pinned hash, no browser, no pages
@@ -384,19 +384,29 @@ def keyboard(pg, label, fails, menu):
         fails.append("[tab] %s Tab order differs from document order: reached %d of %d controls, sequence %s" % (
             label, len(order), info["n"], order[:12]))
     if menu:
-        has = pg.js("(() => { const s = document.querySelector('.nav-menu summary'); return !!s && s.checkVisibility(); })()")
+        btn = "document.querySelector('.nav-menu .nav-toggle')"
+        open_ = "document.querySelector('.nav-menu ul').matches(':popover-open')"
+        has = pg.js("(() => { const s = %s; return !!s && s.checkVisibility(); })()" % btn)
         if has:
-            pg.js("document.querySelector('.nav-menu summary').focus()")
+            pg.js(btn + ".focus()")
             pg.key("Enter", "Enter", 13, "\r")
-            if not pg.js("document.querySelector('.nav-menu').open"):
+            if not pg.js(open_):
                 fails.append("[tab] %s the Menu button does not open from the keyboard (Enter)" % label)
             else:
                 pg.key("Tab", "Tab", 9)
                 if not pg.js("!!document.activeElement.closest('.nav-menu ul')"):
                     fails.append("[tab] %s after opening the menu, Tab does not enter the menu list" % label)
-                pg.js("document.querySelector('.nav-menu summary').focus()")
+                pg.key("Escape", "Escape", 27)
+                if pg.js(open_):
+                    fails.append("[tab] %s Escape does not close the menu" % label)
+                elif not pg.js("document.activeElement === " + btn):
+                    fails.append("[tab] %s after Escape, focus does not return to the Menu button" % label)
+                pg.js(btn + ".focus()")
                 pg.key("Enter", "Enter", 13, "\r")
-                if pg.js("document.querySelector('.nav-menu').open"):
+                if not pg.js(open_):
+                    fails.append("[tab] %s the Menu button does not reopen from the keyboard (Enter)" % label)
+                pg.key("Enter", "Enter", 13, "\r")
+                if pg.js(open_):
                     fails.append("[tab] %s the Menu button does not close from the keyboard (Enter)" % label)
 
 

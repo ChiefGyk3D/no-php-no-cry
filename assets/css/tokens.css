@@ -24,7 +24,7 @@
   font-family: Jost;
   font-style: normal;
   font-weight: 100 900;
-  font-display: swap;
+  font-display: optional;
   src: url("../fonts/jost-latin-wght-normal.woff2") format("woff2");
 }
 
@@ -32,7 +32,7 @@
   font-family: Orbitron;
   font-style: normal;
   font-weight: 400 900;
-  font-display: swap;
+  font-display: optional;
   src: url("../fonts/orbitron-wght.ttf") format("truetype");
 }
 

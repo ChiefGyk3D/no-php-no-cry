@@ -81,7 +81,7 @@ catches a bad value.
   is kept as shipped because the OFL Reserved Font Name "Orbitron" forbids a
   converted copy under that name. `brand/tokens.json` lists both font faces
   (`fontFace`); the generator emits one `@font-face` each (`font-display:
-  swap`), and `--font-display` is `"Cyber City", Orbitron, Jost, ...`. The CSS
+  optional`), and `--font-display` is `"Cyber City", Orbitron, Jost, ...`. The CSS
   uses it for h1, h2, HUD headings and the wordmark only, never body text.
 - Generated art: `scripts/gen-brand-assets.py` builds the mascot WebP set
   (128/256/512), favicons, the 1200x630 OG card and the social icons from the
