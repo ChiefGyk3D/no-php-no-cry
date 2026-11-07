@@ -313,6 +313,12 @@ main {
   margin: var(--space-2) 0 0;
 }
 
+/* The sign-off line: shares the credit row (so it adds no height), left edge. */
+.footer-line {
+  flex: 1 1 auto;
+  margin: var(--space-2) 0 0;
+}
+
 /* Wide screens: the credit joins the link rows and sits at the far edge. */
 @media (min-width: 80rem) {
   .site-footer .wrap {
@@ -322,6 +328,11 @@ main {
   .credit {
     flex-basis: auto;
     margin: 0 0 0 auto;
+  }
+
+  .footer-line {
+    flex: 0 1 auto;
+    margin: 0;
   }
 }
 
