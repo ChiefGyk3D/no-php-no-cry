@@ -84,8 +84,10 @@ Keyboard (`tab`): Tab is pressed once per focusable control. The first stop must
 be the skip link; no control may use a `tabindex` above 0; the focus order must
 equal document order, with every control reached; each focused control must be on
 screen and show a focus ring (an outline or a box shadow). At 768 px and below,
-the Menu button (`.nav-menu summary`) must open with Enter, move Tab into the
-list, and close with Enter.
+the Menu button (`.nav-menu .nav-toggle`, a popover button) must open with
+Enter, move Tab into the list, close with Escape (focus returns to the button),
+reopen, and close with Enter again. A click outside the list also closes the
+native popover (light dismiss) but is not exercised by the gate.
 
 Toggle (`toggle`): the dark-only brand kit has no theme toggle yet (the redesign
 brief's `/theme.js` is not implemented). The check runs only when the build

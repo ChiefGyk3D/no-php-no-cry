@@ -13,8 +13,8 @@
   {{ .Content }}
   <div id="search" class="search-box" role="search">
     <label class="search-label" for="q">Search posts and journal</label>
-    <input class="search-input" id="q" type="search" autocomplete="off" spellcheck="false" disabled aria-describedby="search-status">
-    <noscript><p class="meta search-note">Filtering needs JavaScript. The full list is below.</p></noscript>
+    <input class="search-input" id="q" type="search" autocomplete="off" spellcheck="false" disabled aria-describedby="search-note search-status">
+    <noscript><p id="search-note" class="meta search-note">Filtering needs JavaScript. The full list is below.</p></noscript>
     <p id="search-status" class="search-status" role="status" aria-live="polite"></p>
   </div>
   {{ partial "tag-row.html" . }}

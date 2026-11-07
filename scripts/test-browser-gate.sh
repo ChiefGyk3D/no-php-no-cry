@@ -69,6 +69,16 @@ mutate layout-shift cls layout-shift
 mutate slow-lcp lcp slow-lcp
 mutate toggle-missing toggle toggle-missing
 
+# The popover Menu button (phones, 390 px): the good fixture passes the keyboard
+# pass there, and a manual popover (Escape does not close it) fails it.
+rc=0
+out="$(run_gate "$work/good" --widths 390)" || rc=$?
+if [[ $rc -eq 0 ]]; then pass "good fixture passes at 390 (popover menu exercised)"; else fail "good fixture at 390: exit $rc: $out"; fi
+mutate menu-escape tab menu-escape --widths 390
+d="$work/m-menu-escape"
+out="$(run_gate "$d" --widths 390 || true)"
+if [[ "$out" == *"Escape does not close the menu"* ]]; then pass "menu-escape fails on the Escape assertion"; else fail "menu-escape: wrong failure: $out"; fi
+
 # The pinned axe-core: a tampered copy must be refused.
 cp "$root/tools/axe/axe.min.js" "$work/axe-bad.js"
 echo "/* tampered */" >>"$work/axe-bad.js"
