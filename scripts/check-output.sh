@@ -15,7 +15,8 @@
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
-# missing-headers, weak-csp, template-element, old-site-name, missing-output.
+# missing-headers, weak-csp, template-element, missing-output, missing-llms,
+# bad-llms, old-site-name.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pin of
@@ -463,6 +464,28 @@ fi
 # feed addresses (layouts/home.redirects) land on this file.
 if [[ ! -s "$dir/feed/index.xml" ]]; then
     report missing-feed "feed/index.xml"
+fi
+
+# /llms.txt (layouts/home.llms.txt): the llms.txt convention. An H1 first line,
+# a "> " summary line, https links only (no markup anywhere: the summary is
+# scanned too, minus its leading "> " marker), and at least one link on this
+# site.
+# Pages serves .txt as text/plain, so _headers (one /* block) needs no entry.
+if [[ ! -s "$dir/llms.txt" ]]; then
+    report missing-llms "llms.txt"
+else
+    llms_links="$(grep -oE '\]\([^)]*\)' "$dir/llms.txt" || true)"
+    if ! head -n1 "$dir/llms.txt" | grep -qE '^# .+'; then
+        report bad-llms "llms.txt (first line must be an H1: '# name')"
+    elif ! grep -qE '^> .+' "$dir/llms.txt"; then
+        report bad-llms "llms.txt (no '> ' summary line)"
+    elif grep -qE '[<>]|javascript:' <<<"$(sed -E 's/^> //' "$dir/llms.txt")"; then
+        report bad-llms "llms.txt (markup or script in a plain text file)"
+    elif [[ -z "$llms_links" ]] || grep -vE '^\]\(https://' <<<"$llms_links" | grep -qE .; then
+        report bad-llms "llms.txt (every link must be https)"
+    elif ! grep -qE "^\]\(https://${site_host//./\\.}/" <<<"$llms_links"; then
+        report bad-llms "llms.txt (no link to this site's own host)"
+    fi
 fi
 
 if [[ ! -s "$dir/_headers" ]]; then
