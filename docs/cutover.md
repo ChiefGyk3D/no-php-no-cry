@@ -222,6 +222,18 @@ so the targets carry the final names:
    bundles it points at, in the same pull request. The file holds public URL
    paths only, no private text.
 
+The ten migrated posts are drafts, so `data/legacy_uploads.json` stays `[]`
+until they are published: a draft's page bundle is not built in production, and
+a redirect to it would land on a 404. `docs/migration-uploads.md` lists, per
+post, the entries to add back (the file is documentation, the build ignores it).
+Flip a post to `draft: false` and add that post's entries in the same pull
+request, then run `scripts/test-redirects.sh`.
+
+**Flip these two posts together.** The Twitch-and-Toot post carries
+`supersededBy` pointing to the Stream Daemon post. If Twitch-and-Toot goes live
+while Stream Daemon is still a draft, its forward link leads to a 404. Publish
+Stream Daemon first, or both in the same pull request.
+
 A bad entry (source outside `/wp-content/uploads/`, a space, a splat, an
 external target) fails the Hugo build. The test `scripts/test-redirects.sh`
 checks each rule and that every upload target is a file the build publishes.
