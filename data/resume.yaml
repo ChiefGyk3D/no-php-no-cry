@@ -58,10 +58,11 @@ projects:
     line: I built a defensive toolkit that detects scripted BLE spam and helps foxhunt its source at conferences.
 
 credentials:
-  - CISSP
-  - CompTIA Security+
-  - CompTIA Network+
-  - CompTIA A+
+  - CISSP, earned in 2024. It was my first certification.
+  - CompTIA Security+, earned February 2026
+  - CompTIA Network+, earned February 2026
+  - CompTIA A+, earned February 2026
+  - Yes, the order is odd. CISSP came first, in 2024. I earned all three CompTIA certs in February 2026 while working toward my WGU bachelor's.
   - Associate degree in Network System Administration, ITT Tech, 2016
   - Amateur radio operator, General class license
   - Ordained Priest, Church of the Latter Day Dude. I can secure the network and officiate the wedding afterward.
