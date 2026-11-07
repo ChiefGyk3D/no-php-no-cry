@@ -77,3 +77,29 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Bio opener (issue 125): the intro line under the page heading. */
+.about-lede {
+  font-size: var(--text-lg, 1.25rem);
+  margin-block: 0 var(--space-5);
+}
+
+/* Skills (issue 125): groups in a responsive grid below the page body. */
+.about-skills {
+  margin-top: var(--space-6);
+}
+
+.skill-groups {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (min-width: 40rem) {
+  .skill-groups {
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  }
+}
+
+.skill-group h3 {
+  margin-top: 0;
+}
