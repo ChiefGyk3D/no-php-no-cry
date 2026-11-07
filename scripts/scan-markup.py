@@ -11,8 +11,12 @@ Rules, for any file: event-handler (an on* attribute), javascript-url.
 HTML mode (default) also: base-element, http-reference, external-asset (an
 http:, https:, scheme-relative or backslash URL to another host on a tag that
 loads something). --markup (svg, xml, xhtml) also: script-not-allowed for any
-script element. --scripts none|pinned (HTML only, used on served pages) also
-judges script elements: with "none" any script element is script-not-allowed;
+script element. HTML mode also email-shaped-text: a text node (outside
+script and style) holding user@host, or a mailto: URL. Cloudflare Email
+Obfuscation rewrites those to "[email protected]" and injects a script; render
+a handle with the @ in its own element instead. --scripts none|pinned (HTML
+only, used on served pages) also judges script elements: with "none" any script
+element is script-not-allowed;
 with "pinned" the pinned scripts are the ones named by --known (the allowlist
 of scripts/artifact-rules.sh, as /name paths), and --allow names the one that
 belongs on THIS page: <script src=/NAME></script> for that name is allowed once
@@ -31,6 +35,9 @@ LOADS = {"img", "script", "iframe", "frame", "source", "link", "video", "audio",
          "embed", "object", "form", "input", "track", "base"}
 URL_ATTRS = {"src", "href", "poster", "action", "data", "formaction", "xlink:href",
              "background", "ping", "manifest", "codebase"}
+
+
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]")
 
 
 def clean(value):
@@ -59,20 +66,27 @@ class Scan(HTMLParser):
         self.found = set()
         self.pinned_tags = 0
         self.in_script = False
+        self.in_style = False
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
 
     def handle_data(self, data):
+        if not self.markup and not self.in_script and not self.in_style and EMAIL.search(data):
+            self.found.add("email-shaped-text")
         if self.in_script and data.strip():
             self.found.add("script-not-allowed")
 
     def handle_endtag(self, tag):
         if tag.lower() == "script":
             self.in_script = False
+        if tag.lower() == "style":
+            self.in_style = False
 
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
+        if tag == "style":
+            self.in_style = True
         if tag == "script":
             if not self.markup and [(n.lower(), clean(v).lower()) for n, v in attrs] == [("type", "application/ld+json")]:
                 # A JSON-LD data block: never run, not subject to script-src.
@@ -97,6 +111,8 @@ class Scan(HTMLParser):
         for name, value in attrs:
             name = name.lower()
             v = clean(value)
+            if not self.markup and re.match(r"^mailto:", v, re.I):
+                self.found.add("email-shaped-text")
             if re.match(r"^on[a-z]", name):
                 self.found.add("event-handler")
             if re.match(r"^javascript:", v, re.I) or re.search(r"url\s*=\s*['\"]?\s*javascript:", v, re.I):

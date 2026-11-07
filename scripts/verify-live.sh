@@ -487,7 +487,7 @@ for spec in "${specs[@]}"; do
     fi
 done
 
-# --- the stylesheet and the one script --------------------------------------------------
+# --- the stylesheet and the scripts --------------------------------------------------
 if [[ -n "$home_css" ]]; then
     if fetch "$home_css" && [[ "$code" == 200 ]]; then
         css_hosts="$(grep -Eo '(https?:)?//[A-Za-z0-9][A-Za-z0-9.:-]*' "$body" | sed -E 's#^(https?:)?//##; s#:[0-9]*$##' | sort -u | grep -vxF "$host" || true)"

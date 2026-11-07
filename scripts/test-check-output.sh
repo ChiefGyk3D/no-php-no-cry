@@ -698,6 +698,22 @@ variant missing-404 template-element drop_404
 drop_archive() { rm -f "$1/posts/index.html"; }
 variant missing-posts-archive template-element drop_archive
 
+# email-shaped-text: a user@host handle in page text is rewritten by Cloudflare
+# Email Obfuscation (and a script injected). The split form must pass.
+APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html
+APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
+APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
+split="$work/split-handle"
+make_good "$split"
+printf '%s\n' '<p>@someone<span>@</span>social.example.org <a href=https://youtube.com/@Chan>@Chan</a></p>' >>"$split/index.html"
+if "$checker" "$split" >/dev/null 2>&1; then
+    echo "ok: split handle passes"
+else
+    echo "FAIL: split handle was rejected"
+    "$checker" "$split" || true
+    failures=$((failures + 1))
+fi
+
 if [[ -f "$root/public/index.html" ]]; then
     if env -u SCRIPT_HASH_DIR "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: real build in public/ passes"

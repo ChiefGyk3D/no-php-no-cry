@@ -11,7 +11,7 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, script-wrong-page, search-page-budget, headers-structure,
+# skip-link, landmark, email-shaped-text, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, script-wrong-page, search-page-budget, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,

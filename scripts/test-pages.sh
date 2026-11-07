@@ -49,8 +49,7 @@ BUTTONS = {
 }
 PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
            "Following a link takes you to another site. I collect nothing here.")
-CONTACT = ("There's no contact form. Reach me on Matrix or Discord, or use the email "
-           "address listed as plain text.")
+CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
 
 
 class Page(HTMLParser):
@@ -133,7 +132,7 @@ def external_ok(a):
 
 def support(p, errs, repo):
     common(p, errs)
-    # /support/ alone may carry the one pinned script; it is checked below.
+    # /support/ alone may carry /copy.js, its pinned script; it is checked below.
     if "a <script> element" in errs:
         errs.remove("a <script> element")
     if p.h1 != ["Support my work"]:
@@ -231,9 +230,9 @@ def about(p, errs, repo):
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
     if "mailto:" in " ".join(h or "" for h in hrefs):
-        errs.append("the email address must be plain text, not a mailto: link")
-    if "TODO" not in repo["html"] and "email address will be added" not in flat.lower():
-        errs.append("email placeholder not marked")
+        errs.append("there is no email address: contact is Matrix and Discord only")
+    if "TODO" in repo["html"] or "email" in flat.lower():
+        errs.append("the contact section must not mention email or carry a TODO")
 
 
 def privacy(p, errs, repo):
@@ -376,7 +375,7 @@ else
     pass "no frame-src in _headers"
 fi
 if [[ -e "$pub/support.js" ]]; then
-    fail "support.js shipped: the only script is the pinned /copy.js"
+    fail "support.js shipped: the only scripts are the pinned /copy.js and /search.js"
 fi
 # Only /support/ loads the copy script.
 if grep -rl --include=index.html --include=404.html '/copy.js' "$pub" | grep -v '^'"$pub"'/support/index.html$' | grep -q .; then
@@ -386,7 +385,7 @@ else
 fi
 
 # Search (issue 119): /search/ is a browse page first (every post and journal
-# entry, A to Z, as plain <li> entries) and the one pinned script that belongs to
+# entry, A to Z, as plain <li> entries) and the pinned script that belongs to
 # it, /search.js, reveals the search box. Only /search/ loads that script.
 search_check() { # search_check <page> <site root>: prints one problem per line
     python3 -I - "$1" "$2" <<'PY'
