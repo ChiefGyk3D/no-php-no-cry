@@ -101,6 +101,9 @@ jobs:
       - name: Test the Support, About and Privacy pages
         run: scripts/test-pages.sh
 
+      - name: Test the archived comments from the old site
+        run: scripts/test-comments.sh
+
       - name: Test the generated _redirects file (fragment grammar, line shape)
         run: scripts/test-redirects.sh
 

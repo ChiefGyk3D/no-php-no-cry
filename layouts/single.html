@@ -33,6 +33,7 @@
   <div class="post-body">
   {{ .Content }}
   </div>
+  {{ partial "comments-archive.html" . }}
   {{- /* Syndication row: the canonical link, and "Discuss" links once the deploy job writes the syndicated map (docs/redesign-brief.md section 5). Plain links only. */}}
   <div class="syndication meta">
     <p>Canonical link: <a href="{{ .Permalink }}">{{ .Permalink }}</a></p>
