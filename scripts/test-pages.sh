@@ -50,14 +50,17 @@ BUTTONS = {
     "Shop merch": "https://shop.chiefgyk3d.com/",
 }
 PRIVACY = [
-    "The pages on this site include no analytics, embeds, or third-party requests, "
-    "and the site code sets no cookies. Following a link takes you to another site, "
-    "which has its own policies.",
-    "The site is served by Cloudflare Pages. This page does not describe what the hosting "
-    "provider logs on its own, such as request or security records.",
+    "The code of this site sets no cookies and loads no embeds or third-party resources. "
+    "Following a link takes you to another site, which has its own policies.",
+    "The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. "
+    "Cloudflare describes Web Analytics as collecting page-load timing and the country, "
+    "browser, referring site, and page path of each visit, without cookies and without personal data. "
+    "The content security policy on this site allows scripts only from this site, so a browser will "
+    "likely block the Cloudflare analytics script. This page does not describe what Cloudflare logs "
+    "on its own, such as request or security records.",
 ]
 # Claims the config cannot establish. The page must not make them (issue 159).
-PRIVACY_FORBIDDEN = ["I collect nothing", "collects nothing", "stores nothing", "no logs"]
+PRIVACY_FORBIDDEN = ["I collect nothing", "collects nothing", "stores nothing", "no logs", "no analytics"]
 SKILL_GROUPS = [
     "Identity and access",
     "Endpoint, email, and data security",
@@ -72,9 +75,8 @@ SKILL_GROUPS = [
 MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
 MISSION_END = "You're not dead until you stop learning. Happy Hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
-CONTACT = ("There's no contact form, and no address is listed on this site. Community questions go in "
-           "the Matrix room or on the Discord server. For a professional inquiry, message me on either "
-           "one and say that's what it is.")
+CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
+           "or the Discord server. Business inquiries go by email, and the address will be listed here soon.")
 
 
 class Page(HTMLParser):
@@ -338,15 +340,18 @@ def about(p, errs, repo):
             errs.append("project tile %r missing" % name)
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
-    if "mailto:" in " ".join(h or "" for h in hrefs):
-        errs.append("there is no email address: contact is Matrix and Discord only")
+    email_set = bool(re.search(r'^  email: "[^"]+"$', open(os.environ["ABOUT_DATA"], encoding="utf-8").read(), re.M))
+    if not email_set and "mailto:" in " ".join(h or "" for h in hrefs):
+        errs.append("data/about.yaml has no email set, so the page must not link one")
     # The email ban is for the contact section; the Skills text legitimately says "email security".
     m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
     contact = re.sub(r"<[^>]+>", " ", m.group(0)).lower() if m else ""
     if not contact:
         errs.append("the contact section was not found")
-    if "TODO" in repo["html"] or "email" in contact:
-        errs.append("the contact section must not mention email or carry a TODO")
+    if "TODO" in repo["html"]:
+        errs.append("the page carries a TODO")
+    if not email_set and ("pgp" in contact or "@" in contact):
+        errs.append("an empty email and PGP entry must render nothing")
 
 
 def privacy(p, errs, repo):
@@ -442,6 +447,15 @@ if [[ -f "$pub/about/index.html" ]]; then
             pass "guard: an About page with $v-mutated text fails"
         fi
     done
+fi
+# Guard: an email link appears while data/about.yaml has none -> the About check must fail.
+if [[ -f "$pub/about/index.html" ]]; then
+    mutate "$work/about-mail.html" "Business inquiries go by email" "Business inquiries go by <a href=mailto:x@example.org>email</a>"
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
+        fail "guard: an About page linking an email with an empty data entry passed"
+    else
+        pass "guard: an About page linking an email with an empty data entry fails"
+    fi
 fi
 # Guard: the footer check bites. The footer line removed from About must fail.
 if [[ -f "$pub/about/index.html" ]]; then
@@ -841,7 +855,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>The pages on this site include no analytics, embeds, or third-party requests, and the site code sets no cookies. Following a link takes you to another site, which has its own policies.</p> <p>The site is served by Cloudflare Pages. This page does not describe what the hosting provider logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
+good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and loads no embeds or third-party resources. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. The content security policy on this site allows scripts only from this site, so a browser will likely block the Cloudflare analytics script. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"

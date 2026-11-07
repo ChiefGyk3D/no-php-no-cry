@@ -25,6 +25,7 @@ fail() {
 
 asserter="$work/assert_resume.py"
 cat >"$asserter" <<'PY'
+import html as htmlmod
 import re
 import sys
 from html.parser import HTMLParser
@@ -100,9 +101,10 @@ def check(html):
             out.append("heading should be gone: " + h)
     # The degree sits under Education, radio and the ordination under Outside work.
     for h, want in (("Education", "Network System Administration"),
+                    ("Education", "Working toward a bachelor's degree at WGU"),
                     ("Outside work", "General class"), ("Outside work", "Latter Day Dude")):
         sec = re.search(r"%s</h2>(.*?)(?:<h2|$)" % h, html, re.S)
-        if not sec or want not in sec.group(1):
+        if not sec or want not in htmlmod.unescape(sec.group(1)):
             out.append("%s is not under %s" % (want, h))
     cert = re.search(r"Certifications</h2>(.*?)<h2", html, re.S)
     if cert and re.search(r"Associate degree|General class|Latter Day Dude", cert.group(1)):
