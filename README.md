@@ -56,10 +56,12 @@ scripts/test-analytics.sh       # page-view collector (not deployed): node --tes
 ```
 
 `check-output.sh` fails the build output on any of: any `<script>` element
-other than `<script src=/copy.js></script>` once per page (`script-src 'self'`
-allows same-origin scripts; these checks and the hash pin make /copy.js the
-only one; inline scripts are also reported separately), a
-second script file, a `copy.js` of 1 KB gzip or more, `javascript:` URLs,
+other than a page's own pinned script, `<script src=/copy.js></script>` on
+/support/ or `<script src=/search.js></script>` on /search/, once (`script-src
+'self'` allows same-origin scripts; these checks and the hash pins make those two
+the only ones, each on its own page; the same tag on another page is
+`script-wrong-page`; inline scripts are also reported separately), a third script
+file, a script of 1 KB gzip or more, a /search/ page of 40 KB gzip or more, `javascript:` URLs,
 `<style>`, `style=` attributes, `on*=` handlers, `http://` references, external assets in
 HTML, an external `@import` or `url()` (including `//host`) in CSS or SVG, an
 `xml-stylesheet` instruction in a feed or SVG, any `*.xml` that does not parse,
@@ -70,8 +72,8 @@ entry missing its description, canonical, icon, Open Graph or Twitter card tags.
 
 `script-src 'self'` allows every same-origin response, not one file, so the
 checks also refuse any file of an unlisted type (including one with no
-extension), a `copy.js` whose sha256 is not the one in the committed
-`copy.js.sha256` (no hash file means no script at all; see
+extension), a `copy.js` or `search.js` whose sha256 is not the one in its committed
+`copy.js.sha256` or `search.js.sha256` (no hash file means that script is not allowed; see
 `docs/pinned-script.md` and `scripts/pin-script.sh`), an SVG with script, and
 `_headers` that is not one `/*` block with exactly one `nosniff`. URLs are judged after character references are
 decoded, attributes are read quote-aware (a `>` or `=` inside a quoted value is
