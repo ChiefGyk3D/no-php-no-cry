@@ -13,7 +13,16 @@
 #                 on every page, exactly one X-Content-Type-Options header whose
 #                 only value is nosniff
 #   redirect      the first 301 line of <public-dir>/_redirects answers 301
-#                 with the expected Location
+#                 with the expected Location; so do /feed/ (301 to
+#                 /feed/index.xml, the WordPress feed address) and a sample of
+#                 the other generated rules, taken from the build: the first
+#                 rule of each class that exists (a /YYYY/ date archive,
+#                 /category/<slug>/, /tag/<slug>/, an old /wp-content/uploads/
+#                 address). The splat rules are not sampled.
+#   feed-type     /feed/index.xml answers 200 with an XML Content-Type
+#                 (application/xml, text/xml or a +xml type); the build must
+#                 hold feed/index.xml (else exit 2). It is also checked like
+#                 every page (policy, nosniff, markup).
 #   script-hash    when the build has a copy.js, the deployed /copy.js has the
 #                 sha256 pinned in copy.js.sha256 (SCRIPT_HASH_FILE overrides)
 #   script-not-allowed / script-count / event-handler / javascript-url /
@@ -26,7 +35,7 @@
 #                 fetch or inspect any other script file (the build checks do).
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
-# category page, the feed (/index.xml) and the 404 page (asked for as
+# category page, the feeds (/index.xml and /feed/index.xml) and the 404 page (asked for as
 # /smoke-check-missing-page/). The build must hold at least one single page and
 # one list page (else exit 2). The expectations are read from the build, so
 # they follow the site.
@@ -134,16 +143,42 @@ if [[ ${#singles[@]} -eq 0 || ${#lists[@]} -eq 0 ]]; then
 fi
 pages+=("${singles[@]}" "${lists[@]}")
 [[ -f "$dir/index.xml" ]] && pages+=(/index.xml)
+if [[ ! -f "$dir/feed/index.xml" ]]; then
+    echo "input: ${dir} has no feed/index.xml (the feed the old WordPress addresses redirect to)"
+    exit 2
+fi
+pages+=(/feed/index.xml)
 [[ -n "$script_pinned" ]] && pages+=(/copy.js)
 
-from="" to=""
+# The redirects to check: the first 301 line of the build (required), /feed/ and
+# a sample of the other rules, the first of each class the build holds.
+rfrom=() rto=()
+add_redirect() { # add_redirect <from> <to>: skips a source already listed
+    local f
+    for f in "${rfrom[@]}"; do [[ "$f" == "$1" ]] && return 0; done
+    rfrom+=("$1")
+    rto+=("$2")
+}
 if [[ -f "$dir/_redirects" ]]; then
-    read -r from to < <(awk '$1 ~ /^\// && $3 == "301" { print $1, $2; exit }' "$dir/_redirects") || true
+    while read -r f t; do
+        [[ -n "$f" ]] && add_redirect "$f" "$t"
+    done < <(awk '$1 ~ /^\// && $3 == "301" { print $1, $2; exit }' "$dir/_redirects")
 fi
-if [[ -z "$from" || -z "$to" ]]; then
+if [[ ${#rfrom[@]} -eq 0 ]]; then
     echo "input: no 301 line in ${dir}/_redirects"
     exit 2
 fi
+add_redirect /feed/ /feed/index.xml
+while read -r f t; do
+    [[ -n "$f" ]] && add_redirect "$f" "$t"
+done < <(awk '$1 ~ /^\// && $1 !~ /\*/ && $2 ~ /^\// && $3 == "301" {
+        if ($1 ~ /^\/[0-9][0-9][0-9][0-9]\/$/) c = "year"
+        else if ($1 ~ /^\/category\//) c = "category"
+        else if ($1 ~ /^\/tag\//) c = "tag"
+        else if ($1 ~ /^\/wp-content\/uploads\//) c = "upload"
+        else next
+        if (!(c in seen)) { seen[c] = 1; print $1, $2 }
+    }' "$dir/_redirects")
 
 # fetch <path>: prints the status line and headers, fails if no response.
 # The body goes to $body_file from the same request, so headers and body are
@@ -225,6 +260,14 @@ check_page() {
             failed=1
         done <<<"$found"
     fi
+    if [[ "$path" == /feed/index.xml && $ok -eq 1 ]]; then
+        local ctype
+        ctype="$(printf '%s' "$resp" | header_values content-type | head -n 1)"
+        if [[ ! "${ctype,,}" =~ ^(application|text)/([^\;[:space:]]*\+)?xml($|[\;[:space:]]) ]]; then
+            echo "feed-type: ${path} has Content-Type '${ctype}', wanted an XML type"
+            failed=1
+        fi
+    fi
     if [[ $failed -eq 0 && $ok -eq 1 ]]; then
         echo "ok: ${path} answers ${want} with the expected policy and nosniff"
     fi
@@ -234,22 +277,25 @@ check_page() {
 # attempt: runs every check once, printing one line per check. Returns 0 only
 # if all passed.
 attempt() {
-    local failed=0 page code redir rcode loc loc_path
+    local failed=0 page i from to redir rcode loc loc_path
 
     for page in "${pages[@]}" "$missing_page"; do
         check_page "$page" || failed=1
     done
 
-    redir="$(fetch "$from")" || redir=""
-    rcode="$(status_of "$redir")"
-    loc="$(printf '%s' "$redir" | tr -d '\r' | sed -n 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//p' | head -n 1)"
-    loc_path="${loc#"$base"}"
-    if [[ "$rcode" == 301 && "$loc_path" == "$to" ]]; then
-        echo "ok: ${from} redirects 301 to ${to}"
-    else
-        echo "redirect: ${from} answered '${rcode}' Location '${loc}', wanted 301 to ${to}"
-        failed=1
-    fi
+    for i in "${!rfrom[@]}"; do
+        from="${rfrom[$i]}" to="${rto[$i]}"
+        redir="$(fetch "$from")" || redir=""
+        rcode="$(status_of "$redir")"
+        loc="$(printf '%s' "$redir" | tr -d '\r' | sed -n 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//p' | head -n 1)"
+        loc_path="${loc#"$base"}"
+        if [[ "$rcode" == 301 && "$loc_path" == "$to" ]]; then
+            echo "ok: ${from} redirects 301 to ${to}"
+        else
+            echo "redirect: ${from} answered '${rcode}' Location '${loc}', wanted 301 to ${to}"
+            failed=1
+        fi
+    done
 
     return "$failed"
 }
