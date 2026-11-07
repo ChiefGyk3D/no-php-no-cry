@@ -231,3 +231,14 @@ A short map of how it fits together:
 | CI gates | `.github/workflows/ci.yml`, `scripts/test-*.sh` | Each check has a test with a negative case that proves the check fails when it should. |
 | GYST reusable workflows | `shell` and `security` jobs in `ci.yml` | Shell lint and security scans come from [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together), pinned by commit. The Hugo build job is local. |
 | Converter tooling | `tools/wxr2hugo/` | Turning a WordPress export into page bundles, with WebP conversion and a scrub pass for private data. |
+
+## License
+
+Copyright 2026 ChiefGyk3D. This section is a summary, not legal advice.
+
+- Code (scripts, templates, configuration, tooling): Apache-2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+- Written content (`content/`, `docs/`): CC BY 4.0, see [LICENSE-CONTENT](LICENSE-CONTENT).
+- Brand assets (mascot, wordmark, logos): all rights reserved, not covered by either license. See [BRAND.md](BRAND.md).
+- Third-party material (vendored axe-core, fonts, icons, coin marks, the five product photos in the headphones post) keeps its own terms, listed in [BRAND.md](BRAND.md).
+
+`scripts/check-license.sh` fails the build if `LICENSE` is not the official Apache-2.0 text or if the content license or brand notice is missing.
