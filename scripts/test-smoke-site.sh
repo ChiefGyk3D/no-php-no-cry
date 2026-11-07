@@ -48,10 +48,12 @@ printf '<!doctype html>\n' >"$pub/index.html"
 printf '<!doctype html>\n' >"$pub/404.html"
 printf '<rss/>\n' >"$pub/index.xml"
 printf '<rss/>\n' >"$pub/feed/index.xml"
-# The pinned hash of the copy script: a file of the test's own, absent unless a
-# case pins it.
-export SCRIPT_HASH_FILE="$work/copy.sha256"
-copy_file="$work/copy-served.js"
+# The pinned hash of each script (copy.js, search.js): files of the test's own in
+# a directory of the test's own, absent unless a case pins them.
+export SCRIPT_HASH_DIR="$work/hashes"
+mkdir -p "$SCRIPT_HASH_DIR"
+served_dir="$work/served"
+mkdir -p "$served_dir"
 known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml,/feed/index.xml"
 # The redirects the fake server answers (from=to, ';' apart): the required first
 # line, /feed/, and the sample (date archive, category, tag, upload).
@@ -63,7 +65,7 @@ per_attempt=16
 start_server() {
     stop_server
     rm -f "$work/port" "$work/port.count"
-    MODE="$1" CSP="$csp" KNOWN="$known" REDIRS="$redirs" COPY_FILE="$copy_file" PORTFILE="$work/port" python3 -I -c '
+    MODE="$1" CSP="$csp" KNOWN="$known" REDIRS="$redirs" SERVED_DIR="$served_dir" PORTFILE="$work/port" python3 -I -c '
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -122,16 +124,21 @@ class H(BaseHTTPRequestHandler):
             "jsurl": b"<html><a href=\"javascript:x()\">y</a></html>",
             "copyref": b"<html><script src=/copy.js></script></html>",
             "copytwice": b"<html><script src=/copy.js></script><script src=/copy.js></script></html>",
+            "searchref": b"<html><script src=/search.js></script></html>",
+            "searchtwice": b"<html><script src=/search.js></script><script src=/search.js></script></html>",
+            "bothref": b"<html><script src=/copy.js></script><script src=/search.js></script></html>",
+            "searchbody": b"<html><script src=/search.js>x()</script></html>",
             "benignpage": b"<html><img alt=\"one=1\" src=/a.png><a href=\"https://example.org/\">y</a></html>",
             "badfeed": b"<rss><a onclick=\"x\"/></rss>",
         }
         is_known = self.path in known
-        if self.path == "/copy.js" and os.path.exists(os.environ["COPY_FILE"]):
+        served = os.path.join(os.environ["SERVED_DIR"], self.path.lstrip("/"))
+        if self.path in ("/copy.js", "/search.js") and os.path.exists(served):
             is_known = True
-            body = open(os.environ["COPY_FILE"], "rb").read()
-            if fault == "tampercopy":
+            body = open(served, "rb").read()
+            if fault == "tampercopy" and fpath == self.path:
                 body += b"x"
-            if fault == "alternatecopy":
+            if fault == "alternatecopy" and fpath == self.path:
                 # every other request gets different bytes
                 copy_seen += 1
                 if copy_seen % 2 == 1:
@@ -353,30 +360,66 @@ expect "remote script served on a list" "script-not-allowed: /journal/" remotesc
 expect "handler served on the 404 page" "event-handler: /smoke-check-missing-page/" handlerpage@'*404'
 expect "handler after a quoted > on a post" "event-handler: /posts/sample-post/" quotedgt@/posts/sample-post/
 expect "javascript URL served on a tag page" "javascript-url: /tags/lorem/" jsurl@/tags/lorem/
-expect "copy script tag served with no pinned script" "script-not-allowed: /" copyref@/
 expect "handler in the served feed" "event-handler: /index.xml" badfeed@/index.xml
 expect "benign served markup passes" pass benignpage@/posts/
 
-# The copy script is judged by its pinned hash: the build's file must match it,
-# and so must the bytes the site serves. With no hash file a copy.js is refused.
-tpub="$work/public-copy"
+# The pinned scripts are judged by their pinned hashes: the build's file must
+# match, and so must the bytes the site serves. With no hash file a script in the
+# build is refused. Each script is loaded by its own page only (/copy.js by
+# /support/, /search.js by /search/): the tag served anywhere else is a
+# script-wrong-page finding.
+pin_in() { # pin_in <build dir> <name>: writes the script into the build, serves the same bytes, pins it
+    printf 'document.documentElement.dataset.x="%s"\n' "$2" >"$1/$2"
+    cp "$1/$2" "$served_dir/$2"
+    printf '%s  %s\n' "$(sha256sum "$1/$2" | cut -d' ' -f1)" "$2" >"$SCRIPT_HASH_DIR/$2.sha256"
+}
+known_base="$known"
+for name in copy.js search.js; do
+    page=support
+    [[ $name == search.js ]] && page=search
+    tpub="$work/public-$name"
+    cp -r "$pub" "$tpub"
+    mkdir -p "$tpub/$page"
+    printf '<!doctype html>\n' >"$tpub/$page/index.html"
+    pin_in "$tpub" "$name"
+    known="$known_base,/$name,/$page/"
+    ref=copyref
+    [[ $name == search.js ]] && ref=searchref
+    twice=copytwice
+    [[ $name == search.js ]] && twice=searchtwice
+    expect "pinned $name served unchanged" pass good "$tpub"
+    expect "$name served with different bytes" "script-hash: /$name" tampercopy@/$name "$tpub"
+    expect "the pinned $name tag served on its own page passes" pass "$ref@/$page/" "$tpub"
+    expect "the $name tag served twice" "script-count: /$page/" "$twice@/$page/" "$tpub"
+    expect "the $name tag served on the home page" "script-wrong-page: /" "$ref@/" "$tpub"
+    expect "the $name tag served on a post" "script-wrong-page: /posts/sample-post/" "$ref@/posts/sample-post/" "$tpub"
+    expect "an extra script next to $name" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
+    expect "$name bytes alternate between responses" "script-hash: /$name" alternatecopy@/$name "$tpub"
+    expect "no CSP on $name" "missing-csp: /$name" nocsp@/$name "$tpub"
+    expect "a script tag with a body on the $name page" "script-not-allowed: /$page/" searchbody@/$page/ "$tpub"
+    rm -f "$SCRIPT_HASH_DIR/$name.sha256"
+    expect "$name in the build with no hash file" input good "$tpub"
+    printf '%s  %s\n' "$(printf 'a%.0s' $(seq 1 64))" "$name" >"$SCRIPT_HASH_DIR/$name.sha256"
+    expect "build $name differs from the pinned hash" input good "$tpub"
+    rm -f "$SCRIPT_HASH_DIR/$name.sha256" "$served_dir/$name"
+done
+# One script's tag on the other's page, with both pinned: each is the other's wrong page.
+tpub="$work/public-both"
 cp -r "$pub" "$tpub"
-printf 'document.documentElement.dataset.copy="dark"\n' >"$tpub/copy.js"
-cp "$tpub/copy.js" "$copy_file"
-printf '%s  copy.js\n' "$(sha256sum "$tpub/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"
-known="$known,/copy.js"
-expect "pinned script served unchanged" pass good "$tpub"
-expect "copy served with different bytes" "script-hash: /copy.js" tampercopy@/copy.js "$tpub"
-expect "the pinned script tag served passes" pass copyref@/ "$tpub"
-expect "the copy script tag served twice" "script-count: /" copytwice@/ "$tpub"
-expect "an extra script next to the copy tag" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
-expect "copy bytes alternate between responses" "script-hash: /copy.js" alternatecopy@/copy.js "$tpub"
-expect "no CSP on the copy script" "missing-csp: /copy.js" nocsp@/copy.js "$tpub"
-rm -f "$SCRIPT_HASH_FILE"
-expect "copy.js in the build with no hash file" input good "$tpub"
-printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
-expect "build copy.js differs from the pinned hash" input good "$tpub"
-rm -f "$SCRIPT_HASH_FILE" "$copy_file"
+mkdir -p "$tpub/support" "$tpub/search"
+printf '<!doctype html>\n' >"$tpub/support/index.html"
+printf '<!doctype html>\n' >"$tpub/search/index.html"
+pin_in "$tpub" copy.js
+pin_in "$tpub" search.js
+known="$known_base,/copy.js,/search.js,/support/,/search/"
+expect "both pinned scripts served unchanged" pass good "$tpub"
+expect "the search tag on the support page" "script-wrong-page: /support/" searchref@/support/ "$tpub"
+expect "the copy tag on the search page" "script-wrong-page: /search/" copyref@/search/ "$tpub"
+expect "both tags on one page" "script-wrong-page: /search/" bothref@/search/ "$tpub"
+rm -f "$SCRIPT_HASH_DIR"/*.sha256 "$served_dir"/*
+known="$known_base"
+expect "copy script tag served with no pinned script" "script-not-allowed: /" copyref@/
+expect "search script tag served with no pinned script" "script-not-allowed: /" searchref@/
 
 # Plain http is refused unless the test switch is set.
 rc=0

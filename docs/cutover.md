@@ -50,7 +50,7 @@ check failed (each failure is a `FAIL: rule: detail` line), 2 means bad input.
 | `header-*` | every header of `static/_headers` (the CSP string exactly) is on each page once, equal |
 | `sitemap`, `feed` | `/sitemap.xml` and the feed (`/feed/index.xml`, read from the build's alternate link) are well-formed XML that name only this host |
 | `robots`, `robots-meta`, `env-mismatch` | `robots.txt` and the page robots meta fit the environment; `--env` pins the expected one |
-| `copy-js` | the served `/copy.js` has the bytes of the build |
+| `copy-js` | the served `/copy.js` has the bytes of the build (`/search.js` is checked by the post-deploy smoke test) |
 | `third-party` | no page, the sitemap, the feed or the stylesheet loads from another host |
 
 Staging today, through a public resolver address because the laptop's resolver

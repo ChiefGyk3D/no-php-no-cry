@@ -10,13 +10,7 @@
   {{- if eq $p.Kind "term" }}<a href="{{ "/posts/" | relURL }}">All posts</a>{{ end }}
 </p>
 {{- if eq $p.Section "posts" }}{{ if eq $p.Kind "section" }}
-{{- with site.Taxonomies.tags.Alphabetical }}
-<nav class="archive-tags" aria-label="Browse by tag">
-  <ul class="tag-list">
-    {{- range . }}<li><a href="{{ .Page.RelPermalink }}">#{{ .Page.LinkTitle }}</a> <span class="meta">({{ .Count }})</span></li>{{ end }}
-  </ul>
-</nav>
-{{- end }}
+{{- partial "tag-row.html" . }}
 {{- end }}{{ end }}
 {{- range $p.Pages.GroupByDate "2006" "desc" }}
 <section class="archive-group">

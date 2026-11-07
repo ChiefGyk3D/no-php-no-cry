@@ -40,7 +40,7 @@ expect_missing() {
 }
 
 # The sparse list of the deploy job, minus one entry at a time.
-for entry in /scripts/artifact-rules.sh /copy.js.sha256 /static/_headers /static/_routes.json /scripts/check-site-artifact.sh /scripts/ensure-pages-project.sh; do
+for entry in /scripts/artifact-rules.sh /copy.js.sha256 /search.js.sha256 /static/_headers /static/_routes.json /scripts/check-site-artifact.sh /scripts/ensure-pages-project.sh; do
     grep -vxF "            $entry" "$wf" >"$work/wf.yml"
     if cmp -s "$work/wf.yml" "$wf"; then
         echo "FAIL: the entry $entry is not in the workflow's sparse list"
@@ -57,6 +57,15 @@ printf '#!/usr/bin/env bash\nsource "$(dirname "$0")/extra-lib.sh"\n' >"$fake/sc
 printf 'x=1\n' >"$fake/scripts/extra-lib.sh"
 printf 'x\n' >"$fake/scripts/ensure-pages-project.sh"
 expect_missing "a sourced script that is not listed" "$wf" "$fake" "deploy: scripts/extra-lib.sh"
+
+# A script added to the allowlist in artifact-rules.sh needs its hash file in the
+# sparse list too: the tool reads the list, so no name is hard-coded here.
+fake2="$work/root2"
+mkdir -p "$fake2/scripts"
+printf '#!/usr/bin/env bash\nPINNED_SCRIPTS=("copy.js:support/index.html" "search.js:search/index.html" "third.js:third/index.html")\npinned_script_names() { :; }\n' >"$fake2/scripts/artifact-rules.sh"
+printf '#!/usr/bin/env bash\nsource "$(dirname "$0")/artifact-rules.sh"\npinned_script_names\n' >"$fake2/scripts/check-site-artifact.sh"
+printf 'x\n' >"$fake2/scripts/ensure-pages-project.sh"
+expect_missing "a script added to the allowlist, hash file not listed" "$wf" "$fake2" "deploy: third.js.sha256"
 
 # A step added to the deploy job that runs another script.
 sed 's#^        run: scripts/ensure-pages-project.sh$#        run: scripts/ensure-pages-project.sh \&\& scripts/wait-for-ci-green.sh#' "$wf" >"$work/wf2.yml"

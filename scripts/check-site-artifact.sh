@@ -16,14 +16,17 @@
 #     file would leave nothing limiting execution to HTML routes), that is not
 #     the strict routing shape (routes_policy_ok) or differs byte for byte from
 #     the repository's static/_routes.json (ROUTES_FILE overrides the path)
-#   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js, and a
-#     /copy.js that is 1 KB gzip (1024 bytes) or more
+#   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js and
+#     /search.js, and a pinned script that is 1 KB gzip (1024 bytes) or more
+#   - a page that loads a pinned script other than its own: /copy.js belongs to
+#     /support/ and /search.js to /search/ (scripts/artifact-rules.sh)
 #   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
 #     webp avif ico woff woff2 ttf webmanifest, plus _headers and _redirects at the root),
 #     whatever its content or name: script-src 'self' authorizes every
 #     same-origin response, so there must be no file a script could load
-#   - /copy.js whose sha256 is not the one in the committed copy.js.sha256
-#     (SCRIPT_HASH_FILE overrides the path); with no such file no script at all
+#   - a pinned script whose sha256 is not the one in its committed hash file,
+#     copy.js.sha256 or search.js.sha256 at the repository root (SCRIPT_HASH_DIR
+#     overrides the directory); with no such file that script is not allowed
 #   - a _headers that is not exactly one "/*" block, or has a removal directive
 #   - an SVG with a script element, event handler or javascript: URL
 #   - expected headers without X-Content-Type-Options: nosniff
@@ -44,7 +47,6 @@ fi
 dir="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 expected_headers="${2:-$root/static/_headers}"
-script_hash_file="${SCRIPT_HASH_FILE:-$root/copy.js.sha256}"
 expected_routes="${ROUTES_FILE:-$root/static/_routes.json}"
 [[ -d "$dir" ]] || {
     echo "check-site-artifact: not a directory: $dir" >&2
@@ -125,8 +127,8 @@ if ! headers_nosniff_ok "$expected_headers"; then
     report headers-nosniff "expected headers: X-Content-Type-Options must be nosniff"
 fi
 
-# Every file must be of a listed type (js files are reported below, and
-# /copy.js is checked for what it can do).
+# Every file must be of a listed type (js files are reported below, and the
+# pinned scripts are checked for what they can do).
 while IFS= read -r -d '' p; do
     rel="${p#"$dir"/}"
     case "${rel,,}" in
@@ -138,31 +140,48 @@ while IFS= read -r -d '' p; do
     fi
 done < <(find "$dir" -type f -print0 | sort -z)
 
-# Script files: the CSP allows 'self' scripts, so the only one is /copy.js, and
-# only if its sha256 is the one pinned in the committed hash file. No hash file,
-# no script.
-pinned=""
-rc=0
-pinned="$(script_hash_state "$script_hash_file")" || rc=$?
-if [[ $rc -eq 2 ]]; then
-    report script-hash-file "$(basename "$script_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
-    pinned=""
-fi
+# Script files: the CSP allows 'self' scripts, so the only ones are the pinned
+# scripts (artifact-rules.sh), and only if each one's sha256 is the one pinned in
+# its committed hash file. No hash file, no script. Each is loaded by its own
+# page only.
+mapfile -t script_names < <(pinned_script_names)
+declare -A pinned=()
+for name in "${script_names[@]}"; do
+    hash_file="$(pinned_hash_file "$name")"
+    rc=0
+    pinned[$name]="$(script_hash_state "$hash_file" "$name")" || rc=$?
+    if [[ $rc -eq 2 ]]; then
+        report script-hash-file "$(basename "$hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+        pinned[$name]=""
+    fi
+done
 while IFS= read -r -d '' p; do
     rel="${p#"$dir"/}"
-    if [[ "$rel" != copy.js || -z "$pinned" ]]; then
+    if [[ -z "${pinned[$rel]:-}" ]]; then
         report extra-script "$rel"
     fi
 done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
-if [[ -f "$dir/copy.js" && ! -L "$dir/copy.js" ]]; then
-    if [[ -n "$pinned" && "$(sha256sum "$dir/copy.js" | cut -d' ' -f1)" != "$pinned" ]]; then
-        report script-hash "copy.js does not match the sha256 pinned in $(basename "$script_hash_file")"
+for name in "${script_names[@]}"; do
+    [[ -f "$dir/$name" && ! -L "$dir/$name" ]] || continue
+    if [[ -n "${pinned[$name]}" && "$(sha256sum "$dir/$name" | cut -d' ' -f1)" != "${pinned[$name]}" ]]; then
+        report script-hash "$name does not match the sha256 pinned in $(basename "$(pinned_hash_file "$name")")"
     fi
-    gz="$(gzip -9 -n -c "$dir/copy.js" | wc -c)"
-    if ((gz >= 1024)); then
-        report js-budget "copy.js is ${gz} bytes gzip (budget: under 1024)"
+    gz="$(gzip -9 -n -c "$dir/$name" | wc -c)"
+    if ((gz >= $(script_gzip_budget))); then
+        report js-budget "$name is ${gz} bytes gzip (budget: under $(script_gzip_budget))"
     fi
-fi
+done
+# A page that loads a pinned script other than its own (a plain grep of the
+# page: the markup rules are check-output.sh's).
+while IFS= read -r -d '' p; do
+    rel="${p#"$dir"/}"
+    for name in "${script_names[@]}"; do
+        if [[ "$rel" != "$(pinned_script_page "$name")" ]] &&
+            grep -qEi "<script[^>]*[[:space:]]src=[\"']?/${name//./\\.}([\"'[:space:]>]|\$)" "$p"; then
+            report script-wrong-page "$rel loads /${name}, which belongs on $(pinned_script_page "$name") only"
+        fi
+    done
+done < <(find "$dir" -type f -name '*.html' -print0 | sort -z)
 
 # _redirects: internal 301/302 rules only.
 if [[ -f "$dir/_redirects" && ! -L "$dir/_redirects" ]]; then

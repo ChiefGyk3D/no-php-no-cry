@@ -132,7 +132,7 @@ def external_ok(a):
 
 def support(p, errs, repo):
     common(p, errs)
-    # /support/ alone may carry the one pinned script; it is checked below.
+    # /support/ alone may carry /copy.js, its pinned script; it is checked below.
     if "a <script> element" in errs:
         errs.remove("a <script> element")
     if p.h1 != ["Support my work"]:
@@ -375,13 +375,110 @@ else
     pass "no frame-src in _headers"
 fi
 if [[ -e "$pub/support.js" ]]; then
-    fail "support.js shipped: the only script is the pinned /copy.js"
+    fail "support.js shipped: the only scripts are the pinned /copy.js and /search.js"
 fi
 # Only /support/ loads the copy script.
 if grep -rl --include=index.html --include=404.html '/copy.js' "$pub" | grep -v '^'"$pub"'/support/index.html$' | grep -q .; then
     fail "a page other than /support/ loads /copy.js"
 else
     pass "only /support/ loads /copy.js"
+fi
+
+# Search (issue 119): /search/ is a browse page first (every post and journal
+# entry, A to Z, as plain <li> entries) and the pinned script that belongs to
+# it, /search.js, reveals the search box. Only /search/ loads that script.
+search_check() { # search_check <page> <site root>: prints one problem per line
+    python3 -I - "$1" "$2" <<'PY'
+import glob, os, re, sys
+html = open(sys.argv[1], encoding="utf-8").read()
+root = sys.argv[2]
+errs = []
+if html.count("<script") != 1 or "<script src=/search.js></script>" not in html:
+    errs.append("/search/ must carry exactly the one pinned <script src=/search.js></script>")
+if "<form" in html:
+    errs.append("a <form> (form-action is 'none'): the box is a div role=search")
+m = re.search(r"<div[^>]*role=search[^>]*>", html)
+if not m or not re.search(r"[\s]hidden[\s>]", m.group(0)):
+    errs.append("the search control must be a div role=search that is hidden until the script reveals it")
+if not re.search(r"<label[^>]*for=q[ >]", html) or not re.search(r"<input[^>]*id=q[ >]", html):
+    errs.append("the input needs a visible label with for=q")
+if not re.search(r"<p[^>]*role=status[^>]*aria-live=polite|<p[^>]*aria-live=polite[^>]*role=status", html):
+    errs.append("a role=status aria-live=polite region is required")
+if "<noscript>" not in html:
+    errs.append("a noscript note is required")
+if re.search(r"<(style)[ >]|[ ]style=|[ ]on[a-z]+=", html):
+    errs.append("style element or attribute or event handler")
+# Every regular page of posts and journal is a <li> with a link, A to Z by title.
+titles = []
+for sec in ("posts", "journal"):
+    for f in sorted(glob.glob(os.path.join(root, sec, "*", "index.html"))):
+        page = open(f, encoding="utf-8").read()
+        if "http-equiv=refresh" in page:
+            continue
+        t = re.search(r"<title>([^<]*) \| ", page)
+        href = "/%s/%s/" % (sec, os.path.basename(os.path.dirname(f)))
+        if not re.search(r"<li><a href=%s>" % re.escape(href), html):
+            errs.append("%s is not listed as a <li> link" % href)
+        if t:
+            titles.append((sec, t.group(1)))
+li = re.findall(r'<section class=search-group[^>]*>(.*?)</section>', html, re.S)
+for grp in li:
+    names = re.findall(r"<li><a href=[^>]*>([^<]*)</a>", grp)
+    if names != sorted(names, key=str.lower):
+        errs.append("a group is not A to Z by title: %s" % names)
+if not li:
+    errs.append("no search groups")
+for e in errs:
+    print(e)
+PY
+}
+search_page="$pub/search/index.html"
+if [[ ! -f "$search_page" ]]; then
+    fail "the search page was not built"
+else
+    out="$(search_check "$search_page" "$pub")"
+    if [[ -z "$out" ]]; then
+        pass "the search page: browse list, hidden role=search box, status region, noscript, one pinned script"
+    else
+        fail "the search page: $out"
+    fi
+    # Guards: the checker bites on each broken page.
+    bite() { # bite <label> <sed expression>
+        sed -E "$2" "$search_page" >"$work/bad-search.html"
+        if [[ -z "$(search_check "$work/bad-search.html" "$pub")" ]]; then
+            fail "guard: a search page $1 passed"
+        else
+            pass "guard: a search page $1 fails"
+        fi
+    }
+    bite "with an inline script" 's#<script src=/search.js></script>#<script>x()</script>#'
+    bite "with a form" 's#<div id=search#<form></form><div id=search#'
+    bite "with a visible box" 's# hidden>#>#'
+    bite "without the status region" 's#role=status ##'
+    bite "without the label" 's#<label#<span#'
+    bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'
+fi
+if [[ -e "$pub/search/index.xml" ]]; then
+    fail "the search page published a feed"
+else
+    pass "the search page has no feed"
+fi
+if [[ ! -f "$pub/search.js" ]]; then
+    fail "search.js is not in the build"
+elif grep -rl --include=index.html --include=404.html '/search.js' "$pub" | grep -v '^'"$pub"'/search/index.html$' | grep -q .; then
+    fail "a page other than /search/ loads /search.js"
+else
+    pass "only /search/ loads /search.js"
+fi
+if grep -q 'href=/search/' "$pub/index.html" && grep -q 'href=/search/' "$pub/posts/index.html"; then
+    pass "the main nav links to /search/"
+else
+    fail "the main nav has no Search link"
+fi
+if grep -Eq '#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(' "$root/assets/css/pages/search.css"; then
+    fail "search.css has a literal color: tokens only"
+else
+    pass "search.css uses tokens only"
 fi
 
 # Render-review polish (issue 61): built pages and stylesheet.

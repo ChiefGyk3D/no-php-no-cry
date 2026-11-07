@@ -14,14 +14,17 @@ work="$(mktemp -d "$root/tmp/check-output.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
 failures=0
-# The pinned hash of the one allowed script is a committed file; tests use their
-# own, absent unless a case pins it.
-export SCRIPT_HASH_FILE="$work/copy.sha256"
-pin_dir() { printf '%s  copy.js\n' "$(sha256sum "$1/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"; }
+# The pinned hash of each allowed script (copy.js, search.js) is a committed
+# file named <script>.sha256; tests use their own directory, empty unless a case
+# pins a script.
+export SCRIPT_HASH_DIR="$work/hashes"
+# pin_dir <site dir> [script name]: pins the script's current bytes.
+pin_dir() { printf '%s  %s\n' "$(sha256sum "$1/${2:-copy.js}" | cut -d' ' -f1)" "${2:-copy.js}" >"$SCRIPT_HASH_DIR/${2:-copy.js}.sha256"; }
 
 make_good() {
     local dir="$1"
-    rm -f "$SCRIPT_HASH_FILE"
+    rm -rf "$SCRIPT_HASH_DIR"
+    mkdir -p "$SCRIPT_HASH_DIR"
     rm -rf "$dir"
     mkdir -p "$dir/posts/sample-post"
     # Heads as Hugo's minifier writes them (attribute quotes dropped where legal).
@@ -42,7 +45,9 @@ make_good() {
     printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta name=description content=\"Home description.\"><meta property=og:description content=\"Home description.\"><meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/>${person_ld}</head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${home_body}${shell_close}</body></html>" >"$dir/index.html"
     printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta name=description content=\"Post description.\"><meta property=og:description content=\"Post description.\"><meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/>${article_ld}</head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${post_body}${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
     plain_page() { printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><title>t</title></head><body>${shell_open}$1${shell_close}</body></html>" >"$2"; }
-    mkdir -p "$dir/tags/lorem" "$dir/journal"
+    mkdir -p "$dir/tags/lorem" "$dir/journal" "$dir/support" "$dir/search"
+    plain_page '<h1>Support</h1>' "$dir/support/index.html"
+    plain_page '<h1>Search</h1><ul><li><a href=/posts/sample-post/>Sample post</a></ul>' "$dir/search/index.html"
     plain_page "$archive_body" "$dir/posts/index.html"
     plain_page "$archive_body" "$dir/tags/lorem/index.html"
     plain_page "$archive_body" "$dir/journal/index.html"
@@ -108,7 +113,7 @@ variant() {
     expect_fail "$name" "$rule" "$d"
 }
 
-append_html() { printf '%s\n' "$APPEND" >>"$1/index.html"; }
+append_html() { printf '%s\n' "$APPEND" >>"$1/${PAGE:-index.html}"; }
 
 # Landmarks: skip link first and targeting main, one header, one nav labeled
 # Main, one main#main, one footer, on every page (not alias stubs).
@@ -139,7 +144,7 @@ APPEND='<script src=/copy.js>alert(1)</script>' variant copy-script-with-inline-
 APPEND='<script src=/copy.js defer></script>' variant copy-script-extra-attribute script-not-allowed append_html
 APPEND='<script type=module src=/copy.js></script>' variant copy-script-module script-not-allowed append_html
 APPEND='<script src=data:text/javascript,alert(1)></script>' variant data-url-script script-not-allowed append_html
-APPEND='<script src=/copy.js></script><script src=/copy.js></script>' variant copy-script-twice script-count append_html
+PAGE=support/index.html APPEND='<script src=/copy.js></script><script src=/copy.js></script>' variant copy-script-twice script-count append_html
 APPEND='<script src=/copy.js></script><script src=/other.js></script>' variant second-script-file script-not-allowed append_html
 APPEND='<script' variant unterminated-script-tag script-not-allowed append_html
 APPEND='<a href="javascript:alert(1)">x</a>' variant javascript-href javascript-url append_html
@@ -234,71 +239,145 @@ for form in '<img src="//test-blog.chiefgyk3d.com/a.png" alt=x>' '<a href="//exa
     fi
 done
 
-# The one allowed script: <script src=/copy.js></script> (as the minifier writes
-# it, or with quotes) with a small copy.js. It is allowed once, in any page.
-with_copy() {
-    printf '%s\n' "$APPEND" >>"$1/index.html"
-    printf '%s\n' "$COPY_JS" >"$1/copy.js"
-    pin_dir "$1"
-}
+# The pinned scripts. Each is allowed on its own page only (scripts/artifact-rules.sh
+# maps script -> page): /copy.js on /support/, /search.js on /search/. The tag is
+# as the minifier writes it (no quotes), or with quotes, once per page.
 COPY_JS='document.documentElement.dataset.copy="dark"'
-for form in '<script src=/copy.js></script>' '<script src="/copy.js"></script>' "<script src='/copy.js'></script>" '<SCRIPT SRC=/copy.js></SCRIPT>'; do
-    d="$work/copy-ok"
-    make_good "$d"
-    APPEND="$form" COPY_JS="$COPY_JS" with_copy "$d"
-    if "$checker" "$d" >/dev/null 2>&1; then
-        echo "ok: the copy script is allowed ($form)"
-    else
-        echo "FAIL: the copy script was rejected ($form)"
-        "$checker" "$d" || true
-        failures=$((failures + 1))
-    fi
-done
-
-# The page references /copy.js but the file is not in the build.
-copy_missing() {
-    printf '%s\n' '<script src=/copy.js></script>' >>"$1/index.html"
-    printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
+SEARCH_JS='document.documentElement.dataset.search="dark"'
+js_body() { if [[ "$1" == copy.js ]]; then printf '%s\n' "$COPY_JS"; else printf '%s\n' "$SEARCH_JS"; fi; }
+home_of() { if [[ "$1" == copy.js ]]; then printf 'support/index.html'; else printf 'search/index.html'; fi; }
+# place <dir> <script> [page] [tag]: appends the tag to the page (default: the
+# script's own), writes the script and pins it.
+place() {
+    local name="$2" page="${3:-$(home_of "$2")}" tag="${4:-<script src=/$2></script>}"
+    printf '%s\n' "$tag" >>"$1/$page"
+    js_body "$name" >"$1/$name"
+    pin_dir "$1" "$name"
 }
-variant copy-script-file-missing missing-script copy_missing
+for name in copy.js search.js; do
+    for form in "<script src=/$name></script>" "<script src=\"/$name\"></script>" "<script src='/$name'></script>" "<SCRIPT SRC=/$name></SCRIPT>"; do
+        d="$work/script-ok"
+        make_good "$d"
+        place "$d" "$name" "" "$form"
+        if "$checker" "$d" >/dev/null 2>&1; then
+            echo "ok: $name is allowed on its own page ($form)"
+        else
+            echo "FAIL: $name was rejected on its own page ($form)"
+            "$checker" "$d" || true
+            failures=$((failures + 1))
+        fi
+    done
+done
+d="$work/script-both"
+make_good "$d"
+place "$d" copy.js
+place "$d" search.js
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: both pinned scripts, each on its own page, pass"
+else
+    echo "FAIL: both pinned scripts on their own pages were rejected"
+    "$checker" "$d" || true
+    failures=$((failures + 1))
+fi
 
-# Script files: only /copy.js, under 1 KB gzip (brief section 10).
-good_copy() {
-    printf '%s\n' '<script src=/copy.js></script>' >>"$1/index.html"
-    printf '%s\n' "$COPY_JS" >"$1/copy.js"
-    pin_dir "$1"
+# A pinned script on any page other than its own is refused, with the other
+# script's page as the wrong page too.
+wrong() { place "$1" "$NAME" "$ON"; }
+NAME=copy.js ON=index.html variant copy-on-home script-wrong-page wrong
+NAME=copy.js ON=search/index.html variant copy-on-search-page script-wrong-page wrong
+NAME=copy.js ON=posts/sample-post/index.html variant copy-on-a-post script-wrong-page wrong
+NAME=search.js ON=index.html variant search-on-home script-wrong-page wrong
+NAME=search.js ON=support/index.html variant search-on-support-page script-wrong-page wrong
+NAME=search.js ON=404.html variant search-on-404 script-wrong-page wrong
+wrong_and_right() {
+    place "$1" copy.js
+    place "$1" copy.js index.html
+}
+variant copy-on-both-support-and-home script-wrong-page wrong_and_right
+
+# The page references the script but the file is not in the build.
+script_missing() {
+    printf '%s\n' "<script src=/$NAME></script>" >>"$1/$(home_of "$NAME")"
+    printf '%s  %s\n' "$(printf 'a%.0s' $(seq 1 64))" "$NAME" >"$SCRIPT_HASH_DIR/$NAME.sha256"
+}
+NAME=copy.js variant copy-script-file-missing missing-script script_missing
+NAME=search.js variant search-script-file-missing missing-script script_missing
+
+# Once per page.
+twice() { place "$1" "$NAME" "" "<script src=/$NAME></script><script src=/$NAME></script>"; }
+NAME=copy.js variant copy-script-twice-on-own-page script-count twice
+NAME=search.js variant search-script-twice script-count twice
+
+# Script files: only the two pinned ones, each under 1 KB gzip (brief section
+# 10); a third .js, in any directory or case, is refused.
+both_pinned() {
+    place "$1" copy.js
+    place "$1" search.js
 }
 extra_js() {
-    good_copy "$1"
+    both_pinned "$1"
     mkdir -p "$(dirname "$1/$FILE")"
     printf 'x\n' >"$1/$FILE"
 }
 FILE=app.js variant extra-js-file extra-script-file extra_js
+FILE=third.js variant third-js-file extra-script-file extra_js
 FILE=js/other.js variant nested-js-file extra-script-file extra_js
 FILE=other.mjs variant extra-mjs-file extra-script-file extra_js
 FILE=Other.JS variant extra-uppercase-js-file extra-script-file extra_js
 FILE=js/copy.js variant copy-js-in-subdirectory extra-script-file extra_js
+FILE=js/search.js variant search-js-in-subdirectory extra-script-file extra_js
 js_only_file() { printf 'x\n' >"$1/app.js"; }
 variant js-file-without-page-reference extra-script-file js_only_file
 # 4 KB of incompressible bytes is over the gzip budget; a 1 KB compressible
 # file is not.
-big_copy() {
-    good_copy "$1"
-    head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$1/copy.js"
-    pin_dir "$1"
+big_js() {
+    place "$1" "$NAME"
+    head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$1/$NAME"
+    pin_dir "$1" "$NAME"
 }
-variant copy-js-over-budget js-budget big_copy
-d="$work/copy-compressible"
+NAME=copy.js variant copy-js-over-budget js-budget big_js
+NAME=search.js variant search-js-over-budget js-budget big_js
+for name in copy.js search.js; do
+    d="$work/js-compressible"
+    make_good "$d"
+    place "$d" "$name"
+    for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$d/$name"
+    pin_dir "$d" "$name"
+    if "$checker" "$d" >/dev/null 2>&1; then
+        echo "ok: a $name that is large raw but under 1 KB gzip passes"
+    else
+        echo "FAIL: a compressible $name under 1 KB gzip was rejected"
+        failures=$((failures + 1))
+    fi
+done
+
+# The search page is the browse list with JS off, so its HTML is held to a
+# budget: 40 KB gzip. Past it the approach (one static page listing every post)
+# needs another look (docs/pinned-script.md).
+big_search_page() { head -c 80000 /dev/urandom | od -An -tx1 | tr -d ' \n' | fold -w 70 | sed 's#^#<p>#' >>"$1/search/index.html"; }
+variant search-page-over-budget search-page-budget big_search_page
+d="$work/search-compressible"
 make_good "$d"
-good_copy "$d"
-for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$d/copy.js"
-pin_dir "$d"
+for _ in $(seq 1 4000); do printf '<li><a href=/posts/x/>A post title</a>\n'; done >>"$d/search/index.html"
 if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: a copy.js that is large raw but under 1 KB gzip passes"
+    echo "ok: a large but compressible search page under 40 KB gzip passes"
 else
-    echo "FAIL: a compressible copy.js under 1 KB gzip was rejected"
+    echo "FAIL: a compressible search page under 40 KB gzip was rejected"
+    "$checker" "$d" || true
     failures=$((failures + 1))
 fi
+# The same bytes on another page are no search-page finding.
+big_other_page() { head -c 80000 /dev/urandom | od -An -tx1 | tr -d ' \n' | fold -w 70 | sed 's#^#<p>#' >>"$1/support/index.html"; }
+d="$work/support-big"
+make_good "$d"
+big_other_page "$d"
+if "$checker" "$d" >/dev/null 2>&1; then
+    echo "ok: the search page budget applies to the search page only"
+else
+    echo "FAIL: a large page other than the search page was rejected"
+    failures=$((failures + 1))
+fi
+
 append_file() { printf '%s\n' "$APPEND" >>"$1/$FILE"; }
 FILE=css/site.min.css APPEND='@import "https://fonts.example.org/css";' variant css-import external-css-reference append_file
 FILE=css/site.min.css APPEND='@import url(//fonts.example.org/css);' variant css-import-scheme-relative external-css-reference append_file
@@ -386,23 +465,44 @@ FILE=.hidden variant dotfile unexpected-file other_file
 FILE=page.html.php variant double-extension unexpected-file other_file
 # The script is accepted only by hash: unpinned, changed after pinning, or with
 # a malformed hash file it fails; with no hash file no script element passes.
-no_hash_file() { rm -f "$SCRIPT_HASH_FILE"; }
+# Each pinned script has its own hash file: drift in one fails that script only.
 no_hash_file_with_script() {
-    good_copy "$1"
-    no_hash_file
+    place "$1" "$NAME"
+    rm -f "$SCRIPT_HASH_DIR/$NAME.sha256"
 }
-variant copy-without-hash-file script-not-allowed no_hash_file_with_script
-variant copy-file-without-hash-file extra-script-file no_hash_file_with_script
-copy_changed() {
-    good_copy "$1"
-    printf '%s\n' "/\"/;eval('x');//\"" >"$1/copy.js"
+NAME=copy.js variant copy-without-hash-file script-not-allowed no_hash_file_with_script
+NAME=copy.js variant copy-file-without-hash-file extra-script-file no_hash_file_with_script
+NAME=search.js variant search-without-hash-file script-not-allowed no_hash_file_with_script
+NAME=search.js variant search-file-without-hash-file extra-script-file no_hash_file_with_script
+only_other_pinned() {
+    place "$1" search.js
+    rm -f "$SCRIPT_HASH_DIR/search.js.sha256"
+    printf '%s  copy.js\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_DIR/copy.js.sha256"
 }
-variant copy-changed-after-pinning script-hash copy_changed
-copy_bad_hash_file() {
-    good_copy "$1"
-    printf 'not a hash\n' >"$SCRIPT_HASH_FILE"
+variant search-with-only-copys-hash-file script-not-allowed only_other_pinned
+js_changed() {
+    place "$1" "$NAME"
+    printf '%s\n' "/\"/;eval('x');//\"" >"$1/$NAME"
 }
-variant copy-malformed-hash-file script-hash-file copy_bad_hash_file
+NAME=copy.js variant copy-changed-after-pinning script-hash js_changed
+NAME=search.js variant search-changed-after-pinning script-hash js_changed
+swapped_hashes() {
+    both_pinned "$1"
+    cp "$SCRIPT_HASH_DIR/copy.js.sha256" "$work/copy-hash"
+    printf '%s  search.js\n' "$(cut -d' ' -f1 "$work/copy-hash")" >"$SCRIPT_HASH_DIR/search.js.sha256"
+}
+variant search-pinned-to-copys-hash script-hash swapped_hashes
+bad_hash_file() {
+    place "$1" "$NAME"
+    printf 'not a hash\n' >"$SCRIPT_HASH_DIR/$NAME.sha256"
+}
+NAME=copy.js variant copy-malformed-hash-file script-hash-file bad_hash_file
+NAME=search.js variant search-malformed-hash-file script-hash-file bad_hash_file
+wrong_name_in_hash_file() {
+    place "$1" search.js
+    printf '%s  copy.js\n' "$(sha256sum "$1/search.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_DIR/search.js.sha256"
+}
+variant search-hash-file-names-another-script script-hash-file wrong_name_in_hash_file
 svg_script() {
     printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>' >"$1/logo.svg"
 }
@@ -425,7 +525,7 @@ EXTRA="/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).
 robots_staging() { printf 'User-agent: *\nDisallow: /\n' >"$1/robots.txt"; }
-add_noindex() { sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html" "$1/posts/sample-post/index.html" "$1/404.html" "$1/posts/index.html" "$1/tags/lorem/index.html" "$1/journal/index.html"; }
+add_noindex() { sed -i 's#<head>#<head><meta name=robots content="noindex, nofollow">#' "$1/index.html" "$1/posts/sample-post/index.html" "$1/404.html" "$1/posts/index.html" "$1/tags/lorem/index.html" "$1/journal/index.html" "$1/support/index.html" "$1/search/index.html"; }
 staging_tree() {
     robots_staging "$1"
     add_noindex "$1"
@@ -625,11 +725,11 @@ else
 fi
 
 if [[ -f "$root/public/index.html" ]]; then
-    if env -u SCRIPT_HASH_FILE "$checker" "$root/public" >/dev/null 2>&1; then
+    if env -u SCRIPT_HASH_DIR "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: real build in public/ passes"
     else
         echo "FAIL: real build in public/ was rejected"
-        env -u SCRIPT_HASH_FILE "$checker" "$root/public" || true
+        env -u SCRIPT_HASH_DIR "$checker" "$root/public" || true
         failures=$((failures + 1))
     fi
 fi
