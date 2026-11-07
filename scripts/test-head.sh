@@ -66,7 +66,7 @@ class Head(HTMLParser):
                 self.scripts += 1
         elif tag == "title":
             self.in_title = True
-        elif tag == "a" and "me" in (a.get("rel") or "").split():
+        elif tag in ("a", "link") and "me" in (a.get("rel") or "").split():
             self.me.append(a)
 
     def handle_endtag(self, tag):
@@ -203,9 +203,17 @@ else
 fi
 
 if out="$(run_asserter "$site/public/index.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
-    pass "rel=me links render; the javascript: link is not emitted"
+    pass "rel=me renders: head links from data/socials.yaml, then params.me; the javascript: link is not emitted"
 else
     fail "home page: $out"
+fi
+
+# Guard: the rel=me check bites. A page without the head link must fail.
+sed 's|<link rel="me"[^>]*>||g' "$site/public/index.html" >"$work/home-nome.html"
+if run_asserter "$work/home-nome.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
+    fail "guard: a home page without the head rel=me links passed"
+else
+    pass "guard: a home page without the head rel=me links fails"
 fi
 
 if grep -q 'rel="me"' "$site/public/index.html" && ! grep -qi 'javascript:' "$site/public/index.html"; then
