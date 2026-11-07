@@ -14,6 +14,9 @@
       {{- with site.Data.about.speaking }}
       <p class="about-speaking">{{ .before }}{{ if and .url (strings.HasPrefix .url "https://") }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .link_text }}<span class="visually-hidden"> (opens in a new tab)</span></a>{{ else }}{{ .link_text }}{{ end }}{{ .after }}</p>
       {{- end }}
+      {{- with site.Data.about.mission }}
+      <p class="about-mission">{{ . }}</p>
+      {{- end }}
     </div>
   </div>
 
