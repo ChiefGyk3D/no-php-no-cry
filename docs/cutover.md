@@ -109,9 +109,9 @@ action that agents never perform and that needs the owner's own message.
 
 | # | Step | Actor | Done when |
 |---|---|---|---|
-| N1 | Public site name is ChiefGyk3D everywhere it shows (#126) | AGENT | `title` in `hugo.toml` changed; page titles, feed, Open Graph and JSON-LD show it; `scripts/test-head.sh` passes |
+| N1 | Public site name is ChiefGyk3D everywhere it shows (#126) | AGENT | `title` in `hugo.toml` changed and the old name gone from every shown surface: page titles, feed, Open Graph, JSON-LD, the footer, the 404 page, `robots.txt`, `llms.txt` and `static/site.webmanifest` (today it still names the old project). `scripts/test-head.sh` (which today hardcodes the old name) is updated to expect the new one, and `scripts/check-output.sh` (rule `old-site-name`, which reads html, xml, svg, txt, json and webmanifest files) passes on the production and staging builds |
 | N2 | Analytics go-live pull request (#84): swap `docs/privacy-with-analytics.md` into `content/privacy/index.md`, update `scripts/test-pages.sh` (the `privacy()` asserter and `good_privacy` fixture), update `docs/privacy-and-analytics.md`, refresh `analytics/hosting-asns.mjs`. The privacy text and the collector change in the same pull request, never apart | AGENT | the pull request is merged with the gate green; the collector records nothing while no `DB` is bound |
-| N3 | Analytics deploy (steps in `docs/analytics-deploy.md`): create the D1 database, apply the migration, bind `DB` to the Pages project, add the D1 scope to the token that runs the daily maintenance, schedule it. The binding is what turns counting on | OWNER-ONLY | a page view after the deploy shows one row in the `report_*` views; `ANALYTICS_OFF=1` stops it at once |
+| N3 | Analytics deploy (steps in `docs/analytics-deploy.md`): create the D1 database, apply the migration, bind `DB` to the Pages project, add the D1 scope to the token that runs the daily maintenance, schedule it. The binding is what turns counting on | OWNER-ONLY | first, a page view after the deploy shows one new row in the raw `view_events` table (`wrangler d1 execute`, owner token). Then five matching views plus one run of the scheduled maintenance produce a row in the `report_*` views: those views are filled only by `analytics/maintenance.sql` and hide every bucket under the 5-view floor, so one view never appears there. `ANALYTICS_OFF=1` stops counting at once |
 | N4 | Syndication on deploy (#11): a deploy-time job that announces each new post once to Bluesky, Mastodon, Discord and Matrix, with durable dedupe and per-platform failure isolation. Built and tested; it runs only after cutover, never against staging posts | AGENT | #11 acceptance criteria pass in tests with the clients faked |
 | N5 | Syndication credentials for the four platforms, stored as Actions secrets or Doppler entries | OWNER-ONLY | the job's first real run posts once and a rerun posts nothing |
 | N6 | Reach Around pointer: a footer or About link to Reach Around and its media kit (the `links.` subdomain pages stay as they are), and Reach Around's link back to the blog | AGENT for this site; OWNER-ONLY for the other repository's deploy | both links work through the apex or the redirect |
@@ -120,9 +120,13 @@ action that agents never perform and that needs the owner's own message.
 | N9 | Posts: the owner reads each of the ten and flips it to `draft: false`; Twitch-and-Toot and Stream Daemon in the same pull request; that post's `data/legacy_uploads.json` entries in the same pull request | OWNER-ONLY decision, AGENT prepares the pull request | `scripts/test-redirects.sh` passes and no forward link leads to a 404 |
 | N10 | Device matrix QA (#131) passes on three engines | AGENT runs, OWNER-ONLY sign-off | the QA report is attached to the cutover issue |
 
-Order: N1, N2, N4, N6, N7, N8 can all merge before the owner's go. N3 and N5 are
-owner steps taken when the owner chooses; N9 and N10 must be complete before the
-cutover pull request in "Cutover (ordered)" is merged. No agent runs anything
+Order: N1, N2, N4, N6, N7, N8 can all merge before the owner's go. N3 (analytics
+go-live, required before cutover, #84) and N9 and N10 must be complete before the
+cutover pull request in "Cutover (ordered)" is merged and before any production
+traffic: N2 puts the analytics wording on the privacy page, and N3 is what makes
+it true (the `DB` binding). N5 (syndication credentials) is an owner step taken
+when the owner chooses; N4's job runs only after cutover, so N5 is needed by the
+first post published after cutover, not before the cutover pull request. No agent runs anything
 marked OWNER-ONLY, and none of this changes the freeze rules in "Ruling and
 status".
 
