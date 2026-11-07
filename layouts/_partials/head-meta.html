@@ -46,6 +46,10 @@
 {{- range site.Data.socials }}{{ if and .rel_me (strings.HasPrefix .url "https://") }}
 <link rel="me" href="{{ .url }}">
 {{- end }}{{ end }}
+{{- /* params.me: the same, for identities not in data/socials.yaml. https only. */ -}}
+{{- range site.Params.me }}{{ if strings.HasPrefix .url "https://" }}
+<link rel="me" href="{{ .url }}">
+{{- end }}{{ end }}
 {{- /* JSON-LD. sameAs: the https links of data/socials.yaml (params.me when that file is empty). */ -}}
 {{- $sameAs := slice -}}
 {{- range site.Data.socials }}{{ if strings.HasPrefix .url "https://" }}{{ $sameAs = $sameAs | append .url }}{{ end }}{{ end -}}

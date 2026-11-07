@@ -64,12 +64,7 @@
         <li><a href="{{ "/social/" | relURL }}">Social</a></li>
         <li><a href="{{ "/support/" | relURL }}">Support</a></li>
       </ul>
-      {{- /* The social icon row and the Tip/Ko-fi/Patreon/Shop row are not repeated here: /social/ and /support/ carry them (data/socials.yaml, data/support.yaml). params.me still renders its https rel="me" identity links (none until set). */ -}}
-      {{- with site.Params.me }}
-      <p class="me-links">
-        {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }} <a rel="me" href="{{ $l.url }}">{{ $l.name }}</a>{{ end }}{{ end -}}
-      </p>
-      {{- end }}
+      {{- /* The social icon row and the Tip/Ko-fi/Patreon/Shop row are not repeated here: /social/ and /support/ carry them (data/socials.yaml, data/support.yaml). rel="me" identity links are invisible <link> elements in the head (head-meta.html), so the footer holds only the page links, the line and the copyright. */ -}}
       <div class="footer-meta">
         <p class="footer-line">You're not dead until you stop learning. Happy Hacking.</p>
         <p class="credit">&copy; {{ now.Year }} ChiefGyk3D</p>

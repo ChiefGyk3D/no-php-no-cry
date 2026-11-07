@@ -54,9 +54,15 @@ class Head(HTMLParser):
         self.title = ""
         self.in_title = False
         self.me = []
+        self.body_me = []
+        self.in_head = False
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if tag == "head":
+            self.in_head = True
+        elif tag == "body":
+            self.in_head = False
         if tag == "meta":
             self.metas.append(a)
         elif tag == "script":
@@ -67,11 +73,16 @@ class Head(HTMLParser):
         elif tag == "title":
             self.in_title = True
         elif tag in ("a", "link") and "me" in (a.get("rel") or "").split():
-            self.me.append(a)
+            # Identity links belong in <head> as invisible link elements. A
+            # rel=me anchor in the body (the footer) is a visible link and is
+            # collected apart so it cannot satisfy the head assertion.
+            (self.me if self.in_head else self.body_me).append(a)
 
     def handle_endtag(self, tag):
         if tag == "title":
             self.in_title = False
+        elif tag == "head":
+            self.in_head = False
 
     def handle_data(self, data):
         if self.in_title:
@@ -102,6 +113,8 @@ def main(path, want_desc, want_title, want_me):
         bad.append("title is %r / %r, want %r" % (t, p.title, want_title))
     if p.scripts:
         bad.append("script element present")
+    if p.body_me:
+        bad.append("rel=me outside <head>: %r" % [a.get("href") for a in p.body_me])
     for a in p.me:
         if (a.get("href") or "").lower().startswith("javascript:"):
             bad.append("javascript: rel=me link emitted")
@@ -214,6 +227,19 @@ if run_asserter "$work/home-nome.html" "$site_desc" "ChiefGyk3D" "https://data.e
     fail "guard: a home page without the head rel=me links passed"
 else
     pass "guard: a home page without the head rel=me links fails"
+fi
+
+# Guard: a visible rel=me anchor in the body (the footer) fails, and the head
+# links alone do not mask it.
+sed 's|</footer>|<a rel="me" href="https://footer.example/@x">x</a></footer>|' "$site/public/index.html" >"$work/home-footer-me.html"
+grep -q 'footer.example' "$work/home-footer-me.html" || {
+    echo "FAIL: could not inject the footer rel=me anchor"
+    exit 1
+}
+if run_asserter "$work/home-footer-me.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
+    fail "guard: a rel=me anchor in the footer passed"
+else
+    pass "guard: a rel=me anchor in the footer fails"
 fi
 
 if grep -q 'rel="me"' "$site/public/index.html" && ! grep -qi 'javascript:' "$site/public/index.html"; then
