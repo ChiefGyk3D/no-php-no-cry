@@ -569,10 +569,13 @@ done
 # the manifest. The one allowed form is a link to the repository, which starts
 # with https://github.com/ChiefGyk3D/no-php-no-cry followed by end, a slash, a
 # quote, whitespace or an angle bracket. Anything else is a finding.
-old_name_allow='https?://github\.com/ChiefGyk3D/no-php-no-cry([/"'"'"'<>[:space:]]|$)'
+# html, xml and svg are read with character references decoded, as a browser
+# shows them (scripts/old-name-scan.py); the other types are read as written.
 while IFS= read -r -d '' f; do
     rel="${f#"$dir"/}"
-    if sed -E "s#${old_name_allow//#/\\#}#X\1#g" "$f" | grep -qi 'no-php-no-cry'; then
+    mode=raw
+    case "${rel,,}" in *.html | *.xml | *.svg) mode=decode ;; esac
+    if python3 -I "$(dirname "${BASH_SOURCE[0]}")/old-name-scan.py" "$mode" "$f"; then
         report old-site-name "$rel"
     fi
 done < <(find "$dir" -type f \( -iname '*.html' -o -iname '*.xml' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.webmanifest' -o -iname '*.svg' -o -name '_redirects' -o -name '_headers' \) -print0 | sort -z)
