@@ -1,6 +1,6 @@
 # Redesign brief: chiefgyk3d.com
 
-> Brand kit sync (issue 78, 2026-11-04): the brand is dark only (kit decision L). Light mode, `#8A5A00`, the ghost gray `#383838`, the cream plate and the `data-theme` blocks described below are retired from `brand/tokens.json` and the generated CSS; this brief is kept as history. The theme toggle (`/theme.js`) was never implemented and its scaffolding was removed (issue 82); the one script slot is `/copy.js` (docs/pinned-script.md).
+> Brand kit sync (issue 78, 2026-11-04): the brand is dark only (kit decision L). Light mode, `#8A5A00`, the ghost gray `#383838`, the cream plate and the `data-theme` blocks described below are retired from `brand/tokens.json` and the generated CSS; this brief is kept as history. The theme toggle (`/theme.js`) was never implemented and its scaffolding was removed (issue 82); the script slots are now `/copy.js` and `/search.js` (docs/pinned-script.md).
 
 Issue: ChiefGyk3D/no-php-no-cry#41. Status: maintainer decisions recorded 2026-10-29 (section 13); the issue list
 in section 12 awaits approval. Written 2026-10-29. Docs only; no site code changes.
@@ -477,7 +477,7 @@ Budgets (a build gate in CI measures them):
 
 | Item | Budget |
 |---|---|
-| JavaScript | one same-origin file (`/theme.js`), under 1 KB gzip, target under 600 bytes; no other script, no third-party script |
+| JavaScript | two same-origin files, each under 1 KB gzip and each loaded by one page only: `/copy.js` on `/support/` and `/search.js` on `/search/` (docs/pinned-script.md); no other script, no third-party script |
 | CSS (all, minified, one file) | 20 KB gzip, under 12 KB target; today 8.3 KB raw |
 | Fonts | 1 file, under 30 KB (Jost is 26.6 KB) |
 | Home page HTML | under 15 KB gzip |

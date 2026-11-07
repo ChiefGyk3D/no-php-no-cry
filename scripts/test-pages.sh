@@ -28,6 +28,8 @@ fail() {
 
 asserter="$work/assert_pages.py"
 cat >"$asserter" <<'PY'
+import html
+import os
 import re
 import sys
 from html.parser import HTMLParser
@@ -49,6 +51,17 @@ BUTTONS = {
 }
 PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
            "Following a link takes you to another site. I collect nothing here.")
+SKILL_GROUPS = [
+    "Identity and access",
+    "Endpoint, email, and data security",
+    "Network security and zero trust",
+    "Security operations and investigation",
+    "Cloud, infrastructure as code, and secrets",
+    "Linux and homelab",
+    "Software and automation",
+    "Local AI and agents",
+    "Radio, RF, and telecom",
+]
 CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
 
 
@@ -132,7 +145,7 @@ def external_ok(a):
 
 def support(p, errs, repo):
     common(p, errs)
-    # /support/ alone may carry the one pinned script; it is checked below.
+    # /support/ alone may carry /copy.js, its pinned script; it is checked below.
     if "a <script> element" in errs:
         errs.remove("a <script> element")
     if p.h1 != ["Support my work"]:
@@ -202,15 +215,97 @@ def support(p, errs, repo):
         errs.append("the Ko-fi embed TODO marker is missing from the template")
 
 
+def norm(t):
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", t))).strip()
+
+
+def about_data():
+    """The expected About text, read from data/about.yaml (ABOUT_DATA). The file has a fixed shape
+    (double-quoted strings, no escapes), so a line scan avoids a YAML dependency."""
+    with open(os.environ["ABOUT_DATA"], encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    d = {"paragraphs": [], "skills": [], "speaking": {}}
+    sect = None
+    for ln in lines:
+        m = re.match(r'^(\w+):(?: "(.*)")?$', ln)
+        if m:
+            sect = m.group(1)
+            if m.group(2) is not None:
+                d[sect] = m.group(2)
+            continue
+        if sect == "paragraphs":
+            m = re.match(r'^  - "(.*)"$', ln)
+            if m:
+                d["paragraphs"].append(m.group(1))
+        elif sect == "speaking":
+            m = re.match(r'^  (\w+): "(.*)"$', ln)
+            if m:
+                d["speaking"][m.group(1)] = m.group(2)
+        elif sect == "skills":
+            m = re.match(r'^  - name: "(.*)"$', ln)
+            if m:
+                d["skills"].append({"name": m.group(1)})
+            m = re.match(r'^    text: "(.*)"$', ln)
+            if m:
+                d["skills"][-1]["text"] = m.group(1)
+    return d
+
+
+def check_about_data(errs, html_src):
+    """Every bio and skill text on the page must equal its data/about.yaml entry, exactly."""
+    d = about_data()
+    if len(d["paragraphs"]) != 2 or len(d["skills"]) != len(SKILL_GROUPS) or not d.get("opener"):
+        errs.append("data/about.yaml is not the expected shape")
+        return
+    ps = [norm(m).replace(" (opens in a new tab)", "") for m in re.findall(r"<p[^>]*>(.*?)</p>", html_src, re.S)]
+    for label, want in [("opener", d["opener"])] + [("bio paragraph %d" % (i + 1), t) for i, t in enumerate(d["paragraphs"])]:
+        if want not in ps:
+            errs.append("%s differs from data/about.yaml" % label)
+    sp = d["speaking"]
+    if sp["before"] + sp["link_text"] + sp["after"] not in ps:
+        errs.append("speaking sentence differs from data/about.yaml")
+    groups = [(norm(a), norm(b)) for a, b in re.findall(r"<h3[^>]*>(.*?)</h3>\s*<p[^>]*>(.*?)</p>", html_src, re.S)]
+    want = [(g["name"], g["text"]) for g in d["skills"]]
+    for w in want:
+        if w not in groups:
+            errs.append("skill group %r is missing or its text differs from data/about.yaml" % w[0])
+    if len(groups) != len(want):
+        errs.append("expected %d skill groups, found %d" % (len(want), len(groups)))
+
+
 def about(p, errs, repo):
     common(p, errs)
+    check_about_data(errs, repo["html"])
     if p.h1 != ["About"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
     if "DRAFT" in flat:
         errs.append("DRAFT marker still on the page")
-    if "I'm ChiefGyk3D, a cybersecurity engineer, creator, and open-source builder" not in flat or "If you need references, contact me directly." not in flat:
-        errs.append("chosen bio text missing")
+    if "Hi, I'm Moshe, and I go by ChiefGyk3D online." not in flat:
+        errs.append("bio opener missing")
+    if "I’m more than ready for a security architecture role, and that’s where I’m headed." not in flat:
+        errs.append("bio closing sentence missing")
+    if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator." not in flat:
+        errs.append("bio first paragraph missing")
+    if "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the Call Center Village" not in flat:
+        errs.append("speaking sentence missing")
+    cc = [a for a, t in p.links if t == "Call Center Village"]
+    if len(cc) != 1:
+        errs.append("expected one Call Center Village link, found %d" % len(cc))
+    for a in cc:
+        if a.get("href") != "https://www.callcentervillage.com/":
+            errs.append("Call Center Village link href is %r" % a.get("href"))
+        if not external_ok(a):
+            errs.append("Call Center Village link lacks target=_blank rel=noopener")
+    if p.ids.get("skills") != "h2":
+        errs.append("no #skills h2")
+    h3s = [html.unescape(m) for m in re.findall(r"<h3[^>]*>(.*?)</h3>", repo["html"], re.S)]
+    if h3s != SKILL_GROUPS:
+        errs.append("skill group headings are %r" % h3s)
+    if p.count("h4") or p.count("h1") != 1:
+        errs.append("heading levels are out of order")
+    if "about 15 years" in flat:
+        errs.append("the old bio text is still on the page")
     if not any(t == "img" and (a.get("alt") or "") and (a.get("src") or "").startswith("/brand/") for t, a in p.tags):
         errs.append("no mascot image with alt text")
     if p.ids.get("contact") not in ("h2", "h3", "section"):
@@ -231,7 +326,12 @@ def about(p, errs, repo):
         errs.append("the About body must link to /resume/")
     if "mailto:" in " ".join(h or "" for h in hrefs):
         errs.append("there is no email address: contact is Matrix and Discord only")
-    if "TODO" in repo["html"] or "email" in flat.lower():
+    # The email ban is for the contact section; the Skills text legitimately says "email security".
+    m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
+    contact = re.sub(r"<[^>]+>", " ", m.group(0)).lower() if m else ""
+    if not contact:
+        errs.append("the contact section was not found")
+    if "TODO" in repo["html"] or "email" in contact:
         errs.append("the contact section must not mention email or carry a TODO")
 
 
@@ -272,7 +372,7 @@ pub="$work/public"
 assert() {
     # assert <kind> <html file> [template]
     local out rc=0
-    out="$(python3 -I "$asserter" "$@" 2>&1)" || rc=$?
+    out="$(ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" "$@" 2>&1)" || rc=$?
     if [[ $rc -eq 0 ]]; then
         pass "$1 page rules"
     else
@@ -288,6 +388,21 @@ for kind in support about privacy; do
 done
 [[ -f "$pub/support/index.html" ]] && assert support "$pub/support/index.html" "$root/layouts/support/single.html"
 [[ -f "$pub/about/index.html" ]] && assert about "$pub/about/index.html"
+# Guard: the About check bites. One skill group's text altered, one group omitted, and a bio
+# paragraph altered must each fail (the unaltered page passed above).
+if [[ -f "$pub/about/index.html" ]]; then
+    mutate() { python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a, b = sys.argv[3], sys.argv[4]; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, b, 1))' "$pub/about/index.html" "$@"; }
+    mutate "$work/about-alt.html" "Okta, Microsoft Entra, " "Okta, "
+    mutate "$work/about-omit.html" "<h3>Radio, RF, and telecom</h3>" "<h3>Radio, RF, and telecom</h3><p>x</p><!--"
+    mutate "$work/about-bio.html" "right to repair" "right to fix"
+    for v in alt omit bio; do
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
+            fail "guard: an About page with $v-mutated text passed"
+        else
+            pass "guard: an About page with $v-mutated text fails"
+        fi
+    done
+fi
 [[ -f "$pub/privacy/index.html" ]] && assert privacy "$pub/privacy/index.html"
 
 # /contact/ is a 301 to /about/#contact, in both slash forms.
@@ -375,13 +490,110 @@ else
     pass "no frame-src in _headers"
 fi
 if [[ -e "$pub/support.js" ]]; then
-    fail "support.js shipped: the only script is the pinned /copy.js"
+    fail "support.js shipped: the only scripts are the pinned /copy.js and /search.js"
 fi
 # Only /support/ loads the copy script.
 if grep -rl --include=index.html --include=404.html '/copy.js' "$pub" | grep -v '^'"$pub"'/support/index.html$' | grep -q .; then
     fail "a page other than /support/ loads /copy.js"
 else
     pass "only /support/ loads /copy.js"
+fi
+
+# Search (issue 119): /search/ is a browse page first (every post and journal
+# entry, A to Z, as plain <li> entries) and the pinned script that belongs to
+# it, /search.js, reveals the search box. Only /search/ loads that script.
+search_check() { # search_check <page> <site root>: prints one problem per line
+    python3 -I - "$1" "$2" <<'PY'
+import glob, os, re, sys
+html = open(sys.argv[1], encoding="utf-8").read()
+root = sys.argv[2]
+errs = []
+if html.count("<script") != 1 or "<script src=/search.js></script>" not in html:
+    errs.append("/search/ must carry exactly the one pinned <script src=/search.js></script>")
+if "<form" in html:
+    errs.append("a <form> (form-action is 'none'): the box is a div role=search")
+m = re.search(r"<div[^>]*role=search[^>]*>", html)
+if not m or not re.search(r"[\s]hidden[\s>]", m.group(0)):
+    errs.append("the search control must be a div role=search that is hidden until the script reveals it")
+if not re.search(r"<label[^>]*for=q[ >]", html) or not re.search(r"<input[^>]*id=q[ >]", html):
+    errs.append("the input needs a visible label with for=q")
+if not re.search(r"<p[^>]*role=status[^>]*aria-live=polite|<p[^>]*aria-live=polite[^>]*role=status", html):
+    errs.append("a role=status aria-live=polite region is required")
+if "<noscript>" not in html:
+    errs.append("a noscript note is required")
+if re.search(r"<(style)[ >]|[ ]style=|[ ]on[a-z]+=", html):
+    errs.append("style element or attribute or event handler")
+# Every regular page of posts and journal is a <li> with a link, A to Z by title.
+titles = []
+for sec in ("posts", "journal"):
+    for f in sorted(glob.glob(os.path.join(root, sec, "*", "index.html"))):
+        page = open(f, encoding="utf-8").read()
+        if "http-equiv=refresh" in page:
+            continue
+        t = re.search(r"<title>([^<]*) \| ", page)
+        href = "/%s/%s/" % (sec, os.path.basename(os.path.dirname(f)))
+        if not re.search(r"<li><a href=%s>" % re.escape(href), html):
+            errs.append("%s is not listed as a <li> link" % href)
+        if t:
+            titles.append((sec, t.group(1)))
+li = re.findall(r'<section class=search-group[^>]*>(.*?)</section>', html, re.S)
+for grp in li:
+    names = re.findall(r"<li><a href=[^>]*>([^<]*)</a>", grp)
+    if names != sorted(names, key=str.lower):
+        errs.append("a group is not A to Z by title: %s" % names)
+if not li:
+    errs.append("no search groups")
+for e in errs:
+    print(e)
+PY
+}
+search_page="$pub/search/index.html"
+if [[ ! -f "$search_page" ]]; then
+    fail "the search page was not built"
+else
+    out="$(search_check "$search_page" "$pub")"
+    if [[ -z "$out" ]]; then
+        pass "the search page: browse list, hidden role=search box, status region, noscript, one pinned script"
+    else
+        fail "the search page: $out"
+    fi
+    # Guards: the checker bites on each broken page.
+    bite() { # bite <label> <sed expression>
+        sed -E "$2" "$search_page" >"$work/bad-search.html"
+        if [[ -z "$(search_check "$work/bad-search.html" "$pub")" ]]; then
+            fail "guard: a search page $1 passed"
+        else
+            pass "guard: a search page $1 fails"
+        fi
+    }
+    bite "with an inline script" 's#<script src=/search.js></script>#<script>x()</script>#'
+    bite "with a form" 's#<div id=search#<form></form><div id=search#'
+    bite "with a visible box" 's# hidden>#>#'
+    bite "without the status region" 's#role=status ##'
+    bite "without the label" 's#<label#<span#'
+    bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'
+fi
+if [[ -e "$pub/search/index.xml" ]]; then
+    fail "the search page published a feed"
+else
+    pass "the search page has no feed"
+fi
+if [[ ! -f "$pub/search.js" ]]; then
+    fail "search.js is not in the build"
+elif grep -rl --include=index.html --include=404.html '/search.js' "$pub" | grep -v '^'"$pub"'/search/index.html$' | grep -q .; then
+    fail "a page other than /search/ loads /search.js"
+else
+    pass "only /search/ loads /search.js"
+fi
+if grep -q 'href=/search/' "$pub/index.html" && grep -q 'href=/search/' "$pub/posts/index.html"; then
+    pass "the main nav links to /search/"
+else
+    fail "the main nav has no Search link"
+fi
+if grep -Eq '#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(' "$root/assets/css/pages/search.css"; then
+    fail "search.css has a literal color: tokens only"
+else
+    pass "search.css uses tokens only"
 fi
 
 # Render-review polish (issue 61): built pages and stylesheet.

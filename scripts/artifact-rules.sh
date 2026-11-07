@@ -7,17 +7,20 @@
 #      (artifact_name_ok): there is no second file a script could load;
 #   2. nosniff is in the headers (headers_nosniff_ok), so a response that is not
 #      served as JavaScript is not run as a script;
-#   3. the one allowed script, /copy.js, is accepted only if its sha256 equals
-#      the value in the committed hash file (script_hash_state): with no hash
-#      file no script is allowed at all, and any change to the script is a
-#      reviewed change to that file (scripts/pin-script.sh writes it);
+#   3. the allowed scripts, /copy.js and /search.js, are accepted only if each
+#      one's sha256 equals the value in its committed hash file
+#      (script_hash_state): with no hash file that script is not allowed, and
+#      any change to a script is a reviewed change to its hash file
+#      (scripts/pin-script.sh writes it). Each script also belongs to ONE page
+#      (PINNED_SCRIPTS below) and is refused on any other (script-wrong-page);
 #   4. the headers file is one "/*" rule block with no removal directive
 #      (headers_policy_ok), so nothing detaches or overrides a header per path.
 
 # artifact_name_ok <path relative to the site root>: succeeds for a file the
 # build may carry. The three control files only at the root; everything else needs
 # a listed extension, so no extension, a trailing dot, a dotfile and an unlisted
-# extension (json, map, php, js, ...) all fail. /copy.js is checked by the caller.
+# extension (json, map, php, js, ...) all fail. The pinned scripts are checked
+# by the caller.
 artifact_name_ok() {
     local base="${1##*/}" ext
     case "$1" in
@@ -32,16 +35,64 @@ artifact_name_ok() {
     return 1
 }
 
-# script_hash_state <hash file>: prints the pinned sha256 and succeeds when the
-# file is one line, "<64 lowercase hex>" optionally followed by spaces and
-# copy.js (sha256sum format). Returns 1 for no file (no script is allowed) and
-# 2 for a malformed one.
+# The pinned scripts: the allowlist, script file name -> the one page (path
+# relative to the site root) that may load it. script-src is 'self', which cannot
+# name a file, so this list and the hash files are what make exactly these two
+# scripts, each on its own page, the only code the site runs. Adding a script is
+# a reviewed change here, to the hash file and to docs/pinned-script.md.
+PINNED_SCRIPTS=("copy.js:support/index.html" "search.js:search/index.html")
+
+# pinned_script_names: the script file names, one per line.
+pinned_script_names() {
+    local e
+    for e in "${PINNED_SCRIPTS[@]}"; do printf '%s\n' "${e%%:*}"; done
+}
+
+# pinned_script_page <name>: the page that may load the script; fails for a name
+# that is not on the allowlist.
+pinned_script_page() {
+    local e
+    for e in "${PINNED_SCRIPTS[@]}"; do
+        if [[ "${e%%:*}" == "$1" ]]; then
+            printf '%s\n' "${e#*:}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# pinned_script_url <name>: the same page as a URL path, "/support/" for
+# support/index.html.
+pinned_script_url() {
+    local page
+    page="$(pinned_script_page "$1")" || return 1
+    printf '/%s\n' "${page%index.html}"
+}
+
+# pinned_hash_file <name>: the committed hash file of a pinned script, <name>.sha256
+# at the repository root (SCRIPT_HASH_DIR overrides the directory, for tests).
+pinned_hash_file() {
+    local here
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    printf '%s/%s.sha256\n' "${SCRIPT_HASH_DIR:-$here}" "$1"
+}
+
+# Budgets: a pinned script is under 1 KB gzip; the search page (the browse list
+# with JavaScript off) is under 40 KB gzip. Past the page budget, revisit the
+# approach (docs/pinned-script.md).
+script_gzip_budget() { echo 1024; }
+search_page_gzip_budget() { echo 40960; }
+
+# script_hash_state <hash file> <script name>: prints the pinned sha256 and
+# succeeds when the file is one line, "<64 lowercase hex>" optionally followed
+# by spaces and the script name (sha256sum format). Returns 1 for no file (the
+# script is not allowed) and 2 for a malformed one.
 script_hash_state() {
-    local lines=()
+    local lines=() name="${2//./\\.}"
     [[ -f "$1" ]] || return 1
     mapfile -t lines <"$1"
     [[ ${#lines[@]} -eq 1 ]] || return 2
-    [[ "${lines[0]}" =~ ^([0-9a-f]{64})([[:space:]]+\*?copy\.js)?$ ]] || return 2
+    [[ "${lines[0]}" =~ ^([0-9a-f]{64})([[:space:]]+\*?${name})?$ ]] || return 2
     printf '%s\n' "${BASH_REMATCH[1]}"
 }
 

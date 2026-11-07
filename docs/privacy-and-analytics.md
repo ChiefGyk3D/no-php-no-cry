@@ -24,10 +24,13 @@ sentence, so that pull request also updates the test.
   `scripts/requirements-qr.txt`); `scripts/gen-support-qr.sh --check` verifies
   them. Change an address in all three places in one pull request: the data
   file, the QR files and `scripts/test-pages.sh`.
-- Copy buttons on /support/ use the one pinned script, `/copy.js` (issue 95; see
-  `docs/pinned-script.md`). It does no network request, stores nothing and reads
-  only the address text on the page. A second pinned script is a separate change
-  to the pin, `check-output.sh`, `check-site-artifact.sh`, `smoke-site.sh` and
-  their tests.
+- The site ships two pinned scripts, each on one page only (see
+  `docs/pinned-script.md`). Copy buttons on /support/ use `/copy.js` (issue 95);
+  site search on /search/ uses `/search.js` (issue 119), which filters the list
+  already on the page. Neither does a network request, uses cookies or storage
+  (no localStorage, no sessionStorage), or sends what you type anywhere: the
+  query is never submitted (there is no form) and the address is never rewritten.
+  A third pinned script is a separate change to the allowlist, the hash files,
+  `check-output.sh`, `check-site-artifact.sh`, `smoke-site.sh` and their tests.
 - Ko-fi is a link-out. An embed facade needs `frame-src https://ko-fi.com`, which
   waits on a real-browser framing test. StreamElements and Patreon refuse framing.

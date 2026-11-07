@@ -13,16 +13,32 @@ trap 'rm -rf "$work"' EXIT
 
 failures=0
 site="$work/site"
-# The pinned hash of the one allowed script lives in a committed file; tests use
-# their own, absent unless a case pins it.
-export SCRIPT_HASH_FILE="$work/copy.sha256"
-pin_script() { printf '%s  copy.js\n' "$(sha256sum "$site/copy.js" | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"; }
+# The pinned hash of each allowed script (copy.js, search.js) lives in a
+# committed <script>.sha256 file; tests use their own directory, empty unless a
+# case pins a script.
+export SCRIPT_HASH_DIR="$work/hashes"
+# pin_script [name]: pins the script's current bytes in the build.
+pin_script() { printf '%s  %s\n' "$(sha256sum "$site/${1:-copy.js}" | cut -d' ' -f1)" "${1:-copy.js}" >"$SCRIPT_HASH_DIR/${1:-copy.js}.sha256"; }
+# put_script <name> [page]: writes the script, its tag on the page (default: the
+# script's own) and pins it.
+put_script() {
+    local name="$1" page="${2:-}"
+    if [[ -z "$page" ]]; then
+        if [[ "$name" == copy.js ]]; then page=support/index.html; else page=search/index.html; fi
+    fi
+    printf 'document.documentElement.dataset.x="%s"\n' "$name" >"$site/$name"
+    printf '<script src=/%s></script>\n' "$name" >>"$site/$page"
+    pin_script "$name"
+}
 
 make_good() {
-    rm -f "$SCRIPT_HASH_FILE"
+    rm -rf "$SCRIPT_HASH_DIR"
+    mkdir -p "$SCRIPT_HASH_DIR"
     rm -rf "$site"
-    mkdir -p "$site/posts/a"
+    mkdir -p "$site/posts/a" "$site/support" "$site/search"
     printf '<!doctype html><title>t</title>\n' >"$site/index.html"
+    printf '<!doctype html><title>s</title>\n' >"$site/support/index.html"
+    printf '<!doctype html><title>q</title>\n' >"$site/search/index.html"
     cp "$root/static/_headers" "$site/_headers"
     cp "$root/static/_routes.json" "$site/_routes.json"
     cat >"$site/_redirects" <<'RED'
@@ -193,70 +209,111 @@ make_good
 printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
 
-# Script files: the CSP allows 'self' scripts, so the artifact may hold /copy.js
-# (under 1 KB gzip) only when its sha256 equals the one in the committed hash
-# file, and no other script file. With no hash file no script is allowed.
-make_good
-printf 'document.documentElement.dataset.copy="dark"\n' >"$site/copy.js"
-pin_script
-rc=0
-"$checker" "$site" >/dev/null 2>&1 || rc=$?
-if [[ $rc -eq 0 ]]; then
-    echo "ok: a pinned copy.js passes"
-else
-    echo "FAIL: a pinned copy.js was rejected (rc=$rc)"
-    failures=$((failures + 1))
-fi
-
-make_good
-printf 'document.documentElement.dataset.copy="dark"\n' >"$site/copy.js"
-expect_fail "copy.js with no hash file" extra-script
-
-make_good
-printf 'document.documentElement.dataset.copy="dark"\n' >"$site/copy.js"
-pin_script
-printf 'document.documentElement.dataset.copy="light"\n' >"$site/copy.js"
-expect_fail "copy.js changed after pinning" script-hash
-
-make_good
-printf 'x\n' >"$site/copy.js"
-pin_script
-printf '%s\n' "/\"/;eval('x');//\"" >"$site/copy.js"
-expect_fail "copy.js with unusual quoting, not the pinned one" script-hash
-
-make_good
-printf 'x\n' >"$site/copy.js"
-printf '%s  copy.js\n' "$(printf 'y\n' | sha256sum | cut -d' ' -f1)" >"$SCRIPT_HASH_FILE"
-expect_fail "copy.js pinned to another file's hash" script-hash
-
-for bad in 'not a hash' "$(printf 'a%.0s' $(seq 1 63))" "$(printf 'a%.0s' $(seq 1 64))  other.js" "$(printf 'A%.0s' $(seq 1 64))" "$(printf 'a%.0s' $(seq 1 64))  copy.js extra" ''; do
+# Script files: the CSP allows 'self' scripts, so the artifact may hold exactly
+# two, /copy.js (on /support/ only) and /search.js (on /search/ only), each under
+# 1 KB gzip and only when its sha256 equals the one in its committed hash file.
+# No other script file. With no hash file no script is allowed.
+for name in copy.js search.js; do
     make_good
-    printf 'x\n' >"$site/copy.js"
-    printf '%s\n' "$bad" >"$SCRIPT_HASH_FILE"
-    expect_fail "malformed hash file ($bad)" script-hash-file
-done
-make_good
-printf 'x\n' >"$site/copy.js"
-{
-    sha256sum "$site/copy.js" | cut -d' ' -f1
-    sha256sum "$site/copy.js" | cut -d' ' -f1
-} >"$SCRIPT_HASH_FILE"
-expect_fail "two-line hash file" script-hash-file
+    put_script "$name"
+    rc=0
+    "$checker" "$site" >/dev/null 2>&1 || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        echo "ok: a pinned $name on its own page passes"
+    else
+        echo "FAIL: a pinned $name was rejected (rc=$rc)"
+        "$checker" "$site" || true
+        failures=$((failures + 1))
+    fi
 
+    make_good
+    put_script "$name"
+    rm -f "$SCRIPT_HASH_DIR/$name.sha256"
+    expect_fail "$name with no hash file" extra-script
+
+    make_good
+    put_script "$name"
+    printf 'document.documentElement.dataset.x="changed"\n' >"$site/$name"
+    expect_fail "$name changed after pinning" script-hash
+
+    make_good
+    put_script "$name"
+    printf '%s\n' "/\"/;eval('x');//\"" >"$site/$name"
+    expect_fail "$name with unusual quoting, not the pinned one" script-hash
+
+    make_good
+    put_script "$name"
+    printf '%s  %s\n' "$(printf 'y\n' | sha256sum | cut -d' ' -f1)" "$name" >"$SCRIPT_HASH_DIR/$name.sha256"
+    expect_fail "$name pinned to another file's hash" script-hash
+
+    for bad in 'not a hash' "$(printf 'a%.0s' $(seq 1 63))" "$(printf 'a%.0s' $(seq 1 64))  other.js" "$(printf 'A%.0s' $(seq 1 64))" "$(printf 'a%.0s' $(seq 1 64))  $name extra" ''; do
+        make_good
+        put_script "$name"
+        printf '%s\n' "$bad" >"$SCRIPT_HASH_DIR/$name.sha256"
+        expect_fail "malformed $name hash file ($bad)" script-hash-file
+    done
+    make_good
+    put_script "$name"
+    {
+        sha256sum "$site/$name" | cut -d' ' -f1
+        sha256sum "$site/$name" | cut -d' ' -f1
+    } >"$SCRIPT_HASH_DIR/$name.sha256"
+    expect_fail "two-line $name hash file" script-hash-file
+
+    make_good
+    put_script "$name"
+    head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/$name"
+    pin_script "$name"
+    expect_fail "$name over 1 KB gzip" js-budget
+
+    make_good
+    put_script "$name"
+    for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$site/$name"
+    pin_script "$name"
+    rc=0
+    "$checker" "$site" >/dev/null 2>&1 || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        echo "ok: a large but compressible $name under 1 KB gzip passes"
+    else
+        echo "FAIL: compressible $name under 1 KB gzip was rejected (rc=$rc)"
+        failures=$((failures + 1))
+    fi
+
+    make_good
+    mkdir -p "$site/js"
+    printf 'x\n' >"$site/js/$name"
+    expect_fail "$name in a subdirectory" extra-script
+done
+
+# A script on a page that is not its own.
 make_good
-printf 'x\n' >"$site/copy.js"
-pin_script
+put_script copy.js index.html
+expect_fail "copy.js referenced from the home page" script-wrong-page
+make_good
+put_script copy.js search/index.html
+expect_fail "copy.js referenced from the search page" script-wrong-page
+make_good
+put_script search.js support/index.html
+expect_fail "search.js referenced from the support page" script-wrong-page
+make_good
+put_script search.js posts/a/index.html
+expect_fail "search.js referenced from a post" script-wrong-page
+
+# Both at once, each where it belongs, and a hash file with no script in the build.
+make_good
+put_script copy.js
+put_script search.js
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
-    echo "ok: the sha256sum format hash file passes"
+    echo "ok: both pinned scripts on their own pages pass"
 else
-    echo "FAIL: sha256sum-format hash file rejected"
+    echo "FAIL: both pinned scripts were rejected (rc=$rc)"
     failures=$((failures + 1))
 fi
 make_good
 rc=0
-printf '%s\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_FILE"
+printf '%s\n' "$(printf 'a%.0s' $(seq 1 64))" >"$SCRIPT_HASH_DIR/copy.js.sha256"
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
     echo "ok: a hash file with no copy.js in the build passes"
@@ -265,35 +322,19 @@ else
     failures=$((failures + 1))
 fi
 
+# Only the two names; a third script file fails even with both pinned.
+make_good
+put_script copy.js
+put_script search.js
+printf 'x\n' >"$site/third.js"
+expect_fail "a third script file beside the two pinned ones" extra-script
 make_good
 printf 'x\n' >"$site/app.js"
 expect_fail "second script file" extra-script
 
 make_good
-mkdir -p "$site/js"
-printf 'x\n' >"$site/js/copy.js"
-expect_fail "copy.js in a subdirectory" extra-script
-
-make_good
 printf 'x\n' >"$site/lib.MJS"
 expect_fail "uppercase .mjs" extra-script
-
-make_good
-head -c 4096 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$site/copy.js"
-pin_script
-expect_fail "copy.js over 1 KB gzip" js-budget
-
-make_good
-for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$site/copy.js"
-pin_script
-rc=0
-"$checker" "$site" >/dev/null 2>&1 || rc=$?
-if [[ $rc -eq 0 ]]; then
-    echo "ok: a large but compressible copy.js under 1 KB gzip passes"
-else
-    echo "FAIL: compressible copy.js under 1 KB gzip was rejected (rc=$rc)"
-    failures=$((failures + 1))
-fi
 
 # 'self' authorizes any same-origin response, so the build may hold only files
 # of known non-script types (plus /copy.js): a file with no extension or an
@@ -495,11 +536,11 @@ rc=0
 
 # A real build, when present, must pass too.
 if [[ -f "$root/public/index.html" ]]; then
-    if env -u SCRIPT_HASH_FILE "$checker" "$root/public" >/dev/null 2>&1; then
+    if env -u SCRIPT_HASH_DIR "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: public/ passes"
     else
         echo "FAIL: public/ fails the artifact check"
-        env -u SCRIPT_HASH_FILE "$checker" "$root/public" || true
+        env -u SCRIPT_HASH_DIR "$checker" "$root/public" || true
         failures=$((failures + 1))
     fi
 fi

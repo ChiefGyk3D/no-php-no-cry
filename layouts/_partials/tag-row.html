@@ -1,0 +1,8 @@
+{{- /* The "Browse by tag" row: every tag, A to Z, with its count. Shared by the posts archive and the search page. */ -}}
+{{- with site.Taxonomies.tags.Alphabetical }}
+<nav class="archive-tags" aria-label="Browse by tag">
+  <ul class="tag-list">
+    {{- range . }}<li><a href="{{ .Page.RelPermalink }}">#{{ .Page.LinkTitle }}</a> <span class="meta">({{ .Count }})</span></li>{{ end }}
+  </ul>
+</nav>
+{{- end }}

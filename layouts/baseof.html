@@ -16,6 +16,9 @@
   {{- if not .IsHome }}{{ with .OutputFormats.Get "rss" }}
   <link rel="alternate" type="application/rss+xml" title="{{ $.Title }} | {{ site.Title }}" href="{{ .Permalink }}">
   {{- end }}{{ end }}
+  {{- /* Preload both fonts (the files the @font-face rules in tokens.css name). With font-display: swap a font that arrives after first paint reflows the text; on a phone-class connection that was a Cumulative Layout Shift of 0.05 to 0.11 on four templates (scripts/browser-gate.py). crossorigin is required for fonts, also same-origin. */}}
+  <link rel="preload" href="{{ "fonts/jost-latin-wght-normal.woff2" | relURL }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ "fonts/orbitron-wght.ttf" | relURL }}" as="font" type="font/ttf" crossorigin>
   {{- with resources.Concat "css/site.css" (slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css")) | minify | fingerprint }}
   <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
   {{- end }}
@@ -36,7 +39,7 @@
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
             <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Social") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") }}
+            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Social") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
             <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
             {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>

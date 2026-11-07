@@ -1,0 +1,44 @@
+{{- /*
+  /search/ (issue 119). A plain browse page first: every regular page of posts and
+  journal, A to Z by title, as <li> entries (link, date, summary, tag text). With
+  JavaScript off this is the whole page and it is useful as it stands. The one
+  pinned script that belongs to this page, /search.js (docs/pinned-script.md),
+  reveals the search box and filters these <li> in place: no form (form-action
+  is 'none'), no request, no storage. The script is included at the end of this
+  page's article, so no other page loads it.
+*/ -}}
+{{ define "main" }}
+<article class="page-search">
+  <h1>{{ .Title }}</h1>
+  {{ .Content }}
+  <noscript><p class="meta">Filtering needs JavaScript. The full list is below.</p></noscript>
+  <div id="search" class="search-box" role="search" hidden>
+    <label class="search-label" for="q">Search posts and journal</label>
+    <input class="search-input" id="q" type="search" autocomplete="off" spellcheck="false">
+    <p id="search-status" class="search-status" role="status" aria-live="polite"></p>
+  </div>
+  {{ partial "tag-row.html" . }}
+  {{- range $name := slice "posts" "journal" }}
+  {{- with site.GetPage (printf "/%s" $name) }}{{ with .RegularPages.ByLinkTitle }}
+  <section class="search-group" aria-labelledby="search-{{ $name }}">
+    <h2 id="search-{{ $name }}" class="hud-heading">{{ $name | title }}</h2>
+    <ul class="post-list search-list">
+      {{- range . }}
+      <li>
+        <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+        <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
+        {{- with partial "description.html" . }}{{ if ne . site.Params.description }}
+        <p class="post-summary">{{ . }}</p>
+        {{- end }}{{ end }}
+        {{- with .Params.tags }}
+        <span class="meta search-tags">{{ range . }}<span>#{{ . }}</span>{{ end }}</span>
+        {{- end }}
+      </li>
+      {{- end }}
+    </ul>
+  </section>
+  {{- end }}{{ end }}
+  {{- end }}
+  <script src="{{ "search.js" | relURL }}"></script>
+</article>
+{{ end }}
