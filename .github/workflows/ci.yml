@@ -183,7 +183,7 @@ jobs:
       # ubuntu-24.04 runner image ships (the same browser the support QR decode
       # uses; CHROME overrides it) and the axe-core copy vendored in tools/axe,
       # verified against its pinned sha256 before use. No browser or axe download.
-      - name: Size budget (per page and per asset type, one pinned script)
+      - name: Size budget (per page and per asset type, pinned scripts only)
         run: |
           python3 -I scripts/check-budget.py public
           scripts/test-check-budget.sh
