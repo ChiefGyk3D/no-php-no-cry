@@ -76,7 +76,7 @@ MISSION_START = "I make cybersecurity knowledge available to more than 500K foll
 MISSION_END = "You're not dead until you stop learning. Happy Hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
-           "or the Discord server. Business inquiries go by email, and the address will be listed here soon.")
+           "or the Discord server. The two are bridged. Business inquiries go by email, and the address will be listed here soon.")
 
 
 class Page(HTMLParser):
@@ -274,8 +274,10 @@ def check_about_data(errs, html_src):
     if not d.get("mission") or d["mission"] not in ps:
         errs.append("mission paragraph differs from data/about.yaml")
     sp = d["speaking"]
-    if sp["before"] + sp["link_text"] + sp["after"] not in ps:
-        errs.append("speaking sentence differs from data/about.yaml")
+    if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
+        errs.append("speaking sentence or role differs from data/about.yaml")
+    if sp.get("role") != "I volunteer there.":
+        errs.append("data/about.yaml speaking role is not the owner-approved volunteer sentence")
     groups = [(norm(a), norm(b)) for a, b in re.findall(r"<h3[^>]*>(.*?)</h3>\s*<p[^>]*>(.*?)</p>", html_src, re.S)]
     want = [(g["name"], g["text"]) for g in d["skills"]]
     for w in want:

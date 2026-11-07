@@ -143,6 +143,8 @@ def check_social(page, root, bad):
         bad.append("h1 is not 'Find me online'")
     if "Livestreams are on Twitch and Kick, and videos are on YouTube and TikTok." not in main.all_text():
         bad.append("intro sentence missing")
+    if "bridged" not in main.all_text():
+        bad.append("Discord and Matrix bridge statement missing")
     # data/socials.yaml is simple enough to read without a YAML library: one "- name:" per entry.
     entries = []
     for line in pathlib.Path(root, "data/socials.yaml").read_text().splitlines():

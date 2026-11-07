@@ -12,7 +12,7 @@
       <p>{{ . }}</p>
       {{- end }}
       {{- with site.Data.about.speaking }}
-      <p class="about-speaking">{{ .before }}{{ if and .url (strings.HasPrefix .url "https://") }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .link_text }}<span class="visually-hidden"> (opens in a new tab)</span></a>{{ else }}{{ .link_text }}{{ end }}{{ .after }}</p>
+      <p class="about-speaking">{{ .before }}{{ if and .url (strings.HasPrefix .url "https://") }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .link_text }}<span class="visually-hidden"> (opens in a new tab)</span></a>{{ else }}{{ .link_text }}{{ end }}{{ .after }}{{ with .role }} {{ . }}{{ end }}</p>
       {{- end }}
       {{- with site.Data.about.mission }}
       <p class="about-mission">{{ . }}</p>
@@ -34,7 +34,7 @@
   <section class="about-contact" aria-labelledby="contact">
     <h2 id="contact">Contact</h2>
     {{- $c := site.Data.about.contact }}
-    <p>There's no contact form. If you want to chat as part of the community, use the Matrix room or the Discord server.{{ if not $c.email }} Business inquiries go by email, and the address will be listed here soon.{{ end }}</p>
+    <p>There's no contact form. If you want to chat as part of the community, use the Matrix room or the Discord server. The two are bridged.{{ if not $c.email }} Business inquiries go by email, and the address will be listed here soon.{{ end }}</p>
     {{- with $c.email }}
     <p>Business inquiries only: <a href="mailto:{{ . }}">{{ . }}</a>.{{ with $c.pgp_fingerprint }} PGP fingerprint: <code>{{ . }}</code>.{{ end }}{{ with $c.pgp_url }} <a href="{{ . }}">PGP public key</a>.{{ end }}</p>
     {{- end }}
