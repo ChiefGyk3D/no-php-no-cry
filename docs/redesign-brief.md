@@ -1,6 +1,6 @@
 # Redesign brief: chiefgyk3d.com
 
-> Brand kit sync (issue 78, 2026-11-04): the brand is dark only (kit decision L). Light mode, `#8A5A00`, the ghost gray `#383838`, the cream plate and the `data-theme` blocks described below are retired from `brand/tokens.json` and the generated CSS; this brief is kept as history. The theme toggle (`/theme.js`) is not implemented in this repo.
+> Brand kit sync (issue 78, 2026-11-04): the brand is dark only (kit decision L). Light mode, `#8A5A00`, the ghost gray `#383838`, the cream plate and the `data-theme` blocks described below are retired from `brand/tokens.json` and the generated CSS; this brief is kept as history. The theme toggle (`/theme.js`) was never implemented and its scaffolding was removed (issue 82); the one script slot is `/copy.js` (docs/pinned-script.md).
 
 Issue: ChiefGyk3D/no-php-no-cry#41. Status: maintainer decisions recorded 2026-10-29 (section 13); the issue list
 in section 12 awaits approval. Written 2026-10-29. Docs only; no site code changes.
