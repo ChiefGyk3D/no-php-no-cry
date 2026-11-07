@@ -1,8 +1,10 @@
 # Privacy page and analytics (issues 62 and 84)
 
-`/privacy/` (`content/privacy/index.md`) states the current truth: this site
-uses no analytics, cookies, embeds, or third-party requests, and collects
-nothing.
+`/privacy/` (`content/privacy/index.md`) states what the config can establish:
+the pages include no analytics, embeds, or third-party requests and the site
+code sets no cookies. It does not claim that the host logs nothing: what
+Cloudflare Pages records on its own is outside this repository, so the page says
+it does not cover that. The owner decides whether to say more (issue 159).
 
 The collector is built but not deployed (issue 84): see
 `docs/analytics-deploy.md`. The replacement text is drafted in

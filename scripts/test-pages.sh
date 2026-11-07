@@ -47,10 +47,17 @@ BUTTONS = {
     "StreamElements": "https://streamelements.com/chiefgyk3d/tip",
     "Ko-fi": "https://ko-fi.com/chiefgyk3d",
     "Patreon": "https://patreon.com/chiefgyk3d",
-    "Merch shop": "https://shop.chiefgyk3d.com/",
+    "Shop merch": "https://shop.chiefgyk3d.com/",
 }
-PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
-           "Following a link takes you to another site. I collect nothing here.")
+PRIVACY = [
+    "The pages on this site include no analytics, embeds, or third-party requests, "
+    "and the site code sets no cookies. Following a link takes you to another site, "
+    "which has its own policies.",
+    "The site is served by Cloudflare Pages. This page does not describe what the hosting "
+    "provider logs on its own, such as request or security records.",
+]
+# Claims the config cannot establish. The page must not make them (issue 159).
+PRIVACY_FORBIDDEN = ["I collect nothing", "collects nothing", "stores nothing", "no logs"]
 SKILL_GROUPS = [
     "Identity and access",
     "Endpoint, email, and data security",
@@ -65,7 +72,9 @@ SKILL_GROUPS = [
 MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
 MISSION_END = "You're not dead until you stop learning. Happy Hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
-CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
+CONTACT = ("There's no contact form, and no address is listed on this site. Community questions go in "
+           "the Matrix room or on the Discord server. For a professional inquiry, message me on either "
+           "one and say that's what it is.")
 
 
 class Page(HTMLParser):
@@ -154,12 +163,16 @@ def support(p, errs, repo):
     if p.h1 != ["Support my work"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
-    intro = ("Want to help keep the streams, videos, and projects going? "
-             "Pick an option below, and thanks for the support.")
+    intro = ("If you want to support the streams, videos, and projects, "
+             "these are the ways to do it. It is optional.")
     if intro not in flat:
         errs.append("intro text missing")
-    if "StreamElements tips get a live thank-you during the stream." not in flat:
-        errs.append("StreamElements note missing")
+    if "live thank-you" in flat or "thank-you" in flat.lower():
+        errs.append("a live thank-you promise is on the page (not supported)")
+    if "Before you send, verify the full address and make sure you are using the correct network." not in flat:
+        errs.append("full-address and network advice missing")
+    if "first and last" in flat.lower():
+        errs.append("advice to check only the first and last characters is back")
     for name, url in BUTTONS.items():
         hits = [a for a, t in p.links if re.sub(r"\s+", " ", t).startswith(name + " ")]
         if len(hits) != 1:
@@ -173,7 +186,7 @@ def support(p, errs, repo):
             errs.append("button %r is not styled as a tile" % name)
     # The cryptocurrency section follows the four tiles (zero clicks to pay).
     html = repo["html"]
-    if "Cryptocurrency tips" not in flat or html.find("Merch shop") > html.find("Cryptocurrency tips"):
+    if "Cryptocurrency tips" not in flat or html.find("Shop merch") > html.find("Cryptocurrency tips"):
         errs.append("the cryptocurrency section must follow the four tiles")
     if any(t == "details" and "coin" in (a.get("class") or "") for t, a in p.tags):
         errs.append("the cryptocurrency block is always open, not a details element")
@@ -200,19 +213,11 @@ def support(p, errs, repo):
             errs.append("%s QR image appears %d times" % (coin, len(imgs)))
         elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
             errs.append("%s QR image needs alt, width and height" % coin)
-    # Socials: Instagram and Pixelfed are links that open in a new tab.
-    insta = [a for a, t in p.links if t == "Instagram"]
-    if len(insta) != 1 or insta[0].get("href") != "https://www.instagram.com/chiefgyk3d/":
-        errs.append("Instagram link missing or wrong")
-    elif not external_ok(insta[0]):
-        errs.append("Instagram link lacks target=_blank rel=noopener")
-    pixel = [a for a, t in p.links if t.startswith("Pixelfed")]
-    if len(pixel) != 1 or pixel[0].get("href") != "https://pics.chiefgyk3d.com/ChiefGyk3D":
-        errs.append("Pixelfed link missing or wrong")
-    elif not external_ok(pixel[0]):
-        errs.append("Pixelfed link lacks target=_blank rel=noopener")
-    if "coming soon" in flat.lower():
-        errs.append("Pixelfed is live: no 'coming soon' text")
+    # Unrelated social links do not belong on the support page.
+    if any(h in (x.get("href") or "") for x, _ in p.links for h in ("instagram.com", "pics.chiefgyk3d.com")):
+        errs.append("unrelated social links are on the support page")
+    if "also find me on" in flat.lower():
+        errs.append("'Also find me on' block is back on the support page")
     # Ko-fi stays a link-out until the framing test; the TODO is in the template.
     if repo.get("template") is not None and "TODO" not in repo["template"]:
         errs.append("the Ko-fi embed TODO marker is missing from the template")
@@ -348,8 +353,12 @@ def privacy(p, errs, repo):
     common(p, errs)
     if p.h1 != ["Privacy"]:
         errs.append("h1 is %r" % p.h1)
-    if PRIVACY not in p.flat():
-        errs.append("privacy statement missing")
+    for para in PRIVACY:
+        if para not in p.flat():
+            errs.append("privacy statement missing: " + para[:40])
+    for phrase in PRIVACY_FORBIDDEN:
+        if phrase.lower() in p.flat().lower():
+            errs.append("privacy page makes an unsupported claim: %r" % phrase)
 
 
 KINDS = {"support": support, "about": about, "privacy": privacy}
@@ -744,10 +753,10 @@ fi
 
 if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
     fail "posts index still says 'Placeholder posts section.'"
-elif grep -q '^Newest first\.$' "$root/content/posts/_index.md"; then
-    pass "posts index intro is 'Newest first.'"
+elif grep -q '^Write-ups on open-source projects, self-hosting, streaming tools, and gear I use\. Newest first\.$' "$root/content/posts/_index.md"; then
+    pass "posts index intro says what the posts are"
 else
-    fail "posts index intro is not 'Newest first.'"
+    fail "posts index intro does not describe the posts"
 fi
 if tr '\n' ' ' <<<"$(src_css posts)" | grep -Eq '\.archive-links[^}]*margin-bottom|\.archive-tags[^}]*margin: *var\(--space-5\)'; then
     pass "tag list has spacing under the RSS link"
@@ -757,15 +766,15 @@ fi
 # Nav: the current section carries aria-current="page" and no other link does.
 nav_current() { # <html> -> text of the aria-current links in the main nav
     python3 -I - "$1" <<'PY'
-import re, sys
+import html, re, sys
 h = open(sys.argv[1], encoding="utf-8").read()
 nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
 nav = nav.group(0) if nav else ""
 for m in re.finditer(r"<a\b[^>]*aria-current=\"?page\"?[^>]*>(.*?)</a>", nav, re.S):
-    print(re.sub(r"<[^>]+>", "", m.group(1)).strip())
+    print(html.unescape(re.sub(r"<[^>]+>", "", m.group(1)).strip()))
 PY
 }
-for pair in "posts:Posts" "products:Products" "social:Social" "support:Support" "about:About"; do
+for pair in "posts:Posts" "products:Gear & tools" "social:Social" "support:Support" "about:About"; do
     got="$(nav_current "$pub/${pair%%:*}/index.html")"
     if [[ "$got" == "${pair##*:}" ]]; then
         pass "nav marks ${pair##*:} current on /${pair%%:*}/"
@@ -790,18 +799,24 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p><footer><p>You'"'"'re not dead until you stop learning. Happy Hacking.</p></footer>'
+good_privacy='<h1>Privacy</h1><p>The pages on this site include no analytics, embeds, or third-party requests, and the site code sets no cookies. Following a link takes you to another site, which has its own policies.</p> <p>The site is served by Cloudflare Pages. This page does not describe what the hosting provider logs on its own, such as request or security records.</p><footer><p>You'"'"'re not dead until you stop learning. Happy Hacking.</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"
 else
     fail "guard: a correct privacy page was rejected"
 fi
-sed 's/I collect nothing here/I collect a little/' "$work/ok-privacy.html" >"$work/bad-privacy.html"
+sed 's/sets no cookies/sets a few cookies/' "$work/ok-privacy.html" >"$work/bad-privacy.html"
 if python3 -I "$asserter" privacy "$work/bad-privacy.html" >/dev/null 2>&1; then
     fail "guard: a changed privacy statement passed"
 else
     pass "guard: a changed privacy statement fails"
+fi
+printf '%s<p>I collect nothing here.</p>\n' "$good_privacy" >"$work/bad-claim.html"
+if python3 -I "$asserter" privacy "$work/bad-claim.html" >/dev/null 2>&1; then
+    fail "guard: an unsupported 'collect nothing' claim passed"
+else
+    pass "guard: an unsupported 'collect nothing' claim fails"
 fi
 printf '%s<iframe src="https://ko-fi.com/"></iframe>\n' "$good_privacy" >"$work/bad-frame.html"
 if python3 -I "$asserter" privacy "$work/bad-frame.html" >/dev/null 2>&1; then

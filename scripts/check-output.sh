@@ -394,7 +394,7 @@ need_mascot() {
     fi
 }
 if [[ -f "$dir/index.html" ]] && ! is_alias_page "$dir/index.html"; then
-    for t in "make the internet more secure and fun" "Hands-on cybersecurity" "Read the latest" \
+    for t in "and whatever I" "building next" "Senior Cybersecurity Engineer" "Read the latest" "See my projects" \
         "Find me online" "Support my work" "Latest posts" "All posts"; do
         need_text "$dir/index.html" "$t"
     done
@@ -403,7 +403,7 @@ fi
 if [[ ! -f "$dir/404.html" ]]; then
     report template-element "404.html (missing)"
 else
-    for t in "rm -rf" "refusing to answer questions" "Start over" "Browse posts" "Find me online"; do
+    for t in "rm -rf" "refusing to answer questions" "Start over" "Browse posts" "Search the site" "Find me online"; do
         need_text "$dir/404.html" "$t"
     done
     need_mascot "$dir/404.html"

@@ -35,9 +35,9 @@ make_good() {
     # Page bodies the templates write (issues 58 and 59). The home hero and the
     # 404 carry the mascot with its dimensions; the archive groups by year.
     local mascot='<img class=hero-mascot src=/brand/mascot-256.webp width=256 height=256 alt="Renegade Tux">'
-    local home_body="<section class=hero>${mascot}<h1>Let's make the internet more secure and fun, one commit at a time.</h1><p>Hands-on cybersecurity, Linux, homelabs, and open source.<p><a class=\"btn btn-primary\" href=/posts/>Read the latest</a> <a class=btn href=/social/>Find me online</a> <a class=btn href=/support/>Support my work</a></section><section class=panel><h2>Latest posts</h2><a href=/posts/>All posts</a></section><section class=panel><h2>Find me online</h2></section>"
+    local home_body="<section class=hero>${mascot}<h1>Cybersecurity, Linux, and whatever I'm building next.</h1><p>I'm a Senior Cybersecurity Engineer, Linux nerd, and open-source builder.<p><a class=\"btn btn-primary\" href=/posts/>Read the latest</a> <a class=btn href=/about/#projects>See my projects</a> <a class=btn href=/support/>Support my work</a></section><section class=panel><h2>Latest posts</h2><a href=/posts/>All posts</a></section><section class=panel><h2>Find me online</h2></section>"
     local archive_body='<h1>Posts</h1><a href=/posts/index.xml>RSS</a><h2 class=archive-year>2023</h2><ul><li><a href=/posts/sample-post/>Sample post</a></ul>'
-    local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/posts/>Browse posts</a> <a class=btn href=/social/>Find me online</a>"
+    local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/posts/>Browse posts</a> <a class=btn href=/search/>Search the site</a> <a class=btn href=/social/>Find me online</a>"
     local post_body='<article><h1>Sample post</h1><time datetime=2023-02-10>February 10, 2023</time> <span class=reading-time>1 min read</span></article>'
     local person_ld='<script type=application/ld+json>{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"t","url":"https://test-blog.chiefgyk3d.com/"},{"@type":"Person","name":"ChiefGyk3D","sameAs":["https://github.com/ChiefGyk3D"]}]}</script>'
     local article_ld='<script type=application/ld+json>{"@context":"https://schema.org","@type":"Article","headline":"Sample post","datePublished":"2023-02-10T09:00:00-05:00","author":{"@type":"Person","name":"ChiefGyk3D"}}</script>'
@@ -731,8 +731,8 @@ variant duplicate-description duplicate-description dup_desc
 # Templates (issues 58 and 59): home hero, 404, archive and post elements. Each
 # required piece removed in turn must be reported by name.
 cut_text() { sed -i "s#${CUT}##g" "$1/$PAGE"; }
-for pair in 'index.html|Read the latest' 'index.html|Find me online' 'index.html|Support my work' 'index.html|Latest posts' 'index.html|All posts' 'index.html|more secure and fun' 'index.html|Hands-on cybersecurity' \
-    '404.html|rm -rf' '404.html|Start over' '404.html|Browse posts' '404.html|Find me online' '404.html|refusing to answer questions' \
+for pair in 'index.html|Read the latest' 'index.html|Find me online' 'index.html|Support my work' 'index.html|Latest posts' 'index.html|All posts' 'index.html|See my projects' 'index.html|building next' 'index.html|Senior Cybersecurity Engineer' \
+    '404.html|rm -rf' '404.html|Start over' '404.html|Browse posts' '404.html|Search the site' '404.html|Find me online' '404.html|refusing to answer questions' \
     'posts/index.html|archive-year' 'posts/index.html|index.xml' 'tags/lorem/index.html|archive-year' 'journal/index.html|archive-year' \
     'posts/sample-post/index.html|reading-time' 'posts/sample-post/index.html|<time'; do
     page="${pair%%|*}"

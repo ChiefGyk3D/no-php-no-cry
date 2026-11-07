@@ -29,8 +29,9 @@ import re
 import sys
 from html.parser import HTMLParser
 
-HEADINGS = ["Summary", "Core Skills", "Technical Knowledge",
-            "Open-Source Projects", "Certifications", "Community", "Contact"]
+HEADINGS = ["Summary", "Skills", "Open-Source Projects", "Certifications",
+            "Education", "Community", "Outside work", "Contact"]
+GONE_HEADINGS = ["Core Skills", "Technical Knowledge"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
     "Yes, the order is odd. CISSP came first, in 2024. I earned all three "
@@ -38,10 +39,10 @@ REQUIRED = [
     "Network System Administration", "2016", "General class",
     "Ordained Priest, Church of the Latter Day Dude",
     "I can secure the network and officiate the wedding afterward.",
-    "Professional history and references are available directly to prospective "
-    "employers.",
-    "Employers: references, job history and a phone number are available on "
-    "request via the contact section on /about/#contact.",
+    "Senior Cybersecurity Engineer",
+    "References, job history and a phone number are available to prospective "
+    "employers on request.",
+    "How to reach me, on the About page",
 ]
 PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
@@ -94,6 +95,22 @@ def check(html):
     for h in HEADINGS:
         if h not in p.h2:
             out.append("missing heading: " + h)
+    for h in GONE_HEADINGS:
+        if h in p.h2:
+            out.append("heading should be gone: " + h)
+    # The degree sits under Education, radio and the ordination under Outside work.
+    for h, want in (("Education", "Network System Administration"),
+                    ("Outside work", "General class"), ("Outside work", "Latter Day Dude")):
+        sec = re.search(r"%s</h2>(.*?)(?:<h2|$)" % h, html, re.S)
+        if not sec or want not in sec.group(1):
+            out.append("%s is not under %s" % (want, h))
+    cert = re.search(r"Certifications</h2>(.*?)<h2", html, re.S)
+    if cert and re.search(r"Associate degree|General class|Latter Day Dude", cert.group(1)):
+        out.append("a degree, the radio license or the ordination is under Certifications")
+    if re.search(r'href="?/about/#contact', html) is None:
+        out.append("contact link must point at the About page contact section")
+    if "/about/#contact" in text:
+        out.append("literal route text on the page")
     for r in REQUIRED:
         if r not in text:
             out.append("missing text: " + r)

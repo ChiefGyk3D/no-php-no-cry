@@ -13,7 +13,7 @@
       if (ok) n++;
     });
     [].forEach.call(groups, function (g) { g.hidden = !g.querySelector("li:not([hidden])"); });
-    st.textContent = !w.length ? "" : n ? n + (n > 1 ? " results" : " result") : "No results";
+    st.textContent = !w.length ? "" : n ? n + (n > 1 ? " results" : " result") : "No posts or journal entries match. Try another word or a tag.";
   }
   q.disabled = false;
   q.addEventListener("input", run);
