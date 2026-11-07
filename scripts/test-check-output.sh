@@ -713,6 +713,20 @@ variant missing-posts-archive template-element drop_archive
 APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html
 APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
 APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
+# An archived comment (issue 121) is page text like any other: an address or a
+# mailto: link in the comments section is caught, and a clean one passes.
+COMMENT_OPEN='<section class="comments-archive" aria-labelledby="comments-archive-title"><h2 id="comments-archive-title">Comments from the old site</h2><figure class="comment"><blockquote><p>Nice post.</p></blockquote><figcaption><span>Name</span>, <time datetime="2023-01-02">January 2, 2023</time>'
+APPEND="${COMMENT_OPEN} a.b@example.org</figcaption></figure></section>" PAGE=posts/sample-post/index.html variant comment-email email-shaped-text append_html
+APPEND="${COMMENT_OPEN} <a href=\"mailto:a@example.org\">mail</a></figcaption></figure></section>" PAGE=posts/sample-post/index.html variant comment-mailto email-shaped-text append_html
+comment_ok="$work/comment-ok"
+make_good "$comment_ok"
+printf '%s\n' "${COMMENT_OPEN}</figcaption></figure></section>" >>"$comment_ok/posts/sample-post/index.html"
+if "$checker" "$comment_ok" >/dev/null 2>&1; then
+    echo "ok: a clean archived comment passes"
+else
+    echo "FAIL: a clean archived comment was rejected"
+    failures=$((failures + 1))
+fi
 split="$work/split-handle"
 make_good "$split"
 printf '%s\n' '<p>@someone<span>@</span>social.example.org <a href=https://youtube.com/@Chan>@Chan</a></p>' >>"$split/index.html"
