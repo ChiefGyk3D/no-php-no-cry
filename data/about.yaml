@@ -6,3 +6,31 @@ opener: "Hi, I'm Moshe, and I go by ChiefGyk3D online."
 paragraphs:
   - "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator. I’m primarily self-taught through homelabbing, curiosity, and hands-on work. My work covers IAM, EDR, SOAR, ZTNA, SASE, cloud security, threat modeling, OSINT, telecom security, and SIEM/SOC work. I run Linux on desktops and servers and work with pfSense, Suricata, Wazuh, and OpenSearch."
   - "My production-style homelab includes repurposed hardware, a dual-GPU local AI box, and self-hosted Mastodon, Matrix, and Pixelfed. I’m also a licensed ham radio operator working with SDR, Meshtastic, and LoRa. I care about end-to-end encryption, zero trust, owning my infrastructure, right to repair, and privacy rights. I’m more than ready for a security architecture role, and that’s where I’m headed."
+# The speaking sentence: before + link text + after. The link renders only
+# while url is set (https only).
+speaking:
+  before: "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the "
+  link_text: "Call Center Village"
+  url: "https://www.callcentervillage.com/"
+  after: "."
+# Skills section: each group is an h3 with its text under it, in this order.
+skills_heading: "Skills"
+skills:
+  - name: "Identity and access"
+    text: "IAM, single sign-on and MFA, passwordless authentication with passkeys and hardware security keys, identity-driven access controls, LDAP integration and service authentication. Okta, Microsoft Entra, JumpCloud, YubiKey, Delinea."
+  - name: "Endpoint, email, and data security"
+    text: "EDR, email security and phishing response, data security and access visibility, and wiring security platforms together with automation. CrowdStrike, Proofpoint TRAP, Avanan, Varonis."
+  - name: "Network security and zero trust"
+    text: "ZTNA and SASE, firewall administration and segmentation, VLAN design and isolation, intrusion detection and prevention, DNS filtering, remote access architecture, network telemetry and troubleshooting, and telecom security. Zscaler ZIA and ZPA, Twingate, pfSense CE and Plus, Suricata, pfBlockerNG, UniFi, MikroTik."
+  - name: "Security operations and investigation"
+    text: "SIEM and SOC work, SOAR, log collection and analysis, security telemetry, threat modeling, OSINT, vulnerability management, honeypots and deception, attack surface analysis. Splunk, Wazuh, OpenSearch, Datadog, Tenable, Wiz, VirusTotal, urlscan, OWASP Threat Dragon."
+  - name: "Cloud, infrastructure as code, and secrets"
+    text: "Cloud security, infrastructure as code, automated provisioning, secrets management, zero trust access for cloud environments, and reproducible security labs for teaching. AWS, DigitalOcean, Terraform, OpenTofu, Spacelift, Doppler, GitHub, Cloudflare."
+  - name: "Linux and homelab"
+    text: "Linux desktop and server administration (Pop!_OS, Ubuntu, Debian, Parrot OS), a production-style homelab built partly from repurposed hardware, virtualization with Proxmox, serial-console installs, and self-hosted Mastodon, Matrix, and Pixelfed, with Matrix and Discord bridging. This is homelab work, separate from my professional work."
+  - name: "Software and automation"
+    text: "Python, open-source tooling and libraries, API integrations, event-driven bots, cross-platform notification systems, GitHub-based development and code review, CI security checks, dependency scanning, and linting. GitHub, GitHub Copilot, Snyk, Discord and Matrix integrations, streaming and social platform integrations."
+  - name: "Local AI and agents"
+    text: "I run a dual-GPU local AI server with Ollama, build workflows that combine local and hosted models (Claude, ChatGPT, Gemini, Copilot), route tasks by cost and capability, coordinate agents for drafting, implementation, and review, put human approval gates on paid model use, and run AI-assisted review next to normal CI and security checks. This is engineering and integration work, not model training or research."
+  - name: "Radio, RF, and telecom"
+    text: "Licensed amateur radio operator. SDR, Meshtastic, LoRa, APRS and packet radio, RF experimentation, cellular modem integration, telecom security. HackRF, Meshtastic devices, LoRa radios, Linux-based SDR tooling."

@@ -28,6 +28,7 @@ fail() {
 
 asserter="$work/assert_pages.py"
 cat >"$asserter" <<'PY'
+import html
 import re
 import sys
 from html.parser import HTMLParser
@@ -49,6 +50,17 @@ BUTTONS = {
 }
 PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
            "Following a link takes you to another site. I collect nothing here.")
+SKILL_GROUPS = [
+    "Identity and access",
+    "Endpoint, email, and data security",
+    "Network security and zero trust",
+    "Security operations and investigation",
+    "Cloud, infrastructure as code, and secrets",
+    "Linux and homelab",
+    "Software and automation",
+    "Local AI and agents",
+    "Radio, RF, and telecom",
+]
 CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
 
 
@@ -215,6 +227,23 @@ def about(p, errs, repo):
         errs.append("bio closing sentence missing")
     if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator." not in flat:
         errs.append("bio first paragraph missing")
+    if "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the Call Center Village" not in flat:
+        errs.append("speaking sentence missing")
+    cc = [a for a, t in p.links if t == "Call Center Village"]
+    if len(cc) != 1:
+        errs.append("expected one Call Center Village link, found %d" % len(cc))
+    for a in cc:
+        if a.get("href") != "https://www.callcentervillage.com/":
+            errs.append("Call Center Village link href is %r" % a.get("href"))
+        if not external_ok(a):
+            errs.append("Call Center Village link lacks target=_blank rel=noopener")
+    if p.ids.get("skills") != "h2":
+        errs.append("no #skills h2")
+    h3s = [html.unescape(m) for m in re.findall(r"<h3[^>]*>(.*?)</h3>", repo["html"], re.S)]
+    if h3s != SKILL_GROUPS:
+        errs.append("skill group headings are %r" % h3s)
+    if p.count("h4") or p.count("h1") != 1:
+        errs.append("heading levels are out of order")
     if "about 15 years" in flat:
         errs.append("the old bio text is still on the page")
     if not any(t == "img" and (a.get("alt") or "") and (a.get("src") or "").startswith("/brand/") for t, a in p.tags):
@@ -237,7 +266,12 @@ def about(p, errs, repo):
         errs.append("the About body must link to /resume/")
     if "mailto:" in " ".join(h or "" for h in hrefs):
         errs.append("there is no email address: contact is Matrix and Discord only")
-    if "TODO" in repo["html"] or "email" in flat.lower():
+    # The email ban is for the contact section; the Skills text legitimately says "email security".
+    m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
+    contact = re.sub(r"<[^>]+>", " ", m.group(0)).lower() if m else ""
+    if not contact:
+        errs.append("the contact section was not found")
+    if "TODO" in repo["html"] or "email" in contact:
         errs.append("the contact section must not mention email or carry a TODO")
 
 

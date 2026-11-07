@@ -11,6 +11,9 @@
       {{- range site.Data.about.paragraphs }}
       <p>{{ . }}</p>
       {{- end }}
+      {{- with site.Data.about.speaking }}
+      <p class="about-speaking">{{ .before }}{{ if and .url (strings.HasPrefix .url "https://") }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .link_text }}<span class="visually-hidden"> (opens in a new tab)</span></a>{{ else }}{{ .link_text }}{{ end }}{{ .after }}</p>
+      {{- end }}
     </div>
   </div>
 
@@ -34,5 +37,19 @@
     </ul>
   </section>
   </div>
+
+  {{- with site.Data.about }}
+  <section class="about-skills" aria-labelledby="skills">
+    <h2 id="skills">{{ .skills_heading }}</h2>
+    <div class="skill-groups">
+    {{- range .skills }}
+      <div class="skill-group">
+        <h3>{{ .name }}</h3>
+        <p>{{ .text }}</p>
+      </div>
+    {{- end }}
+    </div>
+  </section>
+  {{- end }}
 </article>
 {{ end }}
