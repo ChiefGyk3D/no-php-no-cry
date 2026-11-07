@@ -153,7 +153,8 @@ if __name__ == "__main__":
 PY
 
 # 1. The data files carry only author, date and content, with the reviewed names.
-data_check=$(python3 -I - "$root" "${EXPECTED[@]}" <<'PY'
+data_check=$(
+    python3 -I - "$root" "${EXPECTED[@]}" <<'PY'
 import json
 import sys
 root = sys.argv[1]
