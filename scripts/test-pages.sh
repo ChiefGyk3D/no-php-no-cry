@@ -443,6 +443,23 @@ if [[ -f "$pub/about/index.html" ]]; then
         pass "guard: an About page without the footer line fails"
     fi
 fi
+# rel="me" identity links: Mastodon and GitHub as head links on every page type, and the
+# /social/ tiles keep their rel="me" anchors.
+for f in index.html about/index.html social/index.html; do
+    for u in https://social.chiefgyk3d.com/@chiefgyk3d https://github.com/ChiefGyk3D; do
+        if grep -q "<link rel=me href=$u>" "$pub/$f" || grep -q "<link rel=\"me\" href=\"$u\">" "$pub/$f"; then
+            pass "head rel=me link $u on $f"
+        else
+            fail "head rel=me link $u missing on $f"
+        fi
+    done
+done
+if grep -Eq '<a[^>]*rel="?me[ "][^>]*href="?https://social.chiefgyk3d.com/@chiefgyk3d' "$pub/social/index.html" ||
+    grep -Eq '<a[^>]*href="?https://social.chiefgyk3d.com/@chiefgyk3d[^>]*rel="?me[ "]' "$pub/social/index.html"; then
+    pass "/social/ keeps the rel=me Mastodon anchor"
+else
+    fail "/social/ lost the rel=me Mastodon anchor"
+fi
 # Guard: the footer-links check bites. A repeated social row put back must fail.
 if [[ -f "$pub/about/index.html" ]]; then
     python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); t = s.replace("</footer>", "<ul class=social-row><li><a class=icon-twitch href=https://twitch.tv/x>Twitch</a></li></ul></footer>", 1); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$pub/about/index.html" "$work/about-socialrow.html"
