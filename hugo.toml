@@ -4,7 +4,7 @@ title = "no-php-no-cry"
 
 # Kinds this site does not use. The taxonomy index (/tags/, /categories/) is
 # not linked anywhere; term pages (one tag, one category) are used.
-# robots.txt comes from layouts/robots.txt and depends on params.environment.
+# robots.txt comes from layouts/home.robots.txt (named for its output format: a bare layouts/robots.txt loses to layouts/home.llms.txt) and depends on params.environment.
 disableKinds = ["taxonomy"]
 
 # Nothing in the site talks to a third party: no analytics, no embeds.
