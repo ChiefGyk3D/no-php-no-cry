@@ -206,6 +206,7 @@ jobs:
     with:
       test-command: ./scripts/test-check-output.sh && ./scripts/test-check-hugo-version.sh   # needs no Hugo; the build job also runs it against the real build
       egress-policy: block
+      timeout-minutes: 20   # ~330 serial cases at ~2 s each; measured 6 to 10 minutes on hosted runners
 
   security:
     uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@ddc98a545c1195f15b02341fa1f263fa3588bfd2 # v1.29.0
