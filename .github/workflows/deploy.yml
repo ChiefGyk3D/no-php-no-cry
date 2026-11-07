@@ -183,8 +183,8 @@ jobs:
           echo "egress canary: allowed hosts accept TCP 443"
 
       # Checked out: deploy/ (a package.json and its lockfile), static/_headers
-      # and static/_routes.json (the expected headers and routes files), copy.js.sha256 (the pinned script
-      # hash), the shared rules file and two scripts. scripts/test-deploy-sparse.sh
+      # and static/_routes.json (the expected headers and routes files), copy.js.sha256 and
+      # search.js.sha256 (the pinned script hashes), the shared rules file and two scripts. scripts/test-deploy-sparse.sh
       # fails CI if a file these scripts need is missing from this list. Repository code that runs
       # BEFORE the credentials load: check-site-artifact.sh (reads the
       # downloaded build and static/_headers, no network). Repository code that
@@ -201,6 +201,7 @@ jobs:
             /static/_headers
             /static/_routes.json
             /copy.js.sha256
+            /search.js.sha256
             /scripts/artifact-rules.sh
             /scripts/check-site-artifact.sh
             /scripts/ensure-pages-project.sh

@@ -1,6 +1,6 @@
 """Reads a page, svg or xml file the way a browser reads its tags.
 
-Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] <site-host> <file>
+Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] <site-host> <file>
 
 Prints one rule name per line, never page content. Attributes are read from real
 attributes by a quote-aware parser (a ">" or "=" inside a quoted value is just
@@ -13,8 +13,11 @@ http:, https:, scheme-relative or backslash URL to another host on a tag that
 loads something). --markup (svg, xml, xhtml) also: script-not-allowed for any
 script element. --scripts none|pinned (HTML only, used on served pages) also
 judges script elements: with "none" any script element is script-not-allowed;
-with "pinned" only one <script src=/copy.js></script> is allowed (a second is
-script-count, any other form, attribute or body is script-not-allowed).
+with "pinned" the pinned scripts are the ones named by --known (the allowlist
+of scripts/artifact-rules.sh, as /name paths), and --allow names the one that
+belongs on THIS page: <script src=/NAME></script> for that name is allowed once
+(a second is script-count); the same tag for any other known script is
+script-wrong-page; any other form, attribute or body is script-not-allowed.
 A <script type="application/ld+json"> data block (that one attribute, nothing
 else) is not a script in either mode: a browser never runs it and script-src
 does not apply. Its body is judged by scripts/check-seo.py. In --markup mode
@@ -49,9 +52,10 @@ def judge(url, host):
 
 
 class Scan(HTMLParser):
-    def __init__(self, host, markup, scripts):
+    def __init__(self, host, markup, scripts, known=(), allow=""):
         super().__init__(convert_charrefs=True)
         self.host, self.markup, self.scripts = host, markup, scripts
+        self.known, self.allow = set(known), allow
         self.found = set()
         self.pinned_tags = 0
         self.in_script = False
@@ -79,10 +83,13 @@ class Scan(HTMLParser):
             elif self.scripts == "pinned":
                 self.in_script = True
                 plain = [(n.lower(), clean(v)) for n, v in attrs]
-                if plain == [("src", "/copy.js")]:
-                    self.pinned_tags += 1
-                    if self.pinned_tags > 1:
-                        self.found.add("script-count")
+                if len(plain) == 1 and plain[0][0] == "src" and plain[0][1] in self.known:
+                    if plain[0][1] != self.allow:
+                        self.found.add("script-wrong-page")
+                    else:
+                        self.pinned_tags += 1
+                        if self.pinned_tags > 1:
+                            self.found.add("script-count")
                 else:
                     self.found.add("script-not-allowed")
         if tag == "base" and not self.markup:
@@ -110,7 +117,7 @@ class Scan(HTMLParser):
 
 
 def main(argv):
-    markup, scripts = False, ""
+    markup, scripts, known, allow = False, "", [], ""
     args = list(argv)
     while args and args[0].startswith("--"):
         opt = args.pop(0)
@@ -118,12 +125,16 @@ def main(argv):
             markup = True
         elif opt == "--scripts" and args:
             scripts = args.pop(0)
+        elif opt == "--known" and args:
+            known = [k for k in args.pop(0).split(",") if k]
+        elif opt == "--allow" and args:
+            allow = args.pop(0)
         else:
             return 2
     if len(args) != 2:
         return 2
     host, path = args[0].lower(), args[1]
-    scan = Scan(host, markup, scripts)
+    scan = Scan(host, markup, scripts, known, allow)
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             scan.feed(f.read())

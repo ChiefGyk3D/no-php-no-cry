@@ -5,7 +5,7 @@ Usage: python3 -I scripts/check-deploy-sparse.py <workflow.yml> <repo-root>
 For each job of the workflow whose checkout step has a `sparse-checkout:` list,
 the job's commands (comments and the sparse list itself removed) are searched for
 the repository files they run or read: scripts/*.sh, static/_headers, static/_routes.json and the
-script hash file. Each script is then read, and the scripts it sources or runs and
+script hash files. Each script is then read, and the scripts it sources or runs and
 the data files it names are added, until nothing new appears. Any needed file
 that the job's sparse list does not cover is printed as "job: path" and the exit
 status is 1. Jobs with a full checkout are not checked.
@@ -14,7 +14,10 @@ import os
 import re
 import sys
 
-DATA = ("static/_headers", "static/_routes.json", "copy.js.sha256")
+DATA = ("static/_headers", "static/_routes.json")
+# Code that asks for the pinned scripts (scripts/artifact-rules.sh) reads one hash
+# file per script on that file's PINNED_SCRIPTS allowlist: <name>.sha256 at the root.
+HASH_TRIGGER = "pinned_script_names"
 
 
 def jobs(text):
@@ -70,7 +73,21 @@ def needed(root, text):
         for d in DATA:
             if d in t:
                 found.add(d)
+        if HASH_TRIGGER in t:
+            found.update(hash_files(root))
     return found
+
+
+def hash_files(root):
+    """The hash file of every script on the PINNED_SCRIPTS allowlist."""
+    path = os.path.join(root, "scripts", "artifact-rules.sh")
+    if not os.path.exists(path):
+        return set()
+    text = open(path, encoding="utf-8").read()
+    m = re.search(r"^PINNED_SCRIPTS=\(([^)]*)\)", text, re.M)
+    if not m:
+        return set()
+    return {name + ".sha256" for name in re.findall(r'"([A-Za-z0-9_.-]+):[^"]*"', m.group(1))}
 
 
 def found_add(root, found, todo, rel):

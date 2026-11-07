@@ -11,28 +11,33 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, headers-structure,
+# skip-link, landmark, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, script-wrong-page, search-page-budget, headers-structure,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, template-element, missing-output.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
-# same-origin script (it cannot name one file); these checks and the hash pin of
-# /copy.js make the copy script the only one. The only script element allowed is <script src=/copy.js></script>
-# (quotes optional, no other attribute, no body), at most once per page. No
-# other script element, no inline script, no event-handler attribute, no
-# javascript: URL. The only script file in the build is /copy.js, under 1 KB
-# gzip (docs/redesign-brief.md section 10). The CSP must carry exactly one
-# script-src, and it must be 'self'.
+# same-origin script (it cannot name one file); these checks and the hash pins of
+# /copy.js and /search.js make those two the only ones, each on ONE page. The
+# allowlist (scripts/artifact-rules.sh) maps script -> page: /copy.js on
+# /support/ and /search.js on /search/. The only script element allowed on a
+# page is its own <script src=/NAME></script> (quotes optional, no other
+# attribute, no body), at most once; the same tag on any other page is
+# script-wrong-page. No other script element, no inline script, no event-handler
+# attribute, no javascript: URL. The only script files in the build are those two,
+# each under 1 KB gzip (docs/redesign-brief.md section 10). The search page's
+# HTML is under 40 KB gzip (search-page-budget): it is the browse list with
+# JavaScript off, and past that size the approach needs another look. The CSP
+# must carry exactly one script-src, and it must be 'self'.
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
 # nosniff is in _headers, _headers is one /* block with no removal directive
-# (headers-structure), and copy.js is accepted only if its sha256 equals the
-# one in the committed copy.js.sha256 (SCRIPT_HASH_FILE overrides the path;
-# script-hash, script-hash-file). With no hash file no script element and no js
-# file may exist. URLs are judged as the browser reads them, after character
+# (headers-structure), and each pinned script is accepted only if its sha256
+# equals the one in its committed <name>.sha256 (SCRIPT_HASH_DIR overrides the
+# directory; script-hash, script-hash-file). With no hash file for a script, no
+# element and no file of that name may exist. URLs are judged as the browser reads them, after character
 # references are decoded and tabs and newlines dropped (a parser pass per page):
 # javascript: URLs, http: and scheme-relative or backslash URLs to another host
 # on a tag that loads something, and any <base> element are findings.
@@ -82,7 +87,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/robots-wildcard.sh"
 
 dir="${1:-public}"
-script_hash_file="${SCRIPT_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/copy.js.sha256}"
 site_host="${SITE_HOST:-test-blog.chiefgyk3d.com}"
 expect_alias="${EXPECT_ALIAS:-/2023/02/10/sample-post/}"
 findings=0
@@ -167,14 +171,19 @@ case "${EXPECT_ENV:-}" in
     *) report env-mismatch "EXPECT_ENV must be staging or production" ;;
 esac
 
-# The pinned script hash: absent means no script is allowed in the build.
-pinned=""
-rc=0
-pinned="$(script_hash_state "$script_hash_file")" || rc=$?
-if [[ $rc -eq 2 ]]; then
-    report script-hash-file "$(basename "$script_hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
-    pinned=""
-fi
+# The pinned script hashes: a missing hash file means that script is not
+# allowed in the build.
+mapfile -t script_names < <(pinned_script_names)
+declare -A pinned=()
+for name in "${script_names[@]}"; do
+    hash_file="$(pinned_hash_file "$name")"
+    rc=0
+    pinned[$name]="$(script_hash_state "$hash_file" "$name")" || rc=$?
+    if [[ $rc -eq 2 ]]; then
+        report script-hash-file "$(basename "$hash_file") must be one line: 64 lowercase hex characters (sha256sum format)"
+        pinned[$name]=""
+    fi
+done
 
 # jsonld_check <file> <home|article|other>: the JSON-LD rules of scripts/check-seo.py.
 jsonld_check() {
@@ -196,21 +205,35 @@ while IFS= read -r -d '' f; do
     if grep -oEi '<script([^a-z0-9_>-][^>]*)?>' <<<"$flat" | grep -qiv 'src='; then
         report inline-script "$rel"
     fi
-    # Every script element must be exactly the copy script. Any other form
-    # (a body, another attribute, another file, a tag with no closing >) is
-    # blocked or unreviewed.
+    # Every script element must be exactly a pinned script on its own page. Any
+    # other form (a body, another attribute, another file, a tag with no closing
+    # >) is blocked or unreviewed.
     script_total="$(grep -oEi '<script([^a-z0-9_-]|$)' <<<"$flat" | wc -l || true)"
-    script_copy="$(grep -oEi "<script src=(\"/copy\\.js\"|'/copy\\.js'|/copy\\.js)></script>" <<<"$flat" | wc -l || true)"
-    if [[ "$script_total" -ne "$script_copy" ]]; then
+    script_known=0
+    for name in "${script_names[@]}"; do
+        quoted="${name//./\\.}"
+        n="$(grep -oEi "<script src=(\"/${quoted}\"|'/${quoted}'|/${quoted})></script>" <<<"$flat" | wc -l || true)"
+        [[ "$n" -gt 0 ]] || continue
+        script_known=$((script_known + n))
+        if [[ "$rel" != "$(pinned_script_page "$name")" ]]; then
+            report script-wrong-page "$rel (/${name} belongs on $(pinned_script_page "$name") only)"
+            continue
+        fi
+        [[ "$n" -gt 1 ]] && report script-count "$rel"
+        if [[ -z "${pinned[$name]}" ]]; then
+            report script-not-allowed "$rel (no pinned hash for /${name}: the script is not allowed)"
+        elif [[ ! -f "$dir/$name" ]]; then
+            report missing-script "$rel (references /${name}, which is not in the build)"
+        fi
+    done
+    if [[ "$script_total" -ne "$script_known" ]]; then
         report script-not-allowed "$rel"
-    elif [[ "$script_copy" -gt 1 ]]; then
-        report script-count "$rel"
     fi
-    if [[ -z "$pinned" && "$script_total" -gt 0 ]]; then
-        report script-not-allowed "$rel (no pinned script: no script is allowed)"
-    fi
-    if [[ "$script_copy" -ge 1 && ! -f "$dir/copy.js" ]]; then
-        report missing-script "$rel (references /copy.js, which is not in the build)"
+    if [[ "$rel" == search/index.html ]]; then
+        gz="$(gzip -9 -n -c "$f" | wc -c)"
+        if [[ "$gz" -ge "$(search_page_gzip_budget)" ]]; then
+            report search-page-budget "$rel (${gz} bytes gzip, budget is under $(search_page_gzip_budget): revisit the search approach, docs/pinned-script.md)"
+        fi
     fi
     if grep -qEi '<style[ >]' "$f"; then
         report style-element "$rel"
@@ -499,23 +522,24 @@ while IFS= read -r -d '' f; do
     fi
 done < <(find "$dir" -type f -print0 | sort -z)
 
-# Script files: /copy.js only, only if its sha256 is the pinned one, under 1 KB
-# gzip. No hash file, no script.
+# Script files: the pinned ones only, each only if its sha256 is the pinned one,
+# under 1 KB gzip. No hash file, no script.
 while IFS= read -r -d '' f; do
     rel="${f#"$dir"/}"
-    if [[ "$rel" != copy.js || -z "$pinned" ]]; then
+    if [[ -z "${pinned[$rel]:-}" ]]; then
         report extra-script-file "$rel"
     fi
 done < <(find "$dir" -type f \( -iname '*.js' -o -iname '*.mjs' -o -iname '*.cjs' \) -print0 | sort -z)
-if [[ -f "$dir/copy.js" ]]; then
-    if [[ -n "$pinned" && "$(sha256sum "$dir/copy.js" | cut -d' ' -f1)" != "$pinned" ]]; then
-        report script-hash "copy.js (does not match the pinned sha256)"
+for name in "${script_names[@]}"; do
+    [[ -f "$dir/$name" ]] || continue
+    if [[ -n "${pinned[$name]}" && "$(sha256sum "$dir/$name" | cut -d' ' -f1)" != "${pinned[$name]}" ]]; then
+        report script-hash "$name (does not match the pinned sha256)"
     fi
-    gz="$(gzip -9 -n -c "$dir/copy.js" | wc -c)"
-    if [[ "$gz" -ge 1024 ]]; then
-        report js-budget "copy.js (${gz} bytes gzip, budget is under 1024)"
+    gz="$(gzip -9 -n -c "$dir/$name" | wc -c)"
+    if [[ "$gz" -ge "$(script_gzip_budget)" ]]; then
+        report js-budget "$name (${gz} bytes gzip, budget is under $(script_gzip_budget))"
     fi
-fi
+done
 
 if [[ $findings -gt 0 ]]; then
     echo "check-output: $findings finding(s)"

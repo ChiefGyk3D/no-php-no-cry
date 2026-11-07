@@ -23,14 +23,20 @@
 #                 (application/xml, text/xml or a +xml type); the build must
 #                 hold feed/index.xml (else exit 2). It is also checked like
 #                 every page (policy, nosniff, markup).
-#   script-hash    when the build has a copy.js, the deployed /copy.js has the
-#                 sha256 pinned in copy.js.sha256 (SCRIPT_HASH_FILE overrides)
-#   script-not-allowed / script-count / event-handler / javascript-url /
+#   script-hash    for each pinned script the build has (copy.js, search.js), the
+#                 deployed /copy.js or /search.js has the sha256 pinned in its
+#                 hash file, copy.js.sha256 or search.js.sha256 (SCRIPT_HASH_DIR
+#                 overrides the directory). The page that loads it (/support/
+#                 or /search/, from the allowlist in scripts/artifact-rules.sh)
+#                 is checked too.
+#   script-wrong-page / script-not-allowed / script-count / event-handler / javascript-url /
 #   external-asset / http-reference / base-element
 #                 the bytes each page SERVES (the same response as its headers)
 #                 are read with scripts/scan-markup.py, the build check's parser:
-#                 no script element other than one <script src=/copy.js></script>
-#                 (and none at all without a pinned script), no handler, no
+#                 no script element other than the page's own pinned script, once
+#                 (<script src=/copy.js></script> on /support/, /search.js on
+#                 /search/; the same tag on another page is script-wrong-page;
+#                 none at all without a pinned script), no handler, no
 #                 javascript: URL. It reads the served page only; it does not
 #                 fetch or inspect any other script file (the build checks do).
 # Pages checked, one per template, taken from the build: the home page, the
@@ -105,22 +111,26 @@ first_page() {
     printf '%s/\n' "${p%/index.html}"
 }
 
-# The copy script: a copy.js in the build must match the pinned hash (else
-# exit 2), and the deployed /copy.js must be exactly those bytes.
-script_hash_file="${SCRIPT_HASH_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/copy.js.sha256}"
-script_pinned=""
-if [[ -f "$dir/copy.js" ]]; then
+# The pinned scripts: each one in the build must match its pinned hash (else
+# exit 2), and the deployed copy must be exactly those bytes.
+declare -A script_pinned=()
+script_known=()
+while IFS= read -r name; do
+    [[ -f "$dir/$name" ]] || continue
     rc=0
-    script_pinned="$(script_hash_state "$script_hash_file")" || rc=$?
+    hash_file="$(pinned_hash_file "$name")"
+    pin="$(script_hash_state "$hash_file" "$name")" || rc=$?
     if [[ $rc -ne 0 ]]; then
-        echo "input: ${dir}/copy.js is in the build but there is no valid pinned hash at ${script_hash_file}"
+        echo "input: ${dir}/${name} is in the build but there is no valid pinned hash at ${hash_file}"
         exit 2
     fi
-    if [[ "$(sha256sum "$dir/copy.js" | cut -d' ' -f1)" != "$script_pinned" ]]; then
-        echo "input: ${dir}/copy.js does not match the pinned hash in ${script_hash_file}"
+    if [[ "$(sha256sum "$dir/$name" | cut -d' ' -f1)" != "$pin" ]]; then
+        echo "input: ${dir}/${name} does not match the pinned hash in ${hash_file}"
         exit 2
     fi
-fi
+    script_pinned["/$name"]="$pin"
+    script_known+=("/$name")
+done < <(pinned_script_names)
 
 scan_py="$(dirname "${BASH_SOURCE[0]}")/scan-markup.py"
 site_host="${base#*://}"
@@ -148,7 +158,13 @@ if [[ ! -f "$dir/feed/index.xml" ]]; then
     exit 2
 fi
 pages+=(/feed/index.xml)
-[[ -n "$script_pinned" ]] && pages+=(/copy.js)
+# A pinned script and the one page that loads it are both checked.
+known_csv="$(printf '%s,' "${script_known[@]}")"
+known_csv="${known_csv%,}"
+for name in "${script_known[@]}"; do
+    pages+=("$name")
+    pages+=("$(pinned_script_url "${name#/}")")
+done
 
 # The redirects to check: the first 301 line of the build (required), /feed/ and
 # a sample of the other rules, the first of each class the build holds.
@@ -240,18 +256,23 @@ check_page() {
         echo "wrong-nosniff: ${path} must have exactly one X-Content-Type-Options header with the value nosniff"
         failed=1
     fi
-    if [[ "$path" == /copy.js ]]; then
+    if [[ -n "${script_pinned[$path]:-}" ]]; then
         got="$(sha256sum <"$body_file" | cut -d' ' -f1)"
-        if [[ "$got" != "$script_pinned" ]]; then
+        if [[ "$got" != "${script_pinned[$path]}" ]]; then
             echo "script-hash: ${path} served by the site does not match the pinned sha256"
             failed=1
         fi
     fi
     # What the site serves, read with the build check's parser (same request as
     # the headers above): no extra, inline, remote or handler scripts.
-    if [[ "$path" != /copy.js && $ok -eq 1 ]]; then
-        local opts=(--scripts none) found rule
-        [[ -n "$script_pinned" ]] && opts=(--scripts pinned)
+    if [[ -z "${script_pinned[$path]:-}" && $ok -eq 1 ]]; then
+        local opts=(--scripts none) found rule name allow=""
+        if [[ ${#script_known[@]} -gt 0 ]]; then
+            for name in "${script_known[@]}"; do
+                [[ "$path" == "$(pinned_script_url "${name#/}")" ]] && allow="$name"
+            done
+            opts=(--scripts pinned --known "$known_csv" --allow "$allow")
+        fi
         [[ "$path" == *.xml ]] && opts=(--markup)
         found="$(python3 -I "$scan_py" "${opts[@]}" "$site_host" "$body_file")" || found="unparseable-html"
         while IFS= read -r rule; do
