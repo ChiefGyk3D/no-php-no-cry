@@ -123,7 +123,10 @@ for t in third-js:js-name:'printf x > third.js' \
     copy-js-big:js-size:'head -c 20000 /dev/urandom | base64 > copy.js' \
     search-js-missing:missing-asset:'rm search.js' \
     copy-js-missing:missing-asset:'rm copy.js'; do
-    n="${t%%:*}"; r="${t#*:}"; cmd="${r#*:}"; r="${r%%:*}"
+    n="${t%%:*}"
+    r="${t#*:}"
+    cmd="${r#*:}"
+    r="${r%%:*}"
     d="$work/m-$n"
     cp -r "$both" "$d"
     (cd "$d" && eval "$cmd")
