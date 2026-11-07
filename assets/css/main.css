@@ -338,6 +338,34 @@ main {
   font-size: var(--text-sm);
 }
 
+/* Archived comments from the old site (issue 121): quoted text, name and date. */
+.comments-archive {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--border);
+}
+
+.comments-archive .comment {
+  margin: var(--space-4) 0 0;
+}
+
+.comments-archive blockquote {
+  margin: 0;
+  padding-left: var(--space-4);
+  border-left: var(--rule-accent-width) solid var(--accent);
+}
+
+.comments-archive blockquote p {
+  margin: 0 0 var(--space-3);
+}
+
+.comments-archive figcaption {
+  margin-top: var(--space-2);
+  padding-left: var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* In a list the date sits on its own line under the title. */
 .post-list .meta {
   margin-top: var(--space-1);
