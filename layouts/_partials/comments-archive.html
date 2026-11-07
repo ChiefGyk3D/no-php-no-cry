@@ -1,0 +1,24 @@
+{{- /* Comments from the old site (issue 121). Data: data/comments/<slug>.json, a list of {author, date, content}, keyed by the post's slug. Display name only. Every value is escaped by html/template; none is passed through safeHTML or markdownify. A data file is never published (a page-bundle comments.json would be copied into the output). */}}
+{{- with .Params.slug }}
+{{- $comments := index site.Data.comments . }}
+{{- if $comments }}
+<section class="comments-archive" aria-labelledby="comments-archive-title">
+  <h2 id="comments-archive-title">Comments from the old site</h2>
+  <p class="meta">Kept from the previous version of this site. They are shown as written, with the commenter's display name and the original date only.</p>
+  {{- range $comments }}
+  <figure class="comment">
+    <blockquote>
+      {{- range split (replace .content "\r\n" "\n") "\n\n" }}
+      <p>{{ . }}</p>
+      {{- end }}
+    </blockquote>
+    <figcaption>
+      <span>{{ .author }}</span>,
+      {{- $d := time.AsTime .date }}
+      <time datetime="{{ $d.Format "2006-01-02" }}">{{ $d.Format "January 2, 2006" }}</time>
+    </figcaption>
+  </figure>
+  {{- end }}
+</section>
+{{- end }}
+{{- end }}
