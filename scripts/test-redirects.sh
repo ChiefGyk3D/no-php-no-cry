@@ -255,7 +255,7 @@ assert len(items) == 3, len(items)
 assert all("FULLBODY-" in (i.findtext("description") or "") for i in items)
 PY
         # The site minifies its HTML, which drops the attribute quotes.
-        local link="<link rel=\"?alternate\"? type=\"?application/rss\\+xml\"? title=\"?no-php-no-cry\"? href=\"?$host"
+        local link="<link rel=\"?alternate\"? type=\"?application/rss\\+xml\"? title=\"?ChiefGyk3D\"? href=\"?$host"
         local page
         for page in "$2" "$3"; do
             grep -qE "$link/feed/index.xml\"?>" "$page" || echo "feed: $page lacks the auto-discovery link to /feed/index.xml"
