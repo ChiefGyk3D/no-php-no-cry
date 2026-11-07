@@ -686,6 +686,58 @@ fi
 if grep -Eq '\.hero-actions[^}]*flex-direction: *column' <<<"$hero"; then
     fail "home hero CTAs are a stacked column"
 fi
+# Penguin ghost layer (issue 149): Home and 404 only, CSS only, no new asset.
+# trigger_pages lists which built pages carry a ghost trigger class; the guard
+# self-test below proves the check bites on a page that should not have one.
+has_ghost_trigger() { grep -Eq 'class="?[^>]*\b(home-grid|not-found)\b' "$1"; }
+for f in "$pub/index.html" "$pub/404.html"; do
+    if has_ghost_trigger "$f"; then
+        pass "ghost layer trigger present on ${f#"$pub"/}"
+    else
+        fail "ghost layer trigger missing on ${f#"$pub"/}"
+    fi
+done
+for f in "$pub/about/index.html" "$pub/posts/sample-post/index.html"; do
+    if has_ghost_trigger "$f"; then
+        fail "ghost layer trigger must be absent on ${f#"$pub"/}"
+    else
+        pass "ghost layer trigger absent on ${f#"$pub"/}"
+    fi
+done
+printf '<main><div class="home-grid"></div></main>\n' >"$work/ghost-yes.html"
+printf '<main><article class="post"></article></main>\n' >"$work/ghost-no.html"
+if has_ghost_trigger "$work/ghost-yes.html" && ! has_ghost_trigger "$work/ghost-no.html"; then
+    pass "guard: ghost trigger check accepts home-grid and rejects a post"
+else
+    fail "guard: ghost trigger check does not bite"
+fi
+ghost="$(src_css home | tr '\n' ' ')"
+ghost_rule="$(grep -Eo 'main:has\(\.home-grid\)::before, *main:has\(\.not-found\)::before *\{[^}]*\}' <<<"$ghost" || true)"
+ghost_ok=1
+for want in 'position: *absolute' 'width: *min\(60vw, *40rem\)' 'aspect-ratio: *1' 'opacity: *0\.(08|09|1|10|11|12)\b' 'filter: *grayscale\(1\)' 'pointer-events: *none' 'z-index: *0' '/brand/mascot-512\.webp' '(^|[ ;])mask-image: *radial-gradient' '-webkit-mask-image: *radial-gradient'; do
+    grep -Eq -- "$want" <<<"$ghost_rule" || {
+        ghost_ok=0
+        echo "  ghost rule missing: $want"
+    }
+done
+grep -Eq 'position: *fixed' <<<"$ghost_rule" && ghost_ok=0
+if [[ -n "$ghost_rule" && $ghost_ok -eq 1 ]]; then
+    pass "ghost layer CSS: absolute, no CLS, masked, faint, grayscale, inert"
+else
+    fail "ghost layer CSS rule missing or incomplete in home.css"
+fi
+ghost_targets="$(grep -Eo 'main:has\([^)]*\)' <<<"$ghost" | sort -u | tr '\n' ' ')"
+if [[ "$ghost_targets" == 'main:has(.home-grid) main:has(.not-found) ' ]]; then
+    pass "ghost layer selects only the home and 404 pages"
+else
+    fail "ghost layer must select only .home-grid and .not-found"
+fi
+if grep -q 'mascot-512.webp' "$root/brand/approved-assets.txt"; then
+    pass "ghost layer image is an approved asset"
+else
+    fail "ghost layer image is not in approved-assets.txt"
+fi
+
 if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
     fail "posts index still says 'Placeholder posts section.'"
 elif grep -q '^Newest first\.$' "$root/content/posts/_index.md"; then
