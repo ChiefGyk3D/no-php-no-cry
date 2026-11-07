@@ -1,0 +1,32 @@
+Copyright 2026 ChiefGyk3D
+
+The written content of this repository is licensed under the Creative Commons
+Attribution 4.0 International license (CC BY 4.0).
+
+Canonical legal code: https://creativecommons.org/licenses/by/4.0/legalcode
+Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+
+Scope
+-----
+
+Covered: everything under content/ (posts, journal entries, pages, and the text
+and images the author made for them), and the documentation under docs/, except
+the material listed below.
+
+Not covered:
+
+- The brand assets (mascot, wordmark, logos and the other approved brand files).
+  They are all rights reserved. See BRAND.md.
+- The third-party material listed in BRAND.md, including the five product
+  photos in the headphones post bundle. Those keep their owners' terms.
+- Source code, scripts, templates and configuration. They are under
+  Apache-2.0. See LICENSE.
+
+Attribution
+-----------
+
+When you reuse covered content, credit "ChiefGyk3D", link to the license, and
+say if you changed it.
+
+This file is a notice, not a copy of the license, and it is not legal advice.
+If the notice and the canonical legal code differ, the legal code governs.
