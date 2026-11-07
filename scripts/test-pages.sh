@@ -734,7 +734,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p>'
+good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p><footer><p>You'"'"'re not dead until you stop learning. Happy Hacking.</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"
