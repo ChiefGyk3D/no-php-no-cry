@@ -202,8 +202,8 @@ else
     fail "plain page: $out"
 fi
 
-if out="$(run_asserter "$site/public/index.html" "$site_desc" "no-php-no-cry" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
-    pass "rel=me links render; the javascript: link is not emitted"
+if out="$(run_asserter "$site/public/index.html" "$site_desc" "no-php-no-cry" "https://social.example/@name" 2>&1)"; then
+    pass "params.me rel=me links render (the footer no longer repeats the socials row); the javascript: link is not emitted"
 else
     fail "home page: $out"
 fi

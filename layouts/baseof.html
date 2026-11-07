@@ -55,35 +55,25 @@
   </main>
   <footer class="site-footer">
     <div class="wrap">
-      <ul class="footer-row">
+      <ul class="footer-row" aria-label="Footer">
         <li><a href="{{ "/about/" | relURL }}">About</a></li>
         <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
         <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>
+        <li><a href="{{ "/social/" | relURL }}">Social</a></li>
+        <li><a href="{{ "/support/" | relURL }}">Support</a></li>
       </ul>
-      {{- /* https only: html/template already neutralizes javascript: URLs, but a link that cannot be verified as an identity should not render at all. data/socials.yaml drives the row; params.me adds more identity links beside it. */ -}}
-      {{- with site.Data.socials }}
-      <ul class="footer-row social-row" aria-label="Social">
-        {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
-        <li><a class="icon-{{ $s.icon }}"{{ if $s.rel_me }} rel="me"{{ end }} href="{{ $s.url }}">{{ $s.name }}</a></li>
-        {{- end }}{{ end }}
-      </ul>
-      {{- end }}
+      {{- /* The social icon row and the Tip/Ko-fi/Patreon/Shop row are not repeated here: /social/ and /support/ carry them (data/socials.yaml, data/support.yaml). params.me still renders its https rel="me" identity links (none until set). */ -}}
       {{- with site.Params.me }}
       <p class="me-links">
         {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }} <a rel="me" href="{{ $l.url }}">{{ $l.name }}</a>{{ end }}{{ end -}}
       </p>
       {{- end }}
-      {{- with site.Data.support }}
-      <ul class="footer-row support-row" aria-label="Support">
-        {{- range $l := . }}{{ if strings.HasPrefix $l.url "https://" }}
-        <li><a href="{{ $l.url }}" rel="noopener">{{ $l.name }}</a></li>
-        {{- end }}{{ end }}
-      </ul>
-      {{- end }}
-      <p class="footer-line">You're not dead until you stop learning. Happy Hacking.</p>
-      <p class="credit">&copy; {{ now.Year }} ChiefGyk3D</p>
+      <div class="footer-meta">
+        <p class="footer-line">You're not dead until you stop learning. Happy Hacking.</p>
+        <p class="credit">&copy; {{ now.Year }} ChiefGyk3D</p>
+      </div>
     </div>
   </footer>
 </body>

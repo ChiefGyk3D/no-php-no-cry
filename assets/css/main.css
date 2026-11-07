@@ -299,41 +299,24 @@ main {
   font-size: var(--text-sm);
 }
 
-/* Footer: the rows share one wrapping line on wide screens, flush with the
- * content column edge (no side padding on the links); the credit closes it. */
+/* Footer: two calm rows under the page container, left aligned. Row 1 is the
+ * page links (each --tap tall); row 2 is the sign-off line and the credit,
+ * side by side where they fit, stacked on a phone. */
 .site-footer .wrap {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.footer-meta {
+  display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  justify-content: space-between;
   gap: 0 var(--space-5);
 }
 
-.credit {
-  flex-basis: 100%;
-  margin: var(--space-2) 0 0;
-}
-
-/* The sign-off line: shares the credit row (so it adds no height), left edge. */
-.footer-line {
-  flex: 1 1 auto;
-  margin: var(--space-2) 0 0;
-}
-
-/* Wide screens: the credit joins the link rows and sits at the far edge. */
-@media (min-width: 80rem) {
-  .site-footer .wrap {
-    gap: 0 var(--space-6);
-  }
-
-  .credit {
-    flex-basis: auto;
-    margin: 0 0 0 auto;
-  }
-
-  .footer-line {
-    flex: 0 1 auto;
-    margin: 0;
-  }
+.footer-meta p {
+  margin: 0;
 }
 
 .meta {

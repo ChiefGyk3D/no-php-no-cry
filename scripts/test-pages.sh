@@ -370,6 +370,22 @@ if __name__ == "__main__":
     fps = [norm(x) for x in re.findall(r"<p[^>]*>(.*?)</p>", fm.group(0), re.S)] if fm else []
     if FOOTER_LINE not in fps:
         errs.append("footer line missing")
+    # The footer is two calm rows: page links (with Social and Support), then the
+    # line and the copyright. No repeated social or support row.
+    if fm:
+        hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", fm.group(0), re.S)
+        names = [norm(t) for _, t in hrefs]
+        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Social", "Support"]:
+            errs.append("footer links are %r" % names)
+        targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
+        if not targets.get("Social", "").endswith("/social/"):
+            errs.append("footer Social does not point at /social/")
+        if not targets.get("Support", "").endswith("/support/"):
+            errs.append("footer Support does not point at /support/")
+        if "social-row" in fm.group(0) or "support-row" in fm.group(0) or "icon-" in fm.group(0):
+            errs.append("footer repeats the social or support row")
+        if "&copy;" not in fm.group(0) and "©" not in fm.group(0):
+            errs.append("footer copyright missing")
     for e in sorted(set(errs)):
         print(e)
     sys.exit(1 if errs else 0)
@@ -425,6 +441,15 @@ if [[ -f "$pub/about/index.html" ]]; then
         fail "guard: an About page without the footer line passed"
     else
         pass "guard: an About page without the footer line fails"
+    fi
+fi
+# Guard: the footer-links check bites. A repeated social row put back must fail.
+if [[ -f "$pub/about/index.html" ]]; then
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); t = s.replace("</footer>", "<ul class=social-row><li><a class=icon-twitch href=https://twitch.tv/x>Twitch</a></li></ul></footer>", 1); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$pub/about/index.html" "$work/about-socialrow.html"
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-socialrow.html" >/dev/null 2>&1; then
+        fail "guard: an About page with a footer social row passed"
+    else
+        pass "guard: an About page with a footer social row fails"
     fi
 fi
 [[ -f "$pub/privacy/index.html" ]] && assert privacy "$pub/privacy/index.html"
