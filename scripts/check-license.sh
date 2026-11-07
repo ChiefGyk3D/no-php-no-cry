@@ -4,7 +4,8 @@
 # Usage: scripts/check-license.sh [repo-root]      (default: this repo)
 #
 # Fails when: LICENSE is missing or is not byte-for-byte the official Apache-2.0
-# text (sha256 pinned below), LICENSE-CONTENT is missing, or BRAND.md is missing
+# text (sha256 pinned below), LICENSE-CONTENT is missing or lacks the CC BY 4.0
+# name, legal-code URL, scope section or attribution terms, or BRAND.md is missing
 # or does not say "all rights reserved". Findings are printed as plain sentences.
 set -euo pipefail
 
@@ -31,6 +32,13 @@ if [[ ! -f "$root/LICENSE-CONTENT" ]]; then
     report "LICENSE-CONTENT is missing"
 elif ! grep -q 'creativecommons.org/licenses/by/4.0/legalcode' "$root/LICENSE-CONTENT"; then
     report "LICENSE-CONTENT does not point to the CC BY 4.0 legal code"
+else
+    grep -q 'Attribution 4.0 International' "$root/LICENSE-CONTENT" ||
+        report "LICENSE-CONTENT does not name Attribution 4.0 International"
+    grep -q '^Scope$' "$root/LICENSE-CONTENT" && grep -q '^Not covered:' "$root/LICENSE-CONTENT" ||
+        report "LICENSE-CONTENT does not state its scope (Scope, Not covered)"
+    grep -q '^Attribution$' "$root/LICENSE-CONTENT" && grep -q 'credit "ChiefGyk3D"' "$root/LICENSE-CONTENT" ||
+        report "LICENSE-CONTENT does not state the attribution terms"
 fi
 
 if [[ ! -f "$root/BRAND.md" ]]; then

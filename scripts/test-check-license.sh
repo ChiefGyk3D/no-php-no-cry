@@ -54,6 +54,18 @@ d="$(fixture bad-content)"
 printf 'Some notice\n' >"$d/LICENSE-CONTENT"
 expect content-license-without-url 1 "$d"
 
+d="$(fixture url-only-content)"
+printf 'https://creativecommons.org/licenses/by/4.0/legalcode\n' >"$d/LICENSE-CONTENT"
+expect content-license-url-only 1 "$d"
+
+d="$(fixture no-scope-content)"
+grep -v '^Scope$' "$root/LICENSE-CONTENT" >"$d/LICENSE-CONTENT"
+expect content-license-without-scope 1 "$d"
+
+d="$(fixture no-attribution-content)"
+grep -v '^Attribution$' "$root/LICENSE-CONTENT" >"$d/LICENSE-CONTENT"
+expect content-license-without-attribution 1 "$d"
+
 d="$(fixture no-brand)"
 rm "$d/BRAND.md"
 expect missing-brand-notice 1 "$d"
