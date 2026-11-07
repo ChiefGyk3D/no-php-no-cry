@@ -159,7 +159,11 @@ def check_social(page, root, bad):
         name = e["name"]
         text = tile.all_text()
         for field, label in (("handle", "handle"), ("blurb", "role line")):
-            if e.get(field, "") and e[field] not in text:
+            # A fediverse handle has its inner @ in its own span (Cloudflare Email
+            # Obfuscation), and this small DOM keeps text and child spans apart,
+            # so compare the handle with its @ and spaces dropped.
+            squash = (lambda t: "".join(t.replace("@", "").split())) if field == "handle" else (lambda t: t)
+            if e.get(field, "") and squash(e[field]) not in squash(text):
                 bad.append("%s tile lacks %s" % (name, label))
         if name not in text:
             bad.append("%s tile lacks name" % name)

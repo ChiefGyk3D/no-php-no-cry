@@ -1,0 +1,2 @@
+{{- /* A fediverse handle (@user@host) is shaped like an email address, and Cloudflare Email Obfuscation rewrites it to "[email protected]" and injects a script. An @ that follows a word character goes in its own inert span, so no text node has the user@host shape; copy and paste, and screen readers, still read the whole handle. scripts/check-output.sh (email-shaped-text) keeps it that way. */ -}}
+{{- . | htmlEscape | replaceRE `(\w)@` `${1}<span>@</span>` | safeHTML -}}
