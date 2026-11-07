@@ -26,10 +26,14 @@ import sys
 from html.parser import HTMLParser
 
 KB = 1024
+# Pinned scripts (docs/pinned-script.md; scripts/check-site-artifact.sh pins their
+# hashes) and the one page each may load on. Adding a pinned script is a reviewed
+# edit here plus the docs and artifact rules; /theme.js was retired (issue 82).
+PAGE_SCRIPTS = {"/copy.js": "/support/index.html"}
 LIMITS = {
-    # Brief section 10: same-origin scripts only, each under 1 KB gzip: /theme.js
-    # (not shipped yet) and the hash-pinned /copy.js, which only /support/ loads.
-    "js_files": 2,
+    # Same-origin scripts only, each under 1 KB gzip, and only the hash-pinned
+    # ones in PAGE_SCRIPTS (the file count limit is the size of that table).
+    "js_files": len(PAGE_SCRIPTS),
     "js_gzip": 1 * KB,
     # One stylesheet per page, 20 KB gzip (brief target 12 KB; today 4.1 KB).
     "css_files_per_page": 1,
@@ -47,11 +51,10 @@ LIMITS = {
     # A post page without the images inside the post body.
     "post_no_images": 80 * KB,
 }
-TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "js", "webmanifest"}
+SCRIPT_EXT = {"js", "mjs", "cjs"}
+TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "webmanifest"} | SCRIPT_EXT
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp", "avif", "ico", "svg"}
 FONT_EXT = {"woff", "woff2", "ttf"}
-ALLOWED_JS = ("/theme.js", "/copy.js")
-COPY_JS_PAGE = "/support/index.html"
 
 
 def ext(path):
@@ -123,16 +126,16 @@ def main():
         bad("no-pages", "/", "no HTML in the site directory")
 
     # Whole-build rules.
-    js = [f for f in allfiles if ext(f) == "js"]
+    js = [f for f in allfiles if ext(f) in SCRIPT_EXT]
     if len(js) > LIMITS["js_files"]:
         bad("js-count", "/", "%d script files, at most %d" % (len(js), LIMITS["js_files"]))
     for f in js:
-        if f not in ALLOWED_JS:
-            bad("js-name", f, "only %s may ship" % " and ".join(ALLOWED_JS))
+        if f not in PAGE_SCRIPTS:
+            bad("js-name", f, "only %s may ship" % " and ".join(PAGE_SCRIPTS))
         if size(fs(f)) > LIMITS["js_gzip"]:
             bad("js-size", f, "%d bytes gzip, limit %d" % (size(fs(f)), LIMITS["js_gzip"]))
     for f in allfiles:
-        if ext(f) in IMAGE_EXT and ext(f) != "svg" and size(fs(f)) > LIMITS["image_any"]:
+        if ext(f) in IMAGE_EXT and size(fs(f)) > LIMITS["image_any"]:
             bad("image-file-size", f, "%d bytes, limit %d" % (size(fs(f)), LIMITS["image_any"]))
 
     css_cache = {}
@@ -195,8 +198,8 @@ def main():
             u = local(s, page)
             if u:
                 count(u, "js")
-                if u == "/copy.js" and page != COPY_JS_PAGE:
-                    bad("js-page", page, "/copy.js may load only on %s" % COPY_JS_PAGE)
+                if u in PAGE_SCRIPTS and page != PAGE_SCRIPTS[u]:
+                    bad("js-page", page, "%s may load only on %s" % (u, PAGE_SCRIPTS[u]))
         for cands in refs.img:
             urls = [u for u in (local(c, page) for c in cands) if u]
             sizes = []

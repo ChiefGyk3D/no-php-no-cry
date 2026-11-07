@@ -77,6 +77,28 @@ out="$(run_gate "$work/good" --axe "$work/axe-bad.js")" || rc=$?
 if [[ $rc -ne 0 && "$out" == *"[setup]"* ]]; then pass "a tampered axe-core is refused"; else fail "tampered axe-core: exit $rc: $out"; fi
 if (cd "$root/tools/axe" && sha256sum -c axe.min.js.sha256 >/dev/null 2>&1); then pass "vendored axe-core matches its pinned hash"; else fail "vendored axe-core does not match axe.min.js.sha256"; fi
 
+# The origin check compares parsed scheme/host/port, not a string prefix: a
+# request to port 123451 is not the site at port 12345.
+rc=0
+out="$(python3 -I - "$root/scripts/browser-gate.py" <<'PY' 2>&1
+import importlib.util
+import sys
+
+spec = importlib.util.spec_from_file_location("browser_gate", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+base = "http://127.0.0.1:12345"
+same = [base, base + "/", base + "/a/b?x=1#f", base + "?q"]
+other = [base + "1/x", base + "1", "http://127.0.0.1:1234/", "https://127.0.0.1:12345/",
+         "http://127.0.0.1.evil.test:12345/", "http://127.0.0.1:12345@evil.test/", "ws://127.0.0.1:12345/"]
+bad = [u for u in same if not mod.same_origin(u, base)] + [u for u in other if mod.same_origin(u, base)]
+if bad:
+    print("wrong origin verdict for:", bad)
+    sys.exit(1)
+PY
+)" || rc=$?
+if [[ $rc -eq 0 ]]; then pass "origin check compares scheme/host/port (port-prefix collision refused)"; else fail "origin check: $out"; fi
+
 if [[ $failures -gt 0 ]]; then
     echo "$failures check(s) failed"
     exit 1

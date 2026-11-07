@@ -45,6 +45,18 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.parse
+
+
+def same_origin(url, base):
+    """True when url has the same scheme, host and port as base (not a string prefix:
+    http://127.0.0.1:123451/ starts with http://127.0.0.1:12345 but is another origin)."""
+    try:
+        u, b = urllib.parse.urlsplit(url), urllib.parse.urlsplit(base)
+        return (u.scheme, u.hostname, u.port) == (b.scheme, b.hostname, b.port) and u.username is None and u.password is None
+    except ValueError:
+        return False
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -447,7 +459,7 @@ def run_one(cdp, base, name, url, width, height, dpr, mobile, full, axe_src, has
                 u = p["request"]["url"]
                 reqs[p["requestId"]] = u
                 n_req += 1
-                if u.startswith(("http:", "https:", "ws:", "wss:")) and not u.startswith(base):
+                if u.startswith(("http:", "https:", "ws:", "wss:")) and not same_origin(u, base):
                     fails.append("[network] %s request leaves the site: %s" % (label, u.split("?")[0][:120]))
             elif meth == "Network.responseReceived":
                 st, u = p["response"]["status"], p["response"]["url"]

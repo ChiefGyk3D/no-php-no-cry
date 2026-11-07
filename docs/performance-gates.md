@@ -22,7 +22,7 @@ largest candidate of an `<img srcset>`.
 
 | Rule | Limit | Today (largest) | Source |
 |---|---|---|---|
-| `js-count`, `js-name`, `js-page` | at most two script files in the build, `/theme.js` and the hash-pinned `/copy.js`; `/copy.js` loads only on `/support/` | `/copy.js` only (1 file) | brief section 10; the hash pin and CSP rules stay in `check-output.sh` |
+| `js-count`, `js-name`, `js-page` | only the hash-pinned scripts in the `PAGE_SCRIPTS` table of `check-budget.py` ship (today `/copy.js`, loaded only on `/support/`); any `.js`, `.mjs` or `.cjs` file counts, and the file count limit is the size of that table | `/copy.js` only (1 file) | docs/pinned-script.md; the hash pin and CSP rules stay in `check-output.sh` |
 | `js-size` | 1 KB gzip | n/a | brief section 10 |
 | `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 4.1 KB | brief (target 12 KB) |
 | `font-count`, `font-size` | at most 2 font files per page, each 30 KB transferred | Jost 26.6 KB, Orbitron 19.9 KB | brief says one font; the brand kit ships two (Jost body, Orbitron headings), so the count is 2 |
