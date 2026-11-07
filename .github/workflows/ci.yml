@@ -121,6 +121,11 @@ jobs:
           scripts/check-wording.sh
           scripts/test-check-wording.sh
 
+      - name: Check the license files (pinned Apache-2.0 text, content license, brand notice)
+        run: |
+          scripts/check-license.sh
+          scripts/test-check-license.sh
+
       - name: Test the copy script pinning
         run: scripts/test-pin-script.sh
 
