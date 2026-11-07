@@ -32,7 +32,9 @@ from html.parser import HTMLParser
 HEADINGS = ["Summary", "Core Skills", "Technical Knowledge",
             "Open-Source Projects", "Certifications", "Community", "Contact"]
 REQUIRED = [
-    "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+",
+    "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
+    "Yes, the order is odd. CISSP came first, in 2024. I earned all three "
+    "CompTIA certs in February 2026 while working toward my WGU bachelor",
     "Network System Administration", "2016", "General class",
     "Ordained Priest, Church of the Latter Day Dude",
     "I can secure the network and officiate the wedding afterward.",
@@ -44,7 +46,7 @@ REQUIRED = [
 PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
             "Reach Around", "Skid Finder"]
-FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"\bWGU\b", r"Western Governors",
+FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"Western Governors",
              r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
 GRID = r"\b[A-R]{2}\d\d(?:[a-x]{2})?\b"
