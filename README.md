@@ -40,6 +40,7 @@ scripts/check-output.sh public   # see the rules below
 scripts/check-site-artifact.sh public   # no Pages worker/functions; _headers, _routes.json and _redirects pinned
 scripts/test-check-site-artifact.sh
 scripts/test-pages.sh          # Support, About and Privacy pages, the /contact/ redirect, wallet addresses and QR files
+scripts/test-comments.sh       # archived comments from the old site (data/comments/), rendered under their posts
 scripts/test-redirects.sh      # _redirects fragment grammar and line shape
 scripts/gen-support-qr.sh --check   # QR SVGs equal a fresh encoding of data/support.yaml
 scripts/test-pin-script.sh
