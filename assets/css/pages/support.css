@@ -66,8 +66,17 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space);
   align-content: start;
-  justify-items: start;
+  justify-items: center;
   min-width: 0;
+}
+
+/* The four cards share their rows (heading, QR, address, Copy), so the Copy
+ * buttons line up even when one address wraps to more lines than another. */
+@supports (grid-template-rows: subgrid) {
+  .coin-list > .coin {
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+  }
 }
 
 .coin-head {
@@ -125,7 +134,8 @@
 }
 
 .address {
-  display: block;
+  display: grid;
+  align-content: center;
   box-sizing: border-box;
   max-width: 100%;
   padding: var(--space-2) var(--space);
@@ -134,20 +144,17 @@
   border: var(--rule-width) solid var(--border);
   border-radius: var(--radius);
   font-size: var(--text-sm);
+  text-align: center;
   user-select: all;
 }
 
-.coin-body {
-  display: grid;
-  gap: var(--space);
-  justify-items: start;
-}
-
+/* Copy sits centered below the address. The status text ("Copied") is placed
+ * beside the button without taking part in the layout, so the button stays
+ * centered and showing the text moves nothing. */
 .coin-actions {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space);
+  justify-content: center;
 }
 
 .copy-btn[hidden] {
@@ -155,9 +162,16 @@
 }
 
 .copy-status {
-  min-width: 0;
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: max-content;
+  max-width: 6rem;
+  margin-left: var(--space-2);
+  transform: translateY(-50%);
   color: var(--accent);
   font-size: var(--text-sm);
+  line-height: 1.2;
 }
 
 /* The off-screen field the copy script uses when the Clipboard API is missing. */
@@ -172,8 +186,9 @@
 
 /* Standing rule (issue 123): at 1920x1080 (80rem and wider) /support/ fits the
  * browser window with no vertical scroll. One-line intros, shorter tiles, and
- * each coin card is a head row, the QR code (with Copy beside it from 100rem), then the address.
- * The QR stays 10rem (160 px) so a phone camera still reads it. */
+ * each coin card is one centered column: a head row, the QR code, the address,
+ * then Copy below it (issue 194). The QR is never smaller than 10rem (160 px) so
+ * a phone camera still reads it; it is as large as the fit allows. */
 @media (min-width: 80rem) {
   .page-support h1 {
     margin: 0 0 var(--space-3);
@@ -189,7 +204,7 @@
   }
 
   .support-tiles {
-    margin: var(--space-5) 0 var(--space-3);
+    margin: var(--space-4) 0 var(--space-3);
   }
 
   .support-tiles .tile {
@@ -201,7 +216,7 @@
   }
 
   .page-support h2.hud-heading {
-    margin: var(--space-5) 0 var(--space-3);
+    margin: var(--space-4) 0 var(--space-2);
   }
 
   .support-coins > p {
@@ -209,12 +224,12 @@
   }
 
   .coin-list {
-    margin-top: var(--space-4);
+    margin-top: var(--space-3);
   }
 
   .coin.panel {
-    padding: var(--space-4) var(--space);
-    gap: var(--space-3);
+    padding: var(--space-3) var(--space);
+    gap: var(--space-2);
   }
 
   .coin-mark {
@@ -227,7 +242,7 @@
   }
 
   .qr {
-    width: 10rem;
+    width: min(100%, 12.5rem);
   }
 
   .address {
@@ -235,25 +250,5 @@
     padding: var(--space-1) var(--space-2);
     font-size: var(--text-sm);
     line-height: 1.4;
-  }
-}
-
-/* From 100rem (1600 px) each coin card is wide enough to put Copy beside the QR
- * code; between 80rem and 100rem the card is narrower and Copy sits under it. */
-@media (min-width: 100rem) {
-  .coin-body {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    width: 100%;
-  }
-
-  .coin-actions {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
-
-  .copy-status {
-    min-height: 1.25rem;
   }
 }
