@@ -169,9 +169,21 @@ headers_policy_ok() {
             if (substr(line, 1, 1) == "!" || blocks < 1) bad = 1
             if (kind == "cache") { lines++; if (lines > 1 || line != want) bad = 1 }
             if (kind == "main" && tolower(line) ~ /^cache-control[ \t]*:/) bad = 1
+            if (kind == "main" && tolower(line) ~ /^cross-origin-opener-policy[ \t]*:/) {
+                coop++; v = line; sub(/^[^:]*:[ \t]*/, "", v)
+                if (v != "same-origin" || coop > 1) bad = 1
+            }
             if (kind == "x") bad = 1
         }
         END { if (kind == "cache" && lines != 1) bad = 1; exit (blocks < 1 || bad) }' "$1"
+}
+
+# headers_coop_ok <headers file>: succeeds when the "/*" block carries
+# Cross-Origin-Opener-Policy: same-origin exactly once (issue 259). The value
+# itself is also pinned by headers_policy_ok.
+headers_coop_ok() {
+    [[ "$(grep -ciE '^[[:space:]]*cross-origin-opener-policy[[:space:]]*:' "$1")" == 1 ]] &&
+        grep -qE '^[[:space:]]+Cross-Origin-Opener-Policy:[[:space:]]*same-origin[[:space:]]*\r?$' "$1"
 }
 
 # immutable_assets_bad <site dir>: prints one line for each file under an
