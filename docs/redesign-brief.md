@@ -201,6 +201,13 @@ the hub.
 
 One data file, `data/socials.yaml`, with `name`, `icon` (slug), `url`, `handle`,
 `rel_me` (bool), `blurb`. Handles in this file are the public handles only.
+The page and its nav and footer links are called "Socials" (issue 170; the URL stays
+`/social/`). A handle never splits mid-word: `layouts/_partials/handle.html` cuts
+it before the second `@` of a fediverse handle and after the `:` of a Matrix room,
+each part is `white-space: nowrap` and a `<wbr>` sits between them, so the user
+part and the domain take separate lines when the tile is narrow;
+`overflow-wrap: anywhere` stays on the tile only as a last resort. The browser gate
+rule `tile` fails a tile whose content sticks out.
 
 ### Feeds versus links
 

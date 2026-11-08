@@ -56,9 +56,13 @@ class Head(HTMLParser):
         self.me = []
         self.body_me = []
         self.in_head = False
+        self.in_social = False
+        self.footer_me = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if tag == "nav" and a.get("aria-label") == "Social profiles":
+            self.in_social = True
         if tag == "head":
             self.in_head = True
         elif tag == "body":
@@ -76,9 +80,18 @@ class Head(HTMLParser):
             # Identity links belong in <head> as invisible link elements. A
             # rel=me anchor in the body (the footer) is a visible link and is
             # collected apart so it cannot satisfy the head assertion.
-            (self.me if self.in_head else self.body_me).append(a)
+            # The footer icon row (issue 169) repeats rel=me on its links; those
+            # are collected apart and compared with the head set below.
+            if self.in_head:
+                self.me.append(a)
+            elif self.in_social and tag == "a":
+                self.footer_me.append(a)
+            else:
+                self.body_me.append(a)
 
     def handle_endtag(self, tag):
+        if tag == "nav":
+            self.in_social = False
         if tag == "title":
             self.in_title = False
         elif tag == "head":
@@ -118,6 +131,8 @@ def main(path, want_desc, want_title, want_me):
     for a in p.me:
         if (a.get("href") or "").lower().startswith("javascript:"):
             bad.append("javascript: rel=me link emitted")
+    if want_me is not None and not {a.get("href") for a in p.footer_me} <= {a.get("href") for a in p.me}:
+        bad.append("footer icon row rel=me links not in the head set: %r" % [a.get("href") for a in p.footer_me])
     if want_me is not None and [a.get("href") for a in p.me] != want_me:
         bad.append("rel=me hrefs are %r, want %r" % ([a.get("href") for a in p.me], want_me))
     for b in bad:

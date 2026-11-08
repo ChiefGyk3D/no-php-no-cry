@@ -15,7 +15,7 @@ GOOD_HTML = """<!doctype html>
 <html lang="en-us"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fixture</title><link rel="icon" href="/pic.png"><link rel="stylesheet" href="/site.css"></head>
 <body><a class="skip" href="#main">Skip to main content</a>
 <header><nav aria-label="Main"><div class="nav-menu"><button class="nav-toggle" type="button" popovertarget="nav-list">Menu</button><ul id="nav-list" popover><li><a href="/a/">One</a></li><li><a href="/b/">Two</a></li></ul></div></nav></header>
-<main id="main"><h1>Fixture</h1><p>Some text with an <a href="/inline/">inline link</a> in it.</p><img src="/pic.png" width="64" height="64" alt="A gray square"></main>
+<main id="main"><h1>Fixture</h1><p>Some text with an <a href="/inline/">inline link</a> in it.</p><img src="/pic.png" width="64" height="64" alt="A gray square"><ul class="tiles"><li class="tile"><span class="handle">@someone<wbr><span class="part">@host.example.org</span></span></li></ul></main>
 <footer><a href="/c/">Three</a></footer></body></html>
 """
 GOOD_CSS = (
@@ -27,6 +27,7 @@ GOOD_CSS = (
     ".nav-menu ul{position:absolute;top:60px;left:0;right:0;margin:0;padding:0;list-style:none;background:#222;border:0}"
     "@media(min-width:52rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
     "main{padding:16px}"
+    ".tiles{list-style:none;margin:0;padding:0}.tile{width:12rem;border:1px solid #888;padding:8px;box-sizing:border-box}.part{white-space:nowrap}"
     ".wide{width:3000px;height:1px;background:#fff}"
     ".small{display:block;width:30px;height:20px;min-width:0;min-height:0}"
 )
@@ -62,6 +63,9 @@ def write(d, name, text):
 def mutate(d, m):
     if m == "overflow":
         edit(d, "index.html", "<h1>", '<div class="wide"></div><h1>')
+    elif m == "tile-overflow":
+        # A part that cannot wrap and is wider than its tile.
+        edit(d, "index.html", "@host.example.org", "@a-very-long-host-name-that-cannot-wrap.example.org")
     elif m == "console":
         write(d, "theme.js", "console.error('boom');")
         edit(d, "index.html", "</head>", '<script src="/theme.js"></script></head>')

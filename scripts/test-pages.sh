@@ -373,16 +373,21 @@ if __name__ == "__main__":
     # The footer is two calm rows: page links (with Social and Support), then the
     # line and the copyright. No repeated social or support row.
     if fm:
-        hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", fm.group(0), re.S)
+        # The icon row (issue 169, a nav of its own, checked in test-social-products.sh)
+        # is cut out first; the page-link row is what is left.
+        foot = re.sub(r"<nav[^>]*footer-social.*?</nav>", "", fm.group(0), flags=re.S)
+        if foot == fm.group(0):
+            errs.append("footer social icon row missing")
+        hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", foot, re.S)
         names = [norm(t) for _, t in hrefs]
-        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Social", "Support"]:
+        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Socials", "Support"]:
             errs.append("footer links are %r" % names)
         targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
-        if not targets.get("Social", "").endswith("/social/"):
-            errs.append("footer Social does not point at /social/")
+        if not targets.get("Socials", "").endswith("/social/"):
+            errs.append("footer Socials does not point at /social/")
         if not targets.get("Support", "").endswith("/support/"):
             errs.append("footer Support does not point at /support/")
-        if "social-row" in fm.group(0) or "support-row" in fm.group(0) or "icon-" in fm.group(0):
+        if "social-row" in foot or "support-row" in foot or "icon-" in foot:
             errs.append("footer repeats the social or support row")
         if "&copy;" not in fm.group(0) and "©" not in fm.group(0):
             errs.append("footer copyright missing")
@@ -807,7 +812,7 @@ for m in re.finditer(r"<a\b[^>]*aria-current=\"?page\"?[^>]*>(.*?)</a>", nav, re
     print(re.sub(r"<[^>]+>", "", m.group(1)).strip())
 PY
 }
-for pair in "posts:Posts" "products:Products" "social:Social" "support:Support" "about:About"; do
+for pair in "posts:Posts" "products:Products" "social:Socials" "support:Support" "about:About"; do
     got="$(nav_current "$pub/${pair%%:*}/index.html")"
     if [[ "$got" == "${pair##*:}" ]]; then
         pass "nav marks ${pair##*:} current on /${pair%%:*}/"
@@ -832,7 +837,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
+good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"

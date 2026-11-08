@@ -526,7 +526,7 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "direct note dropped" products "$products" 's/Some products I link directly/Some products I link/'
     guard "price note removed" products "$products" 's/Price checked on/Seen on/'
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
-    guard "fediverse handle loses its @" social "$social" 's#(@chiefgyk3d)<span>@</span>(social\.chiefgyk3d\.com)#\1<span></span>\2#'
+    guard "fediverse handle loses its @" social "$social" 's#<span>@</span>(social\.chiefgyk3d\.com)#<span></span>\1#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
 fi
 

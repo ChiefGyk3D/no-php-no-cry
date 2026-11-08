@@ -39,7 +39,7 @@
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
             <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Social") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
+            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
             <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
             {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
@@ -61,7 +61,7 @@
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
         <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>
-        <li><a href="{{ "/social/" | relURL }}">Social</a></li>
+        <li><a href="{{ "/social/" | relURL }}">Socials</a></li>
         <li><a href="{{ "/support/" | relURL }}">Support</a></li>
       </ul>
       {{- /* Social icon row (issue 169): icons only, one link per data/socials.yaml entry with an https url (an empty url is "not live" and is skipped, as on /social/). Placed under the sign-off line and above the copyright. On a wide screen the row is two balanced rows: the per-row count is half the live count, rounded up (7 icons are 4 over 3), written as a class because the strict CSP forbids inline styles; the CSS caps the list at that many icons so flex-wrap breaks it evenly, centered. On a phone the cap is the screen width and the icons wrap on their own. The Tip/Ko-fi/Patreon/Shop row is not repeated here: /support/ carries it. rel="me" is on the link as well as in the head (head-meta.html). */ -}}
