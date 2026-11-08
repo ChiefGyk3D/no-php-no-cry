@@ -200,19 +200,11 @@ def support(p, errs, repo):
             errs.append("%s QR image appears %d times" % (coin, len(imgs)))
         elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
             errs.append("%s QR image needs alt, width and height" % coin)
-    # Socials: Instagram and Pixelfed are links that open in a new tab.
-    insta = [a for a, t in p.links if t == "Instagram"]
-    if len(insta) != 1 or insta[0].get("href") != "https://www.instagram.com/chiefgyk3d/":
-        errs.append("Instagram link missing or wrong")
-    elif not external_ok(insta[0]):
-        errs.append("Instagram link lacks target=_blank rel=noopener")
-    pixel = [a for a, t in p.links if t.startswith("Pixelfed")]
-    if len(pixel) != 1 or pixel[0].get("href") != "https://pics.chiefgyk3d.com/ChiefGyk3D":
-        errs.append("Pixelfed link missing or wrong")
-    elif not external_ok(pixel[0]):
-        errs.append("Pixelfed link lacks target=_blank rel=noopener")
-    if "coming soon" in flat.lower():
-        errs.append("Pixelfed is live: no 'coming soon' text")
+    # Issue 123 (owner order 2026-11-08): no "Also find me on" section here; /social/ has every network.
+    if "Also find me on" in flat:
+        errs.append("the 'Also find me on' section is back on /support/")
+    if any(h in (a.get("href") or "") for a, t in p.links for h in ("instagram.com", "pics.chiefgyk3d.com")):
+        errs.append("a social link is on /support/ (they live on /social/)")
     # Ko-fi stays a link-out until the framing test; the TODO is in the template.
     if repo.get("template") is not None and "TODO" not in repo["template"]:
         errs.append("the Ko-fi embed TODO marker is missing from the template")
@@ -815,10 +807,24 @@ for pair in "posts:Posts" "products:Products" "social:Social" "support:Support" 
         fail "nav on /${pair%%:*}/ marks '$got', expected '${pair##*:}'"
     fi
 done
-if [[ -z "$(nav_current "$pub/index.html")" ]]; then
-    pass "nav marks nothing current on the home page"
+if [[ "$(nav_current "$pub/index.html")" == "Home" ]]; then
+    pass "nav marks Home current on the home page"
 else
-    fail "nav marks something current on the home page"
+    fail "nav on the home page marks '$(nav_current "$pub/index.html")', expected 'Home'"
+fi
+nav_first() { # <html> -> text of the first link in the main nav
+    python3 -I - "$1" <<'PY'
+import re, sys
+h = open(sys.argv[1], encoding="utf-8").read()
+nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
+m = re.search(r"<a\b[^>]*>(.*?)</a>", nav.group(0) if nav else "", re.S)
+print(re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else "")
+PY
+}
+if [[ "$(nav_first "$pub/support/index.html")" == "Home" ]]; then
+    pass "nav lists Home first"
+else
+    fail "the first nav item on /support/ is '$(nav_first "$pub/support/index.html")', expected 'Home'"
 fi
 if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
     pass "stylesheet styles [aria-current]"

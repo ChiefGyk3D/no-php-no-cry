@@ -92,6 +92,9 @@ def mutate(d, m):
     elif m == "menu-escape":
         # A manual popover has no light dismiss: Escape no longer closes it.
         edit(d, "index.html", '<ul id="nav-list" popover>', '<ul id="nav-list" popover="manual">')
+    elif m == "tall":
+        edit(d, "site.css", "main{", ".tall{height:2000px}main{")  # a class, not a style attribute: the CSP forbids inline style
+        edit(d, "index.html", "<footer>", '<div class="tall"></div><footer>')
     elif m == "toggle-missing":
         write(d, "theme.js", "document.title = 'x';")
         edit(d, "index.html", "</head>", '<script src="/theme.js"></script></head>')

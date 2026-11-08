@@ -125,13 +125,24 @@ Starting point is the baseline page inventory (6 pages, 10 posts, accepted).
 `/sample-page/` is dropped. The theme demo draft is dropped. The privacy draft
 is replaced by a new statement.
 
+### Standing rule: short pages fit 1920x1080 without scrolling
+
+Owner order, 2026-11-08 (issue 123): in a 1920x1080 browser, a short page must
+not need a vertical scroll "when at all possible". The content area of that
+browser is about 1920x930. Home, Social, Support, Privacy and the 404 page fit
+it; the rule starts at 80rem wide (1440 and below may scroll; phones keep one
+column). Pages that are long by nature (posts, a post, products, about, resume,
+search) are listed with a reason in `FIT_ALLOW` in `scripts/browser-gate.py`,
+and the browser gate fails any other page whose `scrollHeight` exceeds 930 px at
+1920x930 (rule `fit`, docs/performance-gates.md). New pages must fit or be added
+to that list with a reason.
+
 ### Primary navigation
 
-Header, in this order: Posts, Products, Social, Support, About. Contact is the
+Header, in this order: Home, Posts, Products, Social, Support, About (Home added 2026-11-08, issue 123; the wordmark still links home too). Contact is the
 `#contact` section of `/about/`, not a page of its own; the footer links to
 `/about/#contact` (fewer top-level items on a phone). The baseline
-menu had six items; this keeps every destination but merges Home (the wordmark
-links home) and Contact.
+menu had six items; this keeps every destination but merges Contact.
 
 On a phone the header is a wordmark plus a Menu button. The button is a native
 `popovertarget` that opens a `<ul popover>` list below 52rem; from 52rem up the

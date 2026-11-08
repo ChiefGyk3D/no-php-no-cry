@@ -315,6 +315,14 @@ main {
   padding: var(--space-6) 0;
 }
 
+/* Standing rule (issue 123): short pages fit 1920x1080 without scrolling, so
+ * from 80rem the page's top and bottom padding is smaller. */
+@media (min-width: 80rem) {
+  main {
+    padding: var(--space-5) 0;
+  }
+}
+
 .site-footer {
   border-top: var(--rule-width) solid var(--rule);
   padding: var(--space) 0;

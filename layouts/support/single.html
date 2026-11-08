@@ -47,25 +47,20 @@
           <h3 class="coin-name">{{ .name }}</h3>
           <span class="coin-ticker">{{ .ticker }}</span>
         </div>
-        <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
-        <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
-        <div class="coin-actions">
-          <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
-          <span class="copy-status" role="status"></span>
+        {{- /* QR and Copy side by side from 80rem (so the page fits 1920x1080 without scrolling); stacked below that. */}}
+        <div class="coin-body">
+          <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
+          <div class="coin-actions">
+            <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
+            <span class="copy-status" role="status"></span>
+          </div>
         </div>
+        <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
       </li>
       {{- end }}{{ end }}
     </ul>
   </section>
 
-  <section class="support-social" aria-labelledby="support-social-h">
-    <h2 id="support-social-h" class="hud-heading">Also find me on</h2>
-    {{- /* TODO: move these two into data/socials.yaml when the socials hub lands (issue 60). Pixelfed went live with issue 106. */}}
-    <ul class="social-links">
-      <li><a href="https://www.instagram.com/chiefgyk3d/" target="_blank" rel="noopener">Instagram<span class="visually-hidden"> (opens in a new tab)</span></a></li>
-      <li><a href="https://pics.chiefgyk3d.com/ChiefGyk3D" target="_blank" rel="me noopener">Pixelfed<span class="visually-hidden"> (opens in a new tab)</span></a></li>
-    </ul>
-  </section>
   <script src="{{ "copy.js" | relURL }}"></script>
 </article>
 {{ end }}

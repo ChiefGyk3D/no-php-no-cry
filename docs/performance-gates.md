@@ -89,6 +89,13 @@ Enter, move Tab into the list, close with Escape (focus returns to the button),
 reopen, and close with Enter again. A click outside the list also closes the
 native popover (light dismiss) but is not exercised by the gate.
 
+Fit (`fit`), a standing rule: short pages fit 1920x1080 without scrolling. Each
+template not in `FIT_ALLOW` is loaded at 1920x930 (the content area of a 1920x1080
+browser) and its `scrollHeight` must not exceed the viewport height. Pages that
+cannot fit (posts, a post, products, about, resume, search) are named in
+`FIT_ALLOW` in `scripts/browser-gate.py`, each with a reason; a stale name fails
+`[setup]`. Home, Social, Support, Privacy and the 404 page must fit.
+
 Toggle (`toggle`): the dark-only brand kit has no theme toggle yet (the redesign
 brief's `/theme.js` is not implemented). The check runs only when the build
 ships `/theme.js`: the header must hold a real `<button>` (`aria-pressed` or

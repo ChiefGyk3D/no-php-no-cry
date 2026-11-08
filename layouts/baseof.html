@@ -35,6 +35,7 @@
           <ul id="nav-list" popover>
             {{- /* aria-current="page" marks the link whose URL is this page; a post under /posts/ is not that page, so the Posts link stays plain there. */}}
             {{- $here := .RelPermalink }}
+            <li><a href="{{ "/" | relURL }}"{{ if eq $here ("/" | relURL) }} aria-current="page"{{ end }}>Home</a></li>
             <li><a href="{{ "/posts/" | relURL }}"{{ if eq $here ("/posts/" | relURL) }} aria-current="page"{{ end }}>Posts</a></li>
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
             <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
