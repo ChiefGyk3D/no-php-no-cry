@@ -1,0 +1,51 @@
+{{- /*
+  The headline (featured) image of a post, from front matter "image" (a file in
+  the page bundle, usually featured.jpg, featured.png or featured.webp) and
+  "imageAlt" (required). Takes a dict: "page", and "mode": "hero" (the post page,
+  above the title, never lazy) or "thumb" (a small card image on the list and
+  home pages, decorative beside the title link, so its alt is empty). A page with
+  no "image" renders nothing. Same rules as layouts/_markup/render-image.html:
+  bundle files only, JPEG, PNG or WebP, real alt text, and the build fails
+  without it. The social card is chosen in head-meta.html from the same key.
+*/ -}}
+{{- $p := .page -}}
+{{- /* A value that starts with / or https:// is a site path or URL used for the social card only (head-meta.html): no hero, no thumbnail. */ -}}
+{{- with $p.Params.image -}}
+{{- if not (or (strings.HasPrefix . "/") (strings.HasPrefix . "https://")) -}}
+  {{- $alt := $p.Params.imagealt | default "" | strings.TrimSpace -}}
+  {{- if not $alt -}}
+    {{- errorf "page %q sets image %q but has no imageAlt (alt text is required)" $p.File.Path . -}}
+  {{- end -}}
+  {{- if strings.HasPrefix $alt "TODO alt text" -}}
+    {{- errorf "page %q still has placeholder imageAlt; write a real description" $p.File.Path -}}
+  {{- end -}}
+  {{- $img := $p.Resources.Get . -}}
+  {{- if not $img -}}
+    {{- errorf "page %q image %q is not a page-bundle resource (remote and site-wide images are not allowed)" $p.File.Path . -}}
+  {{- end -}}
+  {{- if not (in (slice "image/jpeg" "image/png" "image/webp") $img.MediaType.Type) -}}
+    {{- errorf "page %q image %q is %s; only JPEG, PNG and WebP are supported" $p.File.Path . $img.MediaType.Type -}}
+  {{- end -}}
+  {{- if eq $.mode "hero" -}}
+    {{- /* Derived copies are WebP (the source file is never changed): scripts/check-budget.py caps a displayed image at 120 KB and a page at 150 KB, and a phone photo as JPEG or PNG does not fit. */ -}}
+    {{- $fallback := $img.Resize (printf "%dx webp q70" (int (math.Min $img.Width 800))) -}}
+    {{- $set := slice -}}
+    {{- range slice 480 800 -}}
+      {{- if le . $img.Width -}}
+        {{- $r := $img.Resize (printf "%dx webp q70" .) -}}
+        {{- $set = $set | append (printf "%s %dw" $r.RelPermalink $r.Width) -}}
+      {{- end -}}
+    {{- end -}}
+<figure class="post-hero">
+  <img src="{{ $fallback.RelPermalink }}"
+    {{- if gt (len $set) 1 }} srcset="{{ delimit $set ", " }}" sizes="(min-width: 42rem) 42rem, 100vw"{{ end }}
+    width="{{ $fallback.Width }}" height="{{ $fallback.Height }}"
+    alt="{{ $alt }}" fetchpriority="high" decoding="async">
+</figure>
+  {{- else -}}
+    {{- $one := $img.Fill "96x64 Center webp q70" -}}
+    {{- $two := $img.Fill "192x128 Center webp q70" -}}
+<img class="post-thumb" src="{{ $one.RelPermalink }}" srcset="{{ $one.RelPermalink }} 96w, {{ $two.RelPermalink }} 192w" sizes="6rem" width="96" height="64" alt="" loading="lazy" decoding="async">
+  {{- end -}}
+{{- end -}}
+{{- end -}}

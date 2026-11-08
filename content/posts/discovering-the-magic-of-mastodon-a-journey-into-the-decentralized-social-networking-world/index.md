@@ -2,6 +2,10 @@
 title: "Discovering the Magic of Mastodon: A Journey into the Decentralized Social Networking World"
 date: 2023-02-06T15:40:38-05:00
 slug: "discovering-the-magic-of-mastodon-a-journey-into-the-decentralized-social-networking-world"
+image: "featured.png"
+imageAlt: "The Mastodon mascot, a smiling orange mammoth with blue-edged tusks, sitting on the white Mastodon logo above the text joinmastodon.org."
+build:
+  publishResources: false
 description: "What Mastodon and the fediverse are, why I started my own instance, and what I like about a decentralized network."
 archive: true
 categories: ["Social Media"]

@@ -28,6 +28,64 @@ def basic():
     return convert((FIXTURES / "basic.xml").read_text(encoding="utf-8"))
 
 
+def thumb_export(alt="A striped test pattern", thumb_id="10"):
+    """basic.xml with the first post's featured image set to attachment thumb_id."""
+    text = (FIXTURES / "basic.xml").read_text(encoding="utf-8")
+    meta = (
+        "<wp:postmeta><wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key>"
+        "<wp:meta_value><![CDATA[%s]]></wp:meta_value></wp:postmeta>\n    " % thumb_id
+    )
+    marker = '<category domain="category" nicename="reviews">'
+    assert marker in text
+    text = text.replace(marker, meta + marker, 1)
+    if alt != "A striped test pattern":
+        text = text.replace("A striped test pattern", alt, 1)
+    return text
+
+
+class FeaturedImageTests(unittest.TestCase):
+    def test_thumbnail_becomes_featured_file_and_front_matter(self):
+        proc, out, _ = convert(thumb_export())
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((out / "posts/first-post/featured.png").read_bytes(), PNG)
+        head = (out / "posts/first-post/index.md").read_text().split("---\n")[1]
+        self.assertIn('image: "featured.png"\n', head)
+        self.assertIn('imageAlt: "A striped test pattern"\n', head)
+        self.assertEqual(json.loads(proc.stdout)["featured_images"], 1)
+        # The original is only a source for the resize pipeline: not published as is.
+        self.assertIn("build:\n  publishResources: false\n", head)
+
+    def test_post_without_thumbnail_has_no_image_keys(self):
+        proc, out, _ = convert(thumb_export())
+        second = (out / "posts/second-post/index.md").read_text().split("---\n")[1]
+        self.assertNotIn("image:", second)
+        self.assertNotIn("imageAlt", second)
+        self.assertNotIn("publishResources", second)
+        self.assertFalse((out / "posts/second-post/featured.png").exists())
+
+    def test_missing_alt_is_a_warning_and_placeholder(self):
+        text = thumb_export().replace(
+            "<wp:meta_key><![CDATA[_wp_attachment_image_alt]]></wp:meta_key>",
+            "<wp:meta_key><![CDATA[_other]]></wp:meta_key>",
+            1,
+        )
+        proc, out, _ = convert(text)
+        head = (out / "posts/first-post/index.md").read_text().split("---\n")[1]
+        self.assertIn('imageAlt: "TODO alt text"\n', head)
+        log = json.loads((out / "decision-log.json").read_text())
+        kinds = [w["kind"] for w in log["warnings"] if w["file"] == "posts/first-post/index.md"]
+        self.assertIn("featured-alt-todo", kinds)
+
+    def test_thumbnail_pointing_nowhere_is_a_warning(self):
+        proc, out, _ = convert(thumb_export(thumb_id="999"))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        head = (out / "posts/first-post/index.md").read_text().split("---\n")[1]
+        self.assertNotIn("image:", head)
+        log = json.loads((out / "decision-log.json").read_text())
+        kinds = [w["kind"] for w in log["warnings"]]
+        self.assertIn("featured-image-unresolved", kinds)
+
+
 class BasicConversionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

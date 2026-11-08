@@ -3,6 +3,10 @@ title: "Best Headphone & Microphone Combo for Office, Gaming, and Music for Unde
 date: 2023-04-01T17:28:54-04:00
 draft: true
 slug: "best-headphone-microphone-combo-for-office-gaming-and-music-for-under-100"
+image: "featured.jpg"
+imageAlt: "Two pairs of headphones, one with a boom microphone, hang on a wall of black acoustic foam beside a large broadcast microphone and a wooden studio monitor."
+build:
+  publishResources: false
 description: "A budget headset built from studio headphones, a modular microphone and a few adapters, for work meetings, music and gaming for under $100."
 categories: ["Audio", "Hardware"]
 tags: ["gaming", "headphone", "headset", "IT", "office", "wfh", "work from home"]

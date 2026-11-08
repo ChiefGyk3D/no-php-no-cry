@@ -3,6 +3,10 @@ title: "Must-Have Tools for 3D Printing and PC Repair: My Recommended Starter Ki
 date: 2023-03-13T19:37:33-04:00
 draft: true
 slug: "must-have-tools-for-3d-printing-and-pc-repair-my-recommended-starter-kit"
+image: "featured.jpg"
+imageAlt: "Screwdriver sets, a precision bit kit in a black roll-up case, hex bit boxes and a cordless screwdriver spread out on a couch."
+build:
+  publishResources: false
 description: "The tools I recommend for starting out in 3D printing and PC repair, from a ratcheting screwdriver to thermal paste."
 categories: ["Hardware"]
 tags: ["3d printing", "pc repair", "tools"]

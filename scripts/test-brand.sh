@@ -196,6 +196,18 @@ mk_tree "$work/t10"
 cp "$work/t10/static/brand/og-card.png" "$work/t10/static/brand/star-card.png"
 expect_fail "a starred file name is caught" "banned" "$assets" "$work/t10"
 
+# A post slug is URL text, not a file name: a bundle folder like "...-starter-kit"
+# must not trip the "star" ban. Only the file name and any folder below the
+# bundle are matched. The ban still bites on a starred file in that bundle.
+mk_tree "$work/t11"
+slugdir="$(find "$work/t11/content/posts" -maxdepth 1 -type d -name '*starter-kit' | head -1)"
+if [[ -z "$slugdir" ]]; then bad "no starter-kit post bundle found (test is blind)"; fi
+rm -f "$work/t11/content/posts/"*/sample-image.png
+"$assets" "$work/t11" >"$work/slug.txt" 2>&1 || true
+if grep -q "starter-kit.*banned name" "$work/slug.txt"; then bad "a post slug containing 'star' is not a banned name"; else ok "a post slug containing 'star' is not a banned name"; fi
+cp "$slugdir/featured.jpg" "$slugdir/star-card.jpg"
+expect_fail "a starred image inside a post bundle is caught" "star-card.jpg has a banned name" "$assets" "$work/t11"
+
 # Every tracked image and font is listed (git is the source of truth).
 if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
     tracked="$(git -C "$root" ls-files | grep -i -E '\.(png|jpe?g|webp|gif|ico|avif|woff2?|ttf|otf|svg)$' || true)"

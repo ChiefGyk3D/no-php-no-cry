@@ -4,9 +4,13 @@
 {{- $default := site.Params.ogImage | default "brand/og-card.png" -}}
 {{- $image := $default | absURL -}}
 {{- $custom := false -}}
+{{- $sized := true -}}
+{{- $ogW := 1200 -}}
+{{- $ogH := 630 -}}
 {{- with .Params.image -}}
   {{- $res := $.Resources.GetMatch . -}}
-  {{- if $res }}{{ $image = $res.Permalink }}{{ else }}{{ $image = . | absURL }}{{ end -}}
+  {{- /* A page-bundle image becomes a JPEG card of at most 1200x630 (never the multi-megabyte original, which scripts/check-budget.py would reject and a crawler may refuse); its real size is declared. A transparent logo is flattened onto the site background. */ -}}
+  {{- if $res }}{{ $card := $res.Fit "1200x630 jpg q80 #0F0F0F" }}{{ $image = $card.Permalink }}{{ $ogW = $card.Width }}{{ $ogH = $card.Height }}{{ else }}{{ $image = . | absURL }}{{ $sized = false }}{{ end -}}
   {{- $custom = true -}}
 {{- end -}}
 {{- $title := cond .IsHome site.Title .Title -}}
@@ -21,9 +25,9 @@
 <meta property="og:type" content="{{ cond $article "article" "website" }}">
 <meta property="og:url" content="{{ .Permalink }}">
 <meta property="og:image" content="{{ $image }}">
-{{- if not $custom }}
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+{{- if $sized }}
+<meta property="og:image:width" content="{{ $ogW }}">
+<meta property="og:image:height" content="{{ $ogH }}">
 {{- end }}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="{{ $image }}">
