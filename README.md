@@ -10,6 +10,16 @@ the open, that you can read, copy and adapt.
 Staging runs at `test-blog.chiefgyk3d.com` until the site replaces the apex
 domain. It deploys to Cloudflare Pages.
 
+## Why this exists
+
+No PHP No Cry is a static site and work journal built because of PHP2Shell and my frustration with Matt Mullenweg and his toxicity. I covered the WordPress and Matt Mullenweg situation in a few videos:
+
+- [“Who can't drive an Automattic? The fall of Wordpress and Matt Mullenweg”](https://www.youtube.com/watch?v=FnoazrD6-Rg)
+- [“The Internet at Risk: WordPress Drama and Matt Mullenweg's Petty Fight Against WP Engine”](https://www.youtube.com/watch?v=RqRZoQqKPgs)
+- [“Automattic and Matt Mullenweg ‘Are Doing Open Source Dirty’”](https://www.youtube.com/watch?v=QLEzJ3cXiWI)
+
+It aims to be fast, light, capable, better designed, and more secure. Open source so creators can use it and learn from it.
+
 ## Who it is for
 
 - You want to leave WordPress (or any CMS) for a static site and want to see one
