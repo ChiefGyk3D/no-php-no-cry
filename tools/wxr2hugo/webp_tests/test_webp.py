@@ -408,6 +408,72 @@ class FeaturedScrubTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertEqual((d / "featured.png").read_bytes(), b"not an image")
 
+    def plain_jpeg(self, **kw):
+        buf = io.BytesIO()
+        photo_like((160, 120)).save(buf, "JPEG", **kw)
+        return buf.getvalue()
+
+    def pixels(self, data):
+        with Image.open(io.BytesIO(data)) as img:
+            img.load()
+            return img.tobytes()
+
+    def test_jpeg_trailer_with_second_jpeg_and_exif_is_cut(self):
+        base = self.plain_jpeg()
+        trailer = b"MPF-ish trailer" + jpeg_with_exif(orientation=1) + b"\xff\xe1\x00\x08Exif\x00\x00"
+        d, proc = self.run_on("featured.jpg", base + trailer)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        out = (d / "featured.jpg").read_bytes()
+        self.assertEqual(out, base)
+        self.assertNotIn(b"SecretCameraMaker", out)
+
+    def test_progressive_multi_scan_jpeg_survives_intact(self):
+        icc = b"fake-icc-profile-" * 20
+        base = self.plain_jpeg(progressive=True, icc_profile=icc)
+        self.assertGreater(base.count(b"\xff\xda"), 1)
+        d, proc = self.run_on("featured.jpg", base + jpeg_with_exif(orientation=1))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        out = (d / "featured.jpg").read_bytes()
+        self.assertEqual(self.pixels(out), self.pixels(base))
+        self.assertEqual(out, base)
+        with Image.open(d / "featured.jpg") as img:
+            self.assertEqual(img.info.get("icc_profile"), icc)
+
+    def test_truncated_jpeg_is_refused_and_left_alone(self):
+        data = self.plain_jpeg()[:-60]
+        d, proc = self.run_on("featured.jpg", data)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.jpg").read_bytes(), data)
+
+    def test_png_data_after_iend_is_cut(self):
+        base = png_bytes((160, 120))
+        d, proc = self.run_on("featured.png", base + b"trailer Exif SecretCameraMaker")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((d / "featured.png").read_bytes(), base)
+
+    def test_png_without_iend_is_refused(self):
+        data = png_bytes((160, 120))[:-12]
+        d, proc = self.run_on("featured.png", data)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.png").read_bytes(), data)
+
+    def webp(self):
+        buf = io.BytesIO()
+        photo_like((160, 120)).save(buf, "WEBP", quality=80)
+        return buf.getvalue()
+
+    def test_webp_trailer_past_riff_size_is_cut(self):
+        base = self.webp()
+        d, proc = self.run_on("featured.webp", base + b"trailer Exif SecretCameraMaker")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((d / "featured.webp").read_bytes(), base)
+
+    def test_webp_shorter_than_its_riff_size_is_refused(self):
+        data = self.webp()[:-20]
+        d, proc = self.run_on("featured.webp", data)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.webp").read_bytes(), data)
+
     def test_importer_featured_then_webp_leaves_no_exif(self):
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
         try:

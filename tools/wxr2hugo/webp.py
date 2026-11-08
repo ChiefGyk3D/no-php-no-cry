@@ -18,7 +18,11 @@ A JPEG loses its APP1, APP13 and COM segments, a PNG its eXIf and text chunks,
 a WebP its EXIF and XMP chunks, all without re-encoding. Only a file whose
 camera orientation is not "normal" is re-encoded (JPEG and WebP quality 95, PNG
 lossless) with the orientation applied, since dropping the tag alone would turn
-the picture sideways. The file is replaced atomically.
+the picture sideways. The file is replaced atomically. Anything after the image's own end is dropped too (after the JPEG
+EOI that ends the last scan, after PNG IEND, past the WebP RIFF size), since a
+trailer can hold a second image with its own EXIF or GPS. A file whose
+structure cannot be walked to that end (truncated, no EOI or IEND) is refused
+and left as it was.
 
 Hostile files are refused one by one and left exactly as they were: a file
 whose content is not the image format its name claims, an image over the pixel
@@ -104,28 +108,50 @@ def write_new(path, data):
 def strip_jpeg(data):
     if data[:2] != bytes([0xFF, 0xD8]):
         raise ValueError("not a JPEG")
+    # Walk every marker segment of the primary image, through each scan (a
+    # progressive file has several), and end at its EOI: anything after that
+    # (Motion Photo or MPF trailers, a second embedded JPEG) is dropped.
     out, i = [data[:2]], 2
-    while i + 4 <= len(data):
+    while i + 2 <= len(data):
         if data[i] != 0xFF:
             raise ValueError("bad marker")
         marker = data[i + 1]
         if marker == 0xFF:
             i += 1
             continue
-        if marker == 0xDA:  # start of scan: the rest is entropy-coded data
-            out.append(data[i:])
+        if marker == 0xD9:  # EOI
+            out.append(data[i : i + 2])
             return b"".join(out)
-        if marker == 0x01 or 0xD0 <= marker <= 0xD9:
+        if marker == 0x01 or 0xD0 <= marker <= 0xD8:
             out.append(data[i : i + 2])
             i += 2
             continue
+        if i + 4 > len(data):
+            raise ValueError("bad segment")
         length = struct.unpack(">H", data[i + 2 : i + 4])[0]
         if length < 2 or i + 2 + length > len(data):
             raise ValueError("bad segment")
         if marker not in JPEG_DROP:
             out.append(data[i : i + 2 + length])
         i += 2 + length
-    raise ValueError("no scan data")
+        if marker == 0xDA:
+            # Entropy-coded data: 0xFF00 is a stuffed byte and 0xFFD0-D7 a restart
+            # marker; any other marker ends the scan.
+            start = i
+            while True:
+                j = data.find(b"\xff", i)
+                if j < 0 or j + 1 >= len(data):
+                    raise ValueError("truncated scan")
+                nxt = data[j + 1]
+                if nxt == 0 or 0xD0 <= nxt <= 0xD7:
+                    i = j + 2
+                elif nxt == 0xFF:
+                    i = j + 1
+                else:
+                    i = j
+                    break
+            out.append(data[start:i])
+    raise ValueError("no EOI")
 
 
 def strip_png(data):
@@ -137,17 +163,24 @@ def strip_png(data):
         end = i + 12 + length
         if end > len(data):
             raise ValueError("bad chunk")
-        if data[i + 4 : i + 8] not in PNG_DROP:
+        kind = data[i + 4 : i + 8]
+        if kind not in PNG_DROP:
             out.append(data[i:end])
         i = end
-    if i != len(data):
-        raise ValueError("trailing bytes")
-    return b"".join(out)
+        if kind == b"IEND":  # anything after IEND is not part of the image
+            return b"".join(out)
+    raise ValueError("no IEND")
 
 
 def strip_webp(data):
     if data[:4] != b"RIFF" or data[8:12] != b"WEBP":
         raise ValueError("not a WebP")
+    # The RIFF size says where the file ends: a shorter file is truncated, and
+    # bytes past it are a trailer that is dropped.
+    total = struct.unpack("<I", data[4:8])[0] + 8
+    if total < 12 or total > len(data):
+        raise ValueError("RIFF size does not fit the file")
+    data = data[:total]
     out, i = [], 12
     while i + 8 <= len(data):
         kind = data[i : i + 4]
