@@ -37,7 +37,8 @@ to this repository.
 `scripts/gate.sh` runs the steps of the CI `build` job plus `shfmt -d -i 4 -ci`
 and `shellcheck -S warning` on `scripts/*.sh`. Every step prints its name and exit
 code, a failure does not stop the run, and the exit code is non-zero if any step
-failed. Needs hugo, shellcheck, shfmt, python3 and Chrome or Chromium (`CHROME`);
+failed. Needs hugo, shellcheck, shfmt, python3, Node 20 or newer (`test-analytics`)
+and Chrome or Chromium (`CHROME`); a missing tool is reported by step with exit 2.
 `GATE_TOOLS` adds directories to `PATH`.
 
 - `scripts/gate.sh --fast` runs only what the changed files touch (diff against

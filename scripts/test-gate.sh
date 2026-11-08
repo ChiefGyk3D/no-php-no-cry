@@ -37,7 +37,7 @@ echo "$name $*" >>"${STUB_LOG:-/dev/null}"
 [[ " ${STUB_FAIL:-} " == *" $name "* ]] && exit 1
 exit 0'
 
-for t in hugo shellcheck shfmt google-chrome; do
+for t in hugo shellcheck shfmt google-chrome node; do
     printf '%s\n' "$stub_body" >"$stubs/$t"
 done
 cat >"$stubs/python3" <<'PY'
@@ -57,6 +57,15 @@ while read -r s; do
     printf '%s\n' "$stub_body" >"$repo/$s"
     chmod +x "$repo/$s"
 done < <(grep -oE 'scripts/[A-Za-z0-9._-]+\.(sh|py)' "$root/scripts/gate.sh" | sort -u)
+# Shared libraries and the scripts that source them (verify-live is not a gate step
+# itself; only its test is).
+for lib in artifact-rules robots-wildcard verify-live; do
+    printf '%s\n' "$stub_body" >"$repo/scripts/$lib.sh"
+done
+echo 'source "$(dirname "$0")/artifact-rules.sh"' >>"$repo/scripts/check-output.sh"
+echo 'source "$(dirname "$0")/artifact-rules.sh"' >>"$repo/scripts/check-site-artifact.sh"
+echo '. "$(dirname "$0")/robots-wildcard.sh"' >>"$repo/scripts/verify-live.sh"
+echo '. "$(dirname "$0")/robots-wildcard.sh"' >>"$repo/scripts/check-output.sh"
 echo "0.168.0" >"$repo/.hugo-version"
 echo seed >"$repo/content/seed.md"
 echo seed >"$repo/assets/css/site.css"
@@ -165,6 +174,44 @@ check "script change skips the build" lacks "$out" "build-production"
 check "script change skips the browser gate" lacks "$out" "browser-gate"
 
 reset_repo
+echo "# edit" >>"$repo/scripts/artifact-rules.sh"
+gate --fast --plan
+check "a changed library plans its consumer check-output" has "$out" "check-output-production"
+check "a changed library plans its consumer check-site-artifact" has "$out" "check-site-artifact-staging"
+check "a changed library plans the consumer's test" has "$out" "test-check-output"
+check "a changed library plans the other consumer's test" has "$out" "test-check-site-artifact"
+check "a changed library skips the browser gate" lacks "$out" "browser-gate"
+
+reset_repo
+echo "# edit" >>"$repo/scripts/robots-wildcard.sh"
+gate --fast --plan
+check "robots library plans its direct test" has "$out" "test-robots-wildcard"
+check "robots library plans check-output (sourced by it)" has "$out" "check-output-production"
+check "robots library plans test-verify-live (consumer verify-live)" has "$out" "test-verify-live"
+
+reset_repo
+echo "# edit" >>"$repo/scripts/test-pages.sh"
+gate --fast --plan
+check "a leaf script does not drag in the library consumers" lacks "$out" "check-output-production"
+
+reset_repo
+mkdir -p "$repo/tools/wxr2hugo"
+echo "pillow==1" >"$repo/tools/wxr2hugo/requirements-webp.txt"
+gate --fast --plan
+check "webp requirements plan test-wxr2hugo-webp" has "$out" "test-wxr2hugo-webp"
+check "webp requirements skip the browser gate" lacks "$out" "browser-gate"
+
+reset_repo
+mkdir -p "$repo/data"
+echo "x: 1" >"$repo/data/support.yaml"
+gate --fast --plan
+check "support.yaml plans the QR check" has "$out" "gen-support-qr"
+reset_repo
+echo new >"$repo/content/new.md"
+gate --fast --plan
+check "other content does not plan the QR check" lacks "$out" "gen-support-qr"
+
+reset_repo
 echo "/* edit */" >>"$repo/assets/css/site.css"
 gate --fast --plan
 check "css change plans the build" has "$out" "build-production"
@@ -193,6 +240,14 @@ out="$(cd "$repo" && PATH="$work/stubs-no-shfmt:$bare" GATE_TOOLS='' GATE_TMP="$
     scripts/gate.sh --only shfmt 2>&1)" || rc=$?
 check "a missing tool exits 2" test "$rc" -eq 2
 check "a missing tool is named" has "$out" "shfmt"
+
+mkdir -p "$work/stubs-no-node"
+for t in hugo shellcheck shfmt google-chrome python3; do ln -sf "$stubs/$t" "$work/stubs-no-node/$t"; done
+rc=0
+out="$(cd "$repo" && PATH="$work/stubs-no-node:$bare" GATE_TOOLS='' GATE_TMP="$work/gt" \
+    scripts/gate.sh --only test-analytics 2>&1)" || rc=$?
+check "a missing node exits 2" test "$rc" -eq 2
+check "the missing node names the step" has "$out" "node for test-analytics"
 
 if [[ $failures -gt 0 ]]; then
     echo "$failures gate test(s) failed"

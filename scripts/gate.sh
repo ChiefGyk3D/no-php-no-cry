@@ -88,12 +88,18 @@ step shellcheck "" 'shellcheck -S warning scripts/*.sh'
 step test-gate "" 'scripts/test-gate.sh'
 
 # --- fast-mode groups --------------------------------------------------------
-content_steps="check-hugo-version build-production check-output-production check-site-artifact-production
-build-staging check-output-staging check-site-artifact-staging test-head test-social-products test-resume
-test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording"
-layout_steps="$content_steps gen-tokens check-contrast check-brand-assets test-brand check-budget
-test-check-budget browser-gate test-browser-gate"
-docs_steps="check-wording test-check-wording check-license test-check-license"
+content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
+    build-staging check-output-staging check-site-artifact-staging test-head test-social-products test-resume
+    test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording)
+layout_steps=("${content_steps[@]}" gen-tokens check-contrast check-brand-assets test-brand check-budget
+    test-check-budget browser-gate test-browser-gate)
+docs_steps=(check-wording test-check-wording check-license test-check-license)
+
+# Tools a step needs that its command line does not show (wrapper scripts call them).
+# "chrome" means the browser named by CHROME.
+declare -A requires
+requires["test-analytics"]="node"
+requires["test-browser-gate"]="chrome"
 
 # --- arguments -----------------------------------------------------------------
 fast=0
@@ -163,42 +169,67 @@ elif [[ $fast -eq 1 ]]; then
         local s
         for s in "$@"; do sel["$s"]=1; done
     }
+    # select_script <basename>: pick the steps a changed script affects. A script that
+    # other scripts source (artifact-rules.sh, robots-wildcard.sh) counts as changed for
+    # every consumer, transitively, so their checks and tests run too.
+    select_script() {
+        local eff=("$1") i=0 c b stem n tf
+        while [[ $i -lt ${#eff[@]} ]]; do
+            b="${eff[$i]}"
+            i=$((i + 1))
+            for c in "$root"/scripts/*.sh; do
+                c="$(basename "$c")"
+                [[ " ${eff[*]} " == *" $c "* ]] && continue
+                if grep -qE "^[[:space:]]*(source|\\.)[[:space:]].*${b//./\\.}" "$root/scripts/$c"; then
+                    eff+=("$c")
+                fi
+            done
+        done
+        for b in "${eff[@]}"; do
+            stem="${b%.*}"
+            for n in "${names[@]}"; do
+                # A step runs a changed script directly, or is a test that names it.
+                if [[ "${cmds[$n]}" == *"scripts/$b"* ]]; then
+                    sel["$n"]=1
+                elif [[ -f "$root/scripts/test-$stem.sh" && "${cmds[$n]}" == *"scripts/test-$stem.sh"* ]]; then
+                    sel["$n"]=1
+                elif [[ "${cmds[$n]}" == scripts/test-* ]]; then
+                    tf="${cmds[$n]#scripts/}"
+                    tf="${tf%% *}"
+                    if [[ -f "$root/scripts/$tf" ]] && grep -qF -- "$b" "$root/scripts/$tf"; then
+                        sel["$n"]=1
+                    fi
+                fi
+            done
+        done
+    }
     while IFS= read -r f; do
         case "$f" in
             scripts/*)
                 pick shfmt shellcheck
-                b="$(basename "$f")"
-                stem="${b%.*}"
-                for n in "${names[@]}"; do
-                    # A step runs a changed script directly, or is a test that names it.
-                    if [[ "${cmds[$n]}" == *"scripts/$b"* ]]; then
-                        sel["$n"]=1
-                    elif [[ -f "$root/scripts/test-$stem.sh" && "${cmds[$n]}" == *"scripts/test-$stem.sh"* ]]; then
-                        sel["$n"]=1
-                    elif [[ "${cmds[$n]}" == scripts/test-* ]]; then
-                        tf="${cmds[$n]#scripts/}"
-                        tf="${tf%% *}"
-                        if [[ -f "$root/scripts/$tf" ]] && grep -qF -- "$b" "$root/scripts/$tf"; then
-                            sel["$n"]=1
-                        fi
-                    fi
-                done
+                select_script "$(basename "$f")"
+                ;;
+            tools/wxr2hugo/*)
+                pick test-wxr2hugo test-wxr2hugo-webp test-migration
+                ;;
+            data/support.yaml)
+                pick gen-support-qr "${content_steps[@]}"
                 ;;
             assets/* | layouts/* | static/* | brand/* | tools/* | hugo.toml | copy.js.sha256 | search.js.sha256)
-                pick $layout_steps
+                pick "${layout_steps[@]}"
                 ;;
             content/* | data/* | archetypes/*)
-                pick $content_steps
+                pick "${content_steps[@]}"
                 ;;
             analytics/* | functions/*)
                 pick test-analytics
                 ;;
             *.md | docs/* | .github/* | LICENSE* | NOTICE | .gitignore | board.yaml)
-                pick $docs_steps
+                pick "${docs_steps[@]}"
                 ;;
             *)
                 # Unrecognised: assume it can change the built site.
-                pick $content_steps
+                pick "${content_steps[@]}"
                 ;;
         esac
     done <<<"$changed"
@@ -253,21 +284,27 @@ fi
 export CHROME="${CHROME:-}"
 
 missing=()
-need_tool() {
-    command -v "$1" >/dev/null 2>&1 || missing+=("$1")
-}
-all_cmds=""
-for n in "${selected[@]}"; do all_cmds+=" ${cmds[$n]}"; done
-for t in hugo shellcheck shfmt python3; do
-    if [[ "$all_cmds" == *"$t "* ]]; then need_tool "$t"; fi
-done
-if [[ "$all_cmds" == *'$CHROME'* || "$all_cmds" == *"--decode"* ]]; then
-    if [[ -z "$CHROME" ]] || ! command -v "$CHROME" >/dev/null 2>&1; then
-        missing+=("chrome (google-chrome or chromium; set CHROME)")
+need_tool() { # <tool> <step>
+    local t="$1" what
+    if [[ "$t" == chrome ]]; then
+        if [[ -z "$CHROME" ]] || ! command -v "$CHROME" >/dev/null 2>&1; then
+            what="chrome (google-chrome or chromium; set CHROME) for $2"
+        fi
+    elif ! command -v "$t" >/dev/null 2>&1; then
+        what="$t for $2"
     fi
-fi
+    if [[ -n "${what:-}" && " ${missing[*]} " != *" $what "* ]]; then missing+=("$what"); fi
+}
+for n in "${selected[@]}"; do
+    for t in hugo shellcheck shfmt python3; do
+        if [[ " ${cmds[$n]} " == *" $t "* ]]; then need_tool "$t" "$n"; fi
+    done
+    if [[ "${cmds[$n]}" == *'$CHROME'* || "${cmds[$n]}" == *"--decode"* ]]; then need_tool chrome "$n"; fi
+    read -r -a reqs <<<"${requires[$n]:-}"
+    for t in "${reqs[@]}"; do need_tool "$t" "$n"; done
+done
 if [[ ${#missing[@]} -gt 0 ]]; then
-    echo "gate: missing tool(s): ${missing[*]}" >&2
+    printf "gate: missing tool: %s\n" "${missing[@]}" >&2
     echo "gate: put them on PATH or in a directory listed in GATE_TOOLS" >&2
     exit 2
 fi
