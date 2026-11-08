@@ -48,3 +48,32 @@ level H and every one is decoded back to the exact address (see
 The marks belong to their owners and are used only to say which coin an address
 is for. If a license for any mark is found to forbid this use, replace it, update
 this table and run `scripts/gen-support-qr.sh`.
+
+# Portrait
+
+`static/brand/portrait-640.webp` and `portrait-320.webp` are the owner's portrait
+(face and shoulders in front of a network rack), shown on /about/ and /resume/
+(issue 179). They are published copies only: the original photo is **not stored in
+this repository** and must never be committed, in any form (no JPEG, no larger
+WebP, no copy under `content/` or `assets/`).
+
+Processing, from a square owner-supplied photo (no crop was needed):
+
+1. `convert <original> -auto-orient -strip -filter Lanczos -resize NxN -define webp:method=6 -quality 80 portrait-N.webp`
+   for N = 640 and 320. `-strip` removes every profile and tag.
+2. Metadata proof with `exiftool -a -G1 <file>`: only the file-system, RIFF and
+   image-size tags remain. No EXIF, XMP, IPTC, GPS, camera, serial or date tags, and
+   no embedded thumbnail; each file is a single VP8 RIFF chunk.
+3. The build keeps it that way: `scripts/check-image-metadata.py` (run by
+   `scripts/check-output.sh`, rule `image-metadata`) fails on any EXIF with tags, XMP or
+   IPTC in a published image, and `scripts/test-pages.sh` re-checks the portrait files and
+   proves the check bites with a fixture carrying a GPS tag.
+
+| File | Size | sha256 |
+|---|---|---|
+| portrait-640.webp | 640x640, 23222 bytes (cap 60 KB) | `5900d215afdb50775edf59c7abdd8c8ef228749ceb84e22f6aa281e644070134` |
+| portrait-320.webp | 320x320, 9468 bytes (cap 25 KB) | `1cd96fd8089a516d8ce9a752e4d5e1b0bdf1234e014ec6e551d893c5dad16c93` |
+
+Both are served from this site (CSP `img-src 'self'` is unchanged). To replace the
+portrait, repeat the steps from a new original kept outside the repository, update
+the hashes here and in `approved-assets.txt`, and keep the alt text.

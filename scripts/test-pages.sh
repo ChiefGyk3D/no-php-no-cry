@@ -965,6 +965,132 @@ else
     fail "ghost layer image is not in approved-assets.txt"
 fi
 
+# Portrait (issue 179): the owner's metadata-stripped portrait on /about/ and /resume/. Exact alt
+# text, explicit width and height, eager loading, a two-size srcset, same-origin files only, a size
+# cap per file, and no EXIF, GPS or XMP in the published files. The CSP stays img-src 'self'.
+portrait_asserter="$work/assert_portrait.py"
+cat >"$portrait_asserter" <<'PY'
+import re
+import sys
+
+ALT = "Portrait of ChiefGyk3D in front of a network rack"
+page, kind = sys.argv[1], sys.argv[2]
+html = open(page, encoding="utf-8").read()
+tags = [t for t in re.findall(r"<img\b[^>]*>", html) if "portrait-" in t]
+errs = []
+
+
+def attr(tag, name):
+    m = re.search(r"[\s]%s=(\"([^\"]*)\"|'([^']*)'|([^\s>]+))" % name, tag)
+    return None if not m else next(g for g in m.groups()[1:] if g is not None)
+
+
+if len(tags) != 1:
+    errs.append("expected exactly one portrait image, found %d" % len(tags))
+else:
+    t = tags[0]
+    want_size = {"about": "640", "resume": "320"}[kind]
+    if attr(t, "alt") != ALT:
+        errs.append("alt text is %r" % attr(t, "alt"))
+    if attr(t, "width") != want_size or attr(t, "height") != want_size:
+        errs.append("width and height are %s x %s, want %s x %s" % (attr(t, "width"), attr(t, "height"), want_size, want_size))
+    if attr(t, "loading") != "eager":
+        errs.append("loading is %r, want eager (above the fold)" % attr(t, "loading"))
+    src = attr(t, "src") or ""
+    if not re.fullmatch(r"/brand/portrait-(320|640)\.webp", src):
+        errs.append("src %r is not a same-origin /brand/portrait file" % src)
+    ss = attr(t, "srcset") or ""
+    cands = sorted(c.strip() for c in ss.split(","))
+    if cands != ["/brand/portrait-320.webp 320w", "/brand/portrait-640.webp 640w"]:
+        errs.append("srcset is %r, want both sizes" % ss)
+    if re.search(r"https?:|//", src + ss):
+        errs.append("a portrait URL leaves the site")
+for e in errs:
+    print(e)
+sys.exit(1 if errs else 0)
+PY
+portrait_check() { # <label> <page> <kind>: pass when the asserter is happy
+    local out rc=0
+    out="$(python3 -I "$portrait_asserter" "$2" "$3" 2>&1)" || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        pass "$1"
+    else
+        printf '%s\n' "$out" | sed 's/^/    /'
+        fail "$1"
+    fi
+}
+portrait_bites() { # <label> <page> <kind> <sed expression>: the asserter must fail the edited page
+    sed -E "$4" "$2" >"$work/portrait-mut.html"
+    if cmp -s "$2" "$work/portrait-mut.html"; then
+        fail "guard: $1 did not change the page"
+    elif python3 -I "$portrait_asserter" "$work/portrait-mut.html" "$3" >/dev/null 2>&1; then
+        fail "guard: $1 passed the portrait check"
+    else
+        pass "guard: $1 fails the portrait check"
+    fi
+}
+portrait_check "about: portrait with exact alt, size, eager loading and srcset" "$pub/about/index.html" about
+portrait_check "resume: portrait with exact alt, size, eager loading and srcset" "$pub/resume/index.html" resume
+portrait_bites "a changed alt" "$pub/about/index.html" about 's#in front of a network rack#in front of a rack#'
+portrait_bites "a missing width" "$pub/resume/index.html" resume 's# width=320##'
+portrait_bites "lazy loading" "$pub/about/index.html" about 's#loading=eager#loading=lazy#'
+portrait_bites "a one-size srcset" "$pub/about/index.html" about 's#/brand/portrait-320.webp 320w, ##'
+portrait_bites "an off-site portrait" "$pub/resume/index.html" resume 's#src=/brand/portrait-320.webp#src=https://example.org/p.webp#'
+portrait_bites "no portrait" "$pub/about/index.html" about 's#<img class=about-portrait[^>]*>##'
+for n in 640 320; do
+    f="$pub/brand/portrait-$n.webp"
+    cap=$((n == 640 ? 60 * 1024 : 25 * 1024))
+    if [[ -f "$f" && "$(stat -c %s "$f")" -le $cap ]]; then
+        pass "portrait-$n.webp is published and within its size cap ($cap bytes)"
+    else
+        fail "portrait-$n.webp is missing or over its size cap ($cap bytes)"
+    fi
+done
+# The published portrait files carry no EXIF, GPS or XMP; the check must bite on a GPS fixture.
+if python3 -I "$root/scripts/check-image-metadata.py" "$pub/brand" >/dev/null 2>&1; then
+    pass "published brand images carry no EXIF, GPS or XMP"
+else
+    fail "a published brand image carries EXIF, GPS or XMP"
+fi
+mkdir -p "$work/gps-fixture"
+python3 -I - "$pub/brand/portrait-320.webp" "$work/gps-fixture/portrait-gps.webp" <<'PY'
+import struct
+import sys
+
+src = open(sys.argv[1], "rb").read()
+gps = b"II" + struct.pack("<HI", 42, 8) + struct.pack("<H", 1) + struct.pack("<HHII", 0x8825, 4, 1, 26) + bytes(4)
+exif = b"EXIF" + struct.pack("<I", len(gps)) + gps
+body = src[8:] + exif  # the real portrait's chunks, then an EXIF chunk with a GPS tag
+open(sys.argv[2], "wb").write(b"RIFF" + struct.pack("<I", len(body)) + body)
+PY
+if out="$(python3 -I "$root/scripts/check-image-metadata.py" "$work/gps-fixture" 2>&1)"; then
+    fail "guard: a WebP with a GPS tag passed the metadata check"
+elif grep -q 'portrait-gps.webp: EXIF block with 1 tags' <<<"$out"; then
+    pass "guard: a WebP with a GPS tag fails the metadata check"
+else
+    fail "guard: the metadata check failed but did not name the EXIF block"
+fi
+# CSP: images stay same-origin (img-src 'self'), nothing widened for the portrait.
+if grep -q "img-src 'self';" "$root/static/_headers" && ! grep -Eq "img-src[^;]*(https?:|data:|\*)" "$root/static/_headers"; then
+    pass "CSP img-src is still 'self' only"
+else
+    fail "CSP img-src is not 'self' only"
+fi
+# The About CSS gives the portrait about 12rem wide on wide screens and 8rem on phones; the Resume CSS
+# gives 8rem and hides it in print.
+if tr '\n' ' ' <"$root/assets/css/pages/about.css" | grep -Eq '\.about-portrait *\{[^}]*width: *8rem' &&
+    tr '\n' ' ' <"$root/assets/css/pages/about.css" | grep -Eq '\.about-portrait *\{[^}]*width: *12rem'; then
+    pass "about.css sizes the portrait 8rem on phones and 12rem on wide screens"
+else
+    fail "about.css does not size the portrait 8rem and 12rem"
+fi
+if tr '\n' ' ' <"$root/assets/css/pages/resume.css" | grep -Eq '\.resume-portrait *\{[^}]*width: *8rem' &&
+    tr '\n' ' ' <"$root/assets/css/pages/resume.css" | grep -Eq '@media print *\{[^@]*\.resume-portrait[^}]*\{[^}]*display: *none'; then
+    pass "resume.css sizes the portrait 8rem and hides it in print"
+else
+    fail "resume.css does not size the portrait 8rem and hide it in print"
+fi
+
 if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
     fail "posts index still says 'Placeholder posts section.'"
 elif grep -q '^Write-ups on open-source projects, self-hosting, streaming tools, and gear I use\. Newest first\.$' "$root/content/posts/_index.md"; then

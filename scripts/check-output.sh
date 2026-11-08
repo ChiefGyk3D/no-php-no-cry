@@ -16,7 +16,7 @@
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, template-element, missing-output, missing-llms,
-# bad-llms, old-site-name.
+# bad-llms, old-site-name, image-metadata.
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pins of
@@ -591,6 +591,25 @@ while IFS= read -r -d '' f; do
         report old-site-name "$rel"
     fi
 done < <(find "$dir" -type f \( -iname '*.html' -o -iname '*.xml' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.webmanifest' -o -iname '*.svg' -o -name '_redirects' -o -name '_headers' \) -print0 | sort -z)
+
+# Published images carry no EXIF (GPS, camera, dates), XMP or IPTC metadata. The
+# owner's portrait ships as a stripped copy only (scripts/check-image-metadata.py;
+# docs/redesign-brief.md, "Portrait"). Skipped only when the build has no image at all.
+if [[ -n "$(find "$dir" -type f \( -iname '*.webp' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) -print -quit)" ]]; then
+    meta_rc=0
+    meta_out="$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-image-metadata.py" "$dir" 2>&1)" || meta_rc=$?
+    if [[ $meta_rc -ne 0 ]]; then
+        # A finding line names the file; anything else (a crash) is still a finding, never a pass.
+        found_line=0
+        while IFS= read -r line; do
+            if [[ "$line" == "[image-metadata] "* ]]; then
+                report image-metadata "${line#\[image-metadata\] }"
+                found_line=1
+            fi
+        done <<<"$meta_out"
+        [[ $found_line -eq 1 ]] || report image-metadata "check-image-metadata.py failed"
+    fi
+fi
 
 if [[ $findings -gt 0 ]]; then
     echo "check-output: $findings finding(s)"

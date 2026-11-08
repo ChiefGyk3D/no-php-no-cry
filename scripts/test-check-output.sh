@@ -814,6 +814,51 @@ variant missing-404 template-element drop_404
 drop_archive() { rm -f "$1/posts/index.html"; }
 variant missing-posts-archive template-element drop_archive
 
+# image-metadata (issue 179): a published image must carry no EXIF (GPS, camera, dates),
+# XMP or IPTC. make_image <dir> <kind> writes a tiny file with the container structure
+# only (no pixels are decoded), with a GPS tag in the EXIF kinds.
+make_image() {
+    python3 -I - "$1" "$2" <<'PY'
+import struct
+import sys
+
+out, kind = sys.argv[1], sys.argv[2]
+# TIFF block, little endian, one IFD0 entry: tag 0x8825 (GPSInfo), type LONG, count 1.
+gps = b"II" + struct.pack("<HI", 42, 8) + struct.pack("<H", 1) + struct.pack("<HHII", 0x8825, 4, 1, 26) + bytes(4)
+empty = b"MM" + struct.pack(">HIH", 42, 8, 0) + bytes(4)
+riff = lambda *chunks: b"RIFF" + struct.pack("<I", 4 + sum(len(c) for c in chunks)) + b"WEBP" + b"".join(chunks)
+chunk = lambda tag, body: tag + struct.pack("<I", len(body)) + body + bytes(len(body) & 1)
+vp8 = chunk(b"VP8 ", bytes(10))
+png = lambda tag, body: struct.pack(">I", len(body)) + tag + body + bytes(4)
+seg = lambda marker, body: bytes([0xFF, marker]) + struct.pack(">H", len(body) + 2) + body
+jpeg_end = bytes([0xFF, 0xDA, 0, 2, 0xFF, 0xD9])
+exif_prefix = b"Exif" + bytes(2)
+data = {
+    "webp-clean": riff(vp8),
+    "webp-gps": riff(vp8, chunk(b"EXIF", gps)),
+    "webp-empty-exif": riff(vp8, chunk(b"EXIF", empty)),
+    "webp-xmp": riff(vp8, chunk(b"XMP ", b"<x:xmpmeta/>")),
+    "webp-garbage-exif": riff(vp8, chunk(b"EXIF", b"zz")),
+    "jpeg-gps": bytes([0xFF, 0xD8]) + seg(0xE1, exif_prefix + gps) + jpeg_end,
+    "jpeg-comment": bytes([0xFF, 0xD8]) + seg(0xFE, b"hello") + jpeg_end,
+    "png-gps": bytes([0x89]) + b"PNG\r\n" + bytes([0x1A, 0x0A]) + png(b"eXIf", gps) + png(b"IEND", b""),
+}[kind]
+open(out, "wb").write(data)
+PY
+}
+image_case() { make_image "$1/brand-test.${KIND%%-*}" "$KIND"; }
+for k in webp-gps webp-xmp webp-garbage-exif jpeg-gps jpeg-comment png-gps; do
+    KIND="$k" variant "image-metadata-$k" image-metadata image_case
+done
+image_case_dir="$work/image-clean"
+make_good "$image_case_dir"
+KIND=webp-clean image_case "$image_case_dir"
+expect_pass "a stripped image passes the metadata rule" "a stripped image was rejected" "$image_case_dir"
+image_empty_dir="$work/image-empty-exif"
+make_good "$image_empty_dir"
+KIND=webp-empty-exif image_case "$image_empty_dir"
+expect_pass "an empty EXIF block (no tags) passes" "an empty EXIF block was rejected" "$image_empty_dir"
+
 # email-shaped-text: a user@host handle in page text is rewritten by Cloudflare
 # Email Obfuscation (and a script injected). The split form must pass.
 APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html

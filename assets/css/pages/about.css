@@ -14,14 +14,40 @@
   }
 }
 
-.about-mascot {
+/* The figure: the portrait (the face of the page) with the penguin mascot kept as a small brand
+ * mark. On phones they sit side by side, the mascot on the portrait's lower edge; from 40rem the
+ * portrait stands 12rem wide with the mascot under it. */
+.about-figure {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.about-portrait {
   width: 8rem;
+  height: auto;
+  aspect-ratio: 1;
+  border: calc(var(--rule-width) * 2) solid var(--accent-deep);
+  border-radius: var(--radius);
+}
+
+.about-mascot {
+  width: 4rem;
   height: auto;
 }
 
-@media (min-width: 60rem) {
+@media (min-width: 40rem) {
+  .about-figure {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .about-portrait {
+    width: 12rem;
+  }
+
   .about-mascot {
-    width: 11rem;
+    width: 5rem;
   }
 }
 

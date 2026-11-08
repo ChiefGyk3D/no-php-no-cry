@@ -3,7 +3,7 @@
 
 Usage: python3 -I scripts/check-brand-dims.py [static/brand dir]
 
-Mascot WebP files are exactly their names (128, 256, 512) and no WebP is past
+Mascot and portrait WebP files are exactly their names (mascot 128, 256, 512; portrait 320, 640) and no WebP is past
 the 900 px master; the OG card is 1200x630; favicons match their names.
 Exit 1 with one line per problem.
 """
@@ -45,6 +45,7 @@ def main():
     d = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "static/brand")
     problems = []
     expect = [(f"mascot-{n}.webp", webp, (n, n)) for n in (128, 256, 512)]
+    expect += [(f"portrait-{n}.webp", webp, (n, n)) for n in (320, 640)]
     expect += [("og-card.png", png, (1200, 630))]
     expect += [(f"favicon-{n}.png", png, (n, n)) for n in (32, 192, 512)]
     expect += [("apple-touch-icon-180.png", png, (180, 180))]
