@@ -20,6 +20,9 @@
 }
 
 .archive-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
   margin-bottom: var(--space-5);
 }
 

@@ -7,7 +7,7 @@
 {{- end }}
 <p class="meta archive-links">
   {{- with $p.OutputFormats.Get "rss" }}<a href="{{ .RelPermalink }}">RSS feed</a>{{ end }}
-  {{- if and (eq $p.Section "posts") (eq $p.Kind "section") }}<a href="{{ "/search/" | relURL }}">Search and browse by tag</a>{{ end }}
+  {{- if and (eq $p.Section "posts") (eq $p.Kind "section") }}{{ " " }}<a href="{{ "/search/" | relURL }}">Search and browse by tag</a>{{ end }}
   {{- if eq $p.Kind "term" }}<a href="{{ "/posts/" | relURL }}">All posts</a>{{ end }}
 </p>
 {{- range $p.Pages.GroupByDate "2006" "desc" }}

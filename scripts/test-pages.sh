@@ -1069,6 +1069,8 @@ if re.search(r"archive-tags|Browse by tag|class=tag-list", posts):
 m = re.search(r"<p[^>]*archive-links[^>]*>(.*?)</p>", posts, re.S)
 if not m or "href=/search/" not in m.group(1):
     errs.append("the Posts page has no short link to /search/ beside the RSS link")
+elif re.search(r"</a><a", m.group(1)):
+    errs.append("the Posts page links run together (no space between RSS feed and Search)")
 m = re.search(r"<details[^>]*search-tags-box[^>]*>(.*?)</details>(?=\s*<section|\s*<script|\s*</article)", search, re.S)
 if not m:
     errs.append("/search/ has no tags <details>")
@@ -1086,6 +1088,20 @@ else:
         errs.append("no tag links with counts")
     if counts != sorted(counts, reverse=True):
         errs.append("the first tags are not most used first: %s" % counts)
+    parts = box.split("<details", 2)
+    if len(parts) > 2:
+        nested = "<details" + parts[2]
+        sm = re.search(r"<summary[^>]*>Show (\d+) more</summary>", nested)
+        rest = re.findall(pat, nested)
+        if not sm:
+            errs.append("the nested tags <details> needs a 'Show N more' summary")
+        elif int(sm.group(1)) != len(rest):
+            errs.append("'Show %s more' but %d tags are listed" % (sm.group(1), len(rest)))
+        names = [re.sub(r".*/tags/([^/]+)/?$", r"\1", h) for h, _ in rest]
+        if names != sorted(names):
+            errs.append("the nested tags are not A to Z: %s" % names)
+        if set(h for h, _ in rest) & set(h for h, _ in re.findall(pat, top)):
+            errs.append("a tag is listed in both the top and the nested list")
     if "<script" in box:
         errs.append("a script inside the tags box")
 for e in errs:
@@ -1109,6 +1125,31 @@ if [[ -f "$pub/posts/index.html" && -f "$search_page" ]]; then
     }
     tbite "with the tags open" 's#<details class=([^>]*search-tags-box)#<details open class=\1#'
     tbite "without the tags box" 's#search-tags-box#other-box#'
+    # The real fixture has too few tags for the nested list, so test it on made-up pages.
+    nest() { # nest <summary text> <hrefs...>: a search page with 2 top tags and a nested list
+        local sum="$1" t
+        shift
+        {
+            printf '<details class="accordion search-tags-box"><summary>Browse by tag (5)</summary><nav><ul class=tag-list>'
+            printf '<li><a href=/tags/a/><span>#A</span> <span class="meta tag-count">(3)</span></a></li>'
+            printf '<li><a href=/tags/b/><span>#B</span> <span class="meta tag-count">(2)</span></a></li></ul>'
+            printf '<details class=tags-more><summary>%s</summary><ul class=tag-list>' "$sum"
+            for t in "$@"; do printf '<li><a href=/tags/%s/><span>#%s</span> <span class="meta tag-count">(1)</span></a></li>' "$t" "$t"; done
+            printf '</ul></details></nav></details><section class=search-group></section>'
+        } >"$work/nest.html"
+    }
+    nest "Show 3 more" c d e
+    [[ -z "$(tags_check "$pub/posts/index.html" "$work/nest.html")" ]] && pass "tags: a well-formed nested list passes" || fail "tags: a well-formed nested list failed: $(tags_check "$pub/posts/index.html" "$work/nest.html")"
+    nest "Show 3 more" c e d
+    [[ -n "$(tags_check "$pub/posts/index.html" "$work/nest.html")" ]] && pass "guard: nested tags out of A to Z fail" || fail "guard: nested tags out of A to Z passed"
+    nest "Show 2 more" c d e
+    [[ -n "$(tags_check "$pub/posts/index.html" "$work/nest.html")" ]] && pass "guard: a wrong 'Show N more' count fails" || fail "guard: a wrong 'Show N more' count passed"
+    nest "More" c d e
+    [[ -n "$(tags_check "$pub/posts/index.html" "$work/nest.html")" ]] && pass "guard: a nested summary without 'Show N more' fails" || fail "guard: a nested summary without 'Show N more' passed"
+    nest "Show 3 more" c d a
+    [[ -n "$(tags_check "$pub/posts/index.html" "$work/nest.html")" ]] && pass "guard: a tag in both lists fails" || fail "guard: a tag in both lists passed"
+    sed -E 's#</a> ?<a href=/search/>#</a><a href=/search/>#' "$pub/posts/index.html" >"$work/bad-posts.html"
+    [[ -n "$(tags_check "$work/bad-posts.html" "$search_page")" ]] && pass "guard: run-together Posts links fail" || fail "guard: run-together Posts links passed"
     if [[ -z "$(tags_check "$search_page" "$search_page")" ]]; then
         fail "guard: a Posts page that is the search page passed the tags check"
     else
