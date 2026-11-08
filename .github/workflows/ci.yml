@@ -1,6 +1,9 @@
-# CI for no-php-no-cry. Shell lint and security scans are the shared workflows in
-# ChiefGyk3D/git-your-ship-together; GYST has no Hugo workflow yet, so the
-# `build` job here is repo-local. `CI green` is the single required check.
+# CI for no-php-no-cry. The Hugo build, the output checks, the test scripts, the size budget and the browser
+# gate are one call to the shared parallel-ci workflow in ChiefGyk3D/git-your-ship-together (GYST): one build,
+# then the checks side by side, each on the build. Shell lint and security scans are the other shared
+# workflows. `CI green` is the single required check; it stays a job of this file because a called workflow's
+# check run is named `<caller job> / <job>` and branch protection and deploy.yml name `CI green` exactly.
+# The old step to new job table is in docs/ci-parallel.md.
 name: CI
 
 on:
@@ -20,204 +23,68 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
-    name: Hugo build and output checks
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    permissions:
-      contents: read
-    steps:
-      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
-        with:
-          # audit, not block: the allow-list for this job has not been measured
-          # yet. Switch to block with the endpoints from the first run's report.
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Install Hugo (pinned, checksum verified)
-        run: |
-          set -euo pipefail
-          version="$(tr -d '[:space:]' < .hugo-version)"
-          base="https://github.com/gohugoio/hugo/releases/download/v${version}"
-          tarball="hugo_${version}_linux-amd64.tar.gz"
-          mkdir -p "$RUNNER_TEMP/hugo"
-          cd "$RUNNER_TEMP/hugo"
-          curl -fsSL --retry 3 -O "${base}/${tarball}"
-          curl -fsSL --retry 3 -O "${base}/hugo_${version}_checksums.txt"
-          grep " ${tarball}\$" "hugo_${version}_checksums.txt" | sha256sum -c -
-          tar -xzf "$tarball" hugo
-          echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
-
-      - name: Hugo is the pinned standard edition
-        run: scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
-
-      - name: Build
-        run: hugo --minify --gc
-
-      - name: Check the generated output (production)
-        env:
-          EXPECT_ENV: production
-        run: scripts/check-output.sh public
-
-      - name: Check the site for Pages control files and pinned _headers/_redirects
-        run: scripts/check-site-artifact.sh public
-
-      # The staging variant: same site, params.environment = staging (noindex on
-      # every page, robots.txt disallows all). Built outside the repository.
-      - name: Build the staging variant
-        env:
-          HUGO_PARAMS_ENVIRONMENT: staging
-        run: hugo --minify --gc --destination "$RUNNER_TEMP/public-staging"
-
-      - name: Check the generated output (staging)
-        env:
-          EXPECT_ENV: staging
-        run: scripts/check-output.sh "$RUNNER_TEMP/public-staging"
-
-      - name: Check the staging site for Pages control files and pinned _headers/_redirects
-        run: scripts/check-site-artifact.sh "$RUNNER_TEMP/public-staging"
-
-      - name: Test the output checker (negative cases)
-        run: scripts/test-check-output.sh
-
-      - name: Test the page head and footer links (hostile front matter)
-        run: scripts/test-head.sh
-
-      - name: Test the Social and Products pages (built site, guard self-tests)
-        run: scripts/test-social-products.sh
-
-      - name: Test the share links (URLs built from the permalink and title, guard self-tests)
-        run: scripts/test-share.sh
-
-      - name: Test the resume page and print stylesheet (content rules, guard)
-        run: scripts/test-resume.sh
-
-      - name: Test the site artifact checker (negative cases)
-        run: scripts/test-check-site-artifact.sh
-
-      - name: Test that the deploy job's sparse checkout covers what it runs
-        run: scripts/test-deploy-sparse.sh
-
-      - name: Test the Support, About and Privacy pages
-        run: scripts/test-pages.sh
-
-      - name: Test the archived comments from the old site
-        run: scripts/test-comments.sh
-
-      - name: Test the generated _redirects file (fragment grammar, line shape)
-        run: scripts/test-redirects.sh
-
-      # Re-encodes data/support.yaml with the hash-pinned segno (scripts/
-      # requirements-qr.txt, installed with --require-hashes) and compares the
-      # whole committed SVGs, so the QR modules are verified, not only <desc>.
-      # Needs network access to the Python package index for the pinned packages.
-      # --decode also renders each SVG in the runner's Chrome and decodes it with
-      # the hash-pinned OpenCV (scripts/requirements-qr-decode.txt): every code must read back to the exact address.
-      - name: Check the support QR files against data/support.yaml and decode them
-        run: scripts/gen-support-qr.sh --check --decode
-
-      - name: Check the wording rule (no short form of cryptocurrency)
-        run: |
-          scripts/check-wording.sh
-          scripts/test-check-wording.sh
-
-      - name: Check the license files (pinned Apache-2.0 text, content license, brand notice)
-        run: |
-          scripts/check-license.sh
-          scripts/test-check-license.sh
-
-      - name: Test the copy script pinning
-        run: scripts/test-pin-script.sh
-
-      # The live drift check against Reach Around is not run here: it needs another repo's
-      # state and a non-blocking step would need continue-on-error (docs/token-drift.md).
-      - name: Test the Reach Around drift check (fixtures, no network)
-        run: scripts/test-check-reach-around-drift.sh
-
-      - name: Test the Hugo version check
-        run: scripts/test-check-hugo-version.sh
-
-      - name: Test the post-deploy smoke check (local fake server)
-        run: scripts/test-smoke-site.sh
-
-      - name: Test the live-host verifier (local fake server)
-        run: scripts/test-verify-live.sh
-
-      - name: Test the shared robots.txt parser (both checkers use it)
-        run: scripts/test-robots-wildcard.sh
-
-      - name: Test /llms.txt (real build, both environments)
-        run: scripts/test-llms.sh
-
-      - name: Test the deploy gate wait (stubbed gh, no network)
-        run: scripts/test-wait-for-ci-green.sh
-
-      - name: Test the Pages project check (local fake API)
-        run: scripts/test-ensure-pages-project.sh
-
-      - name: Test the WordPress converter
-        run: scripts/test-wxr2hugo.sh
-
-      # Needs network access to the Python package index for the hash-pinned Pillow release.
-      - name: Test the WebP conversion step (pinned Pillow)
-        run: scripts/test-wxr2hugo-webp.sh
-
-      - name: Test the content migration (converter output builds, redirects, banners, alt guard)
-        run: scripts/test-migration.sh
-
-      - name: Test the post and journal archetypes (builds, passes the checks, missing alt fails)
-        run: scripts/test-archetype.sh
-
-      # The page-view collector (issue 84): node --test with no packages, and
-      # the SQL under python's sqlite3. No Cloudflare call; the D1 binding is a fake.
-      - name: Test the page-view collector (not deployed)
-        run: scripts/test-analytics.sh
-
-      - name: Check assets/css/tokens.css is generated from brand/tokens.json
-        run: python3 -I scripts/gen-tokens.py --check
-
-      - name: Check design-token contrast (WCAG AA)
-        run: python3 -I scripts/check-contrast.py assets/css/tokens.css
-
-      - name: Check the brand asset manifest
-        run: scripts/check-brand-assets.sh
-
-      - name: Test the brand checks (negative cases)
-        run: scripts/test-brand.sh
-
-      - name: Test the gitleaks allowlist (pinned gitleaks, checksum verified)
-        run: scripts/test-gitleaks-config.sh
-
-      # Performance and accessibility gates (issue 65, docs/performance-gates.md).
-      # The size budget is static. The browser gate uses the Chrome that the
-      # ubuntu-24.04 runner image ships (the same browser the support QR decode
-      # uses; CHROME overrides it) and the axe-core copy vendored in tools/axe,
-      # verified against its pinned sha256 before use. No browser or axe download.
-      - name: Size budget (per page and per asset type, pinned scripts only)
-        run: |
-          python3 -I scripts/check-budget.py public
-          scripts/test-check-budget.sh
-
-      - name: Browser gate (LCP, CLS, axe, overflow, tap targets, keyboard; 10 templates x 4 widths)
-        run: |
-          google-chrome --version
-          python3 -I scripts/browser-gate.py public
-          scripts/test-browser-gate.sh
-
-  shell:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@9d6825dd4e0e4d524fca3733f416437bbd7851e1 # v1.31.0
+  ci:
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/parallel-ci.yml@13f7a13ee135b2f9c8eb68194f0078592374f8e4 # v1.33.0
     permissions:
       contents: read
     with:
-      test-command: ./scripts/test-check-output.sh && ./scripts/test-check-hugo-version.sh   # needs no Hugo; the build job also runs it against the real build
+      # Pinned, checksum verified Hugo. The tarball goes to hugo-dl (cacheable once egress is block), the
+      # binary to hugo; PATH is set in this shell only, nothing is written to GITHUB_PATH.
+      setup-command: |
+        version="$(tr -d '[:space:]' < .hugo-version)"
+        base="https://github.com/gohugoio/hugo/releases/download/v${version}"
+        tarball="hugo_${version}_linux-amd64.tar.gz"
+        mkdir -p "$RUNNER_TEMP/hugo-dl" "$RUNNER_TEMP/hugo"
+        (
+          cd "$RUNNER_TEMP/hugo-dl"
+          [ -f "$tarball" ] || curl -fsSL --retry 3 -O "${base}/${tarball}"
+          curl -fsSL --retry 3 -O "${base}/hugo_${version}_checksums.txt"
+          grep " ${tarball}\$" "hugo_${version}_checksums.txt" | sha256sum -c -
+          tar -xzf "$tarball" -C "$RUNNER_TEMP/hugo" hugo
+        )
+        export PATH="$RUNNER_TEMP/hugo:$PATH"
+      # Production build, then the staging variant (params.environment = staging: noindex on every page,
+      # robots.txt disallows all), built outside the repository and shared as the second output.
+      build-command: |
+        scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
+        hugo --minify --gc
+        HUGO_PARAMS_ENVIRONMENT=staging hugo --minify --gc --destination "$RUNNER_TEMP/public-staging"
+      build-output-path: public
+      extra-output-path: RUNNER_TEMP/public-staging
+      build-timeout-minutes: 15
+      cache-tool-path: RUNNER_TEMP/hugo-dl
+      cache-tool-key-files: '[".hugo-version"]'
+      cache-pip-files: '["scripts/requirements-qr.txt", "scripts/requirements-qr-decode.txt", "tools/wxr2hugo/requirements-webp.txt"]'
+      # audit, not block: the allow-list for these jobs has not been measured yet (the old build job was audit
+      # for the same reason). Switch to block with the endpoints from the first run's report; block also
+      # turns the Hugo tarball and pip caches on.
+      egress-policy-secretless: audit
+      # Only a change confined to these files leaves the size budget and the browser gate out. Every other
+      # path (content, layouts, assets, static, scripts, hugo.toml, .github, anything unlisted) is `site`.
+      # A push, a schedule, a manual run, a pull request to another branch and any diff problem run all.
+      areas: '{"docs": ["docs/*.md", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md"], "site": ["*"]}'
+      jobs: |
+        [
+            {"name": "output checks", "command": "EXPECT_ENV=production scripts/check-output.sh public\nscripts/check-site-artifact.sh public\nEXPECT_ENV=staging scripts/check-output.sh \"$RUNNER_TEMP/public-staging\"\nscripts/check-site-artifact.sh \"$RUNNER_TEMP/public-staging\"\nscripts/test-check-site-artifact.sh", "timeout": 10},
+            {"name": "output checker tests", "command": "scripts/test-check-output.sh", "timeout": 20},
+            {"name": "site tests", "command": "scripts/test-head.sh\nscripts/test-social-products.sh\nscripts/test-share.sh\nscripts/test-resume.sh\nscripts/test-pages.sh\nscripts/test-comments.sh\nscripts/test-redirects.sh\nscripts/test-llms.sh\nscripts/test-migration.sh\nscripts/test-archetype.sh", "timeout": 20, "tools": true, "build": false},
+            {"name": "tool tests", "command": "scripts/test-deploy-sparse.sh\nscripts/test-pin-script.sh\nscripts/test-check-hugo-version.sh\nscripts/test-check-reach-around-drift.sh\nscripts/test-smoke-site.sh\nscripts/test-verify-live.sh\nscripts/test-robots-wildcard.sh\nscripts/test-wait-for-ci-green.sh\nscripts/test-ensure-pages-project.sh\nscripts/test-wxr2hugo.sh\nscripts/test-wxr2hugo-webp.sh\nscripts/test-analytics.sh\nscripts/test-brand.sh\nscripts/test-gitleaks-config.sh", "timeout": 20, "tools": true, "build": false, "pip-cache": true},
+            {"name": "content checks", "command": "scripts/gen-support-qr.sh --check --decode\nscripts/check-wording.sh\nscripts/test-check-wording.sh\nscripts/check-license.sh\nscripts/test-check-license.sh\npython3 -I scripts/gen-tokens.py --check\npython3 -I scripts/check-contrast.py assets/css/tokens.css\nscripts/check-brand-assets.sh", "timeout": 15, "build": false, "pip-cache": true},
+            {"name": "size budget", "command": "python3 -I scripts/check-budget.py public\nscripts/test-check-budget.sh", "timeout": 10, "areas": ["site"]},
+            {"name": "browser gate", "command": "google-chrome --version\npython3 -I scripts/browser-gate.py public\nscripts/test-browser-gate.sh", "timeout": 20, "areas": ["site"]}
+        ]
+
+  shell:
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@13f7a13ee135b2f9c8eb68194f0078592374f8e4 # v1.33.0
+    permissions:
+      contents: read
+    with:
+      test-command: ./scripts/test-check-output.sh && ./scripts/test-check-hugo-version.sh   # needs no Hugo; the ci job also runs both against the real build
       egress-policy: block
       timeout-minutes: 20   # ~330 serial cases at ~2 s each; measured 6 to 10 minutes on hosted runners
 
   security:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@9d6825dd4e0e4d524fca3733f416437bbd7851e1 # v1.31.0
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@13f7a13ee135b2f9c8eb68194f0078592374f8e4 # v1.33.0
     permissions:
       contents: read
       security-events: write
@@ -231,7 +98,7 @@ jobs:
   ci-green:
     name: CI green
     if: always()
-    needs: [build, shell, security]
+    needs: [ci, shell, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
