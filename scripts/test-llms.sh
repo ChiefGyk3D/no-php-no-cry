@@ -9,6 +9,7 @@
 # self-test feeds the checker a bad file for each rule and requires a failure.
 # Needs the pinned Hugo; a missing Hugo is a failure, not a skip.
 set -euo pipefail
+exit 1 # scratch broken-leg CI proof, issue 185
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$root/tmp"
