@@ -349,5 +349,82 @@ class FeaturedImageSurvivesTests(unittest.TestCase):
         self.assertTrue(any(p.suffix == ".webp" for p in post.iterdir()))
 
 
+def exif_png_bytes(size=(200, 120), orientation=None):
+    img = photo_like(size)
+    exif = Image.Exif()
+    exif[0x010F] = "SecretCameraMaker"
+    gps = exif.get_ifd(0x8825)
+    gps[1] = "N"
+    gps[2] = (40.0, 41.0, 42.0)
+    if orientation:
+        exif[0x0112] = orientation
+    buf = io.BytesIO()
+    img.save(buf, "PNG", exif=exif)
+    return buf.getvalue()
+
+
+class FeaturedScrubTests(unittest.TestCase):
+    """featured.* keeps its name and format but loses EXIF, XMP and GPS."""
+
+    def run_on(self, name, data, **kw):
+        root = scratch()
+        d = bundle(root, index='---\nimage: "%s"\n---\n' % name)
+        (d / name).write_bytes(data)
+        proc = run(root)
+        return d, proc
+
+    def assertClean(self, path):
+        data = path.read_bytes()
+        for needle in (b"Exif", b"SecretCameraMaker", b"eXIf", b"http://ns.adobe.com/xap"):
+            self.assertNotIn(needle, data)
+        with Image.open(path) as img:
+            self.assertEqual(len(img.getexif()), 0)
+
+    def test_featured_jpeg_is_scrubbed_in_place_without_reencoding(self):
+        data = jpeg_with_exif(orientation=1)
+        d, proc = self.run_on("featured.jpg", data)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(sorted(os.listdir(d)), ["featured.jpg", "index.md"])
+        self.assertClean(d / "featured.jpg")
+        # Lossless: the pixels are exactly the original's.
+        with Image.open(io.BytesIO(data)) as a, Image.open(d / "featured.jpg") as b:
+            self.assertEqual(a.tobytes(), b.tobytes())
+
+    def test_featured_png_is_scrubbed_in_place(self):
+        d, proc = self.run_on("featured.png", exif_png_bytes())
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(sorted(os.listdir(d)), ["featured.png", "index.md"])
+        self.assertClean(d / "featured.png")
+
+    def test_rotated_featured_jpeg_has_orientation_applied_then_is_clean(self):
+        d, proc = self.run_on("featured.jpg", jpeg_with_exif(size=(120, 200), orientation=6))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertClean(d / "featured.jpg")
+        with Image.open(d / "featured.jpg") as img:
+            self.assertEqual(img.size, (200, 120))
+
+    def test_featured_with_wrong_content_is_refused_and_left_alone(self):
+        d, proc = self.run_on("featured.png", b"not an image")
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.png").read_bytes(), b"not an image")
+
+    def test_importer_featured_then_webp_leaves_no_exif(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
+        try:
+            import helpers
+            from test_convert import thumb_export
+        finally:
+            sys.path.pop(0)
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(thumb_export(), encoding="utf-8")
+        media = helpers.make_media(work / "media")
+        (media / "2023" / "02" / "pic.png").write_bytes(exif_png_bytes((600, 400)))
+        out = work / "out"
+        self.assertEqual(helpers.run(["--wxr", wxr, "--out", out, "--media", media]).returncode, 0)
+        self.assertEqual(run(out).returncode, 0)
+        self.assertClean(out / "posts" / "first-post" / "featured.png")
+
+
 if __name__ == "__main__":
     unittest.main()
