@@ -24,7 +24,12 @@ Twitch-and-Toot is built on NodeJS and can run on a RaspberryPi, Single Board Co
 
 Here's how you can install and configure Twitch-and-Toot:
 
-1. Clone the GitHub repository to your device: `git clone https://github.com/ChiefGyk3D/twitch-and-toot.git`
+1. Clone the GitHub repository to your device:
+
+   ```
+   git clone https://github.com/ChiefGyk3D/twitch-and-toot.git
+   ```
+
 2. Install the required packages: `npm install`
 3. Create a `config.json` file based on the `config_template.json` file in the repository. Fill in the required information such as Twitch API key, Mastodon API key, and the channel name you want to track.
 4. Run the script: `node twitch-and-toot.js`
