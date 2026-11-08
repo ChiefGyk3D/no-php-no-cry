@@ -17,7 +17,8 @@
   <h2 id="latest-posts" class="hud-heading">Latest posts</h2>
   {{ with where site.RegularPages "Section" "posts" }}
   <ul class="post-list">
-    {{- range first 5 . }}
+    {{- /* At most two entries (issue 180): Home must stay one screen at 1920x930 however many posts are published; the rest are one click away under All posts. scripts/test-social-products.sh builds ten posts and counts. */}}
+    {{- range first 2 . }}
     <li>
       <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
       <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>

@@ -457,10 +457,29 @@ def check_home(page, root, bad):
     return len(chips)
 
 
+def check_homeposts(page, root, bad):
+    """Home Latest posts (issue 180): at most two entries, each a link, a date and a summary, then All posts.
+    The count is min(2, posts on the build); the third argument is the number of posts the build holds."""
+    doc = load(page)
+    panels = doc.find("section", "home-latest")
+    if len(panels) != 1:
+        bad.append("home has %d Latest posts panels" % len(panels))
+        return 0
+    items = panels[0].find("li")
+    posts = int(pathlib.Path(root, "posts.count").read_text().strip())
+    if len(items) > 2:
+        bad.append("Latest posts lists %d entries, at most 2 allowed" % len(items))
+    if len(items) != min(2, posts):
+        bad.append("Latest posts lists %d entries for %d posts, expected %d" % (len(items), posts, min(2, posts)))
+    if not panels[0].find("p", "more-link"):
+        bad.append("the All posts link is missing")
+    return len(items)
+
+
 def main(argv):
     kind, page, root = argv[1:4]
     bad = []
-    n = {"social": check_social, "products": check_products, "footer": check_footer, "home": check_home}[kind](page, root, bad)
+    n = {"social": check_social, "products": check_products, "footer": check_footer, "home": check_home, "homeposts": check_homeposts}[kind](page, root, bad)
     for b in sorted(set(bad)):
         print(b)
     print("count=%s" % n)
@@ -617,6 +636,41 @@ if [[ -f "$public/index.html" ]]; then
     else
         pass "home css guard fails as it should"
     fi
+fi
+
+# Home Latest posts (issue 180): the real build (one post) and a scratch site with ten posts. The
+# panel never exceeds two entries, so Home stays one screen however many posts are published.
+many="$work/many"
+mkdir -p "$many/content/posts" "$many/content/search" "$many/content/social" "$many/content/support" "$many/content/about" "$many/content/products" "$many/content/privacy" "$many/content/resume" "$many/content/journal"
+for d in layouts assets data static archetypes; do [[ -e "$root/$d" ]] && ln -s "$root/$d" "$many/$d"; done
+ln -s "$root/hugo.toml" "$many/hugo.toml"
+for f in content/_index.md content/posts/_index.md content/search/_index.md content/social/_index.md content/support/index.md content/about/index.md content/products/_index.md content/privacy/index.md content/resume/index.md content/journal/_index.md; do cp "$root/$f" "$many/$f"; done
+for i in 01 02 03 04 05 06 07 08 09 10; do
+    mkdir -p "$many/content/posts/post-$i"
+    printf -- '---\ntitle: "Synthetic post %s"\ndate: 2026-10-%sT09:00:00-05:00\ndraft: false\ndescription: "Synthetic summary %s."\n---\n\nBody %s.\n' "$i" "$i" "$i" "$i" >"$many/content/posts/post-$i/index.md"
+done
+if (cd "$many" && HUGO_MINIFY_MINIFYOUTPUT=false hugo --destination "$many/public" --quiet >"$work/many-build.log" 2>&1); then
+    echo 10 >"$many/posts.count"
+    if out="$(python3 -I "$asserter" homeposts "$many/public/index.html" "$many" 2>&1)"; then
+        pass "home Latest posts with ten posts: $(tr '\n' ' ' <<<"$out")"
+    else
+        fail "home Latest posts with ten posts: $(tr '\n' ';' <<<"$out")"
+    fi
+    # Negative: a third entry on the page must be refused.
+    python3 -I - "$many/public/index.html" "$work/three.html" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<li>.*?</li>", s[s.index("home-latest"):], re.S)
+k = s.index("home-latest") + m.end()
+open(sys.argv[2], "w", encoding="utf-8").write(s[:k] + m.group(0) + s[k:])
+PY
+    if python3 -I "$asserter" homeposts "$work/three.html" "$many" >/dev/null 2>&1; then
+        fail "home posts guard: asserter accepted three entries"
+    else
+        pass "home posts guard fails as it should (three entries)"
+    fi
+else
+    fail "scratch site with ten posts does not build: $(tail -n 3 "$work/many-build.log" | tr '\n' ' ')"
 fi
 
 # Guard self-test: the asserters must fail on broken pages.
