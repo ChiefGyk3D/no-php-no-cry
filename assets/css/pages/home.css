@@ -195,6 +195,29 @@
   .home-grid .hero h1 {
     font-size: var(--text-2xl);
   }
+
+  /* Latest posts (at most two entries, layouts/home.html) stays compact however
+   * long the titles are: one summary line, tight rows. */
+  .home-latest.panel {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .home-latest .hud-heading {
+    margin-bottom: var(--space-2);
+  }
+
+  .home-latest .post-list li {
+    padding: var(--space-2) 0;
+  }
+
+  .home-latest .post-summary {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .home-latest .more-link {
+    margin: var(--space-2) 0 0;
+  }
 }
 
 /* Penguin ghost (issue 149). A faint grayscale mascot behind the hero on Home
