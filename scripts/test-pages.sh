@@ -243,11 +243,11 @@ def support(p, errs, repo):
             errs.append("%s QR image appears %d times" % (coin, len(imgs)))
         elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
             errs.append("%s QR image needs alt, width and height" % coin)
-    # Unrelated social links do not belong on the support page.
-    if any(h in (x.get("href") or "") for x, _ in p.links for h in ("instagram.com", "pics.chiefgyk3d.com")):
-        errs.append("unrelated social links are on the support page")
-    if "also find me on" in flat.lower():
-        errs.append("'Also find me on' block is back on the support page")
+    # Issue 123 (owner order 2026-11-08): no "Also find me on" section here; /social/ has every network.
+    if "Also find me on" in flat:
+        errs.append("the 'Also find me on' section is back on /support/")
+    if any(h in (a.get("href") or "") for a, t in p.links for h in ("instagram.com", "pics.chiefgyk3d.com")):
+        errs.append("a social link is on /support/ (they live on /social/)")
     # Ko-fi stays a link-out until the framing test; the TODO is in the template.
     if repo.get("template") is not None and "TODO" not in repo["template"]:
         errs.append("the Ko-fi embed TODO marker is missing from the template")
@@ -938,7 +938,7 @@ if has_ghost_trigger "$work/ghost-yes.html" && ! has_ghost_trigger "$work/ghost-
 else
     fail "guard: ghost trigger check does not bite"
 fi
-ghost="$(src_css home | tr '\n' ' ')"
+ghost="$(cat "$root"/assets/css/home-ghost.css | tr '\n' ' ')"
 ghost_rule="$(grep -Eo 'main:has\(\.home-grid\)::before, *main:has\(\.not-found\)::before *\{[^}]*\}' <<<"$ghost" || true)"
 ghost_ok=1
 for want in 'position: *absolute' 'width: *min\(60vw, *40rem\)' 'aspect-ratio: *1' 'opacity: *0\.(08|09|1|10|11|12)\b' 'filter: *grayscale\(1\)' 'pointer-events: *none' 'z-index: *0' '/brand/mascot-512\.webp' '(^|[ ;])mask-image: *radial-gradient' '-webkit-mask-image: *radial-gradient'; do
@@ -951,7 +951,7 @@ grep -Eq 'position: *fixed' <<<"$ghost_rule" && ghost_ok=0
 if [[ -n "$ghost_rule" && $ghost_ok -eq 1 ]]; then
     pass "ghost layer CSS: absolute, no CLS, masked, faint, grayscale, inert"
 else
-    fail "ghost layer CSS rule missing or incomplete in home.css"
+    fail "ghost layer CSS rule missing or incomplete in home-ghost.css"
 fi
 ghost_targets="$(grep -Eo 'main:has\([^)]*\)' <<<"$ghost" | sort -u | tr '\n' ' ')"
 if [[ "$ghost_targets" == 'main:has(.home-grid) main:has(.not-found) ' ]]; then
@@ -959,10 +959,164 @@ if [[ "$ghost_targets" == 'main:has(.home-grid) main:has(.not-found) ' ]]; then
 else
     fail "ghost layer must select only .home-grid and .not-found"
 fi
+# Issue 182: the ghost rule ships in the Home and 404 stylesheet only. check-budget
+# counts every url() in a page's stylesheet, so a post carrying it pays 20 KB.
+css_of() { grep -Eo '/css/site[^" >]*\.css' "$1" | head -1; }
+ghost_pages=0 ghost_wrong=0
+for f in "$pub/index.html" "$pub/404.html"; do
+    [[ -f "$f" ]] || continue
+    ghost_pages=$((ghost_pages + 1))
+    grep -q 'mascot-512' "$pub$(css_of "$f")" || ghost_wrong=1
+done
+# Every built post page (the page type the split was made for) plus the other
+# pages: none may carry the ghost stylesheet or the mascot reference.
+post_pages=0
+for f in "$pub"/posts/*/index.html; do
+    [[ -f "$f" ]] || continue
+    post_pages=$((post_pages + 1))
+done
+if [[ $post_pages -lt 1 ]]; then ghost_wrong=1; fi
+for f in "$pub"/posts/*/index.html "$pub"/about/index.html "$pub"/posts/index.html "$pub"/social/index.html "$pub"/support/index.html "$pub"/resume/index.html "$pub"/privacy/index.html; do
+    [[ -f "$f" ]] || continue
+    ghost_pages=$((ghost_pages + 1))
+    ! grep -q 'mascot-512' "$pub$(css_of "$f")" || ghost_wrong=1
+    ! grep -q 'site-ghost' "$f" || ghost_wrong=1
+done
+if [[ $ghost_pages -ge 8 && $ghost_wrong -eq 0 ]]; then
+    pass "ghost stylesheet: on Home and 404 only ($ghost_pages pages checked)"
+else
+    fail "ghost stylesheet must be on Home and 404 only (checked $ghost_pages, wrong=$ghost_wrong)"
+fi
 if grep -q 'mascot-512.webp' "$root/brand/approved-assets.txt"; then
     pass "ghost layer image is an approved asset"
 else
     fail "ghost layer image is not in approved-assets.txt"
+fi
+
+# Portrait (issue 179): the owner's metadata-stripped portrait on /about/ and /resume/. Exact alt
+# text, explicit width and height, eager loading, a two-size srcset, same-origin files only, a size
+# cap per file, and no EXIF, GPS or XMP in the published files. The CSP stays img-src 'self'.
+portrait_asserter="$work/assert_portrait.py"
+cat >"$portrait_asserter" <<'PY'
+import re
+import sys
+
+ALT = "Portrait of ChiefGyk3D in front of a network rack"
+page, kind = sys.argv[1], sys.argv[2]
+html = open(page, encoding="utf-8").read()
+tags = [t for t in re.findall(r"<img\b[^>]*>", html) if "portrait-" in t]
+errs = []
+
+
+def attr(tag, name):
+    m = re.search(r"[\s]%s=(\"([^\"]*)\"|'([^']*)'|([^\s>]+))" % name, tag)
+    return None if not m else next(g for g in m.groups()[1:] if g is not None)
+
+
+if len(tags) != 1:
+    errs.append("expected exactly one portrait image, found %d" % len(tags))
+else:
+    t = tags[0]
+    want_size = {"about": "640", "resume": "320"}[kind]
+    if attr(t, "alt") != ALT:
+        errs.append("alt text is %r" % attr(t, "alt"))
+    if attr(t, "width") != want_size or attr(t, "height") != want_size:
+        errs.append("width and height are %s x %s, want %s x %s" % (attr(t, "width"), attr(t, "height"), want_size, want_size))
+    if attr(t, "loading") != "eager":
+        errs.append("loading is %r, want eager (above the fold)" % attr(t, "loading"))
+    src = attr(t, "src") or ""
+    if not re.fullmatch(r"/brand/portrait-(320|640)\.webp", src):
+        errs.append("src %r is not a same-origin /brand/portrait file" % src)
+    ss = attr(t, "srcset") or ""
+    cands = sorted(c.strip() for c in ss.split(","))
+    if cands != ["/brand/portrait-320.webp 320w", "/brand/portrait-640.webp 640w"]:
+        errs.append("srcset is %r, want both sizes" % ss)
+    if re.search(r"https?:|//", src + ss):
+        errs.append("a portrait URL leaves the site")
+for e in errs:
+    print(e)
+sys.exit(1 if errs else 0)
+PY
+portrait_check() { # <label> <page> <kind>: pass when the asserter is happy
+    local out rc=0
+    out="$(python3 -I "$portrait_asserter" "$2" "$3" 2>&1)" || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        pass "$1"
+    else
+        printf '%s\n' "$out" | sed 's/^/    /'
+        fail "$1"
+    fi
+}
+portrait_bites() { # <label> <page> <kind> <sed expression>: the asserter must fail the edited page
+    sed -E "$4" "$2" >"$work/portrait-mut.html"
+    if cmp -s "$2" "$work/portrait-mut.html"; then
+        fail "guard: $1 did not change the page"
+    elif python3 -I "$portrait_asserter" "$work/portrait-mut.html" "$3" >/dev/null 2>&1; then
+        fail "guard: $1 passed the portrait check"
+    else
+        pass "guard: $1 fails the portrait check"
+    fi
+}
+portrait_check "about: portrait with exact alt, size, eager loading and srcset" "$pub/about/index.html" about
+portrait_check "resume: portrait with exact alt, size, eager loading and srcset" "$pub/resume/index.html" resume
+portrait_bites "a changed alt" "$pub/about/index.html" about 's#in front of a network rack#in front of a rack#'
+portrait_bites "a missing width" "$pub/resume/index.html" resume 's# width=320##'
+portrait_bites "lazy loading" "$pub/about/index.html" about 's#loading=eager#loading=lazy#'
+portrait_bites "a one-size srcset" "$pub/about/index.html" about 's#/brand/portrait-320.webp 320w, ##'
+portrait_bites "an off-site portrait" "$pub/resume/index.html" resume 's#src=/brand/portrait-320.webp#src=https://example.org/p.webp#'
+portrait_bites "no portrait" "$pub/about/index.html" about 's#<img class=about-portrait[^>]*>##'
+for n in 640 320; do
+    f="$pub/brand/portrait-$n.webp"
+    cap=$((n == 640 ? 60 * 1024 : 25 * 1024))
+    if [[ -f "$f" && "$(stat -c %s "$f")" -le $cap ]]; then
+        pass "portrait-$n.webp is published and within its size cap ($cap bytes)"
+    else
+        fail "portrait-$n.webp is missing or over its size cap ($cap bytes)"
+    fi
+done
+# The published portrait files carry no EXIF, GPS or XMP; the check must bite on a GPS fixture.
+if python3 -I "$root/scripts/check-image-metadata.py" "$pub/brand" >/dev/null 2>&1; then
+    pass "published brand images carry no EXIF, GPS or XMP"
+else
+    fail "a published brand image carries EXIF, GPS or XMP"
+fi
+mkdir -p "$work/gps-fixture"
+python3 -I - "$pub/brand/portrait-320.webp" "$work/gps-fixture/portrait-gps.webp" <<'PY'
+import struct
+import sys
+
+src = open(sys.argv[1], "rb").read()
+gps = b"II" + struct.pack("<HI", 42, 8) + struct.pack("<H", 1) + struct.pack("<HHII", 0x8825, 4, 1, 26) + bytes(4)
+exif = b"EXIF" + struct.pack("<I", len(gps)) + gps
+body = src[8:] + exif  # the real portrait's chunks, then an EXIF chunk with a GPS tag
+open(sys.argv[2], "wb").write(b"RIFF" + struct.pack("<I", len(body)) + body)
+PY
+if out="$(python3 -I "$root/scripts/check-image-metadata.py" "$work/gps-fixture" 2>&1)"; then
+    fail "guard: a WebP with a GPS tag passed the metadata check"
+elif grep -q 'portrait-gps.webp: EXIF block with 1 tags' <<<"$out"; then
+    pass "guard: a WebP with a GPS tag fails the metadata check"
+else
+    fail "guard: the metadata check failed but did not name the EXIF block"
+fi
+# CSP: images stay same-origin (img-src 'self'), nothing widened for the portrait.
+if grep -q "img-src 'self';" "$root/static/_headers" && ! grep -Eq "img-src[^;]*(https?:|data:|\*)" "$root/static/_headers"; then
+    pass "CSP img-src is still 'self' only"
+else
+    fail "CSP img-src is not 'self' only"
+fi
+# The About CSS gives the portrait about 12rem wide on wide screens and 8rem on phones; the Resume CSS
+# gives 8rem and hides it in print.
+if tr '\n' ' ' <"$root/assets/css/pages/about.css" | grep -Eq '\.about-portrait *\{[^}]*width: *8rem' &&
+    tr '\n' ' ' <"$root/assets/css/pages/about.css" | grep -Eq '\.about-portrait *\{[^}]*width: *12rem'; then
+    pass "about.css sizes the portrait 8rem on phones and 12rem on wide screens"
+else
+    fail "about.css does not size the portrait 8rem and 12rem"
+fi
+if tr '\n' ' ' <"$root/assets/css/pages/resume.css" | grep -Eq '\.resume-portrait *\{[^}]*width: *8rem' &&
+    tr '\n' ' ' <"$root/assets/css/pages/resume.css" | grep -Eq '@media print *\{[^@]*\.resume-portrait[^}]*\{[^}]*display: *none'; then
+    pass "resume.css sizes the portrait 8rem and hides it in print"
+else
+    fail "resume.css does not size the portrait 8rem and hide it in print"
 fi
 
 if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
@@ -996,10 +1150,24 @@ for pair in "posts:Posts" "products:Gear & tools" "social:Socials" "support:Supp
         fail "nav on /${pair%%:*}/ marks '$got', expected '${pair##*:}'"
     fi
 done
-if [[ -z "$(nav_current "$pub/index.html")" ]]; then
-    pass "nav marks nothing current on the home page"
+if [[ "$(nav_current "$pub/index.html")" == "Home" ]]; then
+    pass "nav marks Home current on the home page"
 else
-    fail "nav marks something current on the home page"
+    fail "nav on the home page marks '$(nav_current "$pub/index.html")', expected 'Home'"
+fi
+nav_first() { # <html> -> text of the first link in the main nav
+    python3 -I - "$1" <<'PY'
+import re, sys
+h = open(sys.argv[1], encoding="utf-8").read()
+nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
+m = re.search(r"<a\b[^>]*>(.*?)</a>", nav.group(0) if nav else "", re.S)
+print(re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else "")
+PY
+}
+if [[ "$(nav_first "$pub/support/index.html")" == "Home" ]]; then
+    pass "nav lists Home first"
+else
+    fail "the first nav item on /support/ is '$(nav_first "$pub/support/index.html")', expected 'Home'"
 fi
 if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
     pass "stylesheet styles [aria-current]"

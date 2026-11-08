@@ -24,16 +24,41 @@ largest candidate of an `<img srcset>`.
 |---|---|---|---|
 | `js-count`, `js-name`, `js-page` | only the hash-pinned scripts ship, each only on its own page; the table is read from `PINNED_SCRIPTS` in `scripts/artifact-rules.sh` (today `/copy.js` on `/support/` and `/search.js` on `/search/`), and `test-check-budget.sh` fails if the two ever differ; any `.js`, `.mjs` or `.cjs` file counts, the file count limit is the size of that table, and each script is under 1 KB gzip (`js-size`) | `/copy.js` and `/search.js` (2 files) | docs/pinned-script.md; the hash pin and CSP rules stay in `check-output.sh` |
 | `js-size` | 1 KB gzip | n/a | brief section 10 |
-| `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 4.1 KB | brief (target 12 KB) |
+| `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 6.1 KB (6.3 KB on Home and 404) | brief (target 12 KB) |
 | `font-count`, `font-size` | at most 2 font files per page, each 30 KB transferred | Jost 26.6 KB, Orbitron 19.9 KB | brief says one font; the brand kit ships two (Jost body, Orbitron headings), so the count is 2 |
 | `html-size` | 15 KB gzip per page | 4.2 KB | brief: home page HTML |
 | `image-size` | 120 KB per image an `<img>` loads | 20.7 KB | brief |
 | `image-file-size` | 300 KB per image file anywhere in the build | 267 KB (Open Graph card, never loaded by a page) | local limit |
-| `page-total` | 150 KB cold transfer per page | about 80 KB | brief: home page |
-| `post-no-images` | 80 KB for a post page without its body images | about 70 KB | brief |
+| `page-total` | 150 KB cold transfer per page | 82.1 KB (Home, the largest) | brief: home page |
+| `post-no-images` | 80 KB for a post page without its body images | 61.0 KB for the sample post; 61.8 to 64.1 KB for four real batch-1 posts (see the fixed weight below) | brief |
 | `missing-asset`, `no-pages` | every referenced file exists; there are pages | | |
 
 To change a limit, edit `LIMITS` in the script and this table in one commit.
+
+### Fixed weight of a post page (issue 182)
+
+What every post pays before its own text, measured with the script's own
+accounting (gzip -9 for HTML, CSS, SVG and TTF; stored size for woff2 and WebP;
+every `url()` in the stylesheet counts, used or not). Measured on the sample post
+(a post with about 2 KB of gzip HTML text on top of the shell):
+
+| Item | Raw | Counted |
+|---|---|---|
+| `fonts/jost-latin-wght-normal.woff2` | 26.6 KB | 26.6 KB |
+| `fonts/orbitron-wght.ttf` | 38.6 KB | 19.9 KB |
+| `css/site.min.*.css` | 28.9 KB | 6.1 KB |
+| the 12 footer social icons (`brand/icons/*.svg`, in the stylesheet) | 9.9 KB | 4.9 KB |
+| the post HTML | about 18 KB | about 6 KB |
+| Total, sample post | | 61.0 KB, so about 19 KB of the 80 KB limit remains for text |
+
+The Home and 404 penguin ghost (`mascot-512.webp`, 20.7 KB) is its own file,
+`assets/css/home-ghost.css`, appended to the stylesheet of those two pages only
+(`layouts/baseof.html`). Before issue 182 it sat in `pages/home.css`, so every
+page was charged for an image only Home and 404 draw, which left a post about
+2 KB for text. `scripts/test-pages.sh` fails if a stylesheet other than Home or
+404 mentions `mascot-512`. Not taken, because each changes either the look or the
+license position: subsetting Jost or Orbitron (Orbitron carries a Reserved Font
+Name, so a subset would need a new name) and converting Orbitron to woff2.
 
 ## Browser gate (`browser-gate.py`)
 
@@ -47,7 +72,8 @@ Templates: home, posts list, the first post, social, products, support, about,
 resume, privacy, and 404 (loaded from a path that does not exist, so the page
 arrives with status 404; that one status is allowed on that page only).
 
-Widths: 1440, 1024, 768, 390 CSS px. Two more viewports check reflow and zoom
+Widths: 1440, 1024, 768, 393 and 390 CSS px (393 is run at 393 x 852, the iPhone 15
+viewport the issue names; 390 at 390 x 844 stays; the rest at 900 px tall). Two more viewports check reflow and zoom
 (overflow, console, network, keyboard only): `zoom200` is 1440 px at 200 percent
 (720 CSS px, device pixel ratio 2) and `reflow320` is 320 CSS px (WCAG 1.4.10).
 
@@ -89,6 +115,13 @@ the Menu button (`.nav-menu .nav-toggle`, a popover button) must open with
 Enter, move Tab into the list, close with Escape (focus returns to the button),
 reopen, and close with Enter again. A click outside the list also closes the
 native popover (light dismiss) but is not exercised by the gate.
+
+Fit (`fit`), a standing rule: short pages fit 1920x1080 without scrolling. Each
+template not in `FIT_ALLOW` is loaded at 1920x930 (the content area of a 1920x1080
+browser) and its `scrollHeight` must not exceed the viewport height. Pages that
+cannot fit (posts, a post, products, about, resume, search) are named in
+`FIT_ALLOW` in `scripts/browser-gate.py`, each with a reason; a stale name fails
+`[setup]`. Home, Social, Support, Privacy and the 404 page must fit.
 
 Toggle (`toggle`): the dark-only brand kit has no theme toggle yet (the redesign
 brief's `/theme.js` is not implemented). The check runs only when the build

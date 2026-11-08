@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Browser gate for the built site (issue 65, docs/performance-gates.md).
 
-Usage: python3 -I scripts/browser-gate.py [site-dir] [--shots DIR] [--pages a,b] [--widths 1440,390]
+Usage: python3 -I scripts/browser-gate.py [site-dir] [--shots DIR] [--pages a,b] [--widths 1440,393]
        (site-dir defaults to public; CHROME names the browser binary)
 
 Serves the built site on 127.0.0.1 with the response headers from its own
 _headers file (so the real Content-Security-Policy is enforced), drives
 headless Chrome over the DevTools protocol through a pipe (no WebSocket, no
-Node, no pip packages), and loads one URL per template at 1440, 1024, 768 and
-390 CSS px wide. The 404 template is loaded from a path that does not exist.
+Node, no pip packages), and loads one URL per template at 1440, 1024, 768, 393 (the
+iPhone 15 viewport, 393 x 852) and 390 CSS px wide. The 404 template is loaded from a path that does not exist.
 
 Fails (exit 1) on any of, printed as "[rule] page@width detail":
   overflow    the page scrolls sideways (also at 200 percent zoom and 320 px)
@@ -23,6 +23,9 @@ Fails (exit 1) on any of, printed as "[rule] page@width detail":
               of its box: a handle or name that does not wrap (issue 170)
   target      a control under 44 x 44 CSS px (links inside running text are
               exempt, WCAG 2.5.8 inline exception)
+  fit         standing rule (issue 123): a short page must fit a 1920x1080 browser
+              (a 1920x930 viewport) with no vertical scroll, scrollHeight <= viewport
+              height; pages in FIT_ALLOW are exempt, each with a stated reason
   tab         keyboard: the skip link is not first, the Tab order differs from
               document order, a focused control is off screen or has no focus
               ring, or the Menu button does not open and close from the keyboard (Enter and Escape)
@@ -68,7 +71,9 @@ TARGET_PX = 44
 # Lighthouse's mobile preset: Slow 4G, 4x CPU slowdown. Bytes per second.
 NET = dict(offline=False, latency=150, downloadThroughput=int(1.6 * 1024 * 1024 / 8), uploadThroughput=int(0.75 * 1024 * 1024 / 8))
 CPU_SLOWDOWN = 4
-FULL_WIDTHS = [1440, 1024, 768, 390]
+# 393 x 852 is the iPhone 15 viewport (issue 123); 390 x 844 stays as the older phone size.
+FULL_WIDTHS = [1440, 1024, 768, 393, 390]
+PHONE_HEIGHTS = {393: 852}  # a phone width not listed here is 844 tall; wider than 500 is 900 tall
 # Zoom: 1440 px at 200 percent is 720 CSS px at device pixel ratio 2; 320 px is
 # 400 percent of 1280 and the WCAG 1.4.10 reflow width.
 ZOOM_VIEWPORTS = [("zoom200", 720, 450, 2), ("reflow320", 320, 256, 1)]
@@ -81,9 +86,23 @@ PAGES = [
     ("support", "/support/"),
     ("about", "/about/"),
     ("resume", "/resume/"),
+    ("search", "/search/"),
     ("privacy", "/privacy/"),
     ("404", "/no-such-page-gate/"),
 ]
+# Standing rule (issue 123): in a 1920x1080 browser the content viewport is about
+# 1920x930, and a short page must not need a vertical scroll there. A page that
+# cannot fit is listed here with the reason; nothing is skipped silently. Every
+# template of PAGES is either checked or named here (a stale name fails [setup]).
+FIT_VIEWPORT = (1920, 930)
+FIT_ALLOW = {
+    "posts": "the archive grows by one row per post",
+    "post": "an article is as long as its text",
+    "products": "a long catalog: collapsed categories, about 32 items; first screen shows the title, intro and first category",
+    "about": "long-form bio, projects and contact sections",
+    "resume": "long-form career history",
+    "search": "an A to Z list of every post and journal entry, it grows with the site",
+}
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
 
 OBSERVERS = """
@@ -549,6 +568,30 @@ def run_one(cdp, base, name, url, width, height, dpr, mobile, full, axe_src, has
         pg.close()
 
 
+def fit_one(cdp, base, name, url, fails, rows):
+    """The fit rule: at FIT_VIEWPORT the document is not taller than the viewport."""
+    w, h = FIT_VIEWPORT
+    label = "%s@%dx%d" % (name, w, h)
+    pg = Page(cdp)
+    try:
+        pg.call("Page.enable")
+        pg.call("Network.enable")
+        pg.call("Network.setCacheDisabled", {"cacheDisabled": True})
+        pg.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": h, "deviceScaleFactor": 1, "mobile": False})
+        pg.call("Page.navigate", {"url": base + url})
+        cdp.wait_event("Page.loadEventFired", pg.s, 60)
+        pg.js("document.fonts.ready.then(() => new Promise(r => setTimeout(r, 700)))")
+        sh = pg.js("document.documentElement.scrollHeight")
+        ch = pg.js("document.documentElement.clientHeight")
+        if sh > ch:
+            fails.append("[fit] %s the page needs a vertical scroll: %d px tall in a %d px viewport (standing rule: short pages fit 1920x1080)" % (label, sh, ch))
+        rows.append({"label": label, "lcp": None, "cls": None, "req": 0})
+    except (TimeoutError, RuntimeError) as err:
+        fails.append("[setup] %s browser run failed: %s" % (label, err))
+    finally:
+        pg.close()
+
+
 def first_post(site):
     d = os.path.join(site, "posts")
     if os.path.isdir(d):
@@ -566,8 +609,9 @@ def main():
     ap.add_argument("site", nargs="?", default="public")
     ap.add_argument("--shots")
     ap.add_argument("--pages", help="comma list of template names (default: all)")
-    ap.add_argument("--widths", help="comma list of widths (default: 1440,1024,768,390)")
+    ap.add_argument("--widths", help="comma list of widths (default: 1440,1024,768,393,390)")
     ap.add_argument("--no-zoom", action="store_true")
+    ap.add_argument("--fit-allow", help="comma list of template names to treat as allowed to scroll (default: FIT_ALLOW)")
     ap.add_argument("--axe", default=os.path.join(ROOT, "tools", "axe", "axe.min.js"))
     ap.add_argument("--axe-sha256", default=os.path.join(ROOT, "tools", "axe", "axe.min.js.sha256"))
     a = ap.parse_args()
@@ -593,6 +637,13 @@ def main():
     if not pages:
         print("[setup] no pages selected")
         return 1
+    allow = dict(FIT_ALLOW)
+    stale = [n for n in allow if n not in dict(PAGES)]
+    if stale:
+        print("[setup] FIT_ALLOW names no template: %s" % ", ".join(stale))
+        return 1
+    if a.fit_allow is not None:
+        allow = {n: allow.get(n, "set on the command line") for n in a.fit_allow.split(",") if n}
     if a.shots:
         os.makedirs(a.shots, exist_ok=True)
     has_theme = os.path.isfile(os.path.join(site, "theme.js"))
@@ -605,7 +656,9 @@ def main():
     try:
         for name, url in pages:
             for w in widths:
-                run_one(cdp, base, name, url, w, 900 if w > 500 else 844, 1, w <= 500, True, axe_src, has_theme, a.shots, fails, rows)
+                run_one(cdp, base, name, url, w, 900 if w > 500 else PHONE_HEIGHTS.get(w, 844), 1, w <= 500, True, axe_src, has_theme, a.shots, fails, rows)
+            if name not in allow:
+                fit_one(cdp, base, name, url, fails, rows)
             if not a.no_zoom:
                 for zname, zw, zh, dpr in ZOOM_VIEWPORTS:
                     run_one(cdp, base, name, url, zw, zh, dpr, False, False, axe_src, has_theme, a.shots, fails, rows)

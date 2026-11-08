@@ -25,7 +25,7 @@ GOOD_CSS = (
     "nav a,footer a{display:inline-flex;align-items:center;min-height:44px;min-width:44px}"
     ".nav-toggle{min-height:44px;min-width:44px;font:inherit}"
     ".nav-menu ul{position:absolute;top:60px;left:0;right:0;margin:0;padding:0;list-style:none;background:#222;border:0}"
-    "@media(min-width:52rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
+    "@media(min-width:64rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
     "main{padding:16px}"
     ".tiles{list-style:none;margin:0;padding:0}.tile{width:12rem;border:1px solid #888;padding:8px;box-sizing:border-box}.part{white-space:nowrap}"
     ".wide{width:3000px;height:1px;background:#fff}"
@@ -101,6 +101,12 @@ def mutate(d, m):
     elif m == "menu-escape":
         # A manual popover has no light dismiss: Escape no longer closes it.
         edit(d, "index.html", '<ul id="nav-list" popover>', '<ul id="nav-list" popover="manual">')
+    elif m == "overflow-393":
+        # Overflows only at exactly 393 x 852 (the iPhone 15 viewport), not at 390 x 844.
+        edit(d, "site.css", "main{", "@media(min-width:393px) and (max-width:393px) and (min-height:852px) and (max-height:852px){main{width:3000px}}main{")
+    elif m == "tall":
+        edit(d, "site.css", "main{", ".tall{height:2000px}main{")  # a class, not a style attribute: the CSP forbids inline style
+        edit(d, "index.html", "<footer>", '<div class="tall"></div><footer>')
     elif m == "toggle-missing":
         write(d, "theme.js", "document.title = 'x';")
         edit(d, "index.html", "</head>", '<script src="/theme.js"></script></head>')

@@ -45,9 +45,53 @@ REQUIRED = [
     "employers on request.",
     "How to reach me, on the About page",
 ]
-PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
-            "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
-            "Reach Around", "Skid Finder"]
+PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
+            "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
+            "Stream Daemon", "Reach Around", "Hammunition"]
+SUMMARY = [
+    "Senior Cybersecurity Engineer and CISSP with about 15 years across IT and "
+    "security. I design, build, integrate, and test security systems across "
+    "identity, network defense, SIEM engineering, cloud security, zero trust, "
+    "and automation. I question unnecessary access and use hands-on testing to "
+    "check whether the design actually works.",
+    "I maintain open-source security tools and reusable CI workflows, and I "
+    "share cybersecurity knowledge through tutorials, security breakdowns, and "
+    "livestreams with more than 500,000 followers across YouTube, Twitch, Kick, "
+    "and social platforms. My goal is to break down knowledge barriers.",
+]
+
+
+def load_skills(path):
+    """Exact (group, [items]) pairs from data/resume.yaml, stdlib only. The skills
+    block is a list of `- group: X` lines each followed by a flow-list
+    `items: [a, "b, c"]` line."""
+    import csv
+    groups, cur = [], None
+    in_skills = False
+    for line in open(path, encoding="utf-8"):
+        line = line.rstrip("\n")
+        if re.match(r"^skills:\s*$", line):
+            in_skills = True
+            continue
+        if in_skills and re.match(r"^\S", line):
+            break
+        if not in_skills:
+            continue
+        g = re.match(r"^\s+- group:\s*(.+?)\s*$", line)
+        if g:
+            cur = (g.group(1).strip('"'), [])
+            groups.append(cur)
+            continue
+        it = re.match(r"^\s+items:\s*\[(.*)\]\s*$", line)
+        if it and cur is not None:
+            row = next(csv.reader([it.group(1)], skipinitialspace=True, quotechar='"'))
+            cur[1].extend(x.strip() for x in row)
+    return groups
+
+
+import os
+YAML = os.environ.get("RESUME_YAML", "data/resume.yaml")
+SKILLS = load_skills(YAML)
 FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"Western Governors",
              r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
@@ -64,7 +108,10 @@ class Page(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
-        if tag in ("img", "iframe", "script", "style") or "style" in a:
+        # The one allowed image is the owner's portrait (issue 179; its attributes are asserted in
+        # scripts/test-pages.sh): a same-origin /brand/portrait file, nothing else.
+        portrait = tag == "img" and re.fullmatch(r"/brand/portrait-(320|640)\.webp", a.get("src") or "") and a.get("class") == "resume-portrait"
+        if (tag in ("img", "iframe", "script", "style") or "style" in a) and not portrait:
             if tag != "script":
                 self.bad.append(tag)
         if tag == "h2":
@@ -122,16 +169,29 @@ def check(html):
     if not cred.search(text):
         out.append("credential order: CISSP 2024, then Security+, Network+, "
                    "A+ each with February 2026")
-    pos = -1
-    for name in PROJECTS:
-        i = text.find(name, pos + 1) if pos >= 0 else text.find(name)
-        if i < 0:
-            out.append("missing project: " + name)
-    if "Clouds Against Humanity" in text:
-        projs = text[text.find("Open-Source Projects"):]
-        for name in PROJECTS[1:]:
-            if name in projs and projs.find(name) < projs.find("Clouds Against Humanity"):
-                out.append("Clouds Against Humanity is not first: " + name)
+    sec = re.search(r"Open-Source Projects</h2>(.*?)(?:<h2|$)", html, re.S)
+    names = re.findall(r"<li><a [^>]*>(.*?)</a>", sec.group(1) if sec else "")
+    if names != PROJECTS:
+        out.append("project order: want %r, got %r" % (PROJECTS, names))
+    sm = re.search(r"Summary</h2>(.*?)(?:<h2|$)", html, re.S)
+    paras = [htmlmod.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", x))).strip()
+             for x in re.findall(r"<p>(.*?)</p>", sm.group(1) if sm else "", re.S)]
+    if paras != SUMMARY:
+        out.append("summary must be exactly the two approved paragraphs")
+    if sm and "<li>" in sm.group(1):
+        out.append("summary must be paragraphs, not a list")
+    sk = re.search(r"Skills</h2>(.*?)(?:<h2|$)", html, re.S)
+    groups = re.findall(r"<dt>(.*?)</dt>", sk.group(1) if sk else "")
+    dds = [htmlmod.unescape(x) for x in re.findall(r"<dd>(.*?)</dd>", sk.group(1) if sk else "", re.S)]
+    if len(SKILLS) != 6 or sum(len(i) for _, i in SKILLS) != 25:
+        out.append("yaml skills: want 6 groups and 25 items, got %d and %d"
+                   % (len(SKILLS), sum(len(i) for _, i in SKILLS)))
+    if groups != [g for g, _ in SKILLS]:
+        out.append("skill groups: want %r, got %r" % ([g for g, _ in SKILLS], groups))
+    if dds != [", ".join(i) for _, i in SKILLS]:
+        out.append("skill items differ from data/resume.yaml (exact, per group, in order)")
+    if not re.search(r'class="?resume-subtitle', html):
+        out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
     if m and (not h1 or re.sub(r"<[^>]+>", "", h1.group(1)).strip() != "ChiefGyk3D"):
         out.append("name line is not exactly ChiefGyk3D")
@@ -165,6 +225,7 @@ if __name__ == "__main__":
     sys.exit(1 if problems else 0)
 PY
 
+export RESUME_YAML="$root/data/resume.yaml"
 hugo --minify --gc --destination "$work/public" --cacheDir "$work/cache" >"$work/build.log" 2>&1 || {
     cat "$work/build.log"
     fail "hugo build"
@@ -201,6 +262,52 @@ PY
     else fail "light colors outside @media print"; fi
 else
     fail "assets/css/pages/resume.css is missing"
+fi
+
+# Print must reset every muted or accent screen color to CanvasText: each class
+# the screen rules color with var(--muted) or var(--accent) must be listed in a
+# print rule that sets color: CanvasText.
+if [[ -f "$css" ]]; then
+    if python3 -I - "$css" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+i = css.find("@media print")
+screen, pr = css[:i], css[i:]
+need = set()
+for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", screen):
+    if re.search(r"color:\s*var\(--(muted|accent)\)", body):
+        need.update(x.strip() for x in sel.split(","))
+reset = set()
+for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", pr):
+    if re.search(r"(?<![-\w])color:\s*CanvasText", body):
+        reset.update(x.strip() for x in sel.split(","))
+missing = need - reset
+if not need or missing:
+    print("print rules do not reset: %s" % sorted(missing or {"(nothing found)"}))
+    sys.exit(1)
+PY
+    then
+        pass "print resets every muted or accent screen color"
+    else fail "print stylesheet does not reset a muted or accent color"; fi
+    # Guard: dropping .resume-subtitle from the print reset must be flagged.
+    sed 's/^  \.resume-subtitle,$//' "$css" >"$work/resume-nosub.css"
+    if python3 -I - "$work/resume-nosub.css" >/dev/null 2>&1 <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+i = css.find("@media print")
+screen, pr = css[:i], css[i:]
+need, reset = set(), set()
+for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", screen):
+    if re.search(r"color:\s*var\(--(muted|accent)\)", body):
+        need.update(x.strip() for x in sel.split(","))
+for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", pr):
+    if re.search(r"(?<![-\w])color:\s*CanvasText", body):
+        reset.update(x.strip() for x in sel.split(","))
+sys.exit(1 if need - reset else 0)
+PY
+    then
+        fail "guard: print check accepted a css without the subtitle reset"
+    else pass "guard: print check rejects a css without the subtitle reset"; fi
 fi
 
 # baseof concatenates css/pages/*.css, and the built stylesheet carries it.
@@ -249,6 +356,40 @@ PY
             pass "guard: credential $c is rejected"
         else fail "guard: credential $c was not flagged"; fi
     done
+fi
+
+# Skill item guard: removing any single item from the built page must fail.
+if [[ -f "$page" ]]; then
+    n="$(
+        RESUME_YAML="$root/data/resume.yaml" python3 -I - "$page" "$work" "$asserter" <<'PY'
+import html, re, subprocess, sys
+src = open(sys.argv[1], encoding="utf-8").read()
+sys.argv = [sys.argv[3]]
+ns = {}
+exec(compile(open(sys.argv[0]).read().split('if __name__')[0], "a", "exec"), ns)
+items = [i for _, l in ns["SKILLS"] for i in l]
+bad = 0
+for it in items:
+    mut = None
+    for m in re.finditer(r"<dd>(.*?)</dd>", src, re.S):
+        body = m.group(1)
+        for c in (it, html.escape(it, quote=False), html.escape(it, quote=False).replace("'", "&#39;")):
+            if c in body:
+                mut = src[:m.start(1)] + body.replace(c, "", 1) + src[m.end(1):]
+                break
+        if mut is not None:
+            break
+    if mut is None:
+        print("item not found in a skills dd: " + it, file=sys.stderr)
+        bad += 1
+        continue
+    if not any("skill items" in x for x in ns["check"](mut)):
+        print("removal not flagged: " + it, file=sys.stderr)
+        bad += 1
+print(len(items), bad)
+sys.exit(1 if bad or len(items) != 25 else 0)
+PY
+    )" && pass "guard: removing any single skill item is rejected ($n)" || fail "guard: a removed skill item was not flagged"
 fi
 
 if [[ $failures -ne 0 ]]; then

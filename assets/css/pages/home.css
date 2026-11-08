@@ -51,26 +51,61 @@
   margin-top: 0;
 }
 
+/* Find me online: equal-width chips in balanced rows (issue 123). --per is the
+ * chips per row: 2 on a phone, 4 from 40rem, and from 80rem the class written by
+ * layouts/home.html (half the count rounded up: 6 + 6; the template clamps it to 12, so up to 24 chips are
+ * supported and every class it can write has a rule below). A short last row is
+ * centered. No chip text wraps; every chip is --tap tall. */
 .home-social {
+  --per: 2;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  justify-content: center;
+  gap: var(--space-2);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+.home-social li {
+  flex: 0 0 calc((100% - (var(--per) - 1) * var(--space-2)) / var(--per));
+  min-width: 0;
+}
+
 .home-social a {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
   min-height: var(--tap);
-  padding: 0 var(--space);
+  padding: 0 var(--space-2);
+  white-space: nowrap;
   border: var(--rule-width) solid var(--border);
   border-radius: var(--radius);
 }
 
 .home-social a:hover {
   border-color: var(--accent);
+}
+
+.home-social--per-1 { --per-desk: 1; }
+.home-social--per-2 { --per-desk: 2; }
+.home-social--per-3 { --per-desk: 3; }
+.home-social--per-4 { --per-desk: 4; }
+.home-social--per-5 { --per-desk: 5; }
+.home-social--per-6 { --per-desk: 6; }
+.home-social--per-7 { --per-desk: 7; }
+.home-social--per-8 { --per-desk: 8; }
+.home-social--per-9 { --per-desk: 9; }
+.home-social--per-10 { --per-desk: 10; }
+.home-social--per-11 { --per-desk: 11; }
+.home-social--per-12 { --per-desk: 12; }
+
+@media (min-width: 40rem) {
+  .home-social {
+    --per: 4;
+  }
 }
 
 .not-found {
@@ -135,52 +170,60 @@
   }
 }
 
+/* Standing rule (issue 123): at 1920x1080 (80rem and wider) Home fits the
+ * browser window with no vertical scroll: a tighter hero and panel gaps; the
+ * network chips are two balanced rows. */
 @media (min-width: 80rem) {
   .home-grid > .hero {
-    padding-top: var(--space-6);
+    padding: var(--space-3) 0 var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .home-grid .hero-sub {
+    margin-bottom: var(--space-4);
+  }
+
+  .home-grid .home-panel {
+    margin: var(--space-3) 0;
+  }
+
+  .home-grid .home-social {
+    --per: var(--per-desk, 6);
+  }
+
+  /* Equal columns: the three hero buttons then fit one row. */
+  .home-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .home-grid .hero-mascot {
+    width: 7.5rem;
   }
 
   .home-grid .hero h1 {
     font-size: var(--text-2xl);
   }
-}
 
-/* Penguin ghost (issue 149). A faint grayscale mascot behind the hero on Home
- * and the 404 page only; posts, About and the rest never match. Pure CSS on
- * ::before: no extra element, no new asset (the approved mascot-512.webp, which
- * Home already ships in its srcset), same-origin image only. It is absolutely
- * positioned inside main (not fixed), sized by width plus aspect-ratio so it
- * reserves nothing in the flow (no layout shift), cropped off the right edge,
- * and sits under the content (.wrap is z-index 1). The mascot file is an opaque
- * dark square, so a radial mask fades its edges and corners to transparent;
- * otherwise a faint rectangle shows. Opacity stays low enough that text keeps
- * 4.5:1 contrast. It does not animate, so reduced motion needs nothing. */
-main:has(.home-grid),
-main:has(.not-found) {
-  position: relative;
-  isolation: isolate;
-  overflow-x: clip;
-}
+  /* Latest posts (at most two entries, layouts/home.html) stays compact however
+   * long the titles are: one summary line, tight rows. */
+  .home-latest.panel {
+    padding: var(--space-4) var(--space-5);
+  }
 
-main:has(.home-grid) > .wrap,
-main:has(.not-found) > .wrap {
-  position: relative;
-  z-index: 1;
-}
+  .home-latest .hud-heading {
+    margin-bottom: var(--space-2);
+  }
 
-main:has(.home-grid)::before,
-main:has(.not-found)::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  top: 0;
-  right: calc(-1 * min(12vw, 8rem));
-  width: min(60vw, 40rem);
-  aspect-ratio: 1;
-  background: url("/brand/mascot-512.webp") center / contain no-repeat;
-  opacity: 0.1;
-  filter: grayscale(1);
-  -webkit-mask-image: radial-gradient(closest-side, black 35%, transparent 100%);
-  mask-image: radial-gradient(closest-side, black 35%, transparent 100%);
-  pointer-events: none;
+  .home-latest .post-list li {
+    padding: var(--space-2) 0;
+  }
+
+  .home-latest .post-summary {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .home-latest .more-link {
+    margin: var(--space-2) 0 0;
+  }
 }
