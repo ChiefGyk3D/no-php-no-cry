@@ -52,6 +52,37 @@ projects:
   - name: Hammunition
     url: https://github.com/Renegade-Penguin/Hammunition
     line: Open-source tooling that turns Debian-family Linux systems into amateur radio and RF workstations.
+  - name: Penguin Overlord
+    url: https://github.com/ChiefGyk3D/penguin-overlord
+    line: A Discord bot for tech enthusiasts, ham radio operators, aviation spotters and security professionals, with tech quotes, XKCD comics, solar weather data, radio news and event reminders.
+  - name: Star-Daemon
+    url: https://github.com/ChiefGyk3D/Star-Daemon
+    line: Monitors your GitHub starred repositories and posts updates to Mastodon, Bluesky, Discord and Matrix.
+  - name: Typo Sniper
+    url: https://github.com/ChiefGyk3D/typo-sniper
+    line: An async typosquatting and domain threat intelligence scanner that detects lookalike domains, with URLScan, Doppler and AWS Secrets Manager integration.
+  - name: FrankenLLM
+    url: https://github.com/ChiefGyk3D/FrankenLLM
+    line: Runs different LLM models across multiple NVIDIA GPUs.
+  - name: NetPulse
+    url: https://github.com/ChiefGyk3D/netpulse
+    line: Monitors internet connection speed, latency, jitter and packet loss, with automatic ISP failover detection.
+  - name: Department of Internal Arguments
+    url: https://github.com/ChiefGyk3D/department-of-internal-arguments
+    line: AI agent personas and domain packs for Claude Code, Copilot, ChatGPT and local models, with measurements of what works.
+  - name: Scrum Around and Find Out
+    url: https://github.com/ChiefGyk3D/scrum-around-and-find-out
+    line: Board as code for GitHub Projects, a bring-your-own-App Action that keeps it current, and a playbook for running Claude, Codex and Copilot as one team.
+  - name: The Great InfoCon Recovery
+    url: https://github.com/ChiefGyk3D/the-great-infocon-recovery
+    line: Rebuilds and maintains a local copy of the infocon.org archive and DEF CON's media.defcon.org, with resumable downloads and SHA-256 hashes in a manifest.
+  - name: Patch-Gremlin
+    url: https://github.com/ChiefGyk3D/Patch-Gremlin
+    line: Sends Discord, Microsoft Teams, Slack or Matrix notifications when security updates are installed on Debian and RHEL-based systems.
+
+projects_more:
+  label: More on GitHub
+  url: https://github.com/ChiefGyk3D
 
 credentials:
   - CISSP, earned in 2024
