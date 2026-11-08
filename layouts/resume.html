@@ -41,6 +41,9 @@
       <li><a href="{{ .url }}" rel="noopener">{{ .name }}</a>: {{ .line }}</li>
       {{- end }}
     </ul>
+    {{- with .projects_more }}
+    <p class="resume-more"><a href="{{ .url }}" rel="noopener">{{ .label }}</a></p>
+    {{- end }}
   </section>
 
   <section aria-labelledby="r-credentials">
