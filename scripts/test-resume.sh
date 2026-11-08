@@ -49,7 +49,24 @@ REQUIRED = [
 ]
 PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
-            "Stream Daemon", "Reach Around", "Hammunition"]
+            "Stream Daemon", "Reach Around", "Hammunition", "Penguin Overlord",
+            "Star-Daemon", "Typo Sniper", "FrankenLLM", "NetPulse",
+            "Department of Internal Arguments", "Scrum Around and Find Out",
+            "The Great InfoCon Recovery", "Patch-Gremlin"]
+# Added in issue 244: each project's exact GitHub URL, and the closing link.
+NEW_PROJECT_URLS = [
+    "https://github.com/ChiefGyk3D/penguin-overlord",
+    "https://github.com/ChiefGyk3D/Star-Daemon",
+    "https://github.com/ChiefGyk3D/typo-sniper",
+    "https://github.com/ChiefGyk3D/FrankenLLM",
+    "https://github.com/ChiefGyk3D/netpulse",
+    "https://github.com/ChiefGyk3D/department-of-internal-arguments",
+    "https://github.com/ChiefGyk3D/scrum-around-and-find-out",
+    "https://github.com/ChiefGyk3D/the-great-infocon-recovery",
+    "https://github.com/ChiefGyk3D/Patch-Gremlin",
+]
+MORE_URL = "https://github.com/ChiefGyk3D"
+MORE_LABEL = "More on GitHub"
 SUMMARY = [
     "Senior Cybersecurity Engineer and CISSP with about 15 years across IT and "
     "security. I design, build, integrate, and test security systems across "
@@ -245,6 +262,11 @@ def check(html):
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
     if m and (not h1 or re.sub(r"<[^>]+>", "", h1.group(1)).strip() != "ChiefGyk3D"):
         out.append("name line is not exactly ChiefGyk3D")
+    for u in NEW_PROJECT_URLS:
+        if u not in p.links:
+            out.append("missing project link: " + u)
+    if not re.search(r'<a [^>]*href="?%s"?[^>]*>%s</a>' % (re.escape(MORE_URL), MORE_LABEL), html):
+        out.append("missing '%s' link to %s" % (MORE_LABEL, MORE_URL))
     if "https://github.com/ChiefGyk3D/Reach-Around" not in p.links:
         out.append("missing Reach Around link")
     for pat in FORBIDDEN:
