@@ -1,9 +1,9 @@
 ---
 title: "Stream Daemon: The Secure, Open-Source Stream Automation Engine for Modern Creators"
 date: 2025-11-05T16:51:12-05:00
-draft: true
 slug: "stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators"
 description: "Stream Daemon is a secure, open source engine that watches your live status on streaming platforms and announces it across your social networks."
+archive: "This post is archived from my old WordPress blog. Some details may have changed."
 categories: ["Open Source"]
 tags: ["stream daemon", "streaming", "automation", "open source"]
 syndicate: false
@@ -21,9 +21,9 @@ And yes, it’s pronounced like *“demon”*, both as a nod to the UNIX concept
 
 ---
 
-### What Is Stream Daemon?
+## What Is Stream Daemon?
 
-Stream Daemon is an open-source automation engine that monitors your live status across streaming platforms like Twitch, YouTube Live, and Kick, then automatically posts real-time updates to your social platforms including Mastodon, Bluesky, Discord, and Matrix.
+Stream Daemon is an open-source automation engine that monitors your live status across streaming platforms like Kick, Twitch, and YouTube Live, then automatically posts real-time updates to your social platforms including Mastodon, Bluesky, Discord, and Matrix.
 
 It’s your always-on automation layer, connecting the streaming world with the social one, and it’s entirely under your control.
 
@@ -31,7 +31,7 @@ It’s your always-on automation layer, connecting the streaming world with the 
 
 ---
 
-### Designed with Security in Mind
+## Designed with Security in Mind
 
 Whether you’re deploying on Portainer, a Raspberry Pi, or a cloud VPS, Stream Daemon was built from the ground up with security as a priority.
 
@@ -43,7 +43,7 @@ It integrates directly with trusted secrets managers, including:
 
 While support for AWS and Vault exists, I’ll note that I haven’t fully tested them yet. Doppler is what I personally use and recommend in my own homelab setup.
 
-#### **Integrating Doppler Is Simple**
+### **Integrating Doppler Is Simple**
 
 Getting started with Doppler inside Stream Daemon takes only a minute:
 
@@ -59,27 +59,27 @@ Keep your sensitive credentials (API keys, tokens, etc.) in Doppler and use a `.
 
 ---
 
-### Feature Highlights
+## Feature Highlights
 
-#### **AI-Powered Messages**
+### **AI-Powered Messages**
 
 Stream Daemon integrates with Google Gemini to generate unique, engaging announcements for every stream.\
 *(I plan to add support for other LLMs later, including a locally hosted LLM server and a dedicated TTS server, both currently works-in-progress.)*
 
-#### **Enterprise Security**
+### **Enterprise Security**
 
 Secure integration with Doppler, AWS Secrets Manager, and HashiCorp Vault.
 
-#### **7-Platform Support**
+### **7-Platform Support**
 
-- **Streaming:** Twitch, YouTube, Kick
+- **Streaming:** Kick, Twitch, YouTube
 - **Social:** Mastodon, Bluesky, Discord, Matrix
 
-#### **Discord Rich Embeds**
+### **Discord Rich Embeds**
 
 Dynamic live embeds with viewer counts, thumbnails, and in-place updates when you go live or end your stream.
 
-#### **Smart Multi-Platform Announcements**
+### **Smart Multi-Platform Announcements**
 
 Choose between:
 
@@ -87,17 +87,17 @@ Choose between:
 - **Threaded** — Ongoing updates in a thread
 - **Separate** — Individual posts per platform
 
-#### **Production-Ready**
+### **Production-Ready**
 
 Deploy anywhere: Docker, Docker Compose, or systemd.
 
-#### ⚡ **Lightweight**
+### ⚡ **Lightweight**
 
 Runs efficiently on anything from a Raspberry Pi to AWS Lambda.
 
 ---
 
-### Documentation & Deployment Options
+## Documentation & Deployment Options
 
 Stream Daemon includes extensive documentation for both Python and Dockerized deployments.
 
@@ -121,7 +121,7 @@ docker run -d --name stream-daemon --restart unless-stopped \
 
 More intensive guides and documentation are available for Docker and systemd setups as well for automated starting with the system.
 
-### Future Roadmap & IaC Vision
+## Future Roadmap & IaC Vision
 
 I plan to release an OpenTofu/Terraform Infrastructure-as-Code (IaC) configuration to make deploying Stream Daemon to AWS seamless.
 
@@ -130,7 +130,7 @@ If you’re comfortable with IaC, this is a great way to get involved and help t
 
 ---
 
-### ⚖️ Open-Source License
+## ⚖️ Open-Source License
 
 Stream Daemon is licensed under the Mozilla Public License 2.0 (MPL-2.0).\
 This license was chosen to strike a balance between open-source freedom and corporate friendliness. Allowing companies to use it internally or commercially, with one simple condition:
@@ -141,7 +141,7 @@ This ensures Stream Daemon continues to evolve openly, benefiting both independe
 
 ---
 
-### Why It Exists
+## Why It Exists
 
 Stream Daemon was built around a simple philosophy:
 
@@ -151,7 +151,7 @@ By combining strong security, modern integrations, and self-hosted flexibility, 
 
 ---
 
-#### Join the Community
+### Join the Community
 
 Stream Daemon is open-source and community-driven.\
 You can:
