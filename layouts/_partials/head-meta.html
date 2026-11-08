@@ -42,7 +42,7 @@
 <link rel="icon" href="{{ "brand/favicon-32.png" | relURL }}" type="image/png" sizes="32x32">
 <link rel="icon" href="{{ "brand/favicon-192.png" | relURL }}" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="{{ "brand/apple-touch-icon-180.png" | relURL }}" sizes="180x180">
-{{- /* Identity verification (Mastodon, GitHub read rel="me"): one head link per data/socials.yaml entry with rel_me, https only. Invisible, so the footer carries no social row. */ -}}
+{{- /* Identity verification (Mastodon, GitHub read rel="me"): one head link per data/socials.yaml entry with rel_me, https only. The footer icon row (baseof.html) repeats rel="me" on its links. */ -}}
 {{- range site.Data.socials }}{{ if and .rel_me (strings.HasPrefix .url "https://") }}
 <link rel="me" href="{{ .url }}">
 {{- end }}{{ end }}
