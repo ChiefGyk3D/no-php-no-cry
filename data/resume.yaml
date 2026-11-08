@@ -124,9 +124,21 @@ creator:
   outro: "Whether you're just starting out or leveling up, the goal is content that's accessible, practical, and security-focused."
 
 # Selected accomplishments (issue 262): the template renders this section only when the
-# list is non-empty. Each entry is {name, text}. Empty until the owner supplies the facts
-# and the wording is approved. Do not write entries here without owner-approved text.
-experience: []
+# list is non-empty. Each entry is {name, text}: six outcome statements, owner-approved
+# 2026-11-08. Do not add entries without owner-approved text.
+experience:
+  - name: "Zero trust infrastructure"
+    text: "I built a locked-down DigitalOcean environment with OpenTofu and Spacelift, storing secrets in Doppler and restricting access through Twingate. I added a policy that blocks firewall rules open to the internet and fails closed on unknown values."
+  - name: "Identity event visibility"
+    text: "I built a Python poller that sends JumpCloud Directory Insights events to Wazuh as JSONL, bringing directory and access activity into the SIEM."
+  - name: "SIEM operations"
+    text: "I assembled a Dockerized SIEM and SOC stack with Wazuh, OpenSearch, Logstash, Grafana, and N8N workflows for alert triage and routing."
+  - name: "Cloudflare site security"
+    text: "I added strict security headers and checks that verify pinned script hashes during builds and after deployment. I built smoke checks for response status, headers, redirects, hashes, and served markup, and fixed an email rewrite they caught."
+  - name: "Shared CI and release workflows"
+    text: "I rolled out shared GitHub Actions workflows for linting, tests, container builds, signed releases, and scans, with a single CI gate across projects. I designed secret retrieval through OIDC and pinned workflow references to full commit SHAs."
+  - name: "Open security education"
+    text: "I built a free, open-source wiki of lessons, flowcharts, and exercises that teach zero trust, DevSecOps, and infrastructure as code. The material is available for anyone to read and try in their own accounts."
 
 outside_work:
   - Amateur radio operator, General class license

@@ -30,13 +30,11 @@ import re
 import sys
 from html.parser import HTMLParser
 
-HEADINGS = ["Summary", "Background", "Skills", "Tools and platforms", "This site is the proof", "Open-Source Projects",
+HEADINGS = ["Summary", "Background", "Skills", "Tools and platforms", "This site is the proof", "Selected accomplishments", "Open-Source Projects",
             "Homelab and engineering practice", "Certifications",
             "Education", "Speaking and community", "Creator and teaching work",
             "Outside work", "Contact"]
-# "Selected accomplishments" renders only when data/resume.yaml `experience` is non-empty
-# (issue 262); it is empty until the owner supplies approved text, so it must not show.
-GONE_HEADINGS = ["Core Skills", "Technical Knowledge", "Selected accomplishments"]
+GONE_HEADINGS = ["Core Skills", "Technical Knowledge"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
     "Yes, the order is odd. CISSP came first, in 2024. I earned all three "
@@ -63,6 +61,8 @@ REQUIRED = [
     "Identity and access", "Where I'm headed", "Network and security",
     "Radio, SDR, and time", "Cloud extension", "Cares about",
 ]
+EXP_NAMES = ["Zero trust infrastructure", "Identity event visibility", "SIEM operations",
+             "Cloudflare site security", "Shared CI and release workflows", "Open security education"]
 PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
             "Stream Daemon", "Reach Around", "Hammunition", "Penguin Overlord",
@@ -280,6 +280,20 @@ def check(html):
               "https://github.com/Renegade-Penguin/hammunition-hill", "https://github.com/ChiefGyk3D/mother-ticker"):
         if u not in p.links:
             out.append("missing homelab link: " + u)
+    # Issue 262: Selected accomplishments is exactly the six owner-approved outcome statements
+    # from data/resume.yaml `experience`, in order, with no dash, digit or employer-name guard word.
+    ex = re.search(r"Selected accomplishments</h2>(.*?)(?:<h2|$)", html, re.S)
+    exs = ex.group(1) if ex else ""
+    exn = [htmlmod.unescape(x) for x in re.findall(r"<dt>(.*?)</dt>", exs)]
+    ext = [htmlmod.unescape(x) for x in re.findall(r"<dd>(.*?)</dd>", exs, re.S)]
+    if exn != EXP_NAMES or len(ext) != 6:
+        out.append("accomplishments: want %r, got %d entries %r" % (EXP_NAMES, len(ext), exn))
+    for t_ in ext:
+        # N8N is a product name, the one allowed digit.
+        if re.search(r"\d", t_.replace("N8N", "")) or "—" in t_ or "–" in t_ or re.search(r"ITIL|LPI|Western Governors", t_):
+            out.append("accomplishment has a digit, dash or guard word: " + t_[:40])
+    if "Where I'm headed" not in text:
+        out.append("missing Where I'm headed")
     if not re.search(r'class="?resume-subtitle', html):
         out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
@@ -297,7 +311,8 @@ def check(html):
             out.append("forbidden: " + pat)
     if "—" in text or "–" in text:
         out.append("em or en dash in text")
-    if re.search(CALLSIGN, text):
+    # N8N (the workflow tool) is shaped like a callsign; it is the one named exception (issue 262).
+    if re.search(CALLSIGN, text.replace("N8N", "")):
         out.append("callsign-shaped text")
     if re.search(GRID, text):
         out.append("grid-square-shaped text")
