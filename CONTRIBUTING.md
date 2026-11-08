@@ -29,12 +29,13 @@ check is wrong, say so in the issue and fix the check in its own change.
 
 CI uses the shared workflows from
 [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together)
-for shell checks and security scans. The Hugo build and the site checks are local
-to this repository.
+for the build and checks (`parallel-ci`: one Hugo build, then the checks side by side),
+shell checks and security scans. The commands they run are this repository's own
+(`docs/ci-parallel.md` maps every check to its job).
 
 ### The local gate
 
-`scripts/gate.sh` runs the steps of the CI `build` job plus `shfmt -d -i 4 -ci`
+`scripts/gate.sh` runs the steps of the CI `ci` job (parallel-ci) plus `shfmt -d -i 4 -ci`
 and `shellcheck -S warning` on `scripts/*.sh`. Every step prints its name and exit
 code, a failure does not stop the run, and the exit code is non-zero if any step
 failed. Needs hugo, shellcheck, shfmt, python3, Node 20 or newer (`test-analytics`)
@@ -54,7 +55,7 @@ and Chrome or Chromium (`CHROME`); a missing tool is reported by step with exit 
   by default: add `--with-drift`, or use `--only check-reach-around-drift`. Without
   either, the gate prints a skip line. See `docs/token-drift.md`.
 
-CI does not call the script. The `build` job runs each step natively, and the shell
+CI does not call the script. The `ci` job runs each step natively, and the shell
 lint comes from a shared workflow, so a swap would not cover the same steps. Keep
 the two lists in step: a new CI check goes into `scripts/gate.sh` too.
 

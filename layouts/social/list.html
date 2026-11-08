@@ -2,7 +2,8 @@
 <h1>{{ .Title }}</h1>
 {{ .Content }}
 <ul class="tile-grid social-grid">
-  {{- range site.Data.socials }}
+  {{- /* footer_only entries (LinkedIn, issue 195) are footer icons and nothing else. */}}
+  {{- range where (site.Data.socials | default slice) "footer_only" "ne" true }}
   {{- $live := strings.HasPrefix .url "https://" }}
   <li class="tile-item">
     {{- if $live }}

@@ -31,7 +31,7 @@ import sys
 from html.parser import HTMLParser
 
 HEADINGS = ["Summary", "Skills", "Open-Source Projects", "Certifications",
-            "Education", "Community", "Outside work", "Contact"]
+            "Education", "Speaking and community", "Outside work", "Contact"]
 GONE_HEADINGS = ["Core Skills", "Technical Knowledge"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
@@ -44,6 +44,8 @@ REQUIRED = [
     "References, job history and a phone number are available to prospective "
     "employers on request.",
     "How to reach me, on the About page",
+    "Speaker: BSides Dayton and COISSA, 2026.",
+    "Member of DEFCON 614. With the Call Center Village, where I volunteer.",
 ]
 PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
@@ -89,9 +91,38 @@ def load_skills(path):
     return groups
 
 
+def load_community(path):
+    """The `community:` list lines from data/resume.yaml, stdlib only (double-quoted items)."""
+    items, on = [], False
+    for line in open(path, encoding="utf-8"):
+        line = line.rstrip("\n")
+        if re.match(r"^community:\s*$", line):
+            on = True
+            continue
+        if on and re.match(r"^\S", line):
+            break
+        m = re.match(r'^\s+- "(.*)"\s*$', line)
+        if on and m:
+            items.append(m.group(1))
+    return items
+
+
 import os
 YAML = os.environ.get("RESUME_YAML", "data/resume.yaml")
 SKILLS = load_skills(YAML)
+COMMUNITY = load_community(YAML)
+
+
+def load_linkedin(path):
+    """linkedin_url from data/resume.yaml (issue 195): the one profile link of the Contact section."""
+    for line in open(path, encoding="utf-8"):
+        m = re.match(r"^linkedin_url:\s*(\S+)\s*$", line)
+        if m:
+            return m.group(1).strip('"')
+    return ""
+
+
+LINKEDIN = load_linkedin(YAML)
 FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"Western Governors",
              r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
@@ -156,6 +187,19 @@ def check(html):
     cert = re.search(r"Certifications</h2>(.*?)<h2", html, re.S)
     if cert and re.search(r"Associate degree|General class|Latter Day Dude", cert.group(1)):
         out.append("a degree, the radio license or the ordination is under Certifications")
+    # Issue 195: the Contact section carries the one LinkedIn link, read from the data, with the
+    # visible text LinkedIn and rel noopener, and no other profile link.
+    if not LINKEDIN.startswith("https://www.linkedin.com/in/"):
+        out.append("data/resume.yaml linkedin_url is not a LinkedIn profile URL: %r" % LINKEDIN)
+    cs = re.search(r"Contact</h2>(.*?)(?:<h2|</article>|$)", html, re.S)
+    csec = cs.group(1) if cs else ""
+    want = re.search(r'<a [^>]*href="?%s"?[^>]*>LinkedIn</a>' % re.escape(LINKEDIN), csec)
+    if not want or "noopener" not in want.group(0):
+        out.append("Contact lacks the LinkedIn link (text LinkedIn, rel noopener) from data/resume.yaml")
+    if "Find me online: LinkedIn" not in re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", csec)):
+        out.append("Contact lacks the line 'Find me online: LinkedIn'")
+    if sum(1 for l in p.links if "linkedin.com" in l) != 1:
+        out.append("the page must link LinkedIn exactly once")
     if re.search(r'href="?/about/#contact', html) is None:
         out.append("contact link must point at the About page contact section")
     if "/about/#contact" in text:
@@ -190,6 +234,12 @@ def check(html):
         out.append("skill groups: want %r, got %r" % ([g for g, _ in SKILLS], groups))
     if dds != [", ".join(i) for _, i in SKILLS]:
         out.append("skill items differ from data/resume.yaml (exact, per group, in order)")
+    # The community list is exactly data/resume.yaml's community lines, in order (issue 186).
+    cm = re.search(r"Speaking and community</h2>(.*?)(?:<h2|$)", html, re.S)
+    cm_items = [htmlmod.unescape(re.sub(r"<[^>]+>", "", x)).strip()
+                for x in re.findall(r"<li>(.*?)</li>", cm.group(1) if cm else "", re.S)]
+    if cm_items != COMMUNITY or len(COMMUNITY) != 5:
+        out.append("community list differs from data/resume.yaml: want %r, got %r" % (COMMUNITY, cm_items))
     if not re.search(r'class="?resume-subtitle', html):
         out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
@@ -355,6 +405,27 @@ PY
         if grep -q 'credential order' <<<"$out"; then
             pass "guard: credential $c is rejected"
         else fail "guard: credential $c was not flagged"; fi
+    done
+fi
+
+# LinkedIn guard (issue 195): the link removed, its text changed, or rel dropped must each fail.
+if [[ -f "$page" ]]; then
+    for c in removed text norel; do
+        python3 -I - "$page" "$work/li-$c.html" "$c" <<'PY'
+import re, sys
+src = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<a [^>]*linkedin\.com[^>]*>LinkedIn</a>", src)
+assert m, "LinkedIn link not in the built page"
+a = m.group(0)
+new = {"removed": "", "text": a.replace(">LinkedIn<", ">Profile<"),
+       "norel": re.sub(r"\s*rel=\"?noopener\"?", "", a)}[sys.argv[3]]
+assert new != a
+open(sys.argv[2], "w", encoding="utf-8").write(src.replace(a, new, 1))
+PY
+        out="$(python3 -I "$asserter" "$work/li-$c.html" || true)"
+        if grep -q 'LinkedIn' <<<"$out"; then
+            pass "guard: LinkedIn link $c is rejected"
+        else fail "guard: LinkedIn link $c was not flagged"; fi
     done
 fi
 

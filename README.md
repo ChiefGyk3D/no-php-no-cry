@@ -105,15 +105,15 @@ layouts/home.robots.txt      environment-aware robots.txt (docs/cutover.md)
 static/_headers          Cloudflare Pages headers (strict CSP)
 scripts/                 check-output.sh, check-site-artifact.sh, check-hugo-version.sh and their tests
 tools/wxr2hugo/         WordPress export to Hugo page bundles, with a scrub pass
-.github/workflows/ci.yml build job, shared shell and security workflows, CI green gate
+.github/workflows/ci.yml shared parallel-ci, shell and security workflows, CI green gate (docs/ci-parallel.md)
 ```
 
 Front matter on every page: `title`, `date`, `draft`, `slug`, `categories`,
 `tags`, `syndicate` (boolean, default true). Old WordPress permalinks go in
 `aliases`; the build writes a 301 line for each into `public/_redirects`
 (Cloudflare Pages), and Hugo's meta-refresh pages cover GitHub Pages. A
-directory-style alias (`/2023/02/10/sample-post/`) gets two lines, with and
-without the trailing slash; an alias ending in `.html` (`/sample-post.html`)
+directory-style alias (`/2023/02/10/some-post/`) gets two lines, with and
+without the trailing slash; an alias ending in `.html` (`/some-post.html`)
 gets exactly one. The checker derives the alias list from the built pages, so
 a missing line fails the build.
 
@@ -230,7 +230,7 @@ A short map of how it fits together:
 | Strict CSP | `static/_headers`, `scripts/check-output.sh` | A policy that allows only same-origin files, and a checker that fails the build on inline script, inline style and third-party references. |
 | Cloudflare Pages direct upload | `.github/workflows/deploy.yml`, `docs/deploy.md` | Deploying a prebuilt folder, gated on the `CI green` check, with the Pages control files checked by `scripts/check-site-artifact.sh`. |
 | CI gates | `.github/workflows/ci.yml`, `scripts/test-*.sh` | Each check has a test with a negative case that proves the check fails when it should. |
-| GYST reusable workflows | `shell` and `security` jobs in `ci.yml` | Shell lint and security scans come from [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together), pinned by commit. The Hugo build job is local. |
+| GYST reusable workflows | `shell` and `security` jobs in `ci.yml` | Shell lint and security scans come from [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together), pinned by commit. The Hugo build and the site checks run in the shared parallel-ci workflow, called with this repository's own commands ([docs/ci-parallel.md](docs/ci-parallel.md)). |
 | Converter tooling | `tools/wxr2hugo/` | Turning a WordPress export into page bundles, with WebP conversion and a scrub pass for private data. |
 
 ## License

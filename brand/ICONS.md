@@ -26,6 +26,18 @@ icon files. The Pixelfed mark itself remains its owner's. The Pixelfed tile on
 /social/ is a live link to https://pics.chiefgyk3d.com/ChiefGyk3D (issue 106) with
 rel="me", and the footer row carries it like the other profiles.
 
+LinkedIn was added with issue 195 as a footer-only icon (`footer_only: true` in
+`data/socials.yaml`; it is not on /social/, the Home chips, the rel=me links,
+sameAs or llms.txt). The official LinkedIn marks are trademarked brand assets,
+so the glyph is the `linkedin` icon of Bootstrap Icons instead: release tag
+v1.13.2 (commit `afbfcbcb9bea79ea9923fa9ef82ea03d7ee6c01f`), `icons/linkedin.svg`,
+committed unmodified, sha256 `ddcbb273...c71e2df`. License verified 2026-11-08
+from the repository's own `LICENSE` at that tag: MIT, Copyright (c) 2019-2024 The
+Bootstrap Authors; the license text is kept in `brand/LICENSE-bootstrap-icons.txt`.
+The glyph is `fill="currentColor"` on a 16x16 viewBox; used as a CSS mask image
+it draws black like the Simple Icons glyphs and the mask scales it to the same
+box. The LinkedIn name and mark remain their owner's.
+
 Regenerate or verify with `scripts/gen-brand-assets.py` (it checks each source
 against the kit's sha256 before copying).
 

@@ -68,6 +68,8 @@ community:
   - "Cybersecurity creator with more than 500,000 followers across YouTube, Twitch, Kick, and social platforms."
   - "I make tutorials, security breakdowns, and livestreams with the goal of breaking down knowledge barriers."
   - "Open-source maintainer: I build and document public security tools and reusable CI workflows."
+  - "Speaker: BSides Dayton and COISSA, 2026."
+  - "Member of DEFCON 614. With the Call Center Village, where I volunteer."
 
 outside_work:
   - Amateur radio operator, General class license
@@ -76,3 +78,5 @@ outside_work:
 contact: "References, job history and a phone number are available to prospective employers on request."
 contact_link_text: "How to reach me, on the About page"
 contact_url: /about/#contact
+# The one profile link of the Contact section (issue 195); shown as "Find me online: LinkedIn".
+linkedin_url: https://www.linkedin.com/in/moshe-g

@@ -73,11 +73,14 @@ SKILL_GROUPS = [
     "Radio, RF, and telecom",
     "Where I'm headed",
 ]
-MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
-MISSION_END = "You're not dead until you stop learning. Happy Hacking."
+MISSION_START = "I share cybersecurity knowledge with more than 500K followers across platforms"
+MISSION_END = "so I open source a lot of my work and share what I learn."
+CLOSING = "You’re not dead until you stop learning. Happy hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
            "or the Discord server. The two are bridged.")
+SPEAKING = ("In 2026, I spoke at BSides Dayton and COISSA. I also volunteer with the "
+            "Call Center Village.")
 CONTACT_SOON = " Business inquiries go by email, and the address will be listed here soon."
 
 
@@ -143,6 +146,8 @@ class Page(HTMLParser):
         if tag == "summary" and self._summary is not None:
             self.summaries.append(self._summary.strip())
             self._summary = None
+        if tag == "p":
+            self.text.append(" ")  # paragraphs never run together in flat()
         if self._stack and self._stack[-1] == tag:
             self._stack.pop()
 
@@ -325,7 +330,7 @@ def about_data():
 def check_about_data(errs, html_src):
     """Every bio and skill text on the page must equal its data/about.yaml entry, exactly."""
     d = about_data()
-    if len(d["paragraphs"]) != 2 or len(d["skills"]) != len(SKILL_GROUPS) or not d.get("opener"):
+    if len(d["paragraphs"]) != 3 or len(d["skills"]) != len(SKILL_GROUPS) or not d.get("opener"):
         errs.append("data/about.yaml is not the expected shape")
         return
     ps = [norm(m).replace(" (opens in a new tab)", "") for m in re.findall(r"<p[^>]*>(.*?)</p>", html_src, re.S)]
@@ -334,11 +339,15 @@ def check_about_data(errs, html_src):
             errs.append("%s differs from data/about.yaml" % label)
     if not d.get("mission") or d["mission"] not in ps:
         errs.append("mission paragraph differs from data/about.yaml")
+    if not d.get("closing") or d["closing"] != CLOSING or d["closing"] not in ps:
+        errs.append("closing line differs from the owner-approved one (issue 225)")
     sp = d["speaking"]
     if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
         errs.append("speaking sentence or role differs from data/about.yaml")
-    if sp.get("role") != "I volunteer there.":
-        errs.append("data/about.yaml speaking role is not the owner-approved volunteer sentence")
+    if sp.get("role"):
+        errs.append("data/about.yaml speaking role must be empty: the volunteer clause is in 'after' (issue 186)")
+    if sp["before"] + sp["link_text"] + sp["after"] != SPEAKING:
+        errs.append("data/about.yaml speaking sentence is not the owner-approved one (issue 186)")
     groups = [(norm(a), norm(b)) for a, b in re.findall(r"<h3[^>]*>(.*?)</h3>\s*<p[^>]*>(.*?)</p>", html_src, re.S)]
     want = [(g["name"], g["text"]) for g in d["skills"]]
     for w in want:
@@ -480,13 +489,14 @@ def about(p, errs, repo):
         errs.append("bio opener missing")
     if "I’m more than ready for a security architecture role, and that’s where I’m headed." not in flat:
         errs.append("bio closing sentence missing")
-    if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator." not in flat:
+    if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, ham radio operator, open-source builder, and content creator." not in flat:
         errs.append("bio first paragraph missing")
     if MISSION_START not in flat or MISSION_END not in flat:
         errs.append("mission paragraph missing")
-    if flat.find(MISSION_START) < flat.find("In 2026 I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
+    if flat.find(MISSION_START) < flat.find("In 2026, I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
         errs.append("mission paragraph is not right after the bio and before the projects and Contact")
-    if "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the Call Center Village" not in flat:
+    # The link carries a visually-hidden " (opens in a new tab)" after its text.
+    if SPEAKING.replace("Call Center Village", "Call Center Village (opens in a new tab)") not in flat:
         errs.append("speaking sentence missing")
     cc = [a for a, t in p.links if t == "Call Center Village"]
     if len(cc) != 1:
@@ -542,10 +552,25 @@ def about(p, errs, repo):
     if email_set:
         if mailtos != ["mailto:" + cd["email"]]:
             errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
-        if "Email, for business inquiries only: %s." % cd["email"] not in flat:
+        if "Email, for business inquiries only: %s" % cd["email"] not in flat:
             errs.append("business email sentence missing")
-        if "PGP fingerprint: %s." % cd["pgp_fingerprint"] not in flat:
-            errs.append("PGP fingerprint missing from the contact section")
+        # Issue 224: email, fingerprint and key link are three separate elements, in this order,
+        # each alone in its own paragraph.
+        paras = [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", x))).strip()
+                 for x in re.findall(r"<p[^>]*>(.*?)</p>", repo["html"], re.S)]
+        fp_line = "PGP fingerprint: %s" % cd["pgp_fingerprint"]
+        lines = [x for x in paras if x.startswith("Email, for business inquiries only") or x.startswith("PGP fingerprint") or x.startswith("PGP public key")]
+        want = ["Email, for business inquiries only: %s" % cd["email"], fp_line, "PGP public key"]
+        if [re.sub(r"\s*\(opens in a new tab\)", "", x).rstrip(".") for x in lines] != want:
+            errs.append("the email, fingerprint and key link must be three separate lines; found %r" % lines)
+        if not re.search(r"<p[^>]*>\s*PGP fingerprint:\s*<code[^>]*>%s</code>\s*</p>" % re.escape(cd["pgp_fingerprint"]), repo["html"]):
+            errs.append("the fingerprint line must be 'PGP fingerprint: <code>...</code>'")
+        if not re.search(r"<p[^>]*>\s*Email, for business inquiries only: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
+            errs.append("the email line must be 'Email, for business inquiries only: <a mailto>...</a>'")
+        if "keys.openpgp.org" in repo["html"]:
+            errs.append("the About page must not point at keys.openpgp.org (issue 224)")
+        if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "").endswith(cd["pgp_url"])]:
+            errs.append("the PGP key link text must be 'PGP public key'")
         if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
             errs.append("PGP key link missing")
         else:
@@ -556,9 +581,9 @@ def about(p, errs, repo):
                 key = open(keyfile, encoding="ascii").read()
                 if "PRIVATE" in key or not key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----"):
                     errs.append("the key file is not a public key block only")
-                want = key_fingerprint(keyfile)
-                if want is not None and want != cd["pgp_fingerprint"].replace(" ", "").upper():
-                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want))
+                want_fp = key_fingerprint(keyfile)
+                if want_fp is not None and want_fp != cd["pgp_fingerprint"].replace(" ", "").upper():
+                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want_fp))
     stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - ({cd["email"]} if email_set else set())
     if stray:
         errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
@@ -692,7 +717,7 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-more.html" "More projects on GitHub" "More on GitHub"
     mutate "$work/about-extra.html" "<li class=tile-more>" "<li><a class=tile href=https://example.org/x rel=noopener><strong>Extra</strong></a></li><li class=tile-more>"
     mutate "$work/about-bio.html" "right to repair" "right to fix"
-    mutate "$work/about-mission.html" "leaving knowledge behind a price tag" "leaving knowledge behind a paywall"
+    mutate "$work/about-mission.html" "behind a price tag" "behind a paywall"
     # Issue 196: the At a glance and Hardware and homelab sections. An IP address injected into
     # the homelab section, a changed glance row, an http repo link, a dropped rel=noopener and an
     # em dash each fail.
@@ -712,13 +737,23 @@ if [[ -f "$pub/about/index.html" ]]; then
     done
 fi
 # Contact (issue 159): the populated page is asserted from data/about.yaml (one mailto,
-# the fingerprint, the key link, the fingerprint equal to the key file's), and each
+# email, fingerprint and key link on three separate lines, the fingerprint equal to the key file's), and each
 # break must fail. Then a copy of the repository with the email and PGP entries
 # emptied must build a page that renders none of them.
 if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-fp.html" "98B2 D533 1A9F 17AC" "98B2 D533 1A9F 17AD"
     mutate "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
     mutate "$work/about-nokey.html" "/chiefgyk3d.asc" "/other.asc"
+    # Issue 224 guard: the three lines merged into one paragraph must fail.
+    python3 -I - "$work/about-merged.html" "$pub/about/index.html" <<'PYEOF'
+import re, sys
+t = open(sys.argv[2], encoding="utf-8").read()
+t = re.sub(r"</p>\s*<p[^>]*>(?=PGP fingerprint:)", ". ", t, count=1)
+open(sys.argv[1], "w", encoding="utf-8").write(t)
+PYEOF
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-merged.html" >/dev/null 2>&1; then
+        fail "guard: an About page with the email and fingerprint on one line passed"
+    else pass "guard: an About page with the email and fingerprint on one line fails"; fi
     for v in fp addr nokey; do
         if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
             fail "guard: an About page with a broken contact ($v) passed"
@@ -756,12 +791,13 @@ if [[ -f "$pub/about/index.html" ]]; then
         fi
     }
     FP="93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
+    KEYURL="/chiefgyk3d.asc"
     build_contact_case neither "" "" "" incomplete
     build_contact_case email-only "chief@chiefgyk3d.com" "" "" incomplete
-    build_contact_case key-only "" "$FP" "/chiefgyk3d.asc" incomplete
+    build_contact_case key-only "" "$FP" "$KEYURL" incomplete
     build_contact_case email-and-fingerprint "chief@chiefgyk3d.com" "$FP" "" incomplete
-    build_contact_case email-and-url "chief@chiefgyk3d.com" "" "/chiefgyk3d.asc" incomplete
-    build_contact_case both "chief@chiefgyk3d.com" "$FP" "/chiefgyk3d.asc" complete
+    build_contact_case email-and-url "chief@chiefgyk3d.com" "" "$KEYURL" incomplete
+    build_contact_case both "chief@chiefgyk3d.com" "$FP" "$KEYURL" complete
     # The checker bites: an address injected into an incomplete page is rejected.
     python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Business inquiries go by email"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Business inquiries go by <a href=mailto:chief@chiefgyk3d.com>email</a>", 1))' "$work/contact-public-email-only/about/index.html" "$work/about-mail.html"
     if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
@@ -796,6 +832,46 @@ if grep -Eq '<a[^>]*rel="?me[ "][^>]*href="?https://social.chiefgyk3d.com/@chief
 else
     fail "/social/ lost the rel=me Mastodon anchor"
 fi
+# Issue 195: LinkedIn is footer-only. It is in the footer icon row (noopener only) of every page
+# type, and it is not a head link, not a rel=me anchor, not a Socials tile and not a Home chip.
+for f in index.html about/index.html social/index.html; do
+    if grep -Eq '<link[^>]*linkedin' "$pub/$f"; then
+        fail "a LinkedIn head link is on $f (footer-only)"
+    else
+        pass "no LinkedIn head link on $f"
+    fi
+    if grep -Eq 'class="?footer-social-link"? href="?https://www\.linkedin\.com/in/moshe-g"? rel="?noopener"? aria-label="?LinkedIn"?' "$pub/$f"; then
+        pass "LinkedIn is in the footer icon row of $f"
+    else
+        fail "LinkedIn is missing from the footer icon row of $f"
+    fi
+done
+if grep -Eqi 'social-tile[^>]*linkedin|icon-linkedin|rel="?me[ "][^>]*linkedin|linkedin[^>]*rel="?me[ "]' "$pub/social/index.html" "$pub/index.html"; then
+    fail "LinkedIn is on /social/ or the Home chips, or has rel=me"
+else
+    pass "LinkedIn is not on /social/, not a Home chip, no rel=me"
+fi
+if grep -q 'linkedin.com' "$pub/llms.txt" 2>/dev/null; then
+    fail "LinkedIn is listed in llms.txt (footer-only)"
+else
+    pass "LinkedIn is not in llms.txt"
+fi
+if grep -q 'linkedin.com/in/moshe-g' "$pub/resume/index.html"; then
+    pass "the Resume links LinkedIn"
+else
+    fail "the Resume does not link LinkedIn"
+fi
+# Guard: the LinkedIn-leak check bites. A head link, and a Socials tile, put in must be caught.
+for pair in 'head:s#</head>#<link rel=me href=https://www.linkedin.com/in/moshe-g></head>#' 'chip:s#<li><a class=icon-github#<li><a class=icon-linkedin href=https://www.linkedin.com/in/moshe-g>LinkedIn</a></li><li><a class=icon-github#'; do
+    sed "${pair#*:}" "$pub/index.html" >"$work/linkedin-leak.html"
+    if cmp -s "$pub/index.html" "$work/linkedin-leak.html"; then
+        fail "guard: the LinkedIn ${pair%%:*} leak did not change the page (the test is stale)"
+    elif grep -Eqi '<link[^>]*linkedin|icon-linkedin' "$work/linkedin-leak.html"; then
+        pass "guard: a LinkedIn ${pair%%:*} leak is detected by the pattern"
+    else
+        fail "guard: the LinkedIn leak pattern missed a ${pair%%:*} leak"
+    fi
+done
 # Guard: the footer-links check bites. A repeated social row put back must fail.
 if [[ -f "$pub/about/index.html" ]]; then
     python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); t = s.replace("</footer>", "<ul class=social-row><li><a class=icon-twitch href=https://twitch.tv/x>Twitch</a></li></ul></footer>", 1); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$pub/about/index.html" "$work/about-socialrow.html"
@@ -977,7 +1053,7 @@ else
     bite "with an enabled input" 's#(<input[^>]*id=q[^>]*) disabled#\1#'
     bite "without the status region" 's#role=status ##'
     bite "without the label" 's#<label#<span#'
-    bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'
+    bite "without a post entry" 's#<li><a href=/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/>#<li><a href=/posts/other/>#'
 fi
 # Tags (issue 222): the Posts page no longer lists every tag; /search/ carries
 # them in a collapsed native <details> (no script), most used first, counts kept,
@@ -1156,7 +1232,7 @@ for f in "$pub/index.html" "$pub/404.html"; do
         fail "ghost layer trigger missing on ${f#"$pub"/}"
     fi
 done
-for f in "$pub/about/index.html" "$pub/posts/sample-post/index.html"; do
+for f in "$pub/about/index.html" "$pub/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/index.html"; do
     if has_ghost_trigger "$f"; then
         fail "ghost layer trigger must be absent on ${f#"$pub"/}"
     else
