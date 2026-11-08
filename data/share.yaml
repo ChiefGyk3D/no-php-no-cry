@@ -18,9 +18,6 @@
 #               that uses {image} is left out of a post with no image. An empty
 #               template with kind intent is not rendered.
 #   source      vendor      the URL is on the vendor's own documentation page
-#               vendor-unconfirmed-url  the researcher named the vendor page but its
-#                           exact URL was not recorded: NOT verified until it is
-#               standard-unconfirmed-url  the same, for a standards page
 #               standard    an RFC
 #               third-party documented by others only, no vendor page: it can
 #                           change without notice; needs a logged-in click test
@@ -40,8 +37,8 @@
   label: Bluesky
   kind: intent
   template: "https://bsky.app/intent/compose?text={text}"
-  source: vendor-unconfirmed-url
-  source_url: Bluesky docs, page intent-links (as reported by the researcher; exact URL to be confirmed)
+  source: vendor
+  source_url: https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/intent-links.md (the raw docs source; the rendered page came back empty)
   read: 2026-11-08
 - id: mastodon
   label: Mastodon
@@ -54,8 +51,8 @@
   label: Twitter
   kind: intent
   template: "https://x.com/intent/tweet?text={title}&url={url}"
-  source: vendor-unconfirmed-url
-  source_url: docs.x.com, page web-intent (as reported by the researcher; exact URL to be confirmed)
+  source: vendor
+  source_url: https://docs.x.com/x-for-websites/post-button/guides/web-intent.md (documents the x.com/intent/tweet host; twitter.com/intent/tweet redirects to x.com)
   read: 2026-11-08
 - id: discord
   label: Discord
@@ -124,6 +121,6 @@
   label: Copy link
   kind: copy
   template: ""
-  source: standard-unconfirmed-url
-  source_url: MDN, Clipboard.writeText (as named in the brief; HTTPS only)
+  source: standard
+  source_url: https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText (needs a secure context)
   read: 2026-11-08

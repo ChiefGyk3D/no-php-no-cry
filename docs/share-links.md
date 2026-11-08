@@ -28,8 +28,8 @@ page's permalink and title; it does not ask the remote site.
 | Target | Template | Source |
 | --- | --- | --- |
 | Threads | `https://www.threads.com/intent/post?text=..&url=..` | Vendor: https://developers.facebook.com/docs/threads/threads-web-intents (the domain is threads.com, not threads.net) |
-| Bluesky | `https://bsky.app/intent/compose?text=..` | Vendor page named, exact URL not recorded (UNCONFIRMED): Bluesky docs, page "intent-links". Text only, so the link goes inside the text; 300 graphemes at most |
-| Twitter | `https://x.com/intent/tweet?text=..&url=..` | Vendor page named, exact URL not recorded (UNCONFIRMED): docs.x.com, page "web-intent". `twitter.com/intent/tweet` redirects (301) to x.com, so the href uses x.com |
+| Bluesky | `https://bsky.app/intent/compose?text=..` | Vendor: https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/intent-links.md (the raw docs source; the rendered page came back empty). Text only, so the link goes inside the text; 300 graphemes at most |
+| Twitter | `https://x.com/intent/tweet?text=..&url=..` | Vendor: https://docs.x.com/x-for-websites/post-button/guides/web-intent.md. `twitter.com/intent/tweet` redirects (301) to x.com, so the href uses x.com |
 | Email | `mailto:?subject=..&body=..` | Standard: RFC 6068 |
 | Mastodon | `https://SERVER/share?text=..` | **Inferred**: the route exists in Mastodon's source, undocumented; the `text` parameter is unconfirmed. Needs a login on that server. No default server |
 | Reddit | `https://www.reddit.com/submit?url=..&title=..` | Third-party only; no vendor page found |
@@ -38,11 +38,7 @@ page's permalink and title; it does not ask the remote site.
 | Hacker News | `https://news.ycombinator.com/submitlink?u=..&t=..` | Third-party, forum-sourced; shows a login screen when logged out |
 | Pinterest | `https://pinterest.com/pin/create/button/?url=..&media=..&description=..` | Third-party. The endpoint wants an image: `media` is the post's front matter `image`; a post with no image has **no** Pinterest button. `description` may be ignored |
 | Discord, Matrix, Lemmy | none (copy-link buttons) | No documented share URL. The Matrix spec limits matrix.to links to room, user and event ids. Lemmy: a per-instance submit URL is unconfirmed; if one is confirmed it can reuse the Mastodon prompt |
-| Copy link | none (button) | `navigator.clipboard.writeText` in a click handler, HTTPS only; fallback is a prompt holding the link |
-
-The exact page URLs for Bluesky and Twitter were named by the researcher but not
-recorded as full URLs; confirm them in a later pass (`source_url` in the data file
-says so).
+| Copy link | none (button) | Standard: https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText. `navigator.clipboard.writeText` in a click handler, secure context (HTTPS) only; fallback is a prompt holding the link |
 
 The Email link is the only `mailto:` the output check accepts, and only in the
 exact shape `mailto:?subject=V&body=V` with percent-encoded V holding no
