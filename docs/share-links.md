@@ -81,7 +81,7 @@ typed in its `xn--` form. A pasted `https://` URL is reduced to its host. `/shar
 Platform glyphs are first-party files under `static/brand/` used as CSS masks
 (`assets/css/pages/icons.css`, `share.css`). Threads, Bluesky, Mastodon, Discord
 and Matrix reuse `static/brand/icons/` (Simple Icons, see `brand/ICONS.md`).
-Twitter, Reddit, LinkedIn, Facebook, Hacker News, Pinterest, Email and Copy link
+Twitter (file `bird.svg`), Reddit, LinkedIn, Facebook, Hacker News, Pinterest, Email and Copy link
 come from Font Awesome Free 7.3.1 (icons CC BY 4.0), in `static/brand/share/`,
 unmodified, with a provenance line each in `brand/approved-assets.txt`. **Lemmy
 has no icon**: no clearly licensed glyph was available, so the button is text
