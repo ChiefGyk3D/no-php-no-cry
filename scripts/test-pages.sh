@@ -968,12 +968,21 @@ for f in "$pub/index.html" "$pub/404.html"; do
     ghost_pages=$((ghost_pages + 1))
     grep -q 'mascot-512' "$pub$(css_of "$f")" || ghost_wrong=1
 done
-for f in "$pub"/about/index.html "$pub"/posts/index.html "$pub"/social/index.html; do
+# Every built post page (the page type the split was made for) plus the other
+# pages: none may carry the ghost stylesheet or the mascot reference.
+post_pages=0
+for f in "$pub"/posts/*/index.html; do
+    [[ -f "$f" ]] || continue
+    post_pages=$((post_pages + 1))
+done
+if [[ $post_pages -lt 1 ]]; then ghost_wrong=1; fi
+for f in "$pub"/posts/*/index.html "$pub"/about/index.html "$pub"/posts/index.html "$pub"/social/index.html "$pub"/support/index.html "$pub"/resume/index.html "$pub"/privacy/index.html; do
     [[ -f "$f" ]] || continue
     ghost_pages=$((ghost_pages + 1))
     ! grep -q 'mascot-512' "$pub$(css_of "$f")" || ghost_wrong=1
+    ! grep -q 'site-ghost' "$f" || ghost_wrong=1
 done
-if [[ $ghost_pages -ge 4 && $ghost_wrong -eq 0 ]]; then
+if [[ $ghost_pages -ge 8 && $ghost_wrong -eq 0 ]]; then
     pass "ghost stylesheet: on Home and 404 only ($ghost_pages pages checked)"
 else
     fail "ghost stylesheet must be on Home and 404 only (checked $ghost_pages, wrong=$ghost_wrong)"
