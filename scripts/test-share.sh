@@ -257,6 +257,21 @@ else
     fail "scratch site did not build: $(tail -n 5 "$work/build.log" | tr '\n' ' ')"
 fi
 
+# The production build minifies. Build again with the real hugo.toml settings
+# (no HUGO_MINIFY_MINIFYOUTPUT override) and require the email_off markers to
+# survive minification around the mailto link (hugo.toml keepComments), else
+# Cloudflare rewrites the link and injects a script (issue 249).
+public_min="$site/public-min"
+if (cd "$site" && hugo --buildDrafts --minify --destination "$public_min" --quiet >"$work/build-min.log" 2>&1); then
+    if grep -q '<!--email_off--><a [^>]*href=mailto:[^>]*>[^<]*</a><!--/email_off-->\|<!--email_off--><a [^>]*href="mailto:[^>]*>[^<]*</a><!--/email_off-->' "$public_min/posts/with-image/index.html"; then
+        pass "minified build keeps the email_off markers around the mailto link"
+    else
+        fail "minified build lost the email_off markers (hugo.toml [minify.tdewolff.html] keepComments)"
+    fi
+else
+    fail "minified scratch site did not build: $(tail -n 5 "$work/build-min.log" | tr '\n' ' ')"
+fi
+
 base="$(sed -n 's/^baseURL *= *"\(.*\)"/\1/p' "$root/hugo.toml")"
 a() { python3 -I "$asserter" "$root" "$@"; }
 
