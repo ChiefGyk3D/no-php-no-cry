@@ -39,7 +39,7 @@
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
             <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            {{- range slice (dict "path" "/products/" "name" "Products") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
+            {{- range slice (dict "path" "/products/" "name" "Gear & tools") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
             <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
             {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>

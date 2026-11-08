@@ -16,7 +16,7 @@
 #             groups in the order of data/products.yaml (security first, creator
 #             and social media tools last, the first one open, a count in each
 #             summary), and every item of the data file on the page with a name,
-#             a line, a "Price checked on" note, an https link with
+#             a line, no price or date note, an https link with
 #             rel="sponsored noopener" and the vendor label the data says (none
 #             when unset). The test reads the data file, so the maintainer can
 #             swap links and vendors without touching it; a floor on the item
@@ -57,8 +57,8 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "met
 # Reading the page: some links are affiliate links, some go straight to the company.
 DISCLOSURE = (
     "Some links on this page are affiliate links. If you buy something through one, "
-    "I may earn a commission at no extra cost to you. Some products I link directly "
-    "to the company instead of a store. I only list products I use myself or would recommend."
+    "I may earn a commission at no extra cost to you. The label on each card says "
+    "whether the link goes to Amazon or straight to the company."
 )
 ASSOCIATE = "As an Amazon Associate I earn from qualifying purchases."
 VENDORS = {"Amazon", "Direct"}
@@ -145,8 +145,10 @@ def check_social(page, root, bad):
     h1 = main.find("h1")
     if not h1 or h1[0].all_text() != "Find me online":
         bad.append("h1 is not 'Find me online'")
-    if "Follow along, catch a stream, or jump into the community." not in main.all_text():
+    if "Livestreams are on Twitch and Kick, and videos are on YouTube and TikTok." not in main.all_text():
         bad.append("intro sentence missing")
+    if "bridged" not in main.all_text():
+        bad.append("Discord and Matrix bridge statement missing")
     # data/socials.yaml is simple enough to read without a YAML library: one "- name:" per entry.
     entries = []
     for line in pathlib.Path(root, "data/socials.yaml").read_text().splitlines():
@@ -357,9 +359,8 @@ def check_products(page, root, bad):
             bad.append("item has no name: " + label)
         if len(it.find("p", "product-line")) != 1 or not it.find("p", "product-line")[0].all_text():
             bad.append("item has no one-line description: " + label)
-        note = it.find("p", "product-checked")
-        if len(note) != 1 or not re.fullmatch(r"Price checked on \w+ \d{1,2}, \d{4}", note[0].all_text()):
-            bad.append("item lacks a 'Price checked on <date>' note: " + label)
+        if it.find("p", "product-checked") or "checked on" in it.all_text().lower():
+            bad.append("item shows a checked-on date, but no price is shown: " + label)
         if re.search(r"[$]\s*\d", label):
             bad.append("item shows a price: " + label)
     # Audit: every item of the data file is on the page, in order, with its link and vendor label.
@@ -523,8 +524,8 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "first group closed" products "$products" 's/<details class="accordion" open>/<details class="accordion">/'
     guard "sponsored dropped" products "$products" 's/rel="sponsored noopener"/rel="noopener"/'
     guard "disclosure changed" products "$products" 's/at no extra cost to you/at a cost to you/'
-    guard "direct note dropped" products "$products" 's/Some products I link directly/Some products I link/'
-    guard "price note removed" products "$products" 's/Price checked on/Seen on/'
+    guard "vendor-label note dropped" products "$products" 's/says whether the link goes to Amazon or straight to the company/says where the link goes/'
+    guard "price note restored" products "$products" '0,/<p class="product-line">/s//<p class="product-checked meta">Price checked on May 1, 2026<\/p><p class="product-line">/'
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
     guard "fediverse handle loses its @" social "$social" 's#<span>@</span>(social\.chiefgyk3d\.com)#<span></span>\1#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'

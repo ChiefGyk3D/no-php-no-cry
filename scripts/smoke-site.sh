@@ -78,17 +78,18 @@ fi
 # The build's policy must allow scripts from 'self' only (the copy script): one
 # script-src, exactly 'self'. 'none' would mean the header and the copy script
 # drifted apart; anything looser is a weaker site than the one reviewed.
-if ! awk -v csp="$csp_expected" 'BEGIN {
+if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com/beacon.min.js" 'BEGIN {
         n = split(csp, d, ";")
         for (i = 1; i <= n; i++) {
             gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
             name = tolower(d[i]); sub(/[ \t].*/, "", name)
-            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"' " beacon) bad = 1 }
+            if (name == "connect-src") { cs++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
             if (name == "script-src-elem" || name == "script-src-attr") bad = 1
         }
-        exit (bad || count != 1)
+        exit (bad || count != 1 || cs != 1)
     }'; then
-    echo "input: the Content-Security-Policy in ${dir}/_headers must have script-src exactly 'self'"
+    echo "input: the Content-Security-Policy in ${dir}/_headers must have script-src exactly 'self' plus the Cloudflare beacon URL, and connect-src exactly 'self'"
     exit 2
 fi
 
@@ -274,6 +275,10 @@ check_page() {
             opts=(--scripts pinned --known "$known_csv" --allow "$allow")
         fi
         [[ "$path" == *.xml ]] && opts=(--markup)
+        if [[ "$path" == /about/ ]]; then
+            about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
+            [[ -n "$about_email" ]] && opts+=(--allow-email "$about_email")
+        fi
         found="$(python3 -I "$scan_py" "${opts[@]}" "$site_host" "$body_file")" || found="unparseable-html"
         while IFS= read -r rule; do
             [[ -n "$rule" ]] || continue

@@ -36,7 +36,7 @@ these reviewed files instead of an inspection of their code:
   `script-wrong-page`. The build may hold only the listed non-script file types
   (`scripts/artifact-rules.sh`). `_headers` must be one `/*` block with no
   removal directive and exactly one `nosniff`.
-- The CSP stays `script-src 'self'` exactly: no `connect-src`, no `unsafe-inline`.
+- The CSP carries `script-src 'self' https://static.cloudflareinsights.com/beacon.min.js` and `connect-src 'self'`, exactly: the beacon URL and `'self'` are the only entries Cloudflare's Web Analytics FAQ requires for automatic injection (issue 159). The beacon is injected at the edge, never in built HTML, so the allowlist above is unchanged and any other `<script>` element still fails. No `unsafe-inline`, no wildcard, no other host.
   No inline script, no event-handler attribute, no `style` attribute, and no
   `<form>` (`form-action 'none'`): the search box is a `<div role="search">`.
 
@@ -54,7 +54,7 @@ the reviewed code) then:
 2. on each keystroke lowercases the query, splits it on whitespace and requires
    every token to appear in an `<li>`'s text (AND); `li.hidden` is toggled and a
    group with no visible entry is hidden;
-3. writes "N results" (or "1 result", "No results") into a `role=status`,
+3. writes "N results" (or "1 result", or a short no-match message that suggests another word or a tag) into a `role=status`,
    `aria-live=polite` region, and nothing for an empty query;
 4. reads an initial `?q=` from the address (a link only; nothing is ever
    submitted or written back), and Escape clears the box.

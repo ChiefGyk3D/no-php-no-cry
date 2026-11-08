@@ -14,7 +14,7 @@
   </section>
 
   <section aria-labelledby="r-skills">
-    <h2 id="r-skills" class="hud-heading">Core Skills</h2>
+    <h2 id="r-skills" class="hud-heading">Skills</h2>
     <dl class="resume-skills">
       {{- range .skills }}
       <div>
@@ -23,13 +23,6 @@
       </div>
       {{- end }}
     </dl>
-  </section>
-
-  <section aria-labelledby="r-knowledge">
-    <h2 id="r-knowledge" class="hud-heading">Technical Knowledge</h2>
-    <ul class="resume-list">
-      {{- range .knowledge }}<li>{{ . }}</li>{{ end }}
-    </ul>
   </section>
 
   <section aria-labelledby="r-projects">
@@ -48,6 +41,13 @@
     </ul>
   </section>
 
+  <section aria-labelledby="r-education">
+    <h2 id="r-education" class="hud-heading">Education</h2>
+    <ul class="resume-list">
+      {{- range .education }}<li>{{ . }}</li>{{ end }}
+    </ul>
+  </section>
+
   <section aria-labelledby="r-community">
     <h2 id="r-community" class="hud-heading">Community</h2>
     <ul class="resume-list">
@@ -55,10 +55,16 @@
     </ul>
   </section>
 
+  <section aria-labelledby="r-outside">
+    <h2 id="r-outside" class="hud-heading">Outside work</h2>
+    <ul class="resume-list">
+      {{- range .outside_work }}<li>{{ . }}</li>{{ end }}
+    </ul>
+  </section>
+
   <section aria-labelledby="r-contact">
     <h2 id="r-contact" class="hud-heading">Contact</h2>
-    <p>{{ .employers_note }}</p>
-    <p>{{ .contact }} <a href="{{ .contact_url | relURL }}">Contact section</a></p>
+    <p>{{ .contact }} <a href="{{ .contact_url | relURL }}">{{ .contact_link_text }}</a>.</p>
   </section>
 </article>
 {{- end }}

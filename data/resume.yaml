@@ -1,76 +1,79 @@
 # Content for /resume/ (layouts/resume.html). Generalities only: no employer
 # names, no job dates, no callsign, no grid square. Source: the GitHub profile
-# README (approved for reuse). Copy is the ChatGPT-edited set the maintainer
-# picked provisionally on 2026-11-05 (site is alpha); change it freely.
+# README (approved for reuse). Copy was revised in the owner's voice pass
+# (issue 159); change it freely. Project lines match the About page tiles.
 name: ChiefGyk3D
-title: Cybersecurity Engineer (CISSP)
+title: Senior Cybersecurity Engineer (CISSP)
 summary:
-  - Cybersecurity engineer and CISSP with about 15 years across IT and security.
-  - Hands-on experience with network defense, SIEM engineering, cloud security, zero trust, automation, and local AI.
-  - Open-source maintainer, technical creator, and homelabber who builds and documents working systems.
+  - Senior Cybersecurity Engineer and CISSP with about 15 years across IT and security.
+  - I design, build, integrate, and test security systems across identity, network defense, SIEM engineering, cloud security, zero trust, and automation.
+  - I question unnecessary access and use hands-on testing to check whether the design actually works.
+  - I maintain open-source security tools and reusable CI workflows, and I create cybersecurity content for more than 500,000 followers across YouTube, Twitch, Kick, and social platforms.
 
 skills:
   - group: Identity and access
-    items: [IAM]
+    items: [IAM, Single sign-on and MFA, Passwordless authentication with passkeys and hardware security keys, Identity-driven access controls, LDAP integration]
   - group: Detection and response
     items: [EDR, SOAR, SIEM and SOC operations, Detection engineering]
   - group: Zero trust and cloud
-    items: [ZTNA and SASE, Cloud security]
+    items: [ZTNA and SASE, Cloud security, Zero trust]
+  - group: Security practice
+    items: [Threat modeling, OSINT, Telecom security, Privacy]
   - group: Automation and code
     items: [Python, Bash, PowerShell, "Infrastructure as code with OpenTofu and Terraform"]
   - group: Systems and networking
     items: [Linux, "Networking with pfSense, Suricata and UniFi"]
   - group: Ways of working
-    items: ["AI-assisted workflows", "DevSecOps and GYST CI"]
+    items: ["AI-assisted workflows", DevSecOps, Reusable GitHub Actions workflows with CI security checks]
 
-knowledge:
-  - Zero trust
-  - Threat modeling
-  - OSINT
-  - Telecom security
-  - Privacy
-
-# Clouds Against Humanity stays first.
+# Clouds Against Humanity stays first. Lines for Stream Daemon, Reach Around and
+# Clouds Against Humanity match the tiles on the About page.
 projects:
   - name: Clouds Against Humanity
     url: https://github.com/ChiefGyk3D/Clouds-Against-Humanity
-    line: I built a cloud security lab with OpenTofu, Spacelift, Doppler, and Twingate, with no public inbound ports.
+    line: An open-source cloud security lab where you build and secure the infrastructure yourself with OpenTofu, Spacelift, Doppler, and Twingate. It has no public inbound ports.
   - name: Stream Daemon
     url: https://github.com/ChiefGyk3D/Stream-Daemon
-    line: I built a daemon that announces Twitch, YouTube, and Kick stream activity across social and community platforms.
+    line: Announces live streams from Twitch, YouTube, and Kick to Mastodon, Bluesky, Discord, and Matrix.
   - name: SIEM Docker Stack
     url: https://github.com/ChiefGyk3D/siem-docker-stack
-    line: I run a containerized OpenSearch and Wazuh SIEM with logging, monitoring, dashboards, and long-term data storage.
+    line: A containerized OpenSearch and Wazuh SIEM that I run, with logging, monitoring, dashboards, and long-term data storage.
   - name: pfSense SIEM Stack
     url: https://github.com/ChiefGyk3D/pfsense-siem-stack
-    line: I built the network side of my SIEM around pfSense, Suricata, optimized telemetry, and security automation.
+    line: The network side of my SIEM, built around pfSense, Suricata, network telemetry, and security automation.
   - name: git-your-ship-together
     url: https://github.com/ChiefGyk3D/git-your-ship-together
-    line: I maintain hardened, reusable GitHub Actions workflows shared across my Python projects.
+    line: Reusable GitHub Actions workflows with CI security checks, which I maintain and share across my Python projects.
   - name: Hammunition
     url: https://github.com/Renegade-Penguin/Hammunition
-    line: I build open-source tooling that turns Debian-family Linux systems into practical amateur radio and RF workstations.
+    line: Open-source tooling that turns Debian-family Linux systems into amateur radio and RF workstations.
   - name: Reach Around
     url: https://github.com/ChiefGyk3D/Reach-Around
-    line: I'm building an open-source, privacy-first link page with useful creator analytics and no invasive tracking.
+    line: "In development: an open-source, privacy-first link page for creators, with analytics and a media kit."
   - name: Skid Finder
     url: https://github.com/ChiefGyk3D/Skid-Finder
-    line: I built a defensive toolkit that detects scripted BLE spam and helps foxhunt its source at conferences.
+    line: A defensive toolkit that detects scripted Bluetooth Low Energy (BLE) spam and helps track down its source at conferences. That tracking is a foxhunt, the radio game of locating a hidden transmitter.
 
 credentials:
-  - CISSP, earned in 2024. It was my first certification.
+  - CISSP, earned in 2024
   - CompTIA Security+, earned February 2026
   - CompTIA Network+, earned February 2026
   - CompTIA A+, earned February 2026
   - Yes, the order is odd. CISSP came first, in 2024. I earned all three CompTIA certs in February 2026 while working toward my WGU bachelor's.
+
+education:
+  - Working toward a bachelor's degree at WGU
   - Associate degree in Network System Administration, ITT Tech, 2016
+
+community:
+  - "Cybersecurity creator with more than 500,000 followers across YouTube, Twitch, Kick, and social platforms."
+  - "I make tutorials, security breakdowns, and livestreams with the goal of breaking down knowledge barriers."
+  - "Open-source maintainer: I build and document public security tools and reusable CI workflows."
+
+outside_work:
   - Amateur radio operator, General class license
   - Ordained Priest, Church of the Latter Day Dude. I can secure the network and officiate the wedding afterward.
 
-community:
-  - "YouTube and Twitch streaming: tutorials, security breakdowns and livestreams."
-  - "Open-source maintainer: everything I build is open source."
-
-contact: "Employers: references, job history and a phone number are available on request via the contact section on /about/#contact."
-employers_note: Professional history and references are available directly to prospective employers.
+contact: "References, job history and a phone number are available to prospective employers on request."
+contact_link_text: "How to reach me, on the About page"
 contact_url: /about/#contact

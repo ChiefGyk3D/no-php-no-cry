@@ -137,9 +137,9 @@ build_good() {
     # Page bodies the templates write (issues 58 and 59). The home hero and the
     # 404 carry the mascot with its dimensions; the archive groups by year.
     local mascot='<img class=hero-mascot src=/brand/mascot-256.webp width=256 height=256 alt="Renegade Tux">'
-    local home_body="<section class=hero>${mascot}<h1>Let's make the internet more secure and fun, one commit at a time.</h1><p>Hands-on cybersecurity, Linux, homelabs, and open source.<p><a class=\"btn btn-primary\" href=/posts/>Read the latest</a> <a class=btn href=/social/>Find me online</a> <a class=btn href=/support/>Support my work</a></section><section class=panel><h2>Latest posts</h2><a href=/posts/>All posts</a></section><section class=panel><h2>Find me online</h2></section>"
+    local home_body="<section class=hero>${mascot}<h1>Cybersecurity, Linux, and whatever I'm building next.</h1><p>I'm a Senior Cybersecurity Engineer, Linux nerd, and open-source builder.<p><a class=\"btn btn-primary\" href=/posts/>Read the latest</a> <a class=btn href=/about/#projects>See my projects</a> <a class=btn href=/support/>Support my work</a></section><section class=panel><h2>Latest posts</h2><a href=/posts/>All posts</a></section><section class=panel><h2>Find me online</h2></section>"
     local archive_body='<h1>Posts</h1><a href=/posts/index.xml>RSS</a><h2 class=archive-year>2023</h2><ul><li><a href=/posts/sample-post/>Sample post</a></ul>'
-    local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/posts/>Browse posts</a> <a class=btn href=/social/>Find me online</a>"
+    local not_found_body="<h1>Renegade Tux ran <code>rm -rf</code> again.</h1>${mascot}<p>The page is gone, and the penguin is refusing to answer questions.<p><a class=btn href=/>Start over</a> <a class=btn href=/posts/>Browse posts</a> <a class=btn href=/search/>Search the site</a> <a class=btn href=/social/>Find me online</a>"
     local post_body='<article><h1>Sample post</h1><time datetime=2023-02-10>February 10, 2023</time> <span class=reading-time>1 min read</span></article>'
     local person_ld='<script type=application/ld+json>{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"t","url":"https://test-blog.chiefgyk3d.com/"},{"@type":"Person","name":"ChiefGyk3D","sameAs":["https://github.com/ChiefGyk3D"]}]}</script>'
     local article_ld='<script type=application/ld+json>{"@context":"https://schema.org","@type":"Article","headline":"Sample post","datePublished":"2023-02-10T09:00:00-05:00","author":{"@type":"Person","name":"ChiefGyk3D"}}</script>'
@@ -175,7 +175,7 @@ build_good() {
 RED
     cat >"$dir/_headers" <<'HDR'
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'
   X-Content-Type-Options: nosniff
 HDR
 }
@@ -553,6 +553,22 @@ csp_script_src_elem() { sed -i "s#script-src 'self'#script-src 'self'; script-sr
 variant csp-script-src-elem weak-csp csp_script_src_elem
 csp_script_src_attr() { sed -i "s#script-src 'self'#script-src 'self'; script-src-attr 'unsafe-hashes'#" "$1/_headers"; }
 variant csp-script-src-attr weak-csp csp_script_src_attr
+# Cloudflare Web Analytics (issue 159): the policy carries exactly the beacon URL in
+# script-src and 'self' in connect-src, nothing wider, and the built HTML still
+# rejects a third-party script tag (the beacon is injected at the edge).
+csp_no_connect() { sed -i "s#; connect-src 'self'##" "$1/_headers"; }
+variant csp-without-connect-src weak-csp csp_no_connect
+csp_wide_connect() { sed -i "s#connect-src 'self'#connect-src 'self' https:#" "$1/_headers"; }
+variant csp-wide-connect-src weak-csp csp_wide_connect
+csp_connect_other() { sed -i "s#connect-src 'self'#connect-src https://cloudflareinsights.com#" "$1/_headers"; }
+variant csp-other-connect-src weak-csp csp_connect_other
+csp_beacon_origin() { sed -i "s#static.cloudflareinsights.com/beacon.min.js#static.cloudflareinsights.com#" "$1/_headers"; }
+variant csp-beacon-origin-only weak-csp csp_beacon_origin
+csp_beacon_wild() { sed -i "s#static.cloudflareinsights.com/beacon.min.js#*.cloudflareinsights.com/beacon.min.js#" "$1/_headers"; }
+variant csp-beacon-wildcard weak-csp csp_beacon_wild
+csp_beacon_twice() { sed -i "s#script-src 'self' \(https://static.cloudflareinsights.com/beacon.min.js\)#script-src 'self' \1 \1#" "$1/_headers"; }
+variant csp-beacon-twice weak-csp csp_beacon_twice
+APPEND='<script src=https://static.cloudflareinsights.com/beacon.min.js></script>' variant beacon-script-in-html script-not-allowed append_html
 csp_no_manifest_src() { sed -i "s#manifest-src 'self'; ##" "$1/_headers"; }
 variant csp-without-manifest-src weak-csp csp_no_manifest_src
 csp_default_open() { sed -i "s#default-src 'none'#default-src 'self'#" "$1/_headers"; }
@@ -780,8 +796,8 @@ variant duplicate-description duplicate-description dup_desc
 # Templates (issues 58 and 59): home hero, 404, archive and post elements. Each
 # required piece removed in turn must be reported by name.
 cut_text() { sed -i "s#${CUT}##g" "$1/$PAGE"; }
-for pair in 'index.html|Read the latest' 'index.html|Find me online' 'index.html|Support my work' 'index.html|Latest posts' 'index.html|All posts' 'index.html|more secure and fun' 'index.html|Hands-on cybersecurity' \
-    '404.html|rm -rf' '404.html|Start over' '404.html|Browse posts' '404.html|Find me online' '404.html|refusing to answer questions' \
+for pair in 'index.html|Read the latest' 'index.html|Find me online' 'index.html|Support my work' 'index.html|Latest posts' 'index.html|All posts' 'index.html|See my projects' 'index.html|building next' 'index.html|Senior Cybersecurity Engineer' \
+    '404.html|rm -rf' '404.html|Start over' '404.html|Browse posts' '404.html|Search the site' '404.html|Find me online' '404.html|refusing to answer questions' \
     'posts/index.html|archive-year' 'posts/index.html|index.xml' 'tags/lorem/index.html|archive-year' 'journal/index.html|archive-year' \
     'posts/sample-post/index.html|reading-time' 'posts/sample-post/index.html|<time'; do
     page="${pair%%|*}"
@@ -803,6 +819,31 @@ variant missing-posts-archive template-element drop_archive
 APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html
 APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
 APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
+# The owner-approved business address is allowed on the About page only (issue 159):
+# a different address there, and the approved one on any other page, are findings.
+ABOUT_MAIL="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
+# about-email.sh fails closed: it prints the address only for a COMPLETE contact config.
+contact_case() { # <label> <email> <fingerprint> <url> <expect: yes|no>
+    local f="$work/about-email-$1.yaml" got
+    printf 'contact:\n  email: "%s"\n  pgp_fingerprint: "%s"\n  pgp_url: "%s"\n' "$2" "$3" "$4" >"$f"
+    got="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh" "$f")"
+    if { [[ "$5" == yes && "$got" == "$2" ]] || [[ "$5" == no && -z "$got" ]]; }; then
+        echo "ok: contact config $1 -> address allowed: $5"
+    else
+        echo "FAIL: contact config $1 allowed '$got' (wanted $5)"
+        failures=$((failures + 1))
+    fi
+}
+contact_case neither "" "" "" no
+contact_case email-only "a@example.org" "" "" no
+contact_case key-only "" "AAAA" "/k.asc" no
+contact_case email-and-fingerprint "a@example.org" "AAAA" "" no
+contact_case email-and-url "a@example.org" "" "/k.asc" no
+contact_case both "a@example.org" "AAAA" "/k.asc" yes
+append_about() { mkdir -p "$1/about" && printf '%s\n' "$APPEND" >>"$1/about/index.html"; }
+APPEND='<p>mail me at other@example.org</p>' variant about-other-address email-shaped-text append_about
+APPEND="<p>mail me at ${ABOUT_MAIL}</p>" variant approved-address-on-home email-shaped-text append_html
+APPEND="<a href=\"mailto:${ABOUT_MAIL}\">mail</a>" variant approved-mailto-on-home email-shaped-text append_html
 # An archived comment (issue 121) is page text like any other: an address or a
 # mailto: link in the comments section is caught, and a clean one passes.
 COMMENT_OPEN='<section class="comments-archive" aria-labelledby="comments-archive-title"><h2 id="comments-archive-title">Comments from the old site</h2><figure class="comment"><blockquote><p>Nice post.</p></blockquote><figcaption><span>Name</span>, <time datetime="2023-01-02">January 2, 2023</time>'

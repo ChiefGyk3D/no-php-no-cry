@@ -12,7 +12,7 @@
       <p>{{ . }}</p>
       {{- end }}
       {{- with site.Data.about.speaking }}
-      <p class="about-speaking">{{ .before }}{{ if and .url (strings.HasPrefix .url "https://") }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .link_text }}<span class="visually-hidden"> (opens in a new tab)</span></a>{{ else }}{{ .link_text }}{{ end }}{{ .after }}</p>
+      <p class="about-speaking">{{ .before }}{{ if and .url (strings.HasPrefix .url "https://") }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .link_text }}<span class="visually-hidden"> (opens in a new tab)</span></a>{{ else }}{{ .link_text }}{{ end }}{{ .after }}{{ with .role }} {{ . }}{{ end }}</p>
       {{- end }}
       {{- with site.Data.about.mission }}
       <p class="about-mission">{{ . }}</p>
@@ -20,20 +20,25 @@
     </div>
   </div>
 
-  <p class="resume-link">Looking for my work history? Read the <a href="{{ "/resume/" | relURL }}">resume</a>.</p>
+  <p class="resume-link">My <a href="{{ "/resume/" | relURL }}">resume</a> lists my skills, open-source projects, certifications, and education.</p>
 
   <div class="about-projects">
-  <h2>Current projects</h2>
+  <h2 id="projects">Current projects</h2>
   <ul class="tile-grid project-tiles">
-    <li><a class="tile" href="https://github.com/ChiefGyk3D/Stream-Daemon" target="_blank" rel="noopener"><strong>Stream Daemon</strong><span class="meta"> Announces your live streams to Mastodon, Bluesky, Discord, and Matrix.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
-    <li><a class="tile" href="https://github.com/ChiefGyk3D/Reach-Around" target="_blank" rel="noopener"><strong>Reach Around</strong><span class="meta"> One pane for creator analytics, a link page, and a media kit.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
-    <li><a class="tile" href="https://github.com/ChiefGyk3D/Clouds-Against-Humanity" target="_blank" rel="noopener"><strong>Clouds Against Humanity</strong><span class="meta"> Learn cloud security by building it, in an open-source homelab.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    <li><a class="tile" href="https://github.com/ChiefGyk3D/Stream-Daemon" target="_blank" rel="noopener"><strong>Stream Daemon</strong><span class="meta"> Announces live streams from Twitch, YouTube, and Kick to Mastodon, Bluesky, Discord, and Matrix.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    <li><a class="tile" href="https://github.com/ChiefGyk3D/Reach-Around" target="_blank" rel="noopener"><strong>Reach Around</strong><span class="meta"> In development: an open-source, privacy-first link page for creators, with analytics and a media kit.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    <li><a class="tile" href="https://github.com/ChiefGyk3D/Clouds-Against-Humanity" target="_blank" rel="noopener"><strong>Clouds Against Humanity</strong><span class="meta"> An open-source cloud security lab where you build and secure the infrastructure yourself with OpenTofu, Spacelift, Doppler, and Twingate.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
   </ul>
   </div>
 
   <section class="about-contact" aria-labelledby="contact">
     <h2 id="contact">Contact</h2>
-    <p>There's no contact form. Reach me on Matrix or Discord.</p>
+    {{- $c := site.Data.about.contact | default dict }}
+    {{- $complete := partial "contact-complete.html" . }}
+    <p>There's no contact form. If you want to chat as part of the community, use the Matrix room or the Discord server. The two are bridged.{{ if not $complete }} Business inquiries go by email, and the address will be listed here soon.{{ end }}</p>
+    {{- if $complete }}
+    <p>Email, for business inquiries only: <a href="mailto:{{ $c.email }}">{{ $c.email }}</a>. PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code>. <a href="{{ $c.pgp_url | relURL }}">PGP public key</a>.</p>
+    {{- end }}
     <ul class="contact-links">
       <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>
       <li><a href="https://discord.chiefgyk3d.com" target="_blank" rel="noopener">Discord<span class="visually-hidden"> (opens in a new tab)</span></a></li>
