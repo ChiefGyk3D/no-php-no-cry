@@ -22,7 +22,6 @@
     "/*.ttf",
     "/*.xml",
     "/*.txt",
-    "/*.asc",
     "/*.webmanifest"
   ]
 }

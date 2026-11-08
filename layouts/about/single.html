@@ -50,7 +50,7 @@
     {{- if $complete }}
     <p>Email, for business inquiries only: <a href="mailto:{{ $c.email }}">{{ $c.email }}</a>.</p>
     <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
-    <p><a href="{{ $c.pgp_url | relURL }}">PGP public key</a>.</p>
+    <p class="pgp-key-link"><a href="{{ $c.pgp_url }}" target="_blank" rel="noopener">PGP public key (keys.openpgp.org)<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
     {{- end }}
     <ul class="contact-links">
       <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>

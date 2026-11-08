@@ -30,7 +30,7 @@ artifact_name_ok() {
     ext="${base##*.}"
     ext="${ext,,}"
     case "$ext" in
-        html | css | svg | xml | txt | png | jpg | jpeg | gif | webp | avif | ico | woff | woff2 | ttf | webmanifest | asc) return 0 ;;
+        html | css | svg | xml | txt | png | jpg | jpeg | gif | webp | avif | ico | woff | woff2 | ttf | webmanifest) return 0 ;;
     esac
     return 1
 }

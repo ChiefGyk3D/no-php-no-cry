@@ -110,6 +110,12 @@
   user-select: all;
 }
 
+.pgp-key-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
 .contact-links {
   display: flex;
   flex-wrap: wrap;
