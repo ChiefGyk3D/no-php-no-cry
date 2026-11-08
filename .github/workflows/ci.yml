@@ -129,6 +129,11 @@ jobs:
       - name: Test the copy script pinning
         run: scripts/test-pin-script.sh
 
+      # The live drift check against Reach Around is not run here: it needs another repo's
+      # state and a non-blocking step would need continue-on-error (docs/token-drift.md).
+      - name: Test the Reach Around drift check (fixtures, no network)
+        run: scripts/test-check-reach-around-drift.sh
+
       - name: Test the Hugo version check
         run: scripts/test-check-hugo-version.sh
 
