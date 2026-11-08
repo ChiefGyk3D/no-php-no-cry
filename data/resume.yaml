@@ -17,6 +17,8 @@ skills:
     items: [EDR, SOAR, SIEM and SOC operations, Detection engineering]
   - group: Zero trust and cloud
     items: [ZTNA and SASE, Cloud security, Zero trust]
+  - group: Cloudflare
+    items: [Cloudflare Pages, Workers, R2, Email Routing, WAF custom rules, "rate limiting and configuration rules", Wrangler, Content Security Policy, security headers, SHA-256-pinned scripts, immutable caching, build and post-deploy checks]
   - group: Network defense and systems
     items: [Linux, "Networking with pfSense, Suricata and UniFi"]
   - group: Automation and code
@@ -80,6 +82,13 @@ projects:
     url: https://github.com/ChiefGyk3D/Patch-Gremlin
     line: Sends Discord, Microsoft Teams, Slack or Matrix notifications when security updates are installed on Debian and RHEL-based systems.
 
+# Codex draft (owner-reviewed, issue 262),.
+site_proof:
+  heading: This site is the proof
+  text: "I built this site on Cloudflare Pages, and the security headers include a strict CSP with hashed scripts pinned by SHA-256. The build checks and post-deploy smoke test verify the served script hashes; that smoke test caught a Cloudflare rewrite that injected a script. Fingerprinted assets use immutable caching, and build checks fail when page budgets are exceeded, including the 150 KB page budget. Locally, Lighthouse scores 100 on every indexable page type."
+
+projects_intro: "Everything I build is open source. Fork anything, send PRs, open issues, or just say hi."
+
 projects_more:
   label: More on GitHub
   url: https://github.com/ChiefGyk3D
@@ -101,6 +110,35 @@ community:
   - "Open-source maintainer: I build and document public security tools and reusable CI workflows."
   - "Speaker: BSides Dayton and COISSA, 2026."
   - "Member of DEFCON 614. With the Call Center Village, where I volunteer."
+
+# Creator work (issue 262): the owner's profile README wording, approved for reuse.
+creator:
+  intro: "Educational content focused on giving aspiring tech and cybersecurity professionals practical, real-world knowledge:"
+  topics:
+    - "Linux as a daily driver and production environment"
+    - "Cybersecurity investigations and real-world threat and news breakdowns"
+    - "Radio and Meshtastic communications and mesh networking"
+    - "Endpoint security and enterprise tooling deep dives"
+    - "Home labs and networking architecture and implementation"
+    - "Device reviews, privacy tools, and open-source infrastructure"
+  outro: "Whether you're just starting out or leveling up, the goal is content that's accessible, practical, and security-focused."
+
+# Selected accomplishments (issue 262): the template renders this section only when the
+# list is non-empty. Each entry is {name, text}: six outcome statements, owner-approved
+# 2026-11-08. Do not add entries without owner-approved text.
+experience:
+  - name: "Zero trust infrastructure"
+    text: "I built a locked-down DigitalOcean environment with OpenTofu and Spacelift, storing secrets in Doppler and restricting access through Twingate. I added a policy that blocks firewall rules open to the internet and fails closed on unknown values."
+  - name: "Identity event visibility"
+    text: "I built a Python poller that sends JumpCloud Directory Insights events to Wazuh as JSONL, bringing directory and access activity into the SIEM."
+  - name: "SIEM operations"
+    text: "I assembled a Dockerized SIEM and SOC stack with Wazuh, OpenSearch, Logstash, Grafana, and N8N workflows for alert triage and routing."
+  - name: "Cloudflare site security"
+    text: "I added strict security headers and checks that verify pinned script hashes during builds and after deployment. I built smoke checks for response status, headers, redirects, hashes, and served markup, and fixed an email rewrite they caught."
+  - name: "Shared CI and release workflows"
+    text: "I rolled out shared GitHub Actions workflows for linting, tests, container builds, signed releases, and scans, with a single CI gate across projects. I designed secret retrieval through OIDC and pinned workflow references to full commit SHAs."
+  - name: "Open security education"
+    text: "I built a free, open-source wiki of lessons, flowcharts, and exercises that teach zero trust, DevSecOps, and infrastructure as code. The material is available for anyone to read and try in their own accounts."
 
 outside_work:
   - Amateur radio operator, General class license
