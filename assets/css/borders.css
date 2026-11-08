@@ -1,0 +1,270 @@
+/* Border system (docs/borders.md): ONE frame, the Twitch panel button, in three
+ * amounts. Dark only, like the rest of the site. Tokens come from tokens.css;
+ * the frame-specific values below are site-local. No url() here: the frame is
+ * inline SVG from layouts/_partials/frame.html, so scripts/check-budget.py has
+ * nothing to count.
+ *
+ * L1 whisper: hairline and four corner ticks (pure CSS, no markup). Default.
+ * L2 classy:  .bx.l2 + the frame partial: split corner brackets, two amber rules.
+ * L3 faithful: .bx.l3 + the partial: the full button frame. ONE per page.
+ *
+ * Real text is always --text or --on-accent. Amber is a line color here, never a
+ * label on a light ground; amber lettering is not used. */
+:root {
+  --frame-fill: rgb(251 176 59 / 0.16);
+  --frame-glow: rgb(251 176 59 / 0.45);
+}
+
+/* L1: one hairline plus four 10x2 amber ticks, drawn as background layers of the
+ * element itself, so there is no pseudo-element and nothing to clip. --fill is
+ * the panel fill, --tick the tick color; a hover or a modifier changes the
+ * variables, not the rules. */
+.panel,
+.tile,
+.btn,
+.l1 {
+  --fill: var(--surface);
+  --tick: var(--accent);
+  --a: linear-gradient(var(--tick), var(--tick));
+  background-color: var(--fill);
+  background-image: var(--a), var(--a), var(--a), var(--a), var(--a), var(--a), var(--a), var(--a);
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-size:
+    10px 2px, 2px 10px, 10px 2px, 2px 10px,
+    10px 2px, 2px 10px, 10px 2px, 2px 10px;
+  background-position:
+    left top, left top, right top, right top,
+    left bottom, left bottom, right bottom, right bottom;
+  border: var(--rule-width) solid var(--frame-edge);
+  border-radius: 0;
+}
+
+/* Cards and buttons carry the translucent amber fill; containers and tiles stay neutral. */
+.btn-ghost {
+  --fill: var(--frame-fill);
+}
+
+.btn-ghost {
+  color: var(--text);
+}
+
+.btn-primary {
+  --fill: var(--accent);
+  --tick: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.btn:hover,
+.tile:hover,
+.l1.card:hover {
+  --fill: var(--accent);
+  --tick: var(--on-accent);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  --fill: var(--text);
+}
+
+.tile:hover .support-tile-name,
+.tile:hover .support-tile-blurb,
+.tile:hover .meta {
+  color: var(--on-accent);
+}
+
+.panel {
+  /* a container, not a control: no hover, and it keeps its own text colors */
+  color: var(--text);
+}
+
+/* Focus: the outline is drawn on the element itself, outside every frame. */
+.btn:focus-visible,
+.tile:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 4px;
+}
+
+/* L2 and L3: the frame is an absolutely positioned inline SVG behind the content
+ * (z-index -1 inside the element's own stacking context); the rules and the
+ * glow are background layers of two pseudo-elements. --s is the scale of the
+ * traced 1332 px wide original (0.24 is the Twitch panel size). */
+.bx {
+  --s: 0.24;
+  --a: linear-gradient(var(--accent), var(--accent));
+  --f: linear-gradient(var(--frame-fill), var(--frame-fill));
+  position: relative;
+  isolation: isolate;
+  color: var(--text);
+}
+
+.bx.s18 {
+  --s: 0.18;
+}
+
+.bx::before,
+.bx::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.fr {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.fr .fb {
+  fill: var(--frame-edge);
+}
+
+.fr .fd {
+  fill: var(--accent);
+}
+
+.fr .g0 {
+  stop-color: var(--frame-dark);
+}
+
+.fr .g1 {
+  stop-color: var(--frame-edge);
+}
+
+.fr .g2 {
+  stop-color: var(--frame-mid);
+}
+
+/* The geometry is drawn at the original size; the scale and the mirroring are CSS. */
+.fr .c-tl,
+.fr .p-t,
+.fr .st-l,
+.fr .st-r {
+  transform: scale(var(--s));
+}
+
+.fr .c-tr,
+.fr .p-t.r {
+  transform: scale(calc(var(--s) * -1), var(--s));
+}
+
+.fr .c-bl,
+.fr .p-b {
+  transform: scale(var(--s), calc(var(--s) * -1));
+}
+
+.fr .c-br,
+.fr .p-b.r {
+  transform: scale(calc(var(--s) * -1), calc(var(--s) * -1));
+}
+
+.bx.l2,
+.bx.l3 {
+  background: var(--f) center / calc(100% - var(--s) * 28px) calc(100% - var(--s) * 34px) no-repeat;
+  padding: calc(var(--s) * 90px) calc(var(--s) * 130px);
+}
+
+.bx.l2::before,
+.bx.l3::before {
+  inset: 0;
+  background:
+    var(--a) left 50% top calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
+    var(--a) left 50% bottom calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat;
+}
+
+/* L3 adds the short outer rules and the faint glow under the bottom rule only. */
+.bx.l3::before {
+  background:
+    var(--a) left 50% top calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
+    var(--a) left 50% bottom calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
+    var(--a) left 50% top 0 / 42.6% calc(var(--s) * 6px) no-repeat,
+    var(--a) left 50% bottom 0 / 42.6% calc(var(--s) * 6px) no-repeat;
+}
+
+.bx.l3::after {
+  left: 28.7%;
+  width: 42.6%;
+  bottom: 0;
+  height: calc(var(--s) * 6px);
+  box-shadow: 0 calc(var(--s) * 16px) calc(var(--s) * 16px) var(--frame-glow);
+}
+
+/* Text inside a frame is --text, or --on-accent on an amber fill: the support
+ * tile label would otherwise keep its amber page color on the amber-tinted fill. */
+.tile.bx .support-tile-name {
+  color: var(--text);
+}
+
+.tile.bx:hover .support-tile-name {
+  color: var(--on-accent);
+}
+
+/* An element that is itself a control: hover swaps the fill, the focus ring sits outside. */
+a.bx:hover {
+  --f: linear-gradient(var(--accent), var(--accent));
+  color: var(--on-accent);
+}
+
+.bx:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 6px;
+}
+
+/* Only the L3 glow may move, only when the visitor allows it, and only if the
+ * element opts in with .live. Nothing animates by default. */
+@media (prefers-reduced-motion: no-preference) {
+  .bx.l3.live::after {
+    animation: frame-breathe 4s ease-in-out infinite;
+  }
+
+  @keyframes frame-breathe {
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .bx.l2,
+  .bx.l3,
+  .l1,
+  .panel,
+  .tile,
+  .btn {
+    border: 1px solid CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .fr,
+  .bx::before,
+  .bx::after {
+    display: none;
+  }
+}
+
+/* Print: no frame art. Every framed element falls back to a plain border. */
+@media print {
+  .fr,
+  .bx::before,
+  .bx::after {
+    display: none;
+  }
+
+  .bx.l2,
+  .bx.l3,
+  .l1,
+  .panel,
+  .tile,
+  .btn {
+    background: none;
+    border: 1px solid CanvasText;
+    color: CanvasText;
+    padding: var(--space-2) var(--space);
+  }
+}

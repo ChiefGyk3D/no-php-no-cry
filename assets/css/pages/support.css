@@ -18,6 +18,12 @@
   display: flex;
 }
 
+/* The L3 support button spans both columns on a phone, where a half-width tile
+ * is too narrow for the full frame. */
+.support-tiles .tile-hero {
+  grid-column: 1 / -1;
+}
+
 .support-tile {
   display: flex;
   flex-direction: column;
@@ -42,6 +48,10 @@
 @media (min-width: 40rem) {
   .support-tiles {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .support-tiles .tile-hero {
+    grid-column: auto;
   }
 }
 
@@ -207,7 +217,7 @@
     margin: var(--space-4) 0 var(--space-3);
   }
 
-  .support-tiles .tile {
+  .support-tiles .tile:not(.bx) {
     padding: var(--space-2) var(--space);
   }
 

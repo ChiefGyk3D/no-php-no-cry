@@ -190,7 +190,7 @@ a:focus-visible {
 }
 
 .nav-menu:has(:popover-open) .nav-toggle {
-  background: var(--glow);
+  --fill: var(--frame-fill);
 }
 
 .nav-menu:has(:popover-open) .nav-toggle::after {
@@ -583,32 +583,11 @@ pre:focus-visible {
 /* HUD components (docs/redesign-brief.md sections 8 and 11). Colors and fonts
  * come from tokens.css variables only. */
 
-/* Corner-bracket panel: four L-shaped corners drawn with gradients. */
+/* Panel: the L1 frame (assets/css/borders.css draws the hairline, the corner
+ * ticks and the fill); this rule is only its spacing. */
 .panel {
   position: relative;
   padding: var(--space-5);
-  background-color: var(--surface);
-  background-image:
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent));
-  background-repeat: no-repeat;
-  background-size:
-    1.25rem var(--rule-accent-width), var(--rule-accent-width) 1.25rem,
-    1.25rem var(--rule-accent-width), var(--rule-accent-width) 1.25rem,
-    1.25rem var(--rule-accent-width), var(--rule-accent-width) 1.25rem,
-    1.25rem var(--rule-accent-width), var(--rule-accent-width) 1.25rem;
-  background-position:
-    left top, left top,
-    right top, right top,
-    left bottom, left bottom,
-    right bottom, right bottom;
-  border: var(--rule-width) solid var(--border);
 }
 
 /* Buttons: primary is amber with dark text; ghost is an outline. */
@@ -619,8 +598,6 @@ pre:focus-visible {
   min-height: var(--tap);
   min-width: var(--tap);
   padding: 0 var(--space-5);
-  border: var(--rule-accent-width) solid var(--accent);
-  border-radius: var(--radius);
   font: inherit;
   font-weight: 700;
   text-decoration: none;
@@ -628,24 +605,13 @@ pre:focus-visible {
 }
 
 .btn-primary {
-  background: var(--accent);
   color: var(--on-accent);
 }
 
-.btn-primary:hover {
-  box-shadow: 0 0 1rem var(--glow-strong);
-}
-
 .btn-ghost {
-  background: transparent;
-  color: var(--accent);
+  color: var(--text);
 }
 
-.btn-ghost:hover {
-  background: var(--glow);
-}
-
-.btn:focus-visible,
 summary:focus-visible {
   outline: var(--rule-accent-width) solid var(--focus);
   outline-offset: 3px;
@@ -665,21 +631,8 @@ summary:focus-visible {
   display: block;
   min-height: var(--tap);
   padding: var(--space);
-  background: var(--surface);
-  border: var(--rule-width) solid var(--border);
-  border-radius: var(--radius);
   color: var(--text);
   text-decoration: none;
-}
-
-.tile:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 1rem var(--glow);
-}
-
-.tile:focus-visible {
-  outline: var(--rule-accent-width) solid var(--focus);
-  outline-offset: 3px;
 }
 
 /* Chevron/rule heading: a chevron, the text, then a rule that fills the row. */

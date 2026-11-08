@@ -23,6 +23,9 @@ checks on pull requests that change the site, and what no script can prove.
   `assets/css/tokens.css` and fails below 4.5:1 for text and 3:1 for the focus
   ring.
 - **Visible focus** on every control, in the accent color.
+- **Frames are decoration.** Corner brackets and rules are `aria-hidden` inline
+  SVG or CSS, drawn outside the focus ring, with real text on every control and no
+  amber lettering. See `docs/borders.md`.
 - **Large targets.** Controls are at least 44 by 44 CSS pixels, with the WCAG
   inline-text-link exception.
 - **Motion and forced colors.** The stylesheet has `prefers-reduced-motion` and
