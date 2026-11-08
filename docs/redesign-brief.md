@@ -13,7 +13,7 @@ checks, and the decisions on #2, #11, #12 and #40.
 ## 0. Decisions already made (not reopened here)
 
 - Baseline keep/rewrite/drop proposals accepted (#40).
-- Affiliate links move to one products page with a disclosure at the top;
+- Affiliate links move to one products page with a disclosure at the bottom (moved from the top by owner ruling 2026-11-08, issue 123; each item keeps its Amazon or Direct label);
   posts keep their prose.
 - The TikTok open letter stays as a dated archive: original date kept, short
   note that it is a record.
@@ -160,7 +160,7 @@ token stylesheet. Specific needs:
 | Home | Hero (wordmark image, mascot, tagline, two buttons: Latest post, Social). Latest 5 posts with date and a 2-line summary. A social strip using the icon set. A ghosted mascot layer at low opacity. No carousel. |
 | Post | Single column at `--measure`. Title, date, reading time, tags. Optional `archive` front matter shows a dated archive banner (used for the TikTok letter: original date and "this is a record, not a current view"). Optional `supersededBy` front matter shows a forward link (twitch-and-toot to Stream Daemon). Code blocks use the existing highlight classes. A syndication row (section 5). Previous/next. |
 | Archive | Posts list with year grouping, tag filter links (plain term pages), RSS link. Reuse for journal and term pages. |
-| Products | Disclosure block first, above the fold, in a bracket frame: plain statement that links earn a commission and what that means. Items grouped by the old posts' topics (audio, 3D printing and PC repair, air quality). Each item: name, one line, price note ("price checked on <date>", no live prices), outbound link with `rel="sponsored noopener"`. The old prose stays in the posts, which link here. |
+| Products | Disclosure once, after the last group (owner ruling 2026-11-08, issue 123; it was first): plain statement that links earn a commission and what that means. Items grouped by the old posts' topics (audio, 3D printing and PC repair, air quality). Each item: name, one line, price note ("price checked on <date>", no live prices), outbound link with `rel="sponsored noopener"`. The old prose stays in the posts, which link here. |
 | About | Short bio, mascot, current projects with GitHub links, then a `#contact` section (heading with `id="contact"`): how to reach the maintainer without a form (Matrix and Discord links plus one text-only public address, decision 6). This is the only contact page; there is no `/contact/` template. |
 | Socials hub | A tile grid, one tile per network in section 5 (nine, TikTok included). Tile = icon, network name, handle or room name, a short role line. The Matrix tile names the community room. Same data file drives the footer `rel="me"` row and the home strip. |
 | Support | Link list (tips, shop) in the same tile style, with each link rechecked before publish. |
@@ -589,7 +589,7 @@ board card before work starts. Repo is this one unless noted.
 | 11 | Templates: home (hero, latest posts, social strip) | M | 8, 10 |
 | 12 | Templates: post (archive banner, superseded note, syndication row, prev/next), archive and term pages | M | 8, 10 |
 | 13 | Data files and the socials hub page (nine networks, TikTok kept), `rel="me"` row from the same data, add YouTube, leave X out | M | 8, 10 |
-| 14 | Products page and template with disclosure at the top; move the 22 affiliate links from the 3 posts | M | 8, 10 |
+| 14 | Products page and template with the disclosure once, at the bottom (moved by owner ruling 2026-11-08); move the 22 affiliate links from the 3 posts | M | 8, 10 |
 | 15 | About with its `#contact` section (no form or script: Matrix and Discord links plus one text-only public address, alias supplied by the maintainer and not blocking), the `/contact/` to `/about/#contact` redirect, Support, Privacy pages | M | 8, 10 |
 | 16 | Migrate content: 10 posts, 15 aliases to `_redirects`, alt text for retained images, WebP conversion, TikTok archive note, Stream Daemon forward link | L | 12, 14 |
 | 17 | Head and SEO: per-page descriptions, `summary_large_image` card with the one default OG card, sitemap line check, tune `check-output.sh` for new tags | S | 7, 12 |
