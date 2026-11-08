@@ -205,15 +205,15 @@ and `preload`, redirects included. Inclusion is hard to undo: removal can take
 months to reach users through a Chrome release, other browsers promise nothing,
 and the requirements must be kept indefinitely.
 
-The site sends `max-age=31536000; includeSubDomains` today, but the preload list
-is per registrable domain. Preloading `chiefgyk3d.com` makes browsers refuse plain
-HTTP for every subdomain (the links host, instance hosts, Matrix, Discord
-redirect, shop, anything else under the zone, current and future). The staging
-host sending `includeSubDomains` already pins the whole zone for visitors who
-loaded it, for a year. Preload would extend that to everyone, with no expiry.
-Also, the header must come from the apex `chiefgyk3d.com`, not from this blog host
-alone; if the blog moves under another name the submission applies to the apex
-header, not this file.
+The site sends `max-age=31536000; includeSubDomains` today. That header applies
+only to the host that sent it and its descendants: on `test-blog.chiefgyk3d.com`
+it pins that host's subtree for a year for visitors who loaded it, and does not
+touch the apex or siblings such as `shop.chiefgyk3d.com`. The preload list works
+per registrable domain. Preloading `chiefgyk3d.com` would make browsers refuse
+plain HTTP for every subdomain (the links host, instance hosts, Matrix, Discord
+redirect, shop, anything else under the zone, current and future), for everyone,
+with no expiry. The preload header must also come from the apex
+`chiefgyk3d.com`, not from this blog host alone.
 
 Decision needed from the owner: (1) do not preload (recommended until every
 `*.chiefgyk3d.com` host, including internal ones, is audited as HTTPS-only);
