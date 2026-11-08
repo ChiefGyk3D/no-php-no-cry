@@ -37,7 +37,7 @@ Delete the comments you do not need before you open the pull request.
 | `categories` | yes | One broad topic, for example `["Linux"]`. Reuse an existing category before you add one. |
 | `tags` | no | A few specific words. They show as `#tag` links under the title. |
 | `syndicate` | yes | `true` lets the deploy job announce the post once it is live. The archetype sets `false`. A journal entry is not announced unless you say so. |
-| `syndicated` | no | A map of announcement links (`bluesky`, `mastodon`, `discord`, `matrix`), written by the syndication step. Do not write it by hand for a new post. Only `https://` values render, as "Discuss on ..." links. |
+| `syndicated` | no | A map of announcement links (`bluesky`, `mastodon`, `discord`, `matrix`), written by the syndication step. Do not write it by hand for a new post. The map is kept as data and not rendered: the old "Discuss on ..." links did not work and were replaced by share links (`docs/share-links.md`). |
 | `affiliate` | no | A reminder for you and the reviewer. The build does not read it. Set `true` when the post has affiliate links. |
 | `aliases` | no | Old paths that should redirect to this page. The build writes a 301 line for each. New posts rarely need one. |
 | `archive` | no | `true` or a short text. Shows a dated "this is a record, not a current view" banner. |

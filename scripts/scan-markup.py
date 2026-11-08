@@ -12,7 +12,7 @@ HTML mode (default) also: base-element, http-reference, external-asset (an
 http:, https:, scheme-relative or backslash URL to another host on a tag that
 loads something). --markup (svg, xml, xhtml) also: script-not-allowed for any
 script element. HTML mode also email-shaped-text: a text node (outside
-script and style) holding user@host, or a mailto: URL. Cloudflare Email
+script and style) holding user@host, or a mailto: URL (but not a mailto:? URL with no address, which the share links use: issue 220). Cloudflare Email
 Obfuscation rewrites those to "[email protected]" and injects a script; render
 a handle with the @ in its own element instead. --scripts none|pinned (HTML
 only, used on served pages) also judges script elements: with "none" any script
@@ -118,7 +118,7 @@ class Scan(HTMLParser):
         for name, value in attrs:
             name = name.lower()
             v = clean(value)
-            if not self.markup and re.match(r"^mailto:", v, re.I) and not (self.allow_email and v.lower() == "mailto:" + self.allow_email):
+            if not self.markup and re.match(r"^mailto:(?!\?)", v, re.I) and not (self.allow_email and v.lower() == "mailto:" + self.allow_email):
                 self.found.add("email-shaped-text")
             if re.match(r"^on[a-z]", name):
                 self.found.add("event-handler")

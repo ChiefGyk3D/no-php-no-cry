@@ -98,7 +98,7 @@ says "owner review" or "device QA", no script can prove it.
 |---|---|---|---|---|---|
 | Identity links (`rel="me"`) | Mastodon header link | Footer row from `data/socials.yaml`: Mastodon, Pixelfed and GitHub carry `rel="me"` | parity | 2026-11-06 kept | `scripts/test-social-products.sh`; the remote side can verify only once the apex serves the link |
 | ActivityPub actor | The ActivityPub plugin | None | dropped | 2026-11-06 | n/a |
-| Share on Mastodon, Zapier | Posts announced through plugins | Not built. Posts have a `syndicate` flag and render "Discuss on" links, but no job announces anything | planned | 2026-11-06 build #11 before cutover | the acceptance criteria in #11 |
+| Share on Mastodon, Zapier | Posts announced through plugins | Share links under each post (issue 220, `docs/share-links.md`). The "Discuss on" links are gone (they did not work). No job announces anything yet | planned | 2026-11-06 build #11 before cutover | `scripts/test-share.sh`; the acceptance criteria in #11 |
 | Twitter/X | Contact page link and card metadata | Not listed | dropped | accepted 2026-11-06 | `scripts/check-wording.sh` |
 | Litecoin address | On the support page | Replaced by Solana (Bitcoin, Monero, Ethereum and Solana are listed) | dropped | accepted 2026-11-06 | `scripts/gen-support-qr.sh --check` |
 | Shop link and look | Links to the store | Header "Shop" and the footer Support row link to it. Matching the store's look is a copy and a spec only | planned | 2026-11-06 live store untouched without the owner's override (#79) | owner review of the spec |

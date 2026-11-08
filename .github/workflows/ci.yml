@@ -89,6 +89,9 @@ jobs:
       - name: Test the Social and Products pages (built site, guard self-tests)
         run: scripts/test-social-products.sh
 
+      - name: Test the share links (URLs built from the permalink and title, guard self-tests)
+        run: scripts/test-share.sh
+
       - name: Test the resume page and print stylesheet (content rules, guard)
         run: scripts/test-resume.sh
 

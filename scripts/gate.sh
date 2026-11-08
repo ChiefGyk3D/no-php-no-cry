@@ -50,6 +50,7 @@ step check-site-artifact-staging build-staging 'scripts/check-site-artifact.sh "
 step test-check-output "" 'scripts/test-check-output.sh'
 step test-head "" 'scripts/test-head.sh'
 step test-social-products "" 'scripts/test-social-products.sh'
+step test-share "" 'scripts/test-share.sh'
 step test-resume "" 'scripts/test-resume.sh'
 step test-check-site-artifact "" 'scripts/test-check-site-artifact.sh'
 step test-deploy-sparse "" 'scripts/test-deploy-sparse.sh'
@@ -97,7 +98,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging test-head test-social-products test-resume
+    build-staging check-output-staging check-site-artifact-staging test-head test-social-products test-share test-resume
     test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
@@ -236,7 +237,7 @@ elif [[ $fast -eq 1 ]]; then
             data/support.yaml)
                 pick gen-support-qr "${content_steps[@]}"
                 ;;
-            assets/* | layouts/* | static/* | brand/* | tools/* | hugo.toml | copy.js.sha256 | search.js.sha256)
+            assets/* | layouts/* | static/* | brand/* | tools/* | hugo.toml | copy.js.sha256 | search.js.sha256 | share.js.sha256)
                 pick "${layout_steps[@]}"
                 ;;
             content/* | data/* | archetypes/*)

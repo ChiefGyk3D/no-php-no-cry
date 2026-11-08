@@ -5,17 +5,26 @@ keep `script-src 'self'` while a script ships; `'none'` follows if the last one 
 dropped. Issue 119 added the second script, for search, on the owner's ruling of
 2026-11-06: two pinned scripts, each on its own page only.)
 
-The site ships exactly two scripts, each loaded by one page:
+(Issue 220 added the third, for the share links under posts, on the owner's
+ruling of 2026-11-08: it loads on posts and journal entries, which the allowlist
+names as patterns.)
+
+The site ships exactly three scripts:
 
 | Script | Page | What it does |
 | --- | --- | --- |
 | `/copy.js` | `/support/` (`layouts/support/single.html`) | Reveals the Copy buttons (hidden without script), copies the address text with `navigator.clipboard` or a textarea fallback, and writes "Copied" into a `role=status` region. The address stays visible, selectable text either way. |
 | `/search.js` | `/search/` (`layouts/search/list.html`) | Enables the search box (its input is disabled without script) and filters the page's own list in place. See "Search" below. |
+| `/share.js` | Every post and journal entry (`layouts/_partials/share.html`; `posts/*/index.html` and `journal/*/index.html`, one path segment for `*`) | Un-hides the share buttons that need script (copy a link; Mastodon, whose server is per user), copies with `navigator.clipboard`, and for Mastodon asks for the server once and keeps it in `localStorage`. See `docs/share-links.md`. |
 
-Neither script makes a network request, stores anything, sets a cookie or reads
-anything beyond its own page. The allowlist, script -> its only allowed page, is
-`PINNED_SCRIPTS` in `scripts/artifact-rules.sh`; the build checks read it, so a
-third script, or either script on another page, fails the build.
+`/copy.js` and `/search.js` make no network request, store nothing, set no
+cookie and read nothing beyond their own page. `/share.js` makes no request
+either and sets no cookie; its one exception to "stores nothing" is the
+Mastodon server name the visitor types, kept in `localStorage` under
+`mastodonServer` on this site only and never sent anywhere by this site. The
+allowlist, script -> its allowed page(s), is `PINNED_SCRIPTS` in
+`scripts/artifact-rules.sh`; the build checks read it, so a fourth script, or
+any script on another page, fails the build.
 
 `script-src 'self'` allows every same-origin response, so the build is held to
 these reviewed files instead of an inspection of their code:
@@ -71,7 +80,7 @@ that.
 
 ## Changing a script
 
-1. Edit `static/copy.js` or `static/search.js`.
+1. Edit `static/copy.js`, `static/search.js` or `static/share.js`.
 2. Run `scripts/pin-script.sh` (both scripts) or `scripts/pin-script.sh
    static/search.js` (one). It refuses a script of 1 KB gzip or more and writes
    `<name>.sha256`. (`scripts/pin-script.sh --check` verifies them.)
@@ -79,11 +88,12 @@ that.
    is what a reviewer reads: the diff of the script is the reviewed code, and the
    checks fail if the two drift apart.
 
-## Adding a third script
+## Adding another script
 
 Not without a new owner decision. It is: an entry in `PINNED_SCRIPTS`, a hash
 file (named in the sparse list of the deploy job in
 `.github/workflows/deploy.yml`; `scripts/test-deploy-sparse.sh` reads the
 allowlist and fails if it is missing), fixtures in `scripts/test-check-output.sh`,
 `scripts/test-check-site-artifact.sh` and `scripts/test-smoke-site.sh`, and this
-page.
+page. A page field with `*` or a comma list is a set of patterns; `*` is exactly
+one path segment (`pinned_script_on_page` in `scripts/artifact-rules.sh`).

@@ -220,7 +220,7 @@ while IFS= read -r -d '' f; do
         n="$(grep -oEi "<script src=(\"/${quoted}\"|'/${quoted}'|/${quoted})></script>" <<<"$flat" | wc -l || true)"
         [[ "$n" -gt 0 ]] || continue
         script_known=$((script_known + n))
-        if [[ "$rel" != "$(pinned_script_page "$name")" ]]; then
+        if ! pinned_script_on_page "$name" "$rel"; then
             report script-wrong-page "$rel (/${name} belongs on $(pinned_script_page "$name") only)"
             continue
         fi

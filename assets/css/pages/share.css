@@ -1,0 +1,80 @@
+/* Share links on posts (issue 220). Tokens only. Every target is at least 2rem
+ * (32 px) tall. The buttons carry [hidden] until /share.js runs. */
+.share-title {
+  display: block;
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.share-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.share-list [hidden] {
+  display: none;
+}
+
+.share-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  min-width: 2rem;
+  padding: 0 var(--space-1);
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.share-link:hover {
+  color: var(--text);
+}
+
+.share-link:focus-visible {
+  outline: var(--rule-accent-width) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.share-status {
+  min-height: 1.25rem;
+  margin: 0;
+}
+
+.icon-twitter {
+  --icon: url("../brand/share/twitter.svg");
+}
+
+.icon-reddit {
+  --icon: url("../brand/share/reddit.svg");
+}
+
+.icon-linkedin {
+  --icon: url("../brand/share/linkedin.svg");
+}
+
+.icon-facebook {
+  --icon: url("../brand/share/facebook.svg");
+}
+
+.icon-hacker-news {
+  --icon: url("../brand/share/hacker-news.svg");
+}
+
+.icon-pinterest {
+  --icon: url("../brand/share/pinterest.svg");
+}
+
+.icon-email {
+  --icon: url("../brand/share/envelope.svg");
+}
+
+.icon-copy {
+  --icon: url("../brand/share/link.svg");
+}

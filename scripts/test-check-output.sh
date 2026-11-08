@@ -380,8 +380,21 @@ done
 # as the minifier writes it (no quotes), or with quotes, once per page.
 COPY_JS='document.documentElement.dataset.copy="dark"'
 SEARCH_JS='document.documentElement.dataset.search="dark"'
-js_body() { if [[ "$1" == copy.js ]]; then printf '%s\n' "$COPY_JS"; else printf '%s\n' "$SEARCH_JS"; fi; }
-home_of() { if [[ "$1" == copy.js ]]; then printf 'support/index.html'; else printf 'search/index.html'; fi; }
+SHARE_JS='document.documentElement.dataset.share="dark"'
+js_body() {
+    case "$1" in
+        copy.js) printf '%s\n' "$COPY_JS" ;;
+        share.js) printf '%s\n' "$SHARE_JS" ;;
+        *) printf '%s\n' "$SEARCH_JS" ;;
+    esac
+}
+home_of() {
+    case "$1" in
+        copy.js) printf 'support/index.html' ;;
+        share.js) printf 'posts/sample-post/index.html' ;;
+        *) printf 'search/index.html' ;;
+    esac
+}
 # place <dir> <script> [page] [tag]: appends the tag to the page (default: the
 # script's own), writes the script and pins it.
 place() {
@@ -390,7 +403,7 @@ place() {
     js_body "$name" >"$1/$name"
     pin_dir "$1" "$name"
 }
-for name in copy.js search.js; do
+for name in copy.js search.js share.js; do
     for form in "<script src=/$name></script>" "<script src=\"/$name\"></script>" "<script src='/$name'></script>" "<SCRIPT SRC=/$name></SCRIPT>"; do
         d="$work/script-ok-$((++loop_n))"
         make_good "$d"
@@ -413,6 +426,26 @@ NAME=copy.js ON=posts/sample-post/index.html variant copy-on-a-post script-wrong
 NAME=search.js ON=index.html variant search-on-home script-wrong-page wrong
 NAME=search.js ON=support/index.html variant search-on-support-page script-wrong-page wrong
 NAME=search.js ON=404.html variant search-on-404 script-wrong-page wrong
+# share.js (issue 220) is allowed on a post or journal entry (one path segment under
+# posts/ or journal/), and nowhere else.
+NAME=share.js ON=index.html variant share-on-home script-wrong-page wrong
+NAME=share.js ON=support/index.html variant share-on-support-page script-wrong-page wrong
+NAME=share.js ON=search/index.html variant share-on-search-page script-wrong-page wrong
+NAME=share.js ON=404.html variant share-on-404 script-wrong-page wrong
+# The page patterns themselves: one path segment for "*", so a journal entry and a post
+# match, a list page and a nested page do not.
+share_page_case() { # <page>:<yes|no>
+    local got=no
+    if (source "$(dirname "${BASH_SOURCE[0]}")/artifact-rules.sh" && pinned_script_on_page share.js "${1%%:*}"); then got=yes; fi
+    if [[ "$got" == "${1##*:}" ]]; then
+        echo "ok: share.js on ${1%%:*} -> ${1##*:}"
+    else
+        echo "FAIL: share.js on ${1%%:*} -> $got (wanted ${1##*:})"
+    fi
+}
+for pair in posts/a-post/index.html:yes journal/an-entry/index.html:yes posts/index.html:no posts/page/2/index.html:no journal/index.html:no support/index.html:no index.html:no; do
+    bg share_page_case "$pair"
+done
 wrong_and_right() {
     place "$1" copy.js
     place "$1" copy.js index.html
@@ -908,6 +941,11 @@ expect_pass "a PNG text chunk with an unrelated keyword passes" "a harmless PNG 
 APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html
 APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
 APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
+APPEND='<a href="mailto:a@example.org?subject=x">mail</a>' variant mailto-link-with-query email-shaped-text append_html
+mailto_share="$work/mailto-share"
+make_good "$mailto_share"
+printf '%s\n' '<a href="mailto:?subject=Post%20title&amp;body=https%3A%2F%2Fexample.org%2F">Email</a>' >>"$mailto_share/posts/sample-post/index.html"
+expect_pass "an addressless mailto: share link passes" "an addressless mailto: share link was rejected" "$mailto_share"
 # The owner-approved business address is allowed on the About page only (issue 159):
 # a different address there, and the approved one on any other page, are findings.
 ABOUT_MAIL="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"

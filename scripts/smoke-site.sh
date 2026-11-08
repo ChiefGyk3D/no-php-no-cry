@@ -164,7 +164,9 @@ known_csv="$(printf '%s,' "${script_known[@]}")"
 known_csv="${known_csv%,}"
 for name in "${script_known[@]}"; do
     pages+=("$name")
-    pages+=("$(pinned_script_url "${name#/}")")
+    # A script allowed on several pages (share.js: every post) has no single
+    # URL; the first post and journal page are already in the list.
+    if page_url="$(pinned_script_url "${name#/}")"; then pages+=("$page_url"); fi
 done
 
 # The redirects to check: the first 301 line of the build (required), /feed/ and
@@ -270,7 +272,7 @@ check_page() {
         local opts=(--scripts none) found rule name allow=""
         if [[ ${#script_known[@]} -gt 0 ]]; then
             for name in "${script_known[@]}"; do
-                [[ "$path" == "$(pinned_script_url "${name#/}")" ]] && allow="$name"
+                pinned_script_on_page "${name#/}" "${path#/}$([[ "$path" == */ ]] && echo index.html)" && allow="$name"
             done
             opts=(--scripts pinned --known "$known_csv" --allow "$allow")
         fi
