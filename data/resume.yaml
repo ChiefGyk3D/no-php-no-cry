@@ -5,11 +5,10 @@
 # projects below (data/about.yaml project_tiles names them), so the two stay in sync.
 name: ChiefGyk3D
 title: Senior Cybersecurity Engineer (CISSP)
+subtitle: Identity, Detection, Cloud, Network Defense, and Automation
 summary:
-  - Senior Cybersecurity Engineer and CISSP with about 15 years across IT and security.
-  - I design, build, integrate, and test security systems across identity, network defense, SIEM engineering, cloud security, zero trust, and automation.
-  - I question unnecessary access and use hands-on testing to check whether the design actually works.
-  - I maintain open-source security tools and reusable CI workflows, and I create cybersecurity content for more than 500,000 followers across YouTube, Twitch, Kick, and social platforms.
+  - Senior Cybersecurity Engineer and CISSP with about 15 years across IT and security. I design, build, integrate, and test security systems across identity, network defense, SIEM engineering, cloud security, zero trust, and automation. I question unnecessary access and use hands-on testing to check whether the design actually works.
+  - I maintain open-source security tools and reusable CI workflows, and I share cybersecurity knowledge through tutorials, security breakdowns, and livestreams with more than 500,000 followers across YouTube, Twitch, Kick, and social platforms. My goal is to break down knowledge barriers.
 
 skills:
   - group: Identity and access
@@ -18,23 +17,20 @@ skills:
     items: [EDR, SOAR, SIEM and SOC operations, Detection engineering]
   - group: Zero trust and cloud
     items: [ZTNA and SASE, Cloud security, Zero trust]
-  - group: Security practice
-    items: [Threat modeling, OSINT, Telecom security, Privacy]
-  - group: Automation and code
-    items: [Python, Bash, PowerShell, "Infrastructure as code with OpenTofu and Terraform"]
-  - group: Systems and networking
+  - group: Network defense and systems
     items: [Linux, "Networking with pfSense, Suricata and UniFi"]
-  - group: Ways of working
-    items: ["AI-assisted workflows", DevSecOps, Reusable GitHub Actions workflows with CI security checks]
+  - group: Automation and code
+    items: [Python, Bash, PowerShell, "Infrastructure as code with OpenTofu and Terraform", DevSecOps, Reusable GitHub Actions workflows with CI security checks]
+  - group: Security practice
+    items: [Threat modeling, OSINT, Telecom security, Privacy, "AI-assisted workflows"]
 
-# Clouds Against Humanity stays first. The About page shows six of these (see above).
+# Clouds Against Humanity stays first (standing rule). The order is by security
+# relevance (issue 175). The About page shows six of these (see above); its tile
+# lines for Stream Daemon, Reach Around and Clouds Against Humanity match.
 projects:
   - name: Clouds Against Humanity
     url: https://github.com/ChiefGyk3D/Clouds-Against-Humanity
     line: An open-source cloud security lab where you build and secure the infrastructure yourself with OpenTofu, Spacelift, Doppler, and Twingate. It has no public inbound ports.
-  - name: Stream Daemon
-    url: https://github.com/ChiefGyk3D/Stream-Daemon
-    line: Announces live streams from Twitch, YouTube, and Kick to Mastodon, Bluesky, Discord, and Matrix.
   - name: SIEM Docker Stack
     url: https://github.com/ChiefGyk3D/siem-docker-stack
     line: A containerized OpenSearch and Wazuh SIEM that I run, with logging, monitoring, dashboards, and long-term data storage.
@@ -44,15 +40,18 @@ projects:
   - name: git-your-ship-together
     url: https://github.com/ChiefGyk3D/git-your-ship-together
     line: Reusable GitHub Actions workflows with CI security checks, which I maintain and share across my Python projects.
-  - name: Hammunition
-    url: https://github.com/Renegade-Penguin/Hammunition
-    line: Open-source tooling that turns Debian-family Linux systems into amateur radio and RF workstations.
-  - name: Reach Around
-    url: https://github.com/ChiefGyk3D/Reach-Around
-    line: "In development: an open-source, privacy-first link page for creators, with analytics and a media kit."
   - name: Skid Finder
     url: https://github.com/ChiefGyk3D/Skid-Finder
     line: A defensive toolkit that detects scripted Bluetooth Low Energy (BLE) spam and helps track down its source at conferences. That tracking is a foxhunt, the radio game of locating a hidden transmitter.
+  - name: Stream Daemon
+    url: https://github.com/ChiefGyk3D/Stream-Daemon
+    line: Announces live streams from Twitch, YouTube, and Kick to Mastodon, Bluesky, Discord, and Matrix.
+  - name: Reach Around
+    url: https://github.com/ChiefGyk3D/Reach-Around
+    line: "In development: an open-source, privacy-first link page for creators, with analytics and a media kit."
+  - name: Hammunition
+    url: https://github.com/Renegade-Penguin/Hammunition
+    line: Open-source tooling that turns Debian-family Linux systems into amateur radio and RF workstations.
 
 credentials:
   - CISSP, earned in 2024
