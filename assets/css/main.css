@@ -392,7 +392,7 @@ main {
  * the rest of it: the page links, then the sign-off line with the social icons
  * in ONE row after it (tagline first, both left aligned), then the credit, so
  * short pages still fit a 1920x1080 browser. Below 80rem the centered, balanced
- * icon rows (#172) stay; they are for phones. */
+ * icon rows (issue 172) stay; they are for phones. */
 @media (min-width: 80rem) {
   .footer-meta {
     justify-content: flex-start;
