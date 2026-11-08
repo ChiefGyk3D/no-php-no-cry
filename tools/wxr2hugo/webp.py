@@ -8,7 +8,7 @@ the output of convert.py or a copy of it under content/. Needs Pillow; run it
 through scripts/test-wxr2hugo-webp.sh's pinned requirements
 (tools/wxr2hugo/requirements-webp.txt). Each PNG or JPEG becomes a .webp beside
 it, the original is removed and the bundle's index.md is updated, but only when
-the WebP is smaller. EXIF (including any GPS position) and other metadata are
+the WebP is smaller. featured.* (the headline image front matter names) is left alone. EXIF (including any GPS position) and other metadata are
 dropped, and the camera orientation is applied first.
 
 Hostile files are refused one by one and left exactly as they were: a file
@@ -27,6 +27,7 @@ import warnings
 from pathlib import Path
 
 MAX_PIXELS = 40_000_000
+FEATURED_STEM = "featured"
 SUFFIXES = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG"}
 
 
@@ -94,6 +95,11 @@ def process_bundle(directory, root, quality, report):
     changed = False
     for src in sorted(directory.iterdir()):
         if src.suffix.lower() not in SUFFIXES:
+            continue
+        if src.stem == FEATURED_STEM:
+            # The headline image is named by front matter (image: "featured.png"),
+            # which this tool does not rewrite, and it is only a source for the
+            # site's resize pipeline (build.publishResources is false), never served.
             continue
         rel = str(src.relative_to(root))
         if src.is_symlink() or not src.is_file():

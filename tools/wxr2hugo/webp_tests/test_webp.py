@@ -6,6 +6,7 @@ import io
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -317,6 +318,35 @@ class HostileInputTests(unittest.TestCase):
         self.assertEqual(run(scratch() / "missing").returncode, 2)
         self.assertEqual(run(scratch(), "--quality", "0").returncode, 2)
         self.assertEqual(run(scratch(), "--quality", "101").returncode, 2)
+
+
+class FeaturedImageSurvivesTests(unittest.TestCase):
+    """The importer writes front matter image: "featured.png"; the WebP pass must
+    not delete that file (layouts and the card read it by name)."""
+
+    def test_importer_then_webp_keeps_the_featured_file_front_matter_names(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
+        try:
+            import helpers
+            from test_convert import thumb_export
+        finally:
+            sys.path.pop(0)
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(thumb_export(), encoding="utf-8")
+        media = helpers.make_media(work / "media")
+        (media / "2023" / "02" / "pic.png").write_bytes(png_bytes((600, 400)))
+        out = work / "out"
+        self.assertEqual(helpers.run(["--wxr", wxr, "--out", out, "--media", media]).returncode, 0)
+        post = out / "posts" / "first-post"
+        self.assertTrue((post / "featured.png").is_file())
+        self.assertEqual(run(out).returncode, 0)
+        head = (post / "index.md").read_text(encoding="utf-8").split("---\n")[1]
+        match = re.search(r'^image: "([^"]+)"$', head, re.M)
+        self.assertIsNotNone(match, head)
+        self.assertTrue((post / match.group(1)).is_file(), "front matter image %s is gone" % match.group(1))
+        # Inline images are still converted: the exclusion is only for featured.*
+        self.assertTrue(any(p.suffix == ".webp" for p in post.iterdir()))
 
 
 if __name__ == "__main__":
