@@ -1,9 +1,11 @@
 ---
 title: "Privacy"
-description: "What this site collects: nothing."
+description: "How this site is hosted, what its analytics collect, and what this page does not cover."
 date: 2026-11-04
 draft: false
 syndicate: false
 ---
 
-This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.
+The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.
+
+The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.

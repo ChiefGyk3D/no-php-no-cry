@@ -23,25 +23,25 @@
   url: https://youtube.com/@ChiefGyk3D
   handle: "@ChiefGyk3D"
   rel_me: false
-  blurb: Videos
+  blurb: Tutorials, security breakdowns, and livestreams
 - name: Kick
   icon: kick
   url: https://kick.com/chiefgyk3d
   handle: chiefgyk3d
   rel_me: false
-  blurb: Simulcast streams
+  blurb: Live streams
 - name: Mastodon
   icon: mastodon
   url: https://social.chiefgyk3d.com/@chiefgyk3d
   handle: "@chiefgyk3d@social.chiefgyk3d.com"
   rel_me: true
-  blurb: Posts and boosts
+  blurb: Short posts, from my own server
 - name: Bluesky
   icon: bluesky
   url: https://bsky.app/profile/chiefgyk3d.com
   handle: "@chiefgyk3d.com"
   rel_me: false
-  blurb: Posts
+  blurb: Short posts
 - name: TikTok
   icon: tiktok
   url: https://tiktok.com/@chiefgyk3d
@@ -53,7 +53,7 @@
   url: https://www.instagram.com/chiefgyk3d/
   handle: "@ChiefGyk3D"
   rel_me: false
-  blurb: Photos
+  blurb: Photo and video posts
 # Pixelfed: the maintainer's own server. https://pics.chiefgyk3d.com/ChiefGyk3D is
 # the profile form Pixelfed uses (the @-form redirects to it); read-only GET
 # returned 200 on 2026-11-06. The fediverse handle matches the Mastodon tile.
@@ -62,13 +62,13 @@
   url: https://pics.chiefgyk3d.com/ChiefGyk3D
   handle: "@ChiefGyk3D@pics.chiefgyk3d.com"
   rel_me: true
-  blurb: Photos
+  blurb: Photos, from my own server
 - name: Threads
   icon: threads
   url: https://www.threads.com/@chiefgyk3d
   handle: "@chiefgyk3d"
   rel_me: false
-  blurb: Posts
+  blurb: Short posts
 - name: Discord
   icon: discord
   url: https://discord.chiefgyk3d.com

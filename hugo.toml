@@ -7,7 +7,7 @@ title = "ChiefGyk3D"
 # robots.txt comes from layouts/home.robots.txt (named for its output format: a bare layouts/robots.txt loses to layouts/home.llms.txt) and depends on params.environment.
 disableKinds = ["taxonomy"]
 
-# Nothing in the site talks to a third party: no analytics, no embeds.
+# The site's own pages load nothing from a third party and embed nothing. Cloudflare Web Analytics is turned on at the host (see content/privacy/index.md).
 disableHugoGeneratorInject = true
 enableGitInfo = false
 timeZone = "America/New_York"

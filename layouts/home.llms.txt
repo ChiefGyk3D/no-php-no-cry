@@ -3,7 +3,7 @@
 
 > {{ site.Params.description }}
 
-ChiefGyk3D's personal site: writing, a work journal, links to every place to follow along, ways to support the work, and a resume of skills. The site uses no analytics, cookies or third-party requests.
+ChiefGyk3D's personal site: posts, short journal notes, links to his profiles and community chat, ways to support the work, gear and tools he uses or recommends, and a resume. The code of this site sets no cookies and loads no embeds. The site is hosted on Cloudflare Pages with Cloudflare Web Analytics turned on; the privacy page has the details.
 
 ## Sections
 {{ range $path := slice "/posts" "/journal" "/social" "/support" "/products" "/about" "/resume" "/privacy" -}}

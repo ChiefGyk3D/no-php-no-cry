@@ -1,0 +1,5 @@
+{{- /* The one rule for publishing the business address (issue 159): true only when the email AND the PGP fingerprint AND the key link are all set in data/about.yaml. Anything less publishes no address anywhere on the page. scripts/about-email.sh is the same rule for the build checks. */ -}}
+{{- $c := site.Data.about.contact | default dict -}}
+{{- $ok := false -}}
+{{- if and $c.email $c.pgp_fingerprint $c.pgp_url }}{{ $ok = true }}{{ end -}}
+{{- return $ok -}}

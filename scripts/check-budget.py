@@ -65,7 +65,7 @@ LIMITS = {
     "post_no_images": 80 * KB,
 }
 SCRIPT_EXT = {"js", "mjs", "cjs"}
-TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "webmanifest"} | SCRIPT_EXT
+TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "webmanifest", "asc"} | SCRIPT_EXT
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp", "avif", "ico", "svg"}
 FONT_EXT = {"woff", "woff2", "ttf"}
 

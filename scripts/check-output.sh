@@ -30,7 +30,8 @@
 # each under 1 KB gzip (docs/redesign-brief.md section 10). The search page's
 # HTML is under 40 KB gzip (search-page-budget): it is the browse list with
 # JavaScript off, and past that size the approach needs another look. The CSP
-# must carry exactly one script-src, and it must be 'self'.
+# must carry exactly one script-src, and it must be 'self' plus the one
+# Cloudflare Web Analytics beacon URL (injected at the edge; never in built HTML).
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
@@ -125,18 +126,21 @@ has_redirect() {
 # Environment, from robots.txt: robots_wildcard comes from scripts/robots-wildcard.sh.
 
 # csp_scripts_ok: reads Content-Security-Policy header lines on stdin. Succeeds
-# when every policy has exactly one script-src whose whole value is 'self' and
-# no script-src-elem or script-src-attr (either would override script-src).
+# when every policy has exactly one script-src whose whole value is 'self' plus
+# the one Cloudflare Web Analytics beacon URL (BEACON), exactly one connect-src
+# that is 'self', and no script-src-elem or script-src-attr (either would
+# override script-src).
 csp_scripts_ok() {
-    awk '
-        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; ok = 1
+    awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js" '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; cs = 0; ok = 1
           for (i = 1; i <= n; i++) {
               gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
               name = tolower(d[i]); sub(/[ \t].*/, "", name)
-              if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") ok = 0 }
+              if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"' " beacon) ok = 0 }
+              if (name == "connect-src") { cs++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") ok = 0 }
               if (name == "script-src-elem" || name == "script-src-attr") ok = 0
           }
-          if (count != 1 || !ok) bad = 1; seen = 1 }
+          if (count != 1 || cs != 1 || !ok) bad = 1; seen = 1 }
         END { exit (bad || !seen) }'
 }
 
@@ -249,9 +253,16 @@ while IFS= read -r -d '' f; do
         report pre-not-focusable "$rel"
     fi
 
+    # The one owner-approved business address (data/about.yaml) may appear on the
+    # About page only, as text and as a mailto: link to exactly that address.
+    email_opts=()
+    if [[ "$rel" == about/index.html ]]; then
+        about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
+        [[ -n "$about_email" ]] && email_opts=(--allow-email "$about_email")
+    fi
     while IFS= read -r rule; do
         [[ -n "$rule" ]] && report "$rule" "$rel"
-    done < <(decoded_findings "$site_host" "$f")
+    done < <(decoded_findings "$site_host" "$f" ${email_opts[@]+"${email_opts[@]}"})
     jsonld_check "$f" other
 
     # Landmarks and the skip link, on every page except Hugo's alias stubs.
@@ -395,7 +406,7 @@ need_mascot() {
     fi
 }
 if [[ -f "$dir/index.html" ]] && ! is_alias_page "$dir/index.html"; then
-    for t in "make the internet more secure and fun" "Hands-on cybersecurity" "Read the latest" \
+    for t in "and whatever I" "building next" "Senior Cybersecurity Engineer" "Read the latest" "See my projects" \
         "Find me online" "Support my work" "Latest posts" "All posts"; do
         need_text "$dir/index.html" "$t"
     done
@@ -404,7 +415,7 @@ fi
 if [[ ! -f "$dir/404.html" ]]; then
     report template-element "404.html (missing)"
 else
-    for t in "rm -rf" "refusing to answer questions" "Start over" "Browse posts" "Find me online"; do
+    for t in "rm -rf" "refusing to answer questions" "Start over" "Browse posts" "Search the site" "Find me online"; do
         need_text "$dir/404.html" "$t"
     done
     need_mascot "$dir/404.html"
@@ -517,10 +528,10 @@ if [[ ! -s "$dir/_headers" ]]; then
 else
     csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
     if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
-        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"$csp"; then
+        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js/}"; then
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
-        report weak-csp "_headers (script-src must be exactly 'self', once, with no script-src-elem or script-src-attr)"
+        report weak-csp "_headers (script-src must be exactly 'self' plus the Cloudflare beacon URL, once, connect-src exactly 'self', no script-src-elem or script-src-attr)"
     elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
         report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi
