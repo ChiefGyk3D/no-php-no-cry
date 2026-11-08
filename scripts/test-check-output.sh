@@ -5,6 +5,13 @@
 # directory under the repository's own gitignored tmp/ (never /tmp), then
 # asserts that the checker passes the good tree and fails each bad one with the
 # expected rule name. If a real build exists in public/ it is checked too.
+#
+# Speed: the good tree is built once and each case works on a small copy of it.
+# The checker runs of the cases go to a bounded worker pool (CHECK_OUTPUT_JOBS,
+# default the CPU count, at most 4); every case writes its own result file and
+# the results are printed in definition order. Nothing is skipped: the script
+# fails if the number of cases that ran differs from the number defined, if any
+# case failed, or if a case exited abnormally.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,19 +20,114 @@ mkdir -p "$root/tmp"
 work="$(mktemp -d "$root/tmp/check-output.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
-failures=0
+jobs_max="${CHECK_OUTPUT_JOBS:-$(nproc 2>/dev/null || echo 2)}"
+((jobs_max > 4)) && jobs_max=4
+((jobs_max < 1)) && jobs_max=1
+results="$work/results"
+mkdir -p "$results"
+defined=0
+loop_n=0
+
+# bg <command...>: defines one case, run in the background (at most jobs_max at
+# a time) with its output in its own numbered file and its exit code in .rc.
+bg() {
+    defined=$((defined + 1))
+    local out
+    out="$(printf '%s/%05d' "$results" "$defined")"
+    while (($(jobs -rp | wc -l) >= jobs_max)); do wait -n || true; done
+    {
+        set +e
+        (
+            set -e
+            "$@"
+        )
+        echo $? >"$out.rc"
+    } >"$out" 2>&1 &
+}
+
+# summarize: prints every case's output in definition order; fails if any case
+# printed FAIL or exited non-zero, or if the cases that ran are not the cases
+# defined.
+summarize() {
+    local n ran=0 bad=0 f rc
+    wait
+    for ((n = 1; n <= defined; n++)); do
+        f="$(printf '%s/%05d' "$results" "$n")"
+        if [[ ! -f "$f.rc" ]]; then
+            echo "FAIL: case $n produced no result"
+            bad=$((bad + 1))
+            continue
+        fi
+        ran=$((ran + 1))
+        rc="$(<"$f.rc")"
+        cat "$f"
+        if [[ "$rc" != 0 ]]; then
+            echo "FAIL: case $n exited with status $rc"
+            bad=$((bad + 1))
+        elif grep -q '^FAIL' "$f"; then
+            bad=$((bad + 1))
+        fi
+    done
+    if ((ran != defined)); then
+        echo "FAIL: $ran case(s) ran but $defined were defined"
+        bad=$((bad + 1))
+    fi
+    echo "$ran of $defined case(s) ran"
+    if ((bad > 0)); then
+        echo "$bad check(s) failed"
+        return 1
+    fi
+}
+
+# Self-test of the pool: a failing case, a crashing case and a case that never
+# ran must each make summarize fail, and a passing case must not.
+selftest_pass() { echo "ok: self-test pass"; }
+selftest_fail() { echo "FAIL: self-test deliberate failure"; }
+selftest_crash() { false; }
+selftest_run() (
+    results="$work/selftest.$1"
+    mkdir -p "$results"
+    defined=0
+    bg selftest_pass
+    case "$1" in
+        fail) bg selftest_fail ;;
+        crash) bg selftest_crash ;;
+        skipped) defined=$((defined + 1)) ;;
+    esac
+    summarize
+)
+if selftest_run pass >/dev/null 2>&1; then
+    echo "ok: self-test, a passing case passes"
+else
+    echo "FAIL: self-test, a passing case failed the run"
+    exit 1
+fi
+for mode in fail crash skipped; do
+    if selftest_run "$mode" >/dev/null 2>&1; then
+        echo "FAIL: self-test, a $mode case did not fail the run"
+        exit 1
+    fi
+    echo "ok: self-test, a $mode case fails the run"
+done
+
 # The pinned hash of each allowed script (copy.js, search.js) is a committed
-# file named <script>.sha256; tests use their own directory, empty unless a case
-# pins a script.
+# file named <script>.sha256; each tree has its own directory (<tree>.hashes),
+# empty unless a case pins a script. make_good points SCRIPT_HASH_DIR at it.
 export SCRIPT_HASH_DIR="$work/hashes"
 # pin_dir <site dir> [script name]: pins the script's current bytes.
 pin_dir() { printf '%s  %s\n' "$(sha256sum "$1/${2:-copy.js}" | cut -d' ' -f1)" "${2:-copy.js}" >"$SCRIPT_HASH_DIR/${2:-copy.js}.sha256"; }
 
+# make_good <dir>: a fresh copy of the good tree (built once, in build_good).
 make_good() {
     local dir="$1"
-    rm -rf "$SCRIPT_HASH_DIR"
+    SCRIPT_HASH_DIR="$dir.hashes"
+    rm -rf "$SCRIPT_HASH_DIR" "$dir"
     mkdir -p "$SCRIPT_HASH_DIR"
-    rm -rf "$dir"
+    cp -a "$work/base" "$dir"
+}
+
+build_good() {
+    local dir="$1"
     mkdir -p "$dir/posts/sample-post"
     # Heads as Hugo's minifier writes them (attribute quotes dropped where legal).
     # Home is a website page; a post is an article with a published time.
@@ -77,37 +179,52 @@ RED
   X-Content-Type-Options: nosniff
 HDR
 }
+build_good "$work/base"
 
-# expect_fail <label> <rule> <dir>: the checker must exit non-zero and name the rule.
-expect_fail() {
+# fail_case <label> <rule> <dir>: the checker must exit non-zero and name the rule.
+fail_case() {
     local label="$1" rule="$2" dir="$3" out rc=0
+    SCRIPT_HASH_DIR="$dir.hashes"
     out="$("$checker" "$dir" 2>&1)" || rc=$?
     if [[ $rc -eq 0 ]]; then
         echo "FAIL: $label: checker passed a bad tree"
-        failures=$((failures + 1))
     elif ! grep -q "\[$rule\]" <<<"$out"; then
         echo "FAIL: $label: checker failed but did not name rule $rule"
-        failures=$((failures + 1))
     else
         echo "ok: $label -> [$rule]"
     fi
 }
+expect_fail() { bg fail_case "$@"; }
+
+# pass_case <ok message> <fail message> <dir>: the checker must pass the tree.
+pass_case() {
+    SCRIPT_HASH_DIR="$3.hashes"
+    if "$checker" "$3" >/dev/null 2>&1; then
+        echo "ok: $1"
+    else
+        echo "FAIL: $2"
+        "$checker" "$3" || true
+    fi
+}
+expect_pass() { bg pass_case "$@"; }
+pass_quiet() {
+    SCRIPT_HASH_DIR="$1.hashes" "$checker" "$1" >/dev/null 2>&1
+}
 
 good="$work/good"
 make_good "$good"
-if "$checker" "$good" >/dev/null 2>&1; then
-    echo "ok: good fixture passes"
-else
-    echo "FAIL: good fixture was rejected"
-    "$checker" "$good" || true
-    failures=$((failures + 1))
-fi
+expect_pass "good fixture passes" "good fixture was rejected" "$good"
 
 # variant <name> <rule> <command that mutates $d>
 variant() {
     local name="$1" rule="$2"
     shift 2
     local d="$work/$name"
+    # Cases run at the same time, so every case needs its own directory.
+    if [[ -e "$d" ]]; then
+        echo "FAIL: case name $name is defined twice"
+        exit 1
+    fi
     make_good "$d"
     "$@" "$d"
     expect_fail "$name" "$rule" "$d"
@@ -118,12 +235,7 @@ append_html() { printf '%s\n' "$APPEND" >>"$1/${PAGE:-index.html}"; }
 # A <link rel=me> to another host is an identity claim, not an asset: it must pass.
 make_good "$work/rel-me"
 printf '%s\n' '<link rel=me href=https://social.example.org/@x>' >>"$work/rel-me/index.html"
-if "$checker" "$work/rel-me" >/dev/null 2>&1; then
-    echo "ok: rel=me link to another host passes"
-else
-    echo "FAIL: rel=me link to another host was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "rel=me link to another host passes" "rel=me link to another host was rejected" "$work/rel-me"
 
 # Landmarks: skip link first and targeting main, one header, one nav labeled
 # Main, one main#main, one footer, on every page (not alias stubs).
@@ -158,22 +270,12 @@ APPEND='<meta name=x content="no&#45;php&#45;no&#45;cry">' variant old-name-attr
 enc_allowed="$work/old-name-enc-allowed"
 make_good "$enc_allowed"
 printf '%s\n' '<p><a href="https://github.com/ChiefGyk3D/no&#45;php&#45;no&#45;cry">source</a></p>' >>"$enc_allowed/index.html"
-if "$checker" "$enc_allowed" >/dev/null 2>&1; then
-    echo "ok: encoded repository URL is allowed"
-else
-    echo "FAIL: encoded repository URL was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "encoded repository URL is allowed" "encoded repository URL was rejected" "$enc_allowed"
 # Negative cases: the repository link is allowed, and so is a near miss.
 allowed="$work/old-name-allowed"
 make_good "$allowed"
 printf '%s\n' '<p><a href="https://github.com/ChiefGyk3D/no-php-no-cry">source</a> <a href=https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/docs/x.md>doc</a></p>' >>"$allowed/index.html"
-if "$checker" "$allowed" >/dev/null 2>&1; then
-    echo "ok: repository URL is allowed"
-else
-    echo "FAIL: repository URL was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "repository URL is allowed" "repository URL was rejected" "$allowed"
 lookalike="$work/old-name-lookalike"
 make_good "$lookalike"
 printf '%s\n' '<p>https://example.org/ChiefGyk3D/no-php-no-cry</p>' >>"$lookalike/index.html"
@@ -227,16 +329,10 @@ APPEND='<img alt=x onerror=alert(1)>' variant handler-unquoted-attributes event-
 APPEND="<img alt='x' onerror='alert(1)'>" variant handler-single-quoted event-handler append_html
 APPEND='<a title=x href=javascript:alert(1)>x</a>' variant javascript-url-unquoted javascript-url append_html
 for form in '<a href=x alt="one=1">y</a>' '<img alt="one=1" src=/a.png>' '<img alt=one=1 src=/a.png>' '<p title="onerror=alert(1) is text">x</p>' "<p title='onclick=x'>x</p>" '<p title="a>b">x</p>'; do
-    d="$work/ok-attribute"
+    d="$work/ok-attribute-$((++loop_n))"
     make_good "$d"
     APPEND="$form" append_html "$d"
-    if "$checker" "$d" >/dev/null 2>&1; then
-        echo "ok: benign attribute passes ($form)"
-    else
-        echo "FAIL: benign attribute was rejected ($form)"
-        "$checker" "$d" || true
-        failures=$((failures + 1))
-    fi
+    expect_pass "benign attribute passes ($form)" "benign attribute was rejected ($form)" "$d"
 done
 
 # The same rules apply to svg, xml and xhtml outputs.
@@ -255,13 +351,7 @@ FILE=page.xhtml CONTENT='<html xmlns="http://www.w3.org/1999/xhtml"><body onload
 d="$work/ok-feed"
 make_good "$d"
 printf '%s\n' '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/index.xml" rel="self" type="application/rss+xml"/><item><description>&lt;a onclick="x"&gt; one=1 &lt;script&gt;</description></item></channel></rss>' >"$d/index.xml"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: escaped markup text inside a feed passes"
-else
-    echo "FAIL: escaped markup text in a feed was rejected"
-    "$checker" "$d" || true
-    failures=$((failures + 1))
-fi
+expect_pass "escaped markup text inside a feed passes" "escaped markup text in a feed was rejected" "$d"
 
 # Scheme-relative and backslash forms leave the site without http(s):.
 APPEND='<iframe src="//evil.example/frame"></iframe>' variant protocol-relative-iframe external-asset append_html
@@ -279,16 +369,10 @@ APPEND='<base href="//evil.example/">' variant base-protocol-relative base-eleme
 APPEND='<base href=/>' variant base-same-site base-element append_html
 APPEND='<BASE target=_top>' variant base-target-only base-element append_html
 for form in '<img src="//test-blog.chiefgyk3d.com/a.png" alt=x>' '<a href="//example.org/x">outbound</a>' '<a href="&#104;ttps://example.org/x">outbound</a>' '<p title="a javascript: word">x</p>'; do
-    d="$work/ok-reference"
+    d="$work/ok-reference-$((++loop_n))"
     make_good "$d"
     APPEND="$form" append_html "$d"
-    if "$checker" "$d" >/dev/null 2>&1; then
-        echo "ok: allowed reference passes ($form)"
-    else
-        echo "FAIL: allowed reference was rejected ($form)"
-        "$checker" "$d" || true
-        failures=$((failures + 1))
-    fi
+    expect_pass "allowed reference passes ($form)" "allowed reference was rejected ($form)" "$d"
 done
 
 # The pinned scripts. Each is allowed on its own page only (scripts/artifact-rules.sh
@@ -308,29 +392,17 @@ place() {
 }
 for name in copy.js search.js; do
     for form in "<script src=/$name></script>" "<script src=\"/$name\"></script>" "<script src='/$name'></script>" "<SCRIPT SRC=/$name></SCRIPT>"; do
-        d="$work/script-ok"
+        d="$work/script-ok-$((++loop_n))"
         make_good "$d"
         place "$d" "$name" "" "$form"
-        if "$checker" "$d" >/dev/null 2>&1; then
-            echo "ok: $name is allowed on its own page ($form)"
-        else
-            echo "FAIL: $name was rejected on its own page ($form)"
-            "$checker" "$d" || true
-            failures=$((failures + 1))
-        fi
+        expect_pass "$name is allowed on its own page ($form)" "$name was rejected on its own page ($form)" "$d"
     done
 done
 d="$work/script-both"
 make_good "$d"
 place "$d" copy.js
 place "$d" search.js
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: both pinned scripts, each on its own page, pass"
-else
-    echo "FAIL: both pinned scripts on their own pages were rejected"
-    "$checker" "$d" || true
-    failures=$((failures + 1))
-fi
+expect_pass "both pinned scripts, each on its own page, pass" "both pinned scripts on their own pages were rejected" "$d"
 
 # A pinned script on any page other than its own is refused, with the other
 # script's page as the wrong page too.
@@ -390,17 +462,12 @@ big_js() {
 NAME=copy.js variant copy-js-over-budget js-budget big_js
 NAME=search.js variant search-js-over-budget js-budget big_js
 for name in copy.js search.js; do
-    d="$work/js-compressible"
+    d="$work/js-compressible-$((++loop_n))"
     make_good "$d"
     place "$d" "$name"
     for _ in $(seq 1 1024); do printf 'var a=1;'; done >"$d/$name"
     pin_dir "$d" "$name"
-    if "$checker" "$d" >/dev/null 2>&1; then
-        echo "ok: a $name that is large raw but under 1 KB gzip passes"
-    else
-        echo "FAIL: a compressible $name under 1 KB gzip was rejected"
-        failures=$((failures + 1))
-    fi
+    expect_pass "a $name that is large raw but under 1 KB gzip passes" "a compressible $name under 1 KB gzip was rejected" "$d"
 done
 
 # The search page is the browse list with JS off, so its HTML is held to a
@@ -411,24 +478,13 @@ variant search-page-over-budget search-page-budget big_search_page
 d="$work/search-compressible"
 make_good "$d"
 for _ in $(seq 1 4000); do printf '<li><a href=/posts/x/>A post title</a>\n'; done >>"$d/search/index.html"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: a large but compressible search page under 40 KB gzip passes"
-else
-    echo "FAIL: a compressible search page under 40 KB gzip was rejected"
-    "$checker" "$d" || true
-    failures=$((failures + 1))
-fi
+expect_pass "a large but compressible search page under 40 KB gzip passes" "a compressible search page under 40 KB gzip was rejected" "$d"
 # The same bytes on another page are no search-page finding.
 big_other_page() { head -c 80000 /dev/urandom | od -An -tx1 | tr -d ' \n' | fold -w 70 | sed 's#^#<p>#' >>"$1/support/index.html"; }
 d="$work/support-big"
 make_good "$d"
 big_other_page "$d"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: the search page budget applies to the search page only"
-else
-    echo "FAIL: a large page other than the search page was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "the search page budget applies to the search page only" "a large page other than the search page was rejected" "$d"
 
 append_file() { printf '%s\n' "$APPEND" >>"$1/$FILE"; }
 FILE=css/site.min.css APPEND='@import "https://fonts.example.org/css";' variant css-import external-css-reference append_file
@@ -616,42 +672,29 @@ ROBOTS="User-agent: *\nDisallow: /drafts/\n\nSitemap: $host/sitemap.xml\n" varia
 d="$work/robots-ok"
 make_good "$d"
 printf 'User-agent: Googlebot\r\nDisallow: /nothing-here/ # a named crawler\r\n\r\n# everyone else\r\nUser-agent: *\r\nAllow: /\r\n\r\nSitemap: %s/sitemap.xml\r\n' "$host" >"$d/robots.txt"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: production robots with comments, CRLF and a named-crawler group passes"
-else
-    echo "FAIL: production robots with comments, CRLF and a named-crawler group was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "production robots with comments, CRLF and a named-crawler group passes" "production robots with comments, CRLF and a named-crawler group was rejected" "$d"
 d="$work/robots-stg-ok"
 make_good "$d"
 staging_tree "$d"
 printf 'User-agent: Googlebot\nUser-agent: *\nDisallow: /\n' >"$d/robots.txt"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: staging robots with a shared User-agent group passes"
-else
-    echo "FAIL: staging robots with a shared User-agent group was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "staging robots with a shared User-agent group passes" "staging robots with a shared User-agent group was rejected" "$d"
 
 # A consistent staging tree passes, and EXPECT_ENV pins which environment a
 # build must be: a staging tree fails when production is expected, and back.
 d="$work/staging-ok"
 make_good "$d"
 staging_tree "$d"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: consistent staging tree passes"
-else
-    echo "FAIL: consistent staging tree was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "consistent staging tree passes" "consistent staging tree was rejected" "$d"
 EXPECT_ENV=staging expect_fail expect-staging-got-production env-mismatch "$good"
 EXPECT_ENV=production expect_fail expect-production-got-staging env-mismatch "$d"
-if EXPECT_ENV=staging "$checker" "$d" >/dev/null 2>&1 && EXPECT_ENV=production "$checker" "$good" >/dev/null 2>&1; then
-    echo "ok: EXPECT_ENV accepts the matching environment"
-else
-    echo "FAIL: EXPECT_ENV rejected the matching environment"
-    failures=$((failures + 1))
-fi
+env_match_case() {
+    if EXPECT_ENV=staging pass_quiet "$1" && EXPECT_ENV=production pass_quiet "$2"; then
+        echo "ok: EXPECT_ENV accepts the matching environment"
+    else
+        echo "FAIL: EXPECT_ENV rejected the matching environment"
+    fi
+}
+bg env_match_case "$d" "$good"
 EXPECT_ENV=bogus expect_fail bad-expect-env env-mismatch "$good"
 
 # Head tags (issue 30): required on the home page and on every post and journal
@@ -682,12 +725,7 @@ variant post-typed-website bad-head-value post_as_website
 d="$work/ld-extra-block-ok"
 make_good "$d"
 sed -i 's#</head>#<script type=application/ld+json>{"@context":"https://schema.org","@type":"Thing","name":"x"}</script></head>#' "$d/index.html"
-if "$checker" "$d" >/dev/null 2>&1; then
-    echo "ok: an extra valid JSON-LD block passes"
-else
-    echo "FAIL: an extra valid JSON-LD block was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "an extra valid JSON-LD block passes" "an extra valid JSON-LD block was rejected" "$d"
 home_edit() { sed -i "s#${FROM}#${TO}#" "$1/index.html"; }
 post_edit() { sed -i "s#${FROM}#${TO}#" "$1/posts/sample-post/index.html"; }
 FROM='<script type=application/ld+json>' TO='<script type=application/ld+json src=/x.js>' variant ld-block-with-src script-not-allowed home_edit
@@ -773,35 +811,26 @@ APPEND="${COMMENT_OPEN} <a href=\"mailto:a@example.org\">mail</a></figcaption></
 comment_ok="$work/comment-ok"
 make_good "$comment_ok"
 printf '%s\n' "${COMMENT_OPEN}</figcaption></figure></section>" >>"$comment_ok/posts/sample-post/index.html"
-if "$checker" "$comment_ok" >/dev/null 2>&1; then
-    echo "ok: a clean archived comment passes"
-else
-    echo "FAIL: a clean archived comment was rejected"
-    failures=$((failures + 1))
-fi
+expect_pass "a clean archived comment passes" "a clean archived comment was rejected" "$comment_ok"
 split="$work/split-handle"
 make_good "$split"
 printf '%s\n' '<p>@someone<span>@</span>social.example.org <a href=https://youtube.com/@Chan>@Chan</a></p>' >>"$split/index.html"
-if "$checker" "$split" >/dev/null 2>&1; then
-    echo "ok: split handle passes"
-else
-    echo "FAIL: split handle was rejected"
-    "$checker" "$split" || true
-    failures=$((failures + 1))
-fi
+expect_pass "split handle passes" "split handle was rejected" "$split"
 
-if [[ -f "$root/public/index.html" ]]; then
+public_case() {
     if env -u SCRIPT_HASH_DIR "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: real build in public/ passes"
     else
         echo "FAIL: real build in public/ was rejected"
         env -u SCRIPT_HASH_DIR "$checker" "$root/public" || true
-        failures=$((failures + 1))
     fi
+}
+if [[ -f "$root/public/index.html" ]]; then
+    bg public_case
 fi
 
-if [[ $failures -gt 0 ]]; then
-    echo "$failures check(s) failed"
+if summarize; then
+    echo "all checker tests passed"
+else
     exit 1
 fi
-echo "all checker tests passed"
