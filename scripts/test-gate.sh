@@ -37,7 +37,7 @@ echo "$name $*" >>"${STUB_LOG:-/dev/null}"
 [[ " ${STUB_FAIL:-} " == *" $name "* ]] && exit 1
 exit 0'
 
-for t in hugo shellcheck shfmt google-chrome node; do
+for t in hugo shellcheck shfmt google-chrome node curl; do
     printf '%s\n' "$stub_body" >"$stubs/$t"
 done
 cat >"$stubs/python3" <<'PY'
@@ -299,6 +299,24 @@ out="$(cd "$repo" && PATH="$work/stubs-no-node:$bare" GATE_TOOLS='' GATE_TMP="$w
     scripts/gate.sh --only test-analytics 2>&1)" || rc=$?
 check "a missing node exits 2" test "$rc" -eq 2
 check "the missing node names the step" has "$out" "node for test-analytics"
+
+for step in check-reach-around-drift test-check-reach-around-drift; do
+    for gone in curl python3; do
+        mkdir -p "$work/stubs-no-$gone"
+        for t in hugo shellcheck shfmt google-chrome node curl python3; do
+            [[ "$t" == "$gone" ]] || ln -sf "$stubs/$t" "$work/stubs-no-$gone/$t"
+        done
+        rc=0
+        out="$(cd "$repo" && PATH="$work/stubs-no-$gone:$bare" GATE_TOOLS='' GATE_TMP="$work/gt" \
+            scripts/gate.sh --only "$step" 2>&1)" || rc=$?
+        check "$step without $gone exits 2" test "$rc" -eq 2
+        check "$step without $gone names the tool and step" has "$out" "$gone for $step"
+    done
+done
+rc=0
+out="$(cd "$repo" && PATH="$work/stubs-no-curl:$bare" GATE_TOOLS='' GATE_TMP="$work/gt" \
+    scripts/gate.sh --only check-wording 2>&1)" || rc=$?
+check "an unrelated step is unaffected when curl is absent" test "$rc" -eq 0
 
 if [[ $failures -gt 0 ]]; then
     echo "$failures gate test(s) failed"
