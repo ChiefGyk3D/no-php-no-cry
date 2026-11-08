@@ -215,6 +215,10 @@ elif [[ $fast -eq 1 ]]; then
     }
     while IFS= read -r f; do
         case "$f" in
+            brand/tokens.json | scripts/gen-tokens.py)
+                # Brand-affecting: the layout, contrast, brand and budget group runs too.
+                pick "${layout_steps[@]}"
+                ;;&
             brand/tokens.json | scripts/gen-tokens.py | scripts/*reach-around-drift* | docs/token-drift.md)
                 # The offline fixture test; the live check follows the flag (below).
                 pick test-check-reach-around-drift check-reach-around-drift

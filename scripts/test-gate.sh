@@ -257,6 +257,20 @@ for f in brand/tokens.json scripts/gen-tokens.py docs/token-drift.md scripts/che
     gate --fast --plan --with-drift
     check "fast: $f with the flag plans the live check" grep -q '^check-reach-around-drift: ' <<<"$out"
 done
+for f in brand/tokens.json scripts/gen-tokens.py; do
+    reset_repo
+    mkdir -p "$repo/$(dirname "$f")"
+    echo "x" >>"$repo/$f"
+    gate --fast --plan
+    for n in build-production check-contrast check-brand-assets test-brand check-budget browser-gate gen-tokens; do
+        check "fast: $f also plans $n" grep -q "^$n: " <<<"$out"
+    done
+done
+reset_repo
+mkdir -p "$repo/docs"
+echo x >>"$repo/docs/token-drift.md"
+gate --fast --plan
+check "fast: token-drift.md plans only docs-level steps, not the build" lacks "$out" "build-production"
 reset_repo
 echo new >"$repo/content/new.md"
 gate --fast --plan --with-drift
