@@ -109,6 +109,7 @@ docs_steps=(check-wording test-check-wording check-license test-check-license)
 # "chrome" means the browser named by CHROME.
 declare -A requires
 requires["test-analytics"]="node"
+requires["test-share"]="node"
 requires["test-browser-gate"]="chrome"
 # The drift wrapper and its fixture test (which serves a local fake API) call curl and python3.
 requires["check-reach-around-drift"]="curl python3"

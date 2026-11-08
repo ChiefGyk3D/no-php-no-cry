@@ -12,7 +12,7 @@ HTML mode (default) also: base-element, http-reference, external-asset (an
 http:, https:, scheme-relative or backslash URL to another host on a tag that
 loads something). --markup (svg, xml, xhtml) also: script-not-allowed for any
 script element. HTML mode also email-shaped-text: a text node (outside
-script and style) holding user@host, or a mailto: URL (but not a mailto:? URL with no address, which the share links use: issue 220). Cloudflare Email
+script and style) holding user@host, or a mailto: URL (except the exact share link shape: mailto:?subject=V&body=V, V percent-encoded with no email-shaped text once decoded; issue 220). Cloudflare Email
 Obfuscation rewrites those to "[email protected]" and injects a script; render
 a handle with the @ in its own element instead. --scripts none|pinned (HTML
 only, used on served pages) also judges script elements: with "none" any script
@@ -33,6 +33,7 @@ any other address on that page, or on any other page, is still a finding.
 """
 import re
 import sys
+from urllib.parse import unquote
 from html.parser import HTMLParser
 
 LOADS = {"img", "script", "iframe", "frame", "source", "link", "video", "audio",
@@ -60,6 +61,19 @@ def judge(url, host):
     if name != host:
         return "external" if not rule else "external-http"
     return rule
+
+
+# The Email share link (layouts/_partials/share.html, issue 220) is exactly
+# mailto:?subject=V&body=V with V made of unreserved characters and uppercase %XX
+# escapes. Anything else (another key, another order, another case, a raw space or
+# a raw "@", an address) stays a finding, and so does a V that decodes to
+# something email-shaped (a %40 smuggled in).
+SHARE_MAILTO = re.compile(r"^mailto:\?subject=((?:[A-Za-z0-9._~-]|%[0-9A-F]{2})*)&body=((?:[A-Za-z0-9._~-]|%[0-9A-F]{2})*)$")
+
+
+def share_mailto_ok(v):
+    m = SHARE_MAILTO.match(v)
+    return bool(m) and not any(re.search(r"[^\s@]+@[^\s@]+", unquote(g, errors="replace")) for g in m.groups())
 
 
 class Scan(HTMLParser):
@@ -118,7 +132,7 @@ class Scan(HTMLParser):
         for name, value in attrs:
             name = name.lower()
             v = clean(value)
-            if not self.markup and re.match(r"^mailto:(?!\?)", v, re.I) and not (self.allow_email and v.lower() == "mailto:" + self.allow_email):
+            if not self.markup and re.match(r"^mailto:", v, re.I) and not share_mailto_ok(v) and not (self.allow_email and v.lower() == "mailto:" + self.allow_email):
                 self.found.add("email-shaped-text")
             if re.match(r"^on[a-z]", name):
                 self.found.add("event-handler")

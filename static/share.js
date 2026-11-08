@@ -2,12 +2,13 @@
   var d = document, r = d.querySelector(".share"), st = r.querySelector(".share-status"),
     k = "mastodonServer", ch = r.querySelector("[data-share=server]");
   function say(t) { st.textContent = t; }
-  function get() { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function good(v) { try { return /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,}|xn--[a-z0-9-]+)$/.test(v) && new URL("https://" + v).host === v; } catch (e) { return false; } }
+  function get() { var v = ""; try { v = localStorage.getItem(k) || ""; if (v && !good(v)) { localStorage.removeItem(k); v = ""; } } catch (e) {} return v; }
   function server(ask) {
     var v = get();
     if (ask || !v) {
       v = (prompt("Your Mastodon server, for example example.social", v) || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-      if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/.test(v)) { if (v) say("That is not a server name."); return ""; }
+      if (!good(v)) { if (v) say("That is not a server name."); return ""; }
       try { localStorage.setItem(k, v); } catch (e) {}
     }
     ch.hidden = !v;

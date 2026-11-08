@@ -339,6 +339,87 @@ else
     fail "no page to run the guard self-tests on"
 fi
 
+# /share.js behavior (Node, a fake page): the Mastodon server is validated at the
+# sink. A stored value is used only if it is a plain lowercase ASCII hostname;
+# anything else (userinfo, path, query, fragment, whitespace, uppercase, a port,
+# a lookalike or non-ASCII name, an IP address) is deleted and the prompt asks
+# again, and the opened URL is built only from a valid hostname.
+harness="$work/share-harness.js"
+cat >"$harness" <<'JS'
+const fs = require("fs"), vm = require("vm");
+const src = fs.readFileSync(process.argv[2], "utf8");
+const bad = [];
+function run(stored, answers) {
+  const store = new Map(), opened = [], prompts = [];
+  if (stored !== null) store.set("mastodonServer", stored);
+  const btn = { getAttribute: (n) => ({ "data-share": "mastodon", "data-text": "Title https://site.example/p/" })[n] };
+  const status = { textContent: "" }, change = { hidden: true };
+  let click;
+  const root = {
+    querySelector: (q) => (q === ".share-status" ? status : change),
+    querySelectorAll: () => [],
+    addEventListener: (t, f) => { if (t === "click") click = f; },
+  };
+  const ctx = {
+    document: { querySelector: () => root },
+    localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) },
+    prompt: (m, d) => { prompts.push(d); return answers.length ? answers.shift() : null; },
+    window: { open: (u) => opened.push(u), isSecureContext: true },
+    navigator: {},
+    encodeURIComponent, URL,
+  };
+  vm.runInNewContext(src, ctx);
+  click({ target: { closest: () => btn } });
+  return { opened, prompts, store, status };
+}
+const text = encodeURIComponent("Title https://site.example/p/");
+const valid = ["mastodon.social", "social.example.org", "a-b.example.co", "xn--e1afmkfd.example"];
+for (const v of valid) {
+  const r = run(v, []);
+  if (r.opened.length !== 1 || r.opened[0] !== "https://" + v + "/share?text=" + text || r.prompts.length) bad.push("valid stored " + JSON.stringify(v) + " was not used as is: " + JSON.stringify(r.opened));
+}
+const hostile = ["good.example@evil.example", "evil.example/path", "evil.example?x=1", "evil.example#f", "evil.example:8443", "user:pw@evil.example",
+  " evil.example", "evil.example ", "evil.example\n", "Evil.Example", "https://evil.example", "evil.example.", ".evil.example", "-a.example", "a..example",
+  "exаmple.com", "ехample.org", "ｅｖｉｌ.example", "mаstodon.social", "127.0.0.1", "localhost", "1.2.3.4", "evil.example\\@good.example", "evil.example%2f", "", "a.b"];
+for (const v of hostile) {
+  // The prompt answer is valid: the opened URL must be built from it, never from the stored value.
+  const r = run(v, ["good.example"]);
+  const want = "https://good.example/share?text=" + text;
+  if (v === "") continue;
+  if (r.opened.length !== 1 || r.opened[0] !== want) bad.push("hostile stored " + JSON.stringify(v) + " opened " + JSON.stringify(r.opened));
+  if (!r.prompts.length) bad.push("hostile stored " + JSON.stringify(v) + " did not re-open the prompt");
+  if (r.store.get("mastodonServer") !== "good.example") bad.push("hostile stored " + JSON.stringify(v) + " was not replaced");
+  // The prompt is dismissed: nothing opens and the bad value is gone.
+  const r2 = run(v, []);
+  if (r2.opened.length || r2.store.has("mastodonServer")) bad.push("hostile stored " + JSON.stringify(v) + " survived a dismissed prompt: " + JSON.stringify([r2.opened, [...r2.store]]));
+}
+// A hostile prompt answer is refused too (port, userinfo, lookalike), and a pasted URL is reduced to its host.
+for (const a of ["good.example:8443", "good.example@evil.example", "exаmple.com", "good.example?x=1", "127.0.0.1"]) {
+  const r = run(null, [a]);
+  if (r.opened.length || r.store.has("mastodonServer")) bad.push("hostile prompt answer " + JSON.stringify(a) + " was accepted: " + JSON.stringify(r.opened));
+}
+const r3 = run(null, ["  HTTPS://Good.Example/path/x "]);
+if (r3.opened[0] !== "https://good.example/share?text=" + text) bad.push("a pasted URL was not reduced to its host: " + JSON.stringify(r3.opened));
+bad.forEach((b) => console.log(b));
+process.exit(bad.length ? 1 : 0);
+JS
+if ! command -v node >/dev/null 2>&1; then
+    fail "node is not on PATH (needed for the /share.js behavior test)"
+elif node "$harness" "$root/static/share.js" >"$work/harness.out" 2>&1; then
+    pass "/share.js: stored and typed Mastodon servers are validated at the sink"
+else
+    fail "/share.js server validation: $(head -n 6 "$work/harness.out" | tr '\n' ';')"
+fi
+# Guard: the harness must fail on a script that trusts the stored value.
+if command -v node >/dev/null 2>&1; then
+    sed -E 's#^  function good\(v\) \{.*#  function good(v) { return !!v; }#' "$root/static/share.js" >"$work/share-trusting.js"
+    if node "$harness" "$work/share-trusting.js" >/dev/null 2>&1; then
+        fail "guard: the harness accepted a script that trusts stored values"
+    else
+        pass "guard: the harness fails on a script that trusts stored values"
+    fi
+fi
+
 if ((failures > 0)); then
     echo "test-share: ${failures} failure(s)"
     exit 1

@@ -942,6 +942,22 @@ APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-sh
 APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
 APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
 APPEND='<a href="mailto:a@example.org?subject=x">mail</a>' variant mailto-link-with-query email-shaped-text append_html
+APPEND='<a href="mailto:?to=victim@example.org">mail</a>' variant mailto-share-bad-to email-shaped-text append_html
+APPEND='<a href="mailto:?body=a@example.org">mail</a>' variant mailto-share-bad-body-address email-shaped-text append_html
+APPEND='<a href="mailto:?subject=a@example.org&amp;body=y">mail</a>' variant mailto-share-bad-subject-address email-shaped-text append_html
+APPEND='<a href="mailto:?subject=x&amp;body=a%40example.org">mail</a>' variant mailto-share-bad-body-encoded-address email-shaped-text append_html
+APPEND='<a href="mailto:?subject=x&amp;body=a%40example.org%0D%0Ab">mail</a>' variant mailto-share-bad-body-encoded-address-lower email-shaped-text append_html
+APPEND='<a href="mailto:?subject=x&amp;body=y&amp;cc=a@example.org">mail</a>' variant mailto-share-bad-cc email-shaped-text append_html
+APPEND='<a href="mailto:?subject=x&amp;body=y&amp;to=z">mail</a>' variant mailto-share-bad-extra-key email-shaped-text append_html
+APPEND='<a href="mailto:?body=y&amp;subject=x">mail</a>' variant mailto-share-bad-order email-shaped-text append_html
+APPEND='<a href="mailto:?subject=x">mail</a>' variant mailto-share-bad-only-subject email-shaped-text append_html
+APPEND='<a href="MAILTO:?SUBJECT=x&amp;BODY=y">mail</a>' variant mailto-share-bad-upper-case email-shaped-text append_html
+APPEND='<a href="mailto:?Subject=x&amp;body=y">mail</a>' variant mailto-share-bad-mixed-case-keys email-shaped-text append_html
+APPEND='<a href="mailto:%3Fsubject=x&amp;body=y">mail</a>' variant mailto-share-bad-encoded-question email-shaped-text append_html
+APPEND='<a href="mailto:?%74o=a@example.org">mail</a>' variant mailto-share-bad-encoded-key email-shaped-text append_html
+APPEND='<a href="mailto:?subject=a b&amp;body=y">mail</a>' variant mailto-share-bad-raw-space email-shaped-text append_html
+APPEND='<a href="mailto:?">mail</a>' variant mailto-share-bad-empty email-shaped-text append_html
+APPEND='<a href="mailto:a@example.org?subject=x&amp;body=y">mail</a>' variant mailto-share-bad-address-then-query email-shaped-text append_html
 mailto_share="$work/mailto-share"
 make_good "$mailto_share"
 printf '%s\n' '<a href="mailto:?subject=Post%20title&amp;body=https%3A%2F%2Fexample.org%2F">Email</a>' >>"$mailto_share/posts/sample-post/index.html"

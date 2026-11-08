@@ -44,6 +44,11 @@ The exact page URLs for Bluesky and Twitter were named by the researcher but not
 recorded as full URLs; confirm them in a later pass (`source_url` in the data file
 says so).
 
+The Email link is the only `mailto:` the output check accepts, and only in the
+exact shape `mailto:?subject=V&body=V` with percent-encoded V holding no
+email-shaped text once decoded (`scripts/scan-markup.py`). A post title that
+decodes to `name@host` therefore fails the build until it is reworded.
+
 ## Behavior without JavaScript
 
 The anchors work as they are. The buttons (Mastodon, Discord, Matrix, Lemmy, Copy
@@ -59,7 +64,15 @@ asks for the server name, checks its shape, keeps it in `localStorage`
 (`mastodonServer`, this site only) and opens `https://SERVER/share?text=TITLE PERMALINK`
 in a new tab with `noopener,noreferrer`. After that it opens directly; a "Change
 server" button appears once a server is remembered. If storage is blocked the
-server is asked for each time. `/share.js` is pinned (`share.js.sha256`), under
+server is asked for each time.
+
+The server name is validated with one rule, at the prompt and again every time a
+stored value is read, right before the new tab opens: lowercase ASCII labels
+separated by dots, a letter or `xn--` last label, and the parsed host must equal
+the value. A stored value that fails (userinfo, path, query, fragment, space,
+uppercase, a port, an IP address, a non-ASCII lookalike) is deleted and the
+prompt asks again. Ports are not accepted, and an international name must be
+typed in its `xn--` form. A pasted `https://` URL is reduced to its host. `/share.js` is pinned (`share.js.sha256`), under
 1 KB gzip, and allowed on `posts/*/index.html` and `journal/*/index.html` only
 (`docs/pinned-script.md`).
 
