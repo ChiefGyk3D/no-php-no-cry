@@ -23,7 +23,7 @@ ChiefGyk3D's personal site: posts, short journal notes, links to his profiles an
 - [Sitemap]({{ "sitemap.xml" | absURL }}): every page
 
 ## Find me online
-{{ range hugo.Data.socials -}}
+{{ range where (hugo.Data.socials | default slice) "footer_only" "ne" true -}}
 {{- if .url -}}
 - [{{ .name }}]({{ .url }}): {{ .blurb }}
 {{ end -}}

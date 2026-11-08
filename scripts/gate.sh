@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The local full gate: the same steps as the `build` job in .github/workflows/ci.yml
-# plus the shell lint the `shell` job runs (shfmt, shellcheck), in one command.
+# The local full gate: the same steps as the `ci` job (the shared parallel-ci workflow: one
+# build, then the checks side by side) in .github/workflows/ci.yml, plus the
+# shell lint the `shell` job runs (shfmt, shellcheck), in one command.
 #
 #   scripts/gate.sh                  every step
 #   scripts/gate.sh --fast           only what the changed files touch
@@ -20,7 +21,7 @@
 # GATE_TMP or TMPDIR picks where the build output and logs go. GATE_BASE is the
 # ref that --fast diffs against (default origin/main).
 #
-# CI does not call this script: its build job runs each step natively, the shell
+# CI does not call this script: the `ci` job runs each step natively, the shell
 # lint is a shared git-your-ship-together workflow, and swapping either for this
 # script would change what runs where. See CONTRIBUTING.md.
 set -uo pipefail
