@@ -66,13 +66,38 @@
   min-height: var(--tap);
   max-width: 100%;
   padding: var(--space-2) var(--space);
-  border: var(--rule-width) solid var(--border);
-  border-radius: var(--radius);
+  color: var(--text);
   text-decoration: none;
 }
 
 .post-nav a:hover {
-  border-color: var(--accent);
+  --fill: var(--accent);
+  --tick: var(--on-accent);
+  color: var(--on-accent);
+}
+
+.post-nav a:hover .meta {
+  color: var(--on-accent);
+}
+
+.post-nav a:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 4px;
+}
+
+/* The L2 title block: the page title, one thing that matters. The frame brings its
+ * own padding; the heading drops its margins. */
+.title-block {
+  margin: 0 0 var(--space-5);
+}
+
+.title-block h1 {
+  margin: 0;
+}
+
+.post > .title-block {
+  grid-column: 1;
+  align-self: start;
 }
 
 .post-nav-next {
@@ -137,17 +162,9 @@
     gap: var(--space-5);
   }
 
-  .archive-group .post-list li {
+  .archive-group .post-list li.card {
+    margin: 0;
     padding: var(--space-5);
-    background: var(--surface);
-    border: var(--rule-width) solid var(--border);
-    border-radius: var(--radius);
-  }
-
-  .archive-group .post-list li:hover,
-  .archive-group .post-list li:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 1rem var(--glow);
   }
 
   .archive-group .post-list a {
@@ -184,6 +201,19 @@
   width: 100%;
   max-height: 24rem;
   object-fit: contain;
+}
+
+/* Post cards (the L1 frame, class "l1 card"): a card is a bordered box; the
+ * plain row rule and bottom border of a bare list item do not apply. */
+.post-list li.card {
+  margin: 0 0 var(--space-3);
+  padding: var(--space) var(--space-4);
+  border: var(--rule-width) solid var(--frame-edge);
+}
+
+.post-list li.card:hover,
+.post-list li.card:focus-within {
+  --fill: var(--frame-fill);
 }
 
 .post-list li.has-thumb {

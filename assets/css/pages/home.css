@@ -81,8 +81,7 @@
   min-height: var(--tap);
   padding: 0 var(--space-2);
   white-space: nowrap;
-  border: var(--rule-width) solid var(--border);
-  border-radius: var(--radius);
+  border: var(--rule-width) solid var(--frame-edge);
 }
 
 .home-social a:hover {
@@ -175,8 +174,13 @@
  * network chips are two balanced rows. */
 @media (min-width: 80rem) {
   .home-grid > .hero {
-    padding: var(--space-3) 0 var(--space-3);
     gap: var(--space-3);
+  }
+
+  /* The L3 hero frame brings its own padding (borders.css); at this size it is
+   * drawn at the smaller scale so the page still fits one screen. */
+  .home-grid > .hero.bx {
+    --s: 0.15;
   }
 
   .home-grid .hero-sub {

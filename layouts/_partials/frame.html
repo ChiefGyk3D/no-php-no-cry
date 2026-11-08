@@ -1,0 +1,19 @@
+{{- /*
+  Border system frame (docs/borders.md). Emits ONE inline <svg class="fr fr-l2|fr-l3"> that the CSS in assets/css/borders.css sizes and colors; put it as the first child of an element carrying class "bx" and "l2" or "l3". Takes a dict with "level" (2 or 3). Level 1 (corner ticks) is pure CSS and needs no markup.
+  No style attribute, no script, aria-hidden. All colors and the scale come from CSS (classes), so the markup is identical at every use and gzip folds the repeats. A level 3 frame is the page's one hero: the build test (scripts/test-borders.sh) and check-output.sh (rule multiple-l3) fail a page with two.
+*/ -}}
+{{- $level := .level | default 2 -}}
+{{- $b2 := `<path class="fb" d="M0,2.5 125,2.5 103,25 20,25 20,150 0,150Z"/><rect class="fd" x="34" y="30" width="42" height="6" rx="3"/>` | safeHTML -}}
+{{- $b3 := `<path fill="url(#fgrad)" fill-rule="evenodd" d="M0,2.5 201,2.5 147,50.5 133,51.5 97,52.5 82,69.5 62,70.5 54,71.5 54,97.5 41,110.5 39,114 39,150 0,150ZM21,23 147,23 139,30.5 88,32 72,49.5 50,50.5 34,51.5 34,89 21,101.5Z"/><rect class="fd" x="34" y="30" width="42" height="6" rx="3"/>` | safeHTML -}}
+{{- $b := cond (eq $level 3) $b3 $b2 -}}
+<svg class="fr fr-l{{ $level }}" aria-hidden="true" focusable="false" width="100%" height="100%">
+{{- if eq $level 3 }}<defs><linearGradient id="fgrad" gradientUnits="userSpaceOnUse" x2="200"><stop offset="0" stop-color="#1E1E1E"/><stop offset=".56" stop-color="#606060"/><stop offset="1" stop-color="#3A3A3A"/></linearGradient></defs>{{ end -}}
+<g class="c-tl">{{ $b }}</g><svg x="100%" overflow="visible"><g class="c-tr">{{ $b }}</g></svg><svg y="100%" overflow="visible"><g class="c-bl">{{ $b }}</g></svg><svg x="100%" y="100%" overflow="visible"><g class="c-br">{{ $b }}</g></svg>
+{{- /* The amber stub in the gap where the brackets split at mid edge. */ -}}
+<svg y="50%" overflow="visible"><rect class="fd st-l" x="14" y="-8" width="5" height="16"/></svg><svg x="100%" y="50%" overflow="visible"><rect class="fd st-r" x="-19" y="-8" width="5" height="16"/></svg>
+{{- if eq $level 3 }}
+<g class="p-t"><path fill="url(#fgrad)" d="M276,2.5 364,2.5 379,16.5 473,17 456,29 254,29Z"/><rect class="fd" x="285" y="13.5" width="72" height="6" rx="3"/></g><svg x="100%" overflow="visible"><g class="p-t r"><path fill="url(#fgrad)" d="M276,2.5 364,2.5 379,16.5 473,17 456,29 254,29Z"/><rect class="fd" x="285" y="13.5" width="72" height="6" rx="3"/></g></svg>
+{{- $pb := `<path fill="url(#fgrad)" fill-rule="evenodd" d="M241,39 458,39 474,29 494,15.5 381,15 366,0 273,0ZM267,27.5 375,27.5 361,12.5 279,12.5Z"/><rect class="fd" x="396" y="22.5" width="63" height="5.5" rx="2.75"/>` | safeHTML }}
+<svg y="100%" overflow="visible"><g class="p-b">{{ $pb }}</g></svg><svg x="100%" y="100%" overflow="visible"><g class="p-b r">{{ $pb }}</g></svg>
+{{- end -}}
+</svg>

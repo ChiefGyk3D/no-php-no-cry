@@ -20,7 +20,7 @@
   <link rel="preload" href="{{ "fonts/jost-latin-wght-normal.woff2" | relURL }}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ "fonts/orbitron-wght.ttf" | relURL }}" as="font" type="font/ttf" crossorigin>
   {{- /* One stylesheet per page. The Home and 404 penguin ghost (css/home-ghost.css, the only url() to mascot-512.webp) is appended last on those two pages only; scripts/check-budget.py counts every url() in a page's stylesheet, so a post would otherwise be charged 20 KB for an image it never shows (issue 182). */}}
-  {{- $css := slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css") }}
+  {{- $css := slice (resources.Get "css/tokens.css") (resources.Get "css/main.css") (resources.Get "css/borders.css") (resources.Get "css/highlight.css") | append (resources.Match "css/pages/*.css") }}
   {{- $name := "css/site.css" }}
   {{- /* The target name must differ: Hugo keys a concatenated resource by its target path, so two bundles under one name collapse into whichever page builds first. */}}
   {{- if or .IsHome (eq .Kind "404") }}{{ $css = $css | append (resources.Get "css/home-ghost.css") }}{{ $name = "css/site-ghost.css" }}{{ end }}

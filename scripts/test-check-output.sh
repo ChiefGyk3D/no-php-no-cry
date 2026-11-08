@@ -292,6 +292,11 @@ expect_fail old-name-lookalike-url old-site-name "$lookalike"
 APPEND='<script>alert(1)</script>' variant inline-script inline-script append_html
 APPEND='<style>body{color:red}</style>' variant style-element style-element append_html
 APPEND='<p style="color:red">x</p>' variant style-attribute style-attribute append_html
+APPEND='<svg class="fr fr-l3" aria-hidden="true"></svg><svg class="fr fr-l3" aria-hidden="true"></svg>' variant two-l3-frames multiple-l3 append_html
+one_l3="$work/one-l3"
+make_good "$one_l3"
+printf '%s\n' '<svg class="fr fr-l3" aria-hidden="true"></svg><svg class="fr fr-l2" aria-hidden="true"></svg>' >>"$one_l3/index.html"
+expect_pass "one L3 frame plus an L2 frame is allowed" "one L3 frame was rejected" "$one_l3"
 APPEND='<pre><code>x</code></pre>' variant pre-not-focusable pre-not-focusable append_html
 APPEND='<button onclick="go()">x</button>' variant event-handler event-handler append_html
 APPEND='<img src="http://example.org/a.png" alt=x>' variant http-reference http-reference append_html
