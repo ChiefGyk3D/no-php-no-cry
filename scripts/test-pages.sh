@@ -76,7 +76,34 @@ MISSION_START = "I make cybersecurity knowledge available to more than 500K foll
 MISSION_END = "You're not dead until you stop learning. Happy Hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
-           "or the Discord server. The two are bridged. Business inquiries go by email, and the address will be listed here soon.")
+           "or the Discord server. The two are bridged.")
+CONTACT_SOON = " Business inquiries go by email, and the address will be listed here soon."
+
+
+def contact_data():
+    """The contact block of data/about.yaml (email, pgp_fingerprint, pgp_url), empty strings when unset."""
+    text = open(os.environ["ABOUT_DATA"], encoding="utf-8").read()
+    out = {}
+    for k in ("email", "pgp_fingerprint", "pgp_url"):
+        m = re.search(r'^  %s: "(.*)"$' % k, text, re.M)
+        out[k] = m.group(1) if m else ""
+    return out
+
+
+def key_fingerprint(path):
+    """Primary key fingerprint of an armored public key, via gpg in a throwaway home; None without gpg."""
+    import shutil
+    import subprocess
+    import tempfile
+    if not shutil.which("gpg"):
+        return None
+    with tempfile.TemporaryDirectory() as home:
+        r = subprocess.run(["gpg", "--homedir", home, "--show-keys", "--with-colons", "--fingerprint", path],
+                           capture_output=True, text=True)
+    for ln in r.stdout.splitlines():
+        if ln.startswith("fpr:"):
+            return ln.split(":")[9]
+    return None
 
 
 class Page(HTMLParser):
@@ -328,8 +355,12 @@ def about(p, errs, repo):
         errs.append("no mascot image with alt text")
     if p.ids.get("contact") not in ("h2", "h3", "section"):
         errs.append("no #contact heading or section")
+    cd = contact_data()
+    email_set = bool(cd["email"])
     if CONTACT not in flat:
         errs.append("contact sentence missing")
+    if email_set == (CONTACT_SOON.strip() in flat):
+        errs.append("the 'address will be listed soon' sentence must show exactly while no email is set")
     hrefs = [a.get("href") for a, _ in p.links]
     for h in ("https://discord.chiefgyk3d.com", "https://matrix.to/#/#renegade-penguin:chiefgyk3d.com",
               "https://github.com/ChiefGyk3D/Stream-Daemon", "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"):
@@ -342,9 +373,32 @@ def about(p, errs, repo):
             errs.append("project tile %r missing" % name)
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
-    email_set = bool(re.search(r'^  email: "[^"]+"$', open(os.environ["ABOUT_DATA"], encoding="utf-8").read(), re.M))
-    if not email_set and "mailto:" in " ".join(h or "" for h in hrefs):
+    mailtos = [h for h in hrefs if (h or "").startswith("mailto:")]
+    if not email_set and mailtos:
         errs.append("data/about.yaml has no email set, so the page must not link one")
+    if email_set:
+        if mailtos != ["mailto:" + cd["email"]]:
+            errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
+        if "Email, for business inquiries only: %s." % cd["email"] not in flat:
+            errs.append("business email sentence missing")
+        if "PGP fingerprint: %s." % cd["pgp_fingerprint"] not in flat:
+            errs.append("PGP fingerprint missing from the contact section")
+        if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
+            errs.append("PGP key link missing")
+        else:
+            keyfile = os.path.join(os.path.dirname(os.path.dirname(os.environ["ABOUT_DATA"])), "static", cd["pgp_url"].lstrip("/"))
+            if not os.path.isfile(keyfile):
+                errs.append("the PGP key file %s is not in static/" % cd["pgp_url"])
+            else:
+                key = open(keyfile, encoding="ascii").read()
+                if "PRIVATE" in key or not key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----"):
+                    errs.append("the key file is not a public key block only")
+                want = key_fingerprint(keyfile)
+                if want is not None and want != cd["pgp_fingerprint"].replace(" ", "").upper():
+                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want))
+    stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - {cd["email"]}
+    if stray:
+        errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
     # The email ban is for the contact section; the Skills text legitimately says "email security".
     m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
     contact = re.sub(r"<[^>]+>", " ", m.group(0)).lower() if m else ""
@@ -352,7 +406,7 @@ def about(p, errs, repo):
         errs.append("the contact section was not found")
     if "TODO" in repo["html"]:
         errs.append("the page carries a TODO")
-    if not email_set and ("pgp" in contact or "@" in contact):
+    if not email_set and ("pgp" in contact or "@" in contact or "mailto" in contact):
         errs.append("an empty email and PGP entry must render nothing")
 
 
@@ -450,13 +504,47 @@ if [[ -f "$pub/about/index.html" ]]; then
         fi
     done
 fi
-# Guard: an email link appears while data/about.yaml has none -> the About check must fail.
+# Contact (issue 159): the populated page is asserted from data/about.yaml (one mailto,
+# the fingerprint, the key link, the fingerprint equal to the key file's), and each
+# break must fail. Then a copy of the repository with the email and PGP entries
+# emptied must build a page that renders none of them.
 if [[ -f "$pub/about/index.html" ]]; then
-    mutate "$work/about-mail.html" "Business inquiries go by email" "Business inquiries go by <a href=mailto:x@example.org>email</a>"
-    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
-        fail "guard: an About page linking an email with an empty data entry passed"
+    mutate "$work/about-fp.html" "98B2 D533 1A9F 17AC" "98B2 D533 1A9F 17AD"
+    mutate "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
+    mutate "$work/about-nokey.html" "/chiefgyk3d.asc" "/other.asc"
+    for v in fp addr nokey; do
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
+            fail "guard: an About page with a broken contact ($v) passed"
+        else
+            pass "guard: an About page with a broken contact ($v) fails"
+        fi
+    done
+    croot="$work/emptycontact"
+    mkdir -p "$croot"
+    for d in archetypes assets content data layouts static i18n; do
+        [[ -e "$root/$d" ]] && cp -R "$root/$d" "$croot/$d"
+    done
+    for f in hugo.toml .hugo-version; do
+        [[ -f "$root/$f" ]] && cp "$root/$f" "$croot/$f"
+    done
+    sed -i 's/^  email: ".*"$/  email: ""/; s/^  pgp_fingerprint: ".*"$/  pgp_fingerprint: ""/; s/^  pgp_url: ".*"$/  pgp_url: ""/' "$croot/data/about.yaml"
+    if cmp -s "$root/data/about.yaml" "$croot/data/about.yaml"; then
+        fail "empty-contact mutation did not change the data (the test is stale)"
+    elif (cd "$croot" && hugo --minify --destination "$work/emptypublic" --quiet >"$work/emptybuild.log" 2>&1); then
+        if ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$work/emptypublic/about/index.html" >/dev/null 2>&1; then
+            pass "empty email and PGP entries render nothing (and the 'listed soon' sentence shows)"
+        else
+            fail "empty email and PGP entries still render something"
+        fi
+        python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Business inquiries go by email"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Business inquiries go by <a href=mailto:x@example.org>email</a>", 1))' "$work/emptypublic/about/index.html" "$work/about-mail.html"
+        if ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
+            fail "guard: an About page linking an email with an empty data entry passed"
+        else
+            pass "guard: an About page linking an email with an empty data entry fails"
+        fi
     else
-        pass "guard: an About page linking an email with an empty data entry fails"
+        cat "$work/emptybuild.log"
+        fail "the empty-contact copy did not build"
     fi
 fi
 # Guard: the footer check bites. The footer line removed from About must fail.

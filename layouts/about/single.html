@@ -36,7 +36,7 @@
     {{- $c := site.Data.about.contact }}
     <p>There's no contact form. If you want to chat as part of the community, use the Matrix room or the Discord server. The two are bridged.{{ if not $c.email }} Business inquiries go by email, and the address will be listed here soon.{{ end }}</p>
     {{- with $c.email }}
-    <p>Business inquiries only: <a href="mailto:{{ . }}">{{ . }}</a>.{{ with $c.pgp_fingerprint }} PGP fingerprint: <code>{{ . }}</code>.{{ end }}{{ with $c.pgp_url }} <a href="{{ . }}">PGP public key</a>.{{ end }}</p>
+    <p>Email, for business inquiries only: <a href="mailto:{{ . }}">{{ . }}</a>.{{ with $c.pgp_fingerprint }} PGP fingerprint: <code>{{ . }}</code>.{{ end }}{{ with $c.pgp_url }} <a href="{{ . | relURL }}">PGP public key</a>.{{ end }}</p>
     {{- end }}
     <ul class="contact-links">
       <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>

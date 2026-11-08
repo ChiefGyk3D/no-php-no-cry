@@ -38,10 +38,11 @@ skills:
     text: "I run a dual-GPU local AI server with Ollama, build workflows that combine local and hosted models (Claude, ChatGPT, Gemini, Copilot), route tasks by cost and capability, coordinate agents for drafting, implementation, and review, put human approval gates on paid model use, and run AI-assisted review next to normal CI and security checks. This is engineering and integration work, not model training or research."
   - name: "Radio, RF, and telecom"
     text: "Licensed amateur radio operator. SDR, Meshtastic, LoRa, APRS and packet radio, RF experimentation, cellular modem integration, telecom security. HackRF, Meshtastic devices, LoRa radios, Linux-based SDR tooling."
-# Business contact. Both fields are empty until the owner supplies the approved
-# public address and PGP details; while empty, the Contact section renders
-# neither (no mailto link, no PGP line). Fill them in here, nowhere else.
+# Business contact (owner-approved, public). The Contact section renders the
+# email as a mailto link, the PGP fingerprint and the key link only from these
+# fields, and renders none of them while a field is empty. The fingerprint must
+# match static/chiefgyk3d.asc (scripts/test-pages.sh checks it with gpg).
 contact:
-  email: ""
-  pgp_fingerprint: ""
-  pgp_url: ""
+  email: "chief@chiefgyk3d.com"
+  pgp_fingerprint: "93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
+  pgp_url: "/chiefgyk3d.asc"
