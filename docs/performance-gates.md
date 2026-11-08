@@ -47,7 +47,8 @@ Templates: home, posts list, the first post, social, products, support, about,
 resume, privacy, and 404 (loaded from a path that does not exist, so the page
 arrives with status 404; that one status is allowed on that page only).
 
-Widths: 1440, 1024, 768, 390 CSS px. Two more viewports check reflow and zoom
+Widths: 1440, 1024, 768, 393 and 390 CSS px (393 is run at 393 x 852, the iPhone 15
+viewport the issue names; 390 at 390 x 844 stays; the rest at 900 px tall). Two more viewports check reflow and zoom
 (overflow, console, network, keyboard only): `zoom200` is 1440 px at 200 percent
 (720 CSS px, device pixel ratio 2) and `reflow320` is 320 CSS px (WCAG 1.4.10).
 
@@ -89,6 +90,13 @@ the Menu button (`.nav-menu .nav-toggle`, a popover button) must open with
 Enter, move Tab into the list, close with Escape (focus returns to the button),
 reopen, and close with Enter again. A click outside the list also closes the
 native popover (light dismiss) but is not exercised by the gate.
+
+Fit (`fit`), a standing rule: short pages fit 1920x1080 without scrolling. Each
+template not in `FIT_ALLOW` is loaded at 1920x930 (the content area of a 1920x1080
+browser) and its `scrollHeight` must not exceed the viewport height. Pages that
+cannot fit (posts, a post, products, about, resume, search) are named in
+`FIT_ALLOW` in `scripts/browser-gate.py`, each with a reason; a stale name fails
+`[setup]`. Home, Social, Support, Privacy and the 404 page must fit.
 
 Toggle (`toggle`): the dark-only brand kit has no theme toggle yet (the redesign
 brief's `/theme.js` is not implemented). The check runs only when the build

@@ -54,7 +54,7 @@ mutate() {
 make_site "$work/good"
 rc=0
 out="$(run_gate "$work/good")" || rc=$?
-if [[ $rc -eq 0 && "$out" == *"browser gate: ok (1 runs"* ]]; then pass "good fixture passes (and one run was measured)"; else fail "good fixture: exit $rc: $out"; fi
+if [[ $rc -eq 0 && "$out" == *"browser gate: ok (2 runs"* ]]; then pass "good fixture passes (one width run plus the 1920x930 fit run)"; else fail "good fixture: exit $rc: $out"; fi
 
 mutate overflow overflow overflow
 mutate tile-overflow tile tile-overflow
@@ -70,6 +70,31 @@ mutate no-skip-link tab no-skip-link
 mutate layout-shift cls layout-shift
 mutate slow-lcp lcp slow-lcp
 mutate toggle-missing toggle toggle-missing
+# Standing rule (issue 123): a page taller than 1920x930 fails [fit] unless it is allow-listed.
+mutate tall-page fit tall
+d="$work/m-tall-page"
+out="$(run_gate "$d" --fit-allow home || true)"
+if [[ "$out" != *"[fit]"* && "$out" == *"browser gate: ok"* ]]; then pass "an allow-listed tall page is exempt"; else fail "allow-listed tall page: $out"; fi
+allow_ok="$(
+    python3 -I - "$root/scripts/browser-gate.py" <<'PY'
+import importlib.util, sys
+s = importlib.util.spec_from_file_location("bg", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+names = {n for n, _ in m.PAGES}
+print(all(k in names and v.strip() for k, v in m.FIT_ALLOW.items()) and not {"home", "social", "support", "privacy", "404"} & set(m.FIT_ALLOW))
+PY
+)"
+if [[ "$allow_ok" == "True" ]]; then pass "FIT_ALLOW names real templates with reasons and leaves Home, Social, Support, Privacy and 404 checked"; else fail "FIT_ALLOW is stale or exempts a page that must fit"; fi
+
+# The iPhone 15 viewport (issue 123): 393 x 852 is its own run. A page that overflows
+# only at that size passes at 390 x 844 and fails at 393 x 852 and in the default run.
+cp -r "$work/good" "$work/m-overflow-393"
+python3 -I "$root/scripts/fixture-site.py" "$work/m-overflow-393" overflow-393
+rc=0
+out="$(run_gate "$work/m-overflow-393" --widths 390)" || rc=$?
+if [[ $rc -eq 0 ]]; then pass "overflow-393 fixture is fine at 390 x 844"; else fail "overflow-393 at 390: exit $rc: $out"; fi
+expect_fail "overflow only at 393 x 852" overflow "$work/m-overflow-393" --widths 393
+if [[ "$(run_gate "$work/m-overflow-393" --widths 393 || true)" == *"home@393"* ]]; then pass "the 393 run is labelled home@393"; else fail "no home@393 run"; fi
+if grep -Eq '^FULL_WIDTHS = \[.*393' "$root/scripts/browser-gate.py"; then pass "393 is in the default widths"; else fail "393 is not in FULL_WIDTHS"; fi
 
 # The popover Menu button (phones, 390 px): the good fixture passes the keyboard
 # pass there, and a manual popover (Escape does not close it) fails it.

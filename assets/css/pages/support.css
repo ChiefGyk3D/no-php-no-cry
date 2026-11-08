@@ -137,6 +137,12 @@
   user-select: all;
 }
 
+.coin-body {
+  display: grid;
+  gap: var(--space);
+  justify-items: start;
+}
+
 .coin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -149,7 +155,7 @@
 }
 
 .copy-status {
-  min-width: 8rem;
+  min-width: 0;
   color: var(--accent);
   font-size: var(--text-sm);
 }
@@ -164,17 +170,90 @@
   opacity: 0;
 }
 
-.social-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Standing rule (issue 123): at 1920x1080 (80rem and wider) /support/ fits the
+ * browser window with no vertical scroll. One-line intros, shorter tiles, and
+ * each coin card is a head row, the QR code (with Copy beside it from 100rem), then the address.
+ * The QR stays 10rem (160 px) so a phone camera still reads it. */
+@media (min-width: 80rem) {
+  .page-support h1 {
+    margin: 0 0 var(--space-3);
+  }
+
+  .page-support p {
+    max-width: none;
+  }
+
+  .page-support .lede {
+    margin: 0;
+    font-size: var(--text-base);
+  }
+
+  .support-tiles {
+    margin: var(--space-5) 0 var(--space-3);
+  }
+
+  .support-tiles .tile {
+    padding: var(--space-3) var(--space);
+  }
+
+  .page-support .meta {
+    margin: 0;
+  }
+
+  .page-support h2.hud-heading {
+    margin: var(--space-5) 0 var(--space-3);
+  }
+
+  .support-coins > p {
+    margin: 0;
+  }
+
+  .coin-list {
+    margin-top: var(--space-4);
+  }
+
+  .coin.panel {
+    padding: var(--space-4) var(--space);
+    gap: var(--space-3);
+  }
+
+  .coin-mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .coin-head {
+    flex-wrap: nowrap;
+  }
+
+  .qr {
+    width: 10rem;
+  }
+
+  .address {
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
 }
 
-.social-links a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
+/* From 100rem (1600 px) each coin card is wide enough to put Copy beside the QR
+ * code; between 80rem and 100rem the card is narrower and Copy sits under it. */
+@media (min-width: 100rem) {
+  .coin-body {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    width: 100%;
+  }
+
+  .coin-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .copy-status {
+    min-height: 1.25rem;
+  }
 }

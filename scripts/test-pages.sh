@@ -243,11 +243,11 @@ def support(p, errs, repo):
             errs.append("%s QR image appears %d times" % (coin, len(imgs)))
         elif not (imgs[0].get("alt") and imgs[0].get("width") and imgs[0].get("height")):
             errs.append("%s QR image needs alt, width and height" % coin)
-    # Unrelated social links do not belong on the support page.
-    if any(h in (x.get("href") or "") for x, _ in p.links for h in ("instagram.com", "pics.chiefgyk3d.com")):
-        errs.append("unrelated social links are on the support page")
-    if "also find me on" in flat.lower():
-        errs.append("'Also find me on' block is back on the support page")
+    # Issue 123 (owner order 2026-11-08): no "Also find me on" section here; /social/ has every network.
+    if "Also find me on" in flat:
+        errs.append("the 'Also find me on' section is back on /support/")
+    if any(h in (a.get("href") or "") for a, t in p.links for h in ("instagram.com", "pics.chiefgyk3d.com")):
+        errs.append("a social link is on /support/ (they live on /social/)")
     # Ko-fi stays a link-out until the framing test; the TODO is in the template.
     if repo.get("template") is not None and "TODO" not in repo["template"]:
         errs.append("the Ko-fi embed TODO marker is missing from the template")
@@ -996,10 +996,24 @@ for pair in "posts:Posts" "products:Gear & tools" "social:Socials" "support:Supp
         fail "nav on /${pair%%:*}/ marks '$got', expected '${pair##*:}'"
     fi
 done
-if [[ -z "$(nav_current "$pub/index.html")" ]]; then
-    pass "nav marks nothing current on the home page"
+if [[ "$(nav_current "$pub/index.html")" == "Home" ]]; then
+    pass "nav marks Home current on the home page"
 else
-    fail "nav marks something current on the home page"
+    fail "nav on the home page marks '$(nav_current "$pub/index.html")', expected 'Home'"
+fi
+nav_first() { # <html> -> text of the first link in the main nav
+    python3 -I - "$1" <<'PY'
+import re, sys
+h = open(sys.argv[1], encoding="utf-8").read()
+nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
+m = re.search(r"<a\b[^>]*>(.*?)</a>", nav.group(0) if nav else "", re.S)
+print(re.sub(r"<[^>]+>", "", m.group(1)).strip() if m else "")
+PY
+}
+if [[ "$(nav_first "$pub/support/index.html")" == "Home" ]]; then
+    pass "nav lists Home first"
+else
+    fail "the first nav item on /support/ is '$(nav_first "$pub/support/index.html")', expected 'Home'"
 fi
 if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
     pass "stylesheet styles [aria-current]"

@@ -12,7 +12,7 @@
 #             per live data/socials.yaml entry, an accessible name and https
 #             url each, none for an empty url, between the sign-off line and the
 #             credit, the balanced-row class matching the count;
-#   products: the disclosure copy in a bracket-frame panel before any item, the
+#   products: the disclosure copy once, after the last group, the
 #             groups in the order of data/products.yaml (security first, creator
 #             and social media tools last, the first one open, a count in each
 #             summary), and every item of the data file on the page with a name,
@@ -116,6 +116,13 @@ class Dom(HTMLParser):
     def handle_data(self, data):
         self.cur.text.append(data)
         self.cur.parts.append(data)
+
+
+def ancestors(n):
+    n = n.parent
+    while n is not None:
+        yield n
+        n = n.parent
 
 
 def load(path):
@@ -290,26 +297,31 @@ def check_products(page, root, bad):
     doc = load(page)
     check_common(doc, bad)
     main = doc.find("main")[0]
-    # The first thing in the content, before any heading of a group or item, is the disclosure panel.
-    panels = main.find(cls="panel")
+    # The disclosure is one note after the last group (owner ruling 2026-11-08, issue 123): it
+    # appears exactly once on the page, after every group, and not before the first item.
     first_group = main.find("section", "product-group")
-    if not panels:
-        bad.append("no bracket-frame panel")
+    notes = main.find(cls="disclosure")
+    if len(notes) != 1:
+        bad.append("disclosure must appear exactly once, found %d" % len(notes))
         return 0
-    disc = panels[0]
-    if "disclosure" not in disc.classes():
-        bad.append("first panel is not the disclosure")
+    disc = notes[0]
     paras = [p.all_text() for p in disc.find("p")]
     if DISCLOSURE not in paras:
         bad.append("disclosure copy missing or changed")
-    order = list(main.walk())
-    if first_group and order.index(disc) > order.index(first_group[0]):
-        bad.append("disclosure comes after the first group")
-    for n in order:
-        if n is disc:
-            break
-        if n.tag in ("a", "li"):
-            bad.append("link or item before the disclosure")
+    if main.all_text().count("Some links on this page are affiliate links") != 1:
+        bad.append("disclosure text must be on the page exactly once")
+    # Structure, not document order: the START of the last section precedes everything inside it,
+    # so compare siblings. The note must not sit inside any group, and must follow the last
+    # section as a later sibling under the same parent.
+    if any(a.tag == "section" and "product-group" in a.classes() for a in ancestors(disc)):
+        bad.append("disclosure is inside a group")
+    if first_group:
+        last = first_group[-1]
+        sibs = disc.parent.kids if disc.parent else []
+        if disc.parent is not last.parent or disc not in sibs or last not in sibs or sibs.index(disc) < sibs.index(last):
+            bad.append("disclosure is not a sibling after the last group")
+    if disc.find("a"):
+        bad.append("disclosure holds a link")
     data = load_products(root)
     names = [g.find("h2")[0].all_text() if g.find("h2") else "" for g in first_group]
     if names != [g["group"] for g in data]:
@@ -523,12 +535,30 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "item dropped" products "$products" '0,/<li class="product">/s//<li class="product-x">/'
     guard "first group closed" products "$products" 's/<details class="accordion" open>/<details class="accordion">/'
     guard "sponsored dropped" products "$products" 's/rel="sponsored noopener"/rel="noopener"/'
+    guard "disclosure moved to the top" products "$products" 's#<div class="disclosure" role="note">#<div class="disclosure" role="note"><p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. Some products I link directly to the company instead of a store.</p></div><div class="disclosure" role="note">#'
     guard "disclosure changed" products "$products" 's/at no extra cost to you/at a cost to you/'
     guard "vendor-label note dropped" products "$products" 's/says whether the link goes to Amazon or straight to the company/says where the link goes/'
     guard "price note restored" products "$products" '0,/<p class="product-line">/s//<p class="product-checked meta">Price checked on May 1, 2026<\/p><p class="product-line">/'
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
     guard "fediverse handle loses its @" social "$social" 's#<span>@</span>(social\.chiefgyk3d\.com)#<span></span>\1#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
+    # The disclosure inside the last section (before its details) is not "after the last group".
+    inside="$work/guard-inside.html"
+    python3 -I - "$products" "$inside" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r'<div class="?disclosure"?[^>]*>.*?</div>', s, re.S)
+s = s[:m.start()] + s[m.end():]
+k = s.rindex("<details")
+open(sys.argv[2], "w", encoding="utf-8").write(s[:k] + m.group(0) + s[k:])
+PY
+    if cmp -s "$products" "$inside"; then
+        fail "guard 'disclosure inside the last section' did not change the page (the test is stale)"
+    elif run_assert products "$inside" >/dev/null; then
+        fail "guard 'disclosure inside the last section': asserter accepted a broken page"
+    else
+        pass "guard 'disclosure inside the last section' fails as it should"
+    fi
 fi
 
 # Mutation check: the rel="me" assertion follows data/socials.yaml. Flip one rel_me value
