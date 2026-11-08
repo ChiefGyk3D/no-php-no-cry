@@ -925,10 +925,10 @@ contact_case() { # <label> <email> <fingerprint> <url> <expect: yes|no>
 }
 contact_case neither "" "" "" no
 contact_case email-only "a@example.org" "" "" no
-contact_case key-only "" "AAAA" "https://keys.example.org/k" no
+contact_case key-only "" "AAAA" "/k.asc" no
 contact_case email-and-fingerprint "a@example.org" "AAAA" "" no
-contact_case email-and-url "a@example.org" "" "https://keys.example.org/k" no
-contact_case both "a@example.org" "AAAA" "https://keys.example.org/k" yes
+contact_case email-and-url "a@example.org" "" "/k.asc" no
+contact_case both "a@example.org" "AAAA" "/k.asc" yes
 append_about() { mkdir -p "$1/about" && printf '%s\n' "$APPEND" >>"$1/about/index.html"; }
 APPEND='<p>mail me at other@example.org</p>' variant about-other-address email-shaped-text append_about
 APPEND="<p>mail me at ${ABOUT_MAIL}</p>" variant approved-address-on-home email-shaped-text append_html

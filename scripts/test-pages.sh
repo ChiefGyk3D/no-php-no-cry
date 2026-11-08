@@ -93,19 +93,20 @@ def contact_data():
     return out
 
 
-def pgp_problems(fp, url):
-    """The key is published on keys.openpgp.org, not hosted here (issue 186). The fingerprint in
-    data/about.yaml is 40 hex characters in groups of four, and the key link's URL path ends with
-    exactly that fingerprint, so the two cannot drift."""
-    errs = []
-    if not re.fullmatch(r"(?:[0-9A-F]{4} ){9}[0-9A-F]{4}", fp):
-        errs.append("the fingerprint %r is not 40 uppercase hex characters in groups of four" % fp)
-    bare = fp.replace(" ", "")
-    if not re.fullmatch(r"https://keys\.openpgp\.org/vks/v1/by-fingerprint/[0-9A-F]{40}", url):
-        errs.append("the key link %r is not a keys.openpgp.org by-fingerprint https URL" % url)
-    elif not url.endswith("/" + bare):
-        errs.append("the key link %r does not end with the fingerprint %s" % (url, bare))
-    return errs
+def key_fingerprint(path):
+    """Primary key fingerprint of an armored public key, via gpg in a throwaway home; None without gpg."""
+    import shutil
+    import subprocess
+    import tempfile
+    if not shutil.which("gpg"):
+        return None
+    with tempfile.TemporaryDirectory() as home:
+        r = subprocess.run(["gpg", "--homedir", home, "--show-keys", "--with-colons", "--fingerprint", path],
+                           capture_output=True, text=True)
+    for ln in r.stdout.splitlines():
+        if ln.startswith("fpr:"):
+            return ln.split(":")[9]
+    return None
 
 
 class Page(HTMLParser):
@@ -548,26 +549,38 @@ def about(p, errs, repo):
     if email_set:
         if mailtos != ["mailto:" + cd["email"]]:
             errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
-        if "Email, for business inquiries only: %s." % cd["email"] not in flat:
+        if "Email, for business inquiries only: %s" % cd["email"] not in flat:
             errs.append("business email sentence missing")
-        # Issue 186: the fingerprint sits on its own line (its own paragraph), not in the email paragraph.
-        fp_paras = re.findall(r"<p[^>]*>((?:(?!</p>).)*?%s(?:(?!</p>).)*?)</p>" % re.escape(cd["pgp_fingerprint"]), repo["html"], re.S)
-        fp_texts = [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", x))).strip() for x in fp_paras]
-        if fp_texts != ["PGP fingerprint: %s" % cd["pgp_fingerprint"]]:
-            errs.append("the PGP fingerprint must be alone in its own paragraph; found %r" % fp_texts)
+        # Issue 224: email, fingerprint and key link are three separate elements, in this order,
+        # each alone in its own paragraph.
+        paras = [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", x))).strip()
+                 for x in re.findall(r"<p[^>]*>(.*?)</p>", repo["html"], re.S)]
+        fp_line = "PGP fingerprint: %s" % cd["pgp_fingerprint"]
+        lines = [x for x in paras if x.startswith("Email, for business inquiries only") or x.startswith("PGP fingerprint") or x.startswith("PGP public key")]
+        want = ["Email, for business inquiries only: %s" % cd["email"], fp_line, "PGP public key"]
+        if [re.sub(r"\s*\(opens in a new tab\)", "", x).rstrip(".") for x in lines] != want:
+            errs.append("the email, fingerprint and key link must be three separate lines; found %r" % lines)
         if not re.search(r"<p[^>]*>\s*PGP fingerprint:\s*<code[^>]*>%s</code>\s*</p>" % re.escape(cd["pgp_fingerprint"]), repo["html"]):
-            errs.append("the fingerprint paragraph must be 'PGP fingerprint: <code>...</code>'")
-        errs.extend(pgp_problems(cd["pgp_fingerprint"], cd["pgp_url"]))
-        keylinks = [a for a, t in p.links if a.get("href") == cd["pgp_url"]]
-        if len(keylinks) != 1:
-            errs.append("expected exactly one PGP key link to %s, found %d" % (cd["pgp_url"], len(keylinks)))
+            errs.append("the fingerprint line must be 'PGP fingerprint: <code>...</code>'")
+        if not re.search(r"<p[^>]*>\s*Email, for business inquiries only: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
+            errs.append("the email line must be 'Email, for business inquiries only: <a mailto>...</a>'")
+        if "keys.openpgp.org" in repo["html"]:
+            errs.append("the About page must not point at keys.openpgp.org (issue 224)")
+        if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "").endswith(cd["pgp_url"])]:
+            errs.append("the PGP key link text must be 'PGP public key'")
+        if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
+            errs.append("PGP key link missing")
         else:
-            if not external_ok(keylinks[0]):
-                errs.append("the PGP key link lacks target=_blank rel=noopener")
-            if "PGP public key (keys.openpgp.org)" not in flat:
-                errs.append("the PGP key link text must be 'PGP public key (keys.openpgp.org)'")
-        if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(os.environ["ABOUT_DATA"])), "static", "chiefgyk3d.asc")):
-            errs.append("static/chiefgyk3d.asc must not exist: the key is published on keys.openpgp.org")
+            keyfile = os.path.join(os.path.dirname(os.path.dirname(os.environ["ABOUT_DATA"])), "static", cd["pgp_url"].lstrip("/"))
+            if not os.path.isfile(keyfile):
+                errs.append("the PGP key file %s is not in static/" % cd["pgp_url"])
+            else:
+                key = open(keyfile, encoding="ascii").read()
+                if "PRIVATE" in key or not key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----"):
+                    errs.append("the key file is not a public key block only")
+                want_fp = key_fingerprint(keyfile)
+                if want_fp is not None and want_fp != cd["pgp_fingerprint"].replace(" ", "").upper():
+                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want_fp))
     stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - ({cd["email"]} if email_set else set())
     if stray:
         errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
@@ -597,10 +610,6 @@ def privacy(p, errs, repo):
 KINDS = {"support": support, "about": about, "privacy": privacy}
 
 if __name__ == "__main__":
-    if sys.argv[1] == "pgpcheck":
-        bad = pgp_problems(sys.argv[2], sys.argv[3])
-        print("\n".join(bad))
-        sys.exit(1 if bad else 0)
     kind, path = sys.argv[1], sys.argv[2]
     tpl = None
     if len(sys.argv) > 3:
@@ -725,30 +734,29 @@ if [[ -f "$pub/about/index.html" ]]; then
     done
 fi
 # Contact (issue 159): the populated page is asserted from data/about.yaml (one mailto,
-# the fingerprint on its own line, the key link ending with the fingerprint), and each
+# email, fingerprint and key link on three separate lines, the fingerprint equal to the key file's), and each
 # break must fail. Then a copy of the repository with the email and PGP entries
 # emptied must build a page that renders none of them.
 if [[ -f "$pub/about/index.html" ]]; then
-    mutate "$work/about-fp.html" "49A3 50E7" "49A3 50E8"
+    mutate "$work/about-fp.html" "98B2 D533 1A9F 17AC" "98B2 D533 1A9F 17AD"
     mutate "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
-    mutate "$work/about-nokey.html" "by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E7" "by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E8"
+    mutate "$work/about-nokey.html" "/chiefgyk3d.asc" "/other.asc"
+    # Issue 224 guard: the three lines merged into one paragraph must fail.
+    python3 -I - "$work/about-merged.html" "$pub/about/index.html" <<'PYEOF'
+import re, sys
+t = open(sys.argv[2], encoding="utf-8").read()
+t = re.sub(r"</p>\s*<p[^>]*>(?=PGP fingerprint:)", ". ", t, count=1)
+open(sys.argv[1], "w", encoding="utf-8").write(t)
+PYEOF
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-merged.html" >/dev/null 2>&1; then
+        fail "guard: an About page with the email and fingerprint on one line passed"
+    else pass "guard: an About page with the email and fingerprint on one line fails"; fi
     for v in fp addr nokey; do
         if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
             fail "guard: an About page with a broken contact ($v) passed"
         else
             pass "guard: an About page with a broken contact ($v) fails"
         fi
-    done
-    # The fingerprint/link check bites: the real pair passes, one changed character fails, a local path fails.
-    pgp_fp="$(sed -n 's/^  pgp_fingerprint: "\(.*\)"$/\1/p' "$root/data/about.yaml")"
-    pgp_url="$(sed -n 's/^  pgp_url: "\(.*\)"$/\1/p' "$root/data/about.yaml")"
-    if python3 -I "$asserter" pgpcheck "$pgp_fp" "$pgp_url" >/dev/null; then
-        pass "guard: the data fingerprint and key link agree"
-    else fail "the data fingerprint and key link disagree"; fi
-    for bad in "${pgp_fp%?}0|$pgp_url" "$pgp_fp|${pgp_url%?}0" "${pgp_fp// /}|$pgp_url" "$pgp_fp|/chiefgyk3d.asc"; do
-        if python3 -I "$asserter" pgpcheck "${bad%%|*}" "${bad#*|}" >/dev/null 2>&1; then
-            fail "guard: a drifted fingerprint or key link passed (${bad#*|})"
-        else pass "guard: a drifted fingerprint or key link fails"; fi
     done
     # Fail closed: only a COMPLETE contact config (email, fingerprint and key link) publishes the
     # address. Build a copy of the repository for each combination and assert the page.
