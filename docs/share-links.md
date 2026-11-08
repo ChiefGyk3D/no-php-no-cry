@@ -28,8 +28,8 @@ page's permalink and title; it does not ask the remote site.
 | Target | Template | Source |
 | --- | --- | --- |
 | Threads | `https://www.threads.com/intent/post?text=..&url=..` | Vendor: https://developers.facebook.com/docs/threads/threads-web-intents (the domain is threads.com, not threads.net) |
-| Bluesky | `https://bsky.app/intent/compose?text=..` | Vendor: Bluesky docs, page "intent-links". Text only, so the link goes inside the text; 300 graphemes at most |
-| Twitter | `https://x.com/intent/tweet?text=..&url=..` | Vendor: docs.x.com, page "web-intent". `twitter.com/intent/tweet` redirects (301) to x.com, so the href uses x.com |
+| Bluesky | `https://bsky.app/intent/compose?text=..` | Vendor page named, exact URL not recorded (UNCONFIRMED): Bluesky docs, page "intent-links". Text only, so the link goes inside the text; 300 graphemes at most |
+| Twitter | `https://x.com/intent/tweet?text=..&url=..` | Vendor page named, exact URL not recorded (UNCONFIRMED): docs.x.com, page "web-intent". `twitter.com/intent/tweet` redirects (301) to x.com, so the href uses x.com |
 | Email | `mailto:?subject=..&body=..` | Standard: RFC 6068 |
 | Mastodon | `https://SERVER/share?text=..` | **Inferred**: the route exists in Mastodon's source, undocumented; the `text` parameter is unconfirmed. Needs a login on that server. No default server |
 | Reddit | `https://www.reddit.com/submit?url=..&title=..` | Third-party only; no vendor page found |

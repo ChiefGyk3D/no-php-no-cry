@@ -18,6 +18,9 @@
 #               that uses {image} is left out of a post with no image. An empty
 #               template with kind intent is not rendered.
 #   source      vendor      the URL is on the vendor's own documentation page
+#               vendor-unconfirmed-url  the researcher named the vendor page but its
+#                           exact URL was not recorded: NOT verified until it is
+#               standard-unconfirmed-url  the same, for a standards page
 #               standard    an RFC
 #               third-party documented by others only, no vendor page: it can
 #                           change without notice; needs a logged-in click test
@@ -37,7 +40,7 @@
   label: Bluesky
   kind: intent
   template: "https://bsky.app/intent/compose?text={text}"
-  source: vendor
+  source: vendor-unconfirmed-url
   source_url: Bluesky docs, page intent-links (as reported by the researcher; exact URL to be confirmed)
   read: 2026-11-08
 - id: mastodon
@@ -51,7 +54,7 @@
   label: Twitter
   kind: intent
   template: "https://x.com/intent/tweet?text={title}&url={url}"
-  source: vendor
+  source: vendor-unconfirmed-url
   source_url: docs.x.com, page web-intent (as reported by the researcher; exact URL to be confirmed)
   read: 2026-11-08
 - id: discord
@@ -121,6 +124,6 @@
   label: Copy link
   kind: copy
   template: ""
-  source: standard
+  source: standard-unconfirmed-url
   source_url: MDN, Clipboard.writeText (as named in the brief; HTTPS only)
   read: 2026-11-08

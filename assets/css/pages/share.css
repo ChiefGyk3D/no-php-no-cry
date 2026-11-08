@@ -1,13 +1,14 @@
-/* Share links on posts (issue 220). Tokens only. Every target is at least 2rem
- * (32 px) tall. The buttons carry [hidden] until /share.js runs. */
+/* Share links on posts (issue 220). Tokens only. Every target is at least --tap
+ * (44 px) square, the browser gate's rule (scripts/browser-gate.py). The buttons
+ * carry [hidden] until /share.js runs. */
 .share-title {
   display: block;
   margin: var(--space-3) 0 var(--space-1);
 }
 
 .share-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
   gap: var(--space-1) var(--space-3);
   margin: 0;
   padding: 0;
@@ -21,8 +22,8 @@
 .share-link {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
-  min-width: 2rem;
+  min-height: var(--tap);
+  min-width: var(--tap);
   padding: 0 var(--space-1);
   background: none;
   border: 0;

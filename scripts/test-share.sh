@@ -308,6 +308,21 @@ else
     fail "icon rules: $(a css "${css:-/nonexistent}" 2>&1 | head -n 5 | tr '\n' ';')"
 fi
 
+# Targets are at least --tap (44 px) square, the browser gate's rule (scripts/browser-gate.py).
+share_css="$root/assets/css/pages/share.css"
+tap_ok() { grep -qE 'min-height: var\(--tap\);' "$1" && grep -qE 'min-width: var\(--tap\);' "$1"; }
+if tap_ok "$share_css"; then
+    pass "share controls are at least --tap square"
+else
+    fail "share.css does not give every control min-height and min-width var(--tap)"
+fi
+sed -E 's/var\(--tap\)/2rem/' "$share_css" >"$work/share-small.css"
+if tap_ok "$work/share-small.css"; then
+    fail "guard: the tap-size check accepted a 2rem target"
+else
+    pass "guard: the tap-size check fails on a 2rem target"
+fi
+
 # The CSP is unchanged: script-src names 'self' and the Cloudflare beacon, nothing else.
 if grep -q "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js;" "$root/static/_headers"; then
     pass "CSP script-src is unchanged"
