@@ -438,13 +438,19 @@ def check_home(page, root, bad):
     names = [a.all_text() for a in chips]
     if names != [e["name"] for e in live]:
         bad.append("chips %r differ from the live networks of data/socials.yaml in order" % names)
-    want = "home-social--per-%d" % ((len(live) + 1) // 2)
+    want = "home-social--per-%d" % min(12, (len(live) + 1) // 2)
     if want not in ul.classes():
         bad.append("chip list lacks %s (balanced rows)" % want)
     for n in range(2, 13):
         if not balanced(n):
             bad.append("%d chips do not make balanced rows: %r" % (n, rows(n, (n + 1) // 2)))
     css = " ".join(pathlib.Path(root, "assets/css/pages/home.css").read_text(encoding="utf-8").split())
+    # Every class the template can write (1 to 24 live networks; it clamps the per-row count at 12)
+    # has a CSS rule that sets its own column count.
+    for n in range(1, 25):
+        k = min(12, (n + 1) // 2)
+        if ".home-social--per-%d { --per-desk: %d; }" % (k, k) not in css:
+            bad.append("home.css has no rule for .home-social--per-%d (needed for %d chips)" % (k, n))
     for need, why in (
         (".home-social { --per: 2; display: flex; flex-wrap: wrap; justify-content: center;", "centered wrapping rows"),
         (".home-social li { flex: 0 0 calc((100% - (var(--per) - 1) * var(--space-2)) / var(--per));", "equal-width columns"),
@@ -625,6 +631,20 @@ if [[ -f "$public/index.html" ]]; then
     hguard "per-row class wrong (orphan row)" 's/home-social--per-6/home-social--per-11/'
     hguard "a chip removed" '/<li><a class="?icon-kick"?/d'
     hguard "chip list class dropped" 's/class="?home-social home-social--per-6"?/class=home-social/'
+    # The CSS guard: a stylesheet missing the rule of one generated per-row class must fail (the rule
+    # for the real page's class, per-6, and for a small count, per-1).
+    for k in 6 1; do
+        mkdir -p "$work/perroot$k/assets/css/pages" "$work/perroot$k/data"
+        cp "$root/data/socials.yaml" "$work/perroot$k/data/"
+        sed -E "/^\.home-social--per-$k \{/d" "$root/assets/css/pages/home.css" >"$work/perroot$k/assets/css/pages/home.css"
+        if cmp -s "$root/assets/css/pages/home.css" "$work/perroot$k/assets/css/pages/home.css"; then
+            fail "per-$k css guard did not change the stylesheet (the test is stale)"
+        elif python3 -I "$asserter" home "$public/index.html" "$work/perroot$k" >/dev/null 2>&1; then
+            fail "per-$k css guard: asserter accepted a stylesheet without the per-$k rule"
+        else
+            pass "per-$k css guard fails as it should"
+        fi
+    done
     # The CSS guard: a stylesheet without the equal-width rule must fail.
     mkdir -p "$work/cssroot/assets/css/pages" "$work/cssroot/data"
     cp "$root/data/socials.yaml" "$work/cssroot/data/"

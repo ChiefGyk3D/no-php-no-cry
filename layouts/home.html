@@ -37,7 +37,7 @@
   {{- /* Balanced rows (issue 123): the chips are equal-width columns; the per-row count at desktop is half the live count rounded up (12 chips are 6 + 6), written as a class because the strict CSP forbids inline styles. Tablet is 4 across, phone 2; a short last row is centered. */}}
   {{- $live := slice }}
   {{- range . }}{{ if strings.HasPrefix .url "https://" }}{{ $live = $live | append . }}{{ end }}{{ end }}
-  <ul class="home-social home-social--per-{{ math.Ceil (div (float (len $live)) 2) | int }}">
+  <ul class="home-social home-social--per-{{ math.Min 12 (math.Ceil (div (float (len $live)) 2)) | int }}">
     {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
     <li><a class="icon-{{ $s.icon }}" href="{{ $s.url }}">{{ $s.name }}</a></li>
     {{- end }}{{ end }}
