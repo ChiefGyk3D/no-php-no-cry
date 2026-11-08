@@ -1,3 +1,4 @@
+// Same behavior as before; this line only changes the file bytes so the edge refetches it under the current _headers (issue 272).
 (function () {
   var d = document, r = d.querySelector(".share"), st = r.querySelector(".share-status"),
     k = "mastodonServer", ch = r.querySelector("[data-share=server]");

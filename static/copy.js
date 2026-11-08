@@ -1,4 +1,4 @@
-// Copy buttons for /support/. Behavior unchanged; this line only changes the file bytes (issue 216).
+// Copy buttons for /support/. Behavior unchanged; the first line changed bytes so the edge refetches under the current _headers (issues 216, 272).
 (function () {
   var d = document;
   function legacy(t) {
