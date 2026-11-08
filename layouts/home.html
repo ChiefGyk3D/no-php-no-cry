@@ -31,7 +31,8 @@
   <p>No posts yet.</p>
   {{ end }}
 </section>
-{{- with site.Data.socials }}
+{{- /* footer_only entries (LinkedIn, issue 195) are footer icons and are not chips. */}}
+{{- with where (site.Data.socials | default slice) "footer_only" "ne" true }}
 <section class="panel home-panel home-find" aria-labelledby="find-me">
   <h2 id="find-me" class="hud-heading">Find me online</h2>
   {{- /* Balanced rows (issue 123): the chips are equal-width columns; the per-row count at desktop is half the live count rounded up (12 chips are 6 + 6), written as a class because the strict CSP forbids inline styles. Tablet is 4 across, phone 2; a short last row is centered. */}}
