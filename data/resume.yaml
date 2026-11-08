@@ -6,9 +6,9 @@ name: ChiefGyk3D
 title: Senior Cybersecurity Engineer (CISSP)
 summary:
   - Senior Cybersecurity Engineer and CISSP with about 15 years across IT and security.
-  - I build and integrate security systems, question unnecessary access, and use hands-on testing to check whether the design actually works.
-  - Experience in network defense, SIEM engineering, cloud security, zero trust, automation, and local AI.
-  - Open-source maintainer, technical creator, and homelabber who builds and documents working systems.
+  - I design, build, integrate, and test security systems across identity, network defense, SIEM engineering, cloud security, zero trust, and automation.
+  - I question unnecessary access and use hands-on testing to check whether the design actually works.
+  - I maintain open-source security tools and reusable CI workflows, and I create cybersecurity content for more than 500,000 followers across YouTube, Twitch, Kick, and social platforms.
 
 skills:
   - group: Identity and access
@@ -66,8 +66,9 @@ education:
   - Associate degree in Network System Administration, ITT Tech, 2016
 
 community:
-  - "YouTube and Twitch streaming: tutorials, security breakdowns and livestreams."
-  - "Open-source maintainer: the projects listed above are public on GitHub."
+  - "Cybersecurity creator with more than 500,000 followers across YouTube, Twitch, Kick, and social platforms."
+  - "I make tutorials, security breakdowns, and livestreams with the goal of breaking down knowledge barriers."
+  - "Open-source maintainer: I build and document public security tools and reusable CI workflows."
 
 outside_work:
   - Amateur radio operator, General class license
