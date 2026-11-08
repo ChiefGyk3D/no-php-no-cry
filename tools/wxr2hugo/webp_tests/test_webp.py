@@ -6,6 +6,7 @@ import io
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -317,6 +318,178 @@ class HostileInputTests(unittest.TestCase):
         self.assertEqual(run(scratch() / "missing").returncode, 2)
         self.assertEqual(run(scratch(), "--quality", "0").returncode, 2)
         self.assertEqual(run(scratch(), "--quality", "101").returncode, 2)
+
+
+class FeaturedImageSurvivesTests(unittest.TestCase):
+    """The importer writes front matter image: "featured.png"; the WebP pass must
+    not delete that file (layouts and the card read it by name)."""
+
+    def test_importer_then_webp_keeps_the_featured_file_front_matter_names(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
+        try:
+            import helpers
+            from test_convert import thumb_export
+        finally:
+            sys.path.pop(0)
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(thumb_export(), encoding="utf-8")
+        media = helpers.make_media(work / "media")
+        (media / "2023" / "02" / "pic.png").write_bytes(png_bytes((600, 400)))
+        out = work / "out"
+        self.assertEqual(helpers.run(["--wxr", wxr, "--out", out, "--media", media]).returncode, 0)
+        post = out / "posts" / "first-post"
+        self.assertTrue((post / "featured.png").is_file())
+        self.assertEqual(run(out).returncode, 0)
+        head = (post / "index.md").read_text(encoding="utf-8").split("---\n")[1]
+        match = re.search(r'^image: "([^"]+)"$', head, re.M)
+        self.assertIsNotNone(match, head)
+        self.assertTrue((post / match.group(1)).is_file(), "front matter image %s is gone" % match.group(1))
+        # Inline images are still converted: the exclusion is only for featured.*
+        self.assertTrue(any(p.suffix == ".webp" for p in post.iterdir()))
+
+
+def exif_png_bytes(size=(200, 120), orientation=None):
+    img = photo_like(size)
+    exif = Image.Exif()
+    exif[0x010F] = "SecretCameraMaker"
+    gps = exif.get_ifd(0x8825)
+    gps[1] = "N"
+    gps[2] = (40.0, 41.0, 42.0)
+    if orientation:
+        exif[0x0112] = orientation
+    buf = io.BytesIO()
+    img.save(buf, "PNG", exif=exif)
+    return buf.getvalue()
+
+
+class FeaturedScrubTests(unittest.TestCase):
+    """featured.* keeps its name and format but loses EXIF, XMP and GPS."""
+
+    def run_on(self, name, data, **kw):
+        root = scratch()
+        d = bundle(root, index='---\nimage: "%s"\n---\n' % name)
+        (d / name).write_bytes(data)
+        proc = run(root)
+        return d, proc
+
+    def assertClean(self, path):
+        data = path.read_bytes()
+        for needle in (b"Exif", b"SecretCameraMaker", b"eXIf", b"http://ns.adobe.com/xap"):
+            self.assertNotIn(needle, data)
+        with Image.open(path) as img:
+            self.assertEqual(len(img.getexif()), 0)
+
+    def test_featured_jpeg_is_scrubbed_in_place_without_reencoding(self):
+        data = jpeg_with_exif(orientation=1)
+        d, proc = self.run_on("featured.jpg", data)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(sorted(os.listdir(d)), ["featured.jpg", "index.md"])
+        self.assertClean(d / "featured.jpg")
+        # Lossless: the pixels are exactly the original's.
+        with Image.open(io.BytesIO(data)) as a, Image.open(d / "featured.jpg") as b:
+            self.assertEqual(a.tobytes(), b.tobytes())
+
+    def test_featured_png_is_scrubbed_in_place(self):
+        d, proc = self.run_on("featured.png", exif_png_bytes())
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(sorted(os.listdir(d)), ["featured.png", "index.md"])
+        self.assertClean(d / "featured.png")
+
+    def test_rotated_featured_jpeg_has_orientation_applied_then_is_clean(self):
+        d, proc = self.run_on("featured.jpg", jpeg_with_exif(size=(120, 200), orientation=6))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertClean(d / "featured.jpg")
+        with Image.open(d / "featured.jpg") as img:
+            self.assertEqual(img.size, (200, 120))
+
+    def test_featured_with_wrong_content_is_refused_and_left_alone(self):
+        d, proc = self.run_on("featured.png", b"not an image")
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.png").read_bytes(), b"not an image")
+
+    def plain_jpeg(self, **kw):
+        buf = io.BytesIO()
+        photo_like((160, 120)).save(buf, "JPEG", **kw)
+        return buf.getvalue()
+
+    def pixels(self, data):
+        with Image.open(io.BytesIO(data)) as img:
+            img.load()
+            return img.tobytes()
+
+    def test_jpeg_trailer_with_second_jpeg_and_exif_is_cut(self):
+        base = self.plain_jpeg()
+        trailer = b"MPF-ish trailer" + jpeg_with_exif(orientation=1) + b"\xff\xe1\x00\x08Exif\x00\x00"
+        d, proc = self.run_on("featured.jpg", base + trailer)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        out = (d / "featured.jpg").read_bytes()
+        self.assertEqual(out, base)
+        self.assertNotIn(b"SecretCameraMaker", out)
+
+    def test_progressive_multi_scan_jpeg_survives_intact(self):
+        icc = b"fake-icc-profile-" * 20
+        base = self.plain_jpeg(progressive=True, icc_profile=icc)
+        self.assertGreater(base.count(b"\xff\xda"), 1)
+        d, proc = self.run_on("featured.jpg", base + jpeg_with_exif(orientation=1))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        out = (d / "featured.jpg").read_bytes()
+        self.assertEqual(self.pixels(out), self.pixels(base))
+        self.assertEqual(out, base)
+        with Image.open(d / "featured.jpg") as img:
+            self.assertEqual(img.info.get("icc_profile"), icc)
+
+    def test_truncated_jpeg_is_refused_and_left_alone(self):
+        data = self.plain_jpeg()[:-60]
+        d, proc = self.run_on("featured.jpg", data)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.jpg").read_bytes(), data)
+
+    def test_png_data_after_iend_is_cut(self):
+        base = png_bytes((160, 120))
+        d, proc = self.run_on("featured.png", base + b"trailer Exif SecretCameraMaker")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((d / "featured.png").read_bytes(), base)
+
+    def test_png_without_iend_is_refused(self):
+        data = png_bytes((160, 120))[:-12]
+        d, proc = self.run_on("featured.png", data)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.png").read_bytes(), data)
+
+    def webp(self):
+        buf = io.BytesIO()
+        photo_like((160, 120)).save(buf, "WEBP", quality=80)
+        return buf.getvalue()
+
+    def test_webp_trailer_past_riff_size_is_cut(self):
+        base = self.webp()
+        d, proc = self.run_on("featured.webp", base + b"trailer Exif SecretCameraMaker")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((d / "featured.webp").read_bytes(), base)
+
+    def test_webp_shorter_than_its_riff_size_is_refused(self):
+        data = self.webp()[:-20]
+        d, proc = self.run_on("featured.webp", data)
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual((d / "featured.webp").read_bytes(), data)
+
+    def test_importer_featured_then_webp_leaves_no_exif(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
+        try:
+            import helpers
+            from test_convert import thumb_export
+        finally:
+            sys.path.pop(0)
+        work = scratch()
+        wxr = work / "export.xml"
+        wxr.write_text(thumb_export(), encoding="utf-8")
+        media = helpers.make_media(work / "media")
+        (media / "2023" / "02" / "pic.png").write_bytes(exif_png_bytes((600, 400)))
+        out = work / "out"
+        self.assertEqual(helpers.run(["--wxr", wxr, "--out", out, "--media", media]).returncode, 0)
+        self.assertEqual(run(out).returncode, 0)
+        self.assertClean(out / "posts" / "first-post" / "featured.png")
 
 
 if __name__ == "__main__":

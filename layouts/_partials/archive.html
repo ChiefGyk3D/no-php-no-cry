@@ -7,17 +7,19 @@
 {{- end }}
 <p class="meta archive-links">
   {{- with $p.OutputFormats.Get "rss" }}<a href="{{ .RelPermalink }}">RSS feed</a>{{ end }}
+  {{- if and (eq $p.Section "posts") (eq $p.Kind "section") }}{{ " " }}<a href="{{ "/search/" | relURL }}">Search and browse by tag</a>{{ end }}
   {{- if eq $p.Kind "term" }}<a href="{{ "/posts/" | relURL }}">All posts</a>{{ end }}
 </p>
-{{- if eq $p.Section "posts" }}{{ if eq $p.Kind "section" }}
-{{- partial "tag-row.html" . }}
-{{- end }}{{ end }}
 {{- range $p.Pages.GroupByDate "2006" "desc" }}
 <section class="archive-group">
   <h2 class="archive-year hud-heading">{{ .Key }}</h2>
   <ul class="post-list">
     {{- range .Pages }}
-    <li>
+    {{- $thumb := partial "featured-image.html" (dict "page" . "mode" "thumb") }}
+    <li{{ if $thumb }} class="has-thumb"{{ end }}>
+      {{- with $thumb }}
+      {{ . }}
+      {{- end }}
       <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
       <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
       {{- with partial "description.html" . }}{{ if ne . site.Params.description }}

@@ -3,6 +3,10 @@ title: "Open Letter to President Biden about the Possible Ban of TikTok"
 date: 2023-03-16T15:52:10-04:00
 draft: true
 slug: "open-letter-to-president-biden-about-the-possible-ban-of-tiktok"
+image: "featured.png"
+imageAlt: "The TikTok logo inside a red circle with a diagonal slash, the universal sign for a ban."
+build:
+  publishResources: false
 description: "An open letter I wrote in March 2023 about what a possible TikTok ban would mean for creators and small businesses like mine."
 categories: ["Advocacy"]
 tags: ["tiktok", "creators", "open letter"]

@@ -846,6 +846,7 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
         "builder_pages": 0,
         "pages_skipped_empty": 0,
         "disclosures_added": 0,
+        "featured_images": 0,
     }
     skipped, disclosures = [], []
     upload_redirects = {}
@@ -917,6 +918,30 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
             else:
                 site.warnings.append({"file": page_path, "kind": "bad-syndicated-url", "detail": "id %d" % item["id"]})
 
+        # The featured (headline) image: _thumbnail_id names an attachment. It is
+        # copied into the bundle as featured.<ext>; layouts/single.html shows it
+        # above the title and head-meta.html uses it for the social card.
+        featured, featured_alt = None, None
+        thumb = item["meta"].get("_thumbnail_id", "").strip()
+        if kind == "post" and thumb:
+            att = by_id.get(int(thumb)) if thumb.isdigit() else None
+            fpath, frel = (None, None)
+            if att and att["type"] == "attachment" and att["attachment_url"]:
+                fpath, frel = site.find_media(att["attachment_url"])
+            suffix = fpath.suffix.lower() if fpath is not None else ""
+            if fpath is None:
+                site.warnings.append({"file": page_path, "kind": "featured-image-unresolved", "detail": "thumbnail id %s" % thumb})
+            elif suffix not in (".png", ".jpg", ".jpeg", ".webp"):
+                site.warnings.append({"file": page_path, "kind": "unsupported-image-format", "detail": "featured" + suffix})
+            else:
+                featured = "featured" + suffix
+                ctx.bundle[featured] = fpath
+                featured_alt = clean_alt(att["meta"].get("_wp_attachment_image_alt", "").strip())
+                if not featured_alt:
+                    featured_alt = ALT_TODO
+                    site.warnings.append({"file": page_path, "kind": "featured-alt-todo", "detail": featured})
+                counts["featured_images"] += 1
+
         note = annotations.get(slug) if kind == "post" and annotations else None
         if note:
             annotated.add(slug)
@@ -935,6 +960,11 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
             ("supersededBy", note.get("supersededBy") if note else None),
             ("url", new_url if kind == "page" else None),
             ("aliases", aliases),
+            ("image", featured),
+            ("imageAlt", featured_alt),
+            # The original is a source for the resize pipeline, never served as is
+            # (scripts/check-budget.py rejects an image file over 300 KB).
+            ("build", {"publishResources": False} if featured else None),
         ]
         # Aliases are settled after every page has a URL (see resolve_aliases).
         pending[page_path] = {"fields": fields, "body": body, "aliases": aliases, "new": new_url}

@@ -1,8 +1,21 @@
-{{- /* The "Browse by tag" row: every tag, A to Z, with its count. Shared by the posts archive and the search page. */ -}}
-{{- with site.Taxonomies.tags.Alphabetical }}
-<nav class="archive-tags" aria-label="Browse by tag">
-  <ul class="tag-list">
-    {{- range . }}<li><a href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
-  </ul>
-</nav>
+{{- /* The "Browse by tag" section for /search/ (issue 222): a collapsed native <details> (no script). Inside, the most used tags first (count high to low); the rest, A to Z, sit behind a nested "Show all" <details>. Every tag keeps its count and links to its tag page. */ -}}
+{{- with site.Taxonomies.tags.ByCount }}
+{{- $all := . }}
+{{- $top := 12 }}
+<details class="accordion search-tags-box">
+  <summary>Browse by tag ({{ len $all }})</summary>
+  <nav aria-label="Browse by tag">
+    <ul class="tag-list">
+      {{- range first $top $all }}<li><a href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
+    </ul>
+    {{- with after $top $all }}
+    <details class="tags-more">
+      <summary>Show {{ len . }} more</summary>
+      <ul class="tag-list">
+        {{- range sort . "Page.LinkTitle" }}<li><a href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
+      </ul>
+    </details>
+    {{- end }}
+  </nav>
+</details>
 {{- end }}

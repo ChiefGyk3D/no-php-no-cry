@@ -7,7 +7,8 @@
 {{- $image := "" -}}
 {{- with .Params.image -}}
   {{- $res := $.Resources.GetMatch . -}}
-  {{- if $res }}{{ $image = $res.Permalink }}{{ else }}{{ $image = . | absURL }}{{ end -}}
+  {{- /* A bundle image is shared as a derived JPEG (the original may be unpublished or large), as in head-meta.html. */ -}}
+  {{- if $res }}{{ $image = ($res.Fit "1200x1200 jpg q80").Permalink }}{{ else }}{{ $image = . | absURL }}{{ end -}}
 {{- end -}}
 <div class="share" role="group" aria-label="Share this post">
   <span class="share-title meta" aria-hidden="true">Share</span>

@@ -3,6 +3,10 @@ title: "Building a Strong Online Community: A Guide to Automating Your Social Me
 date: 2023-02-11T16:01:45-05:00
 draft: true
 slug: "building-a-strong-online-community-a-guide-to-automating-your-social-media-communications"
+image: "featured.jpg"
+imageAlt: "A simple flowchart titled Is This A Flowchart? with a blue box reading Is this a flowchart? and an arrow pointing to an orange box reading Yes."
+build:
+  publishResources: false
 description: "How I plan to automate announcements across YouTube, Twitch, TikTok, Discord, Mastodon and more, so more time goes to content and community."
 categories: ["Social Media"]
 tags: ["automation", "community", "social media"]

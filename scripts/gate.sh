@@ -50,6 +50,7 @@ step check-output-staging build-staging 'EXPECT_ENV=staging scripts/check-output
 step check-site-artifact-staging build-staging 'scripts/check-site-artifact.sh "$T/public-staging"'
 step test-check-output "" 'scripts/test-check-output.sh'
 step test-head "" 'scripts/test-head.sh'
+step test-featured-image "" 'scripts/test-featured-image.sh'
 step test-social-products "" 'scripts/test-social-products.sh'
 step test-share "" 'scripts/test-share.sh'
 step test-resume "" 'scripts/test-resume.sh'
@@ -99,7 +100,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging test-head test-social-products test-share test-resume
+    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-resume
     test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)

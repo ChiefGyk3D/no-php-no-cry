@@ -3,6 +3,10 @@ title: "Why I Use Multiple Phones: A Personal Dive into Device Diversification"
 date: 2023-09-22T16:10:55-04:00
 draft: true
 slug: "why-i-use-multiple-phones-a-personal-dive-into-device-diversification"
+image: "featured.jpg"
+imageAlt: "Four smartphones on a desk, one upright on a yellow 3D-printed stand and three lying flat in clear cases, near a keyboard, a mouse and a monitor."
+build:
+  publishResources: false
 description: "Why I carry an iPhone, a GrapheneOS Pixel, a Samsung and a Librem 5, and what each one is for."
 categories: ["Hardware"]
 tags: ["android", "cell phone", "ios", "IT", "pixel", "purism"]
