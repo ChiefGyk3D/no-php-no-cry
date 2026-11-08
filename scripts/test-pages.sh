@@ -71,6 +71,7 @@ SKILL_GROUPS = [
     "Software and automation",
     "Local AI and agents",
     "Radio, RF, and telecom",
+    "Where I'm headed",
 ]
 MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
 MISSION_END = "You're not dead until you stop learning. Happy Hacking."
@@ -345,6 +346,15 @@ def about(p, errs, repo):
     if p.ids.get("skills") != "h2":
         errs.append("no #skills h2")
     h3s = [html.unescape(m) for m in re.findall(r"<h3[^>]*>(.*?)</h3>", repo["html"], re.S)]
+    # The Skills section is asserted from data/about.yaml (names, order and text, in
+    # check_about_data); this list pins the owner-approved group names and their order.
+    if h3s[-1:] != ["Where I'm headed"]:
+        errs.append("the last skill group must be Where I'm headed")
+    skills_text = " ".join(g["text"] for g in about_data()["skills"])
+    if chr(0x2014) in skills_text or chr(0x2013) in skills_text:
+        errs.append("a dash character is in the skills text")
+    if re.search(r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b", skills_text):
+        errs.append("callsign-shaped text in the skills text")
     if h3s != SKILL_GROUPS:
         errs.append("skill group headings are %r" % h3s)
     if p.count("h4") or p.count("h1") != 1:
