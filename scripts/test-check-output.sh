@@ -443,6 +443,7 @@ share_page_case() { # <page>:<yes|no>
         echo "ok: share.js on ${1%%:*} -> ${1##*:}"
     else
         echo "FAIL: share.js on ${1%%:*} -> $got (wanted ${1##*:})"
+        return 1
     fi
 }
 for pair in posts/a-post/index.html:yes journal/an-entry/index.html:yes posts/index.html:no posts/page/2/index.html:no journal/index.html:no support/index.html:no index.html:no; do
