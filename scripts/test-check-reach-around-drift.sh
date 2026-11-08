@@ -58,9 +58,70 @@ run "stale pin in the other lock is drift" 1 "pin is stale" --ra-tokens "$work/s
 
 run "--offline skips with a message" 0 "skip:" --offline
 RA_DRIFT_API="http://127.0.0.1:9/none" run "dead API address exits 3 and names --offline" 3 "--offline" --timeout 2
+# Fetch path against a loopback fake API: the head commit is resolved once, then
+# BOTH files are requested at that sha (a moving ref could pair mismatched files).
+cat >"$work/fake.py" <<'PY'
+import http.server, sys
+work, sha = sys.argv[1], sys.argv[2]
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        open(work + "/requests", "a").write(self.path + "\n")
+        if self.path.endswith("/commits/main"):
+            body = sha.encode()
+        elif "ref=" + sha in self.path and "tokens.lock.json" in self.path:
+            body = open(work + "/same.lock.json", "rb").read()
+        elif "ref=" + sha in self.path and "tokens.json" in self.path:
+            body = open(work + "/same.json", "rb").read()
+        else:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(body)
+    def log_message(self, *a):
+        pass
+srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+open(work + "/port", "w").write(str(srv.server_port))
+srv.serve_forever()
+PY
+fake_sha="fedcba9876543210fedcba9876543210fedcba98"
+python3 -I "$work/fake.py" "$work" "$fake_sha" &
+fake_pid=$!
+trap 'kill "$fake_pid" 2>/dev/null || true; rm -rf "$work"' EXIT
+for _ in $(seq 1 50); do [[ -s "$work/port" ]] && break || sleep 0.1; done
+python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); d["sha256"]=__import__("hashlib").sha256(open(sys.argv[2],"rb").read()).hexdigest(); json.dump(d,open(sys.argv[1],"w"))' "$work/same.lock.json" "$work/same.json"
+RA_DRIFT_API="http://127.0.0.1:$(cat "$work/port")/repos/x/y" run "fetch resolves one commit and prints it" 0 "commit checked: $fake_sha" --timeout 5
+if [[ "$(grep -c "ref=$fake_sha" "$work/requests")" -eq 2 ]]; then
+    echo "ok: both files were fetched at the resolved sha"
+else
+    echo "FAIL: both files must be requested with ref=$fake_sha"
+    cat "$work/requests"
+    fail=1
+fi
+kill "$fake_pid" 2>/dev/null || true
+
 run "unknown flag is a usage error" 2 - --bogus
 run "one of --ra-tokens/--ra-lock alone is a usage error" 2 - --ra-tokens "$work/same.json"
 echo '{not json' >"$work/bad.json"
+run "--timeout 0 is a usage error" 2 - --timeout 0
+run "--timeout abc is a usage error" 2 - --timeout abc
+run "--timeout 05 is a usage error" 2 - --timeout 05
+
+# Lock source.commit must be 40 lowercase hex; wrong shapes are exit 3.
+for bad in null '""' '"unknown"' '123' '"0123456789ABCDEF0123456789ABCDEF01234567"' '"0123"'; do
+    python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); d["source"]["commit"]=json.loads(sys.argv[3]); json.dump(d,open(sys.argv[2],"w"))' "$work/same.lock.json" "$work/badc.lock.json" "$bad"
+    run "lock commit $bad exits 3" 3 "source.commit" --ra-tokens "$work/same.json" --ra-lock "$work/badc.lock.json"
+done
+python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); del d["source"]; json.dump(d,open(sys.argv[2],"w"))' "$work/same.lock.json" "$work/nosrc.lock.json"
+run "lock without source exits 3" 3 "cannot read or parse" --ra-tokens "$work/same.json" --ra-lock "$work/nosrc.lock.json"
+
+# Valid JSON of the wrong shape is a parse error, not a traceback.
+for doc in '{"groups": null}' '{"fontFace": null}' '{"groups": 5}' '{"groups": [5]}' '{"groups": [{"tokens": null}]}' '{"fontFace": [3]}' '[1]' 'null'; do
+    printf '%s' "$doc" >"$work/shape.json"
+    run "tokens shape $doc exits 3" 3 "cannot read or parse" --ra-tokens "$work/shape.json" --ra-lock "$work/same.lock.json"
+    run "own tokens shape $doc exits 3" 3 "cannot read or parse" --tokens "$work/shape.json" --ra-tokens "$work/same.json" --ra-lock "$work/same.lock.json"
+done
+
 run "unparseable file exits 3" 3 "cannot read or parse" --ra-tokens "$work/bad.json" --ra-lock "$work/same.lock.json"
 
 if [[ $fail -ne 0 ]]; then

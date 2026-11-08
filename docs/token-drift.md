@@ -14,10 +14,12 @@ Drift can go either way, so each repo has its own check.
 scripts/check-reach-around-drift.sh
 ```
 
-It reads Reach Around's vendored `tokens.json` and lock from its default branch
-through the GitHub REST contents API (public repo, no token, 20 second limit,
-`--timeout SECS` to change it). It prints the blog commit Reach Around is pinned
-to, then every token key added, removed or changed on that side (`token:<name>`,
+It first resolves one Reach Around commit (the head of its default branch, GitHub
+REST commits API), then reads the vendored `tokens.json` and lock at that commit
+through the contents API, so a push between requests cannot pair a new file with
+an old lock (public repo, no token, 20 second limit per request, `--timeout SECS`
+with a positive integer to change it). It prints the Reach Around commit it
+checked and the blog commit Reach Around is pinned to, then every token key added, removed or changed on that side (`token:<name>`,
 `fontFace:<family>`, `version`), and whether Reach Around's own sha256 pin
 matches its file. Exit 0 is no drift, 1 is drift, 3 is a fetch or parse error.
 
@@ -42,7 +44,9 @@ In Reach Around, on a branch:
 
 1. Copy this repo's `brand/tokens.json` over `vendor/brand/tokens.json`.
 2. In `vendor/brand/tokens.lock.json` set `source.commit` to the blog commit the
-   file came from and `sha256` to `sha256sum vendor/brand/tokens.json`.
+   file came from and `sha256` to the digest alone: `sha256sum vendor/brand/tokens.json | cut -d' ' -f1`.
+   `sha256sum` prints the digest and then the file name; keep only the 64-character
+   digest, or the pin is invalid.
 3. `python3 -I scripts/gen-brand-theme.py`, then `python3 -I scripts/check-token-drift`.
 4. Open a pin-only PR that links the blog issue.
 

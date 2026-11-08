@@ -8,9 +8,11 @@
 # compares the two and reports token keys added, removed and changed on the
 # Reach Around side, plus the blog commit that side is pinned to.
 #
-# By default both files are read from Reach Around's origin default branch
-# through the GitHub REST contents API (public repo, no token, bounded by
-# --timeout, default 20 s). --ra-tokens and --ra-lock read local files instead
+# By default the head commit of Reach Around's default branch is resolved first
+# (GitHub REST commits API), then both files are read at that one commit through
+# the contents API (public repo, no token), so a push between requests cannot
+# pair a new tokens.json with an old lock. The commit used is printed. Each
+# request is bounded by --timeout (a positive integer, default 20 s). --ra-tokens and --ra-lock read local files instead
 # (the tests use this; no network). --offline skips the check with a message and
 # exit 0, so CI never flakes on a network error. A fetch failure without
 # --offline exits 3, never 0.
@@ -19,7 +21,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-api="${RA_DRIFT_API:-https://api.github.com/repos/ChiefGyk3D/Reach-Around/contents}"
+api="${RA_DRIFT_API:-https://api.github.com/repos/ChiefGyk3D/Reach-Around}"
 timeout=20
 offline=0
 tokens="$root/brand/tokens.json"
@@ -35,7 +37,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --offline) offline=1 ;;
         --timeout)
-            [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || usage
+            [[ $# -ge 2 && "$2" =~ ^[1-9][0-9]*$ ]] || usage
             timeout="$2"
             shift
             ;;
@@ -71,12 +73,22 @@ trap 'rm -rf "$work"' EXIT
 if [[ -z "$ra_tokens" ]]; then
     ra_tokens="$work/tokens.json"
     ra_lock="$work/tokens.lock.json"
-    fetch() { # fetch <path-in-repo> <out>
+    fetch() { # fetch <accept-type> <url> <out>
         curl -fsSL --max-time "$timeout" --retry 1 \
-            -H "Accept: application/vnd.github.raw+json" \
-            -o "$2" "$api/$1" 2>"$work/curl.err"
+            -H "Accept: $1" -o "$3" "$2" 2>"$work/curl.err"
     }
-    if ! fetch vendor/brand/tokens.json "$ra_tokens" || ! fetch vendor/brand/tokens.lock.json "$ra_lock"; then
+    ra_sha=""
+    if fetch application/vnd.github.sha "$api/commits/main" "$work/sha.txt"; then
+        ra_sha="$(tr -d '[:space:]' <"$work/sha.txt")"
+    fi
+    if [[ ! "$ra_sha" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "error: could not resolve Reach Around's head commit ($(tr '\n' ' ' <"$work/curl.err"))" >&2
+        echo "       rerun with --offline to skip this check" >&2
+        exit 3
+    fi
+    echo "Reach Around commit checked: $ra_sha"
+    if ! fetch application/vnd.github.raw+json "$api/contents/vendor/brand/tokens.json?ref=$ra_sha" "$ra_tokens" ||
+        ! fetch application/vnd.github.raw+json "$api/contents/vendor/brand/tokens.lock.json?ref=$ra_sha" "$ra_lock"; then
         echo "error: could not fetch Reach Around's vendored tokens ($(tr '\n' ' ' <"$work/curl.err"))" >&2
         echo "       rerun with --offline to skip this check" >&2
         exit 3
@@ -86,6 +98,7 @@ fi
 python3 -I - "$tokens" "$ra_tokens" "$ra_lock" <<'PY'
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -106,9 +119,13 @@ try:
     theirs_raw = theirs_path.read_bytes()
     theirs = flatten(json.loads(theirs_raw))
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
-    commit = lock.get("source", {}).get("commit", "unknown")
-    pin = lock.get("sha256", "unknown")
-except (OSError, ValueError, AttributeError) as exc:
+    commit = lock["source"]["commit"]
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError("lock source.commit must be 40 lowercase hex characters")
+    pin = lock["sha256"]
+    if not isinstance(pin, str):
+        raise ValueError("lock sha256 must be a string")
+except (OSError, ValueError, AttributeError, TypeError, KeyError) as exc:
     print("error: cannot read or parse tokens: %s" % exc, file=sys.stderr)
     sys.exit(3)
 
