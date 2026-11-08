@@ -149,3 +149,90 @@ injects scripts at the edge, so these are not the production numbers.
 - On posts that contain an e-mail-shaped string, Cloudflare also injects
   `/cdn-cgi/scripts/.../email-decode.min.js` (Email Address Obfuscation), which
   `cache-insight` flags for a short lifetime. Host-controlled, not in our HTML.
+
+## Trust and Safety items from PageSpeed Insights (issue 259, 2026-11-08)
+
+PageSpeed Insights on the staging host listed four unscored "Trust and Safety"
+items and one render-blocking request. What was done, and what was not.
+
+### Cross-Origin-Opener-Policy (done)
+
+`static/_headers` now sends `Cross-Origin-Opener-Policy: same-origin`. Nothing on
+the site needs a cross-origin window reference: every `target="_blank"` link in
+`layouts/` carries `rel="noopener"` (the share row uses `noopener noreferrer`),
+and the one script popup (`share.js`, Mastodon share) calls
+`window.open(..., "noopener,noreferrer")`, so it never relied on `window.opener`.
+`headers_policy_ok` in `scripts/artifact-rules.sh` accepts the header in the `/*`
+block only once with exactly that value, and `headers_coop_ok` plus
+`check-output.sh` (`headers-coop`) require it.
+
+### Trusted Types (done: directive added, no policy)
+
+`require-trusted-types-for 'script'` is now in the CSP. Reading the three pinned
+scripts for the sinks that directive enforces (innerHTML, outerHTML,
+insertAdjacentHTML, document.write, DOMParser, eval, setTimeout or setInterval
+with a string, `new Function`, script `src`, iframe srcdoc, embed or object
+URLs; source: web.dev/articles/trusted-types, read 2026-11-08): none is used.
+`copy.js` builds a textarea with `createElement`, `value` and `setAttribute("readonly", "")`
+(not a sink); `search.js` and `share.js` write only `textContent`, `hidden` and
+`value`; `window.open` and `prompt` are not Trusted Types sinks. So no policy and
+no `trusted-types` directive is needed, and `check-output.sh` rejects one
+(`weak-csp`). No pinned script changed, so no `.sha256` file changed.
+Risk: Cloudflare's own injected beacon is not ours to audit. If it used a sink it
+would log a violation in the console; on staging it is already blocked by the CSP
+path mismatch (above), and issue 241 removes it.
+
+### CSP host allowlist for the Cloudflare beacon (kept, tracked)
+
+PageSpeed flags `script-src ... https://static.cloudflareinsights.com/beacon.min.js`
+because host allowlists can be bypassed. It stays until issue 241 turns off
+Cloudflare's automatic Web Analytics injection. When #241 is done, delete from
+`static/_headers`: the beacon URL in `script-src` (leaving `script-src 'self'`).
+The `connect-src 'self'` stays. In the same change update the beacon constant
+and the allowances in `scripts/check-output.sh` (`csp_scripts_ok`, the
+`weak-csp` substitution), `scripts/smoke-site.sh` messages, and the beacon
+variants in `scripts/test-check-output.sh`. A comment in `static/_headers` points
+here so it is not forgotten.
+
+### HSTS preload (not enabled: owner decision)
+
+Requirements, from https://hstspreload.org/ (read 2026-11-08): a valid
+certificate; HTTP redirects to HTTPS on the same host; every subdomain served
+over HTTPS, nested and internal ones included (and `www` if it has a DNS
+record); on the base domain the header
+`Strict-Transport-Security` with `max-age` of at least 31536000, `includeSubDomains`
+and `preload`, redirects included. Inclusion is hard to undo: removal can take
+months to reach users through a Chrome release, other browsers promise nothing,
+and the requirements must be kept indefinitely.
+
+The site sends `max-age=31536000; includeSubDomains` today. That header applies
+only to the host that sent it and its descendants: on `test-blog.chiefgyk3d.com`
+it pins that host's subtree for a year for visitors who loaded it, and does not
+touch the apex or siblings such as `shop.chiefgyk3d.com`. The preload list works
+per registrable domain. Preloading `chiefgyk3d.com` would make browsers refuse
+plain HTTP for every subdomain (the links host, instance hosts, Matrix, Discord
+redirect, shop, anything else under the zone, current and future), for everyone,
+with no expiry. The preload header must also come from the apex
+`chiefgyk3d.com`, not from this blog host alone.
+
+Decision needed from the owner: (1) do not preload (recommended until every
+`*.chiefgyk3d.com` host, including internal ones, is audited as HTTPS-only);
+(2) audit the zone's DNS records first, then preload; (3) preload now. Nothing
+is filed for this.
+
+### Render-blocking stylesheet (stays)
+
+`/css/site.min.<hash>.css` (8.7 KiB) is the only blocking request. Inlining it
+would need `style-src 'unsafe-inline'` (or a hash per page), which the strict CSP
+and `check-output.sh` forbid. A preload hint for a stylesheet the head already
+links gives no gain (the parser finds it first thing), and the long immutable
+cache (issue 240) makes repeat views free. The audit's 140 ms estimate does not
+lower the local Performance score. No change, no check loosened.
+
+### Staging noindex (unchanged, still enforced)
+
+The "blocked from indexing" finding is staging by design. `check-output.sh`
+decides the environment from `robots.txt`: staging (`Disallow: /`) must have
+`noindex` on every page, production must have none except the 404
+(`noindex-mismatch`, `bad-robots`, `env-mismatch`). Both shapes are covered by
+`scripts/test-check-output.sh`. Nothing in this change touches either.

@@ -150,6 +150,23 @@ csp_scripts_ok() {
         END { exit (bad || !seen) }'
 }
 
+# tt_required_ok: reads Content-Security-Policy header lines on stdin. Succeeds
+# when every policy has require-trusted-types-for 'script' exactly once and no
+# trusted-types directive (a policy would mean a script builds markup or script
+# URLs; the pinned scripts must not, issue 259).
+tt_required_ok() {
+    awk '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); c = 0
+          for (i = 1; i <= n; i++) {
+              gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+              name = tolower(d[i]); sub(/[ \t].*/, "", name)
+              if (name == "require-trusted-types-for") { c++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'script'"'"'") bad = 1 }
+              if (name == "trusted-types") bad = 1
+          }
+          if (c != 1) bad = 1; seen = 1 }
+        END { exit (bad || !seen) }'
+}
+
 env=""
 if [[ ! -s "$dir/robots.txt" ]]; then
     report missing-robots "robots.txt"
@@ -542,6 +559,8 @@ else
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
         report weak-csp "_headers (script-src must be exactly 'self' plus the Cloudflare beacon URL, once, connect-src exactly 'self', no script-src-elem or script-src-attr)"
+    elif ! tt_required_ok <<<"$csp"; then
+        report weak-csp "_headers (require-trusted-types-for 'script' is required exactly once; no trusted-types directive: no pinned script may need a policy, issue 259)"
     elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
         report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi
@@ -549,6 +568,9 @@ fi
 
 if [[ -s "$dir/_headers" ]] && ! headers_policy_ok "$dir/_headers"; then
     report headers-structure "_headers (must be one /* rule block with no removal directive)"
+fi
+if [[ -s "$dir/_headers" ]] && ! headers_coop_ok "$dir/_headers"; then
+    report headers-coop "_headers (Cross-Origin-Opener-Policy: same-origin is required exactly once, issue 259)"
 fi
 if [[ -s "$dir/_headers" ]] && ! headers_immutable_ok "$dir/_headers"; then
     report missing-immutable "_headers (no long-cache block for the content-hashed assets: ${IMMUTABLE_PATHS[*]})"
