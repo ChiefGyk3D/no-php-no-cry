@@ -64,6 +64,8 @@ mutate missing-file network missing-file
 mutate off-site network off-site
 mutate axe axe no-alt
 mutate small-target target small-target
+# Issue 232: an image drawn wider than its file (Lighthouse image-size-responsive).
+mutate low-res-image image low-res-image
 mutate tab-order tab tab-order
 mutate no-focus-ring tab no-focus-ring
 mutate no-skip-link tab no-skip-link
