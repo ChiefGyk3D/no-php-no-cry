@@ -449,6 +449,9 @@ headers_variant "removal directive under the first rule" headers-structure '  ! 
 headers_variant "second rule block" headers-structure '/other/*\n  Referrer-Policy: no-referrer\n'
 headers_variant "per-path override of nosniff" headers-structure '/api/*\n  X-Content-Type-Options: sniff\n'
 headers_variant "per-path override of the policy" headers-structure "/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'\\n"
+headers_variant "long cache on the fonts" headers-structure '/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n'
+headers_variant "long cache on every page" headers-structure '/*.html\n  Cache-Control: public, max-age=31536000, immutable\n'
+headers_variant "another header in the long-cache block" headers-structure '  Referrer-Policy: no-referrer\n'
 headers_variant "rule block with a different path" headers-structure '/a\n  X-Test: 1\n'
 
 # The pinned _headers must carry script-src 'self' (not 'none') once the copy script

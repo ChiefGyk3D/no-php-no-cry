@@ -36,8 +36,9 @@ It reads the built files, not the sources. Among its rules:
   40 KB gzip or more.
 - Any plain-HTTP reference, any external asset in HTML, an external `@import` or
   `url()` in CSS or SVG, an `xml-stylesheet` instruction, a `<base>` element.
-- A weak Content Security Policy, a `_headers` that is not one `/*` block, a
-  missing `nosniff`.
+- A weak Content Security Policy, a `_headers` that is not the `/*` block plus
+  the one `/css/*` long-cache block, a missing `nosniff`, a missing long-cache block,
+  and a file under `/css/` that is not named by its own sha256.
 - A file of a type that is not on the allowlist (including one with no
   extension), and a `copy.js` or `search.js` whose sha256 differs from its
   committed `.sha256` file.

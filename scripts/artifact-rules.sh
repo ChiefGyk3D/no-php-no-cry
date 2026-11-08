@@ -15,6 +15,8 @@
 #      (PINNED_SCRIPTS below) and is refused on any other (script-wrong-page);
 #   4. the headers file is one "/*" rule block with no removal directive
 #      (headers_policy_ok), so nothing detaches or overrides a header per path.
+#      The one exception is the long-cache block for content-hashed assets
+#      (issue 240): Cache-Control only, on listed paths only.
 
 # artifact_name_ok <path relative to the site root>: succeeds for a file the
 # build may carry. The three control files only at the root; everything else needs
@@ -134,17 +136,72 @@ headers_nosniff_ok() {
         END { exit (n != 1 || bad) }' "$1"
 }
 
-# headers_policy_ok <headers file>: succeeds when the file has exactly one rule
-# block, "/*", and no line that removes a header (one starting with "!"). A
-# second block or a per-path rule could override a header; a removal directive
-# could detach one.
+# The one long-cache rule (issue 240). A response whose URL carries its own
+# content hash can be cached for a year and never revalidated, because a changed
+# file gets a new URL. Only the paths listed here may do that, and only with this
+# exact value; HTML and every file whose name is not a content hash (fonts, brand
+# images, the pinned scripts) never may. check-output.sh proves every file under
+# each listed path is named by its own sha256 (immutable_assets_bad).
+IMMUTABLE_CACHE_VALUE="public, max-age=31536000, immutable"
+IMMUTABLE_PATHS=("/css/*")
+
+# headers_policy_ok <headers file>: succeeds when the file has a "/*" rule block
+# first, then at most one block per IMMUTABLE_PATHS entry whose whole body is the
+# single line "Cache-Control: <IMMUTABLE_CACHE_VALUE>", and no line that removes a
+# header (one starting with "!"). Any other block or per-path rule could override
+# a header; a removal directive could detach one; a Cache-Control in the "/*"
+# block would cover HTML.
 headers_policy_ok() {
-    awk '
+    awk -v paths="$(printf '%s\n' "${IMMUTABLE_PATHS[@]}")" -v want="Cache-Control: $IMMUTABLE_CACHE_VALUE" '
+        BEGIN { n = split(paths, p, "\n"); for (i = 1; i <= n; i++) ok[p[i]] = 1 }
         { sub(/\r$/, "") }
         /^[ \t]*$/ || /^[ \t]*#/ { next }
-        /^[^ \t]/ { blocks++; if ($0 != "/*") bad = 1; next }
-        { line = $0; sub(/^[ \t]+/, "", line); if (substr(line, 1, 1) == "!") bad = 1; if (blocks != 1) bad = 1 }
-        END { exit (blocks != 1 || bad) }' "$1"
+        /^[^ \t]/ {
+            blocks++; kind = "x"
+            if (blocks == 1) { if ($0 == "/*") kind = "main"; else bad = 1 }
+            else if (($0 in ok) && !($0 in seen)) { seen[$0] = 1; kind = "cache" }
+            else bad = 1
+            lines = 0; next
+        }
+        {
+            line = $0; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+            if (substr(line, 1, 1) == "!" || blocks < 1) bad = 1
+            if (kind == "cache") { lines++; if (lines > 1 || line != want) bad = 1 }
+            if (kind == "main" && tolower(line) ~ /^cache-control[ \t]*:/) bad = 1
+            if (kind == "x") bad = 1
+        }
+        END { exit (blocks < 1 || bad) }' "$1"
+}
+
+# immutable_assets_bad <site dir>: prints one line for each file under an
+# IMMUTABLE_PATHS directory whose name is not "<name>.<64 hex>.<ext>" with that
+# hex equal to the file's own sha256. Succeeds when it printed something. Only
+# directory-wide /<dir>/* paths are supported.
+immutable_assets_bad() {
+    local dir="$1" pat sub f base hex found=1
+    for pat in "${IMMUTABLE_PATHS[@]}"; do
+        sub="${pat%/\*}"
+        sub="${sub#/}"
+        while IFS= read -r -d '' f; do
+            base="${f##*/}"
+            if [[ "$base" =~ \.([0-9a-f]{64})\.[A-Za-z0-9]+$ ]]; then
+                hex="${BASH_REMATCH[1]}"
+                [[ "$(sha256sum "$f" | cut -d' ' -f1)" == "$hex" ]] && continue
+            fi
+            printf '%s\n' "${f#"$dir"/}"
+            found=0
+        done < <(find "$dir/$sub" -type f -print0 2>/dev/null | sort -z)
+    done
+    return $found
+}
+
+# headers_immutable_ok <headers file>: succeeds when every IMMUTABLE_PATHS entry
+# has its block (the long-cache rule is required, not optional).
+headers_immutable_ok() {
+    local pat
+    for pat in "${IMMUTABLE_PATHS[@]}"; do
+        grep -qxF -- "$pat" "$1" || return 1
+    done
 }
 
 # routes_policy_ok <_routes.json file>: succeeds when the file is the strict

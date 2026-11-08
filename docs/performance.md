@@ -87,7 +87,65 @@ Lighthouse run from this machine against `https://test-blog.chiefgyk3d.com`
 | 404 page SEO 69 | The 404 template carries `<meta name=robots content="noindex">` | None. A not-found page should not be indexed; keep it. |
 | Staging Best Practices 92 (`errors-in-console`, `inspector-issues`) | The Cloudflare beacon is requested as `https://static.cloudflareinsights.com/beacon.min.js/v<token>`; the CSP names `.../beacon.min.js`, a path source that matches that exact path only, so the browser blocks it ("violates the following Content Security Policy directive") | Owner decision, not changed here (the CSP stays as is, and `check-output.sh` pins the exact entry). Either accept the console error, turn Web Analytics automatic injection off, or approve a wider beacon source (for example the `static.cloudflareinsights.com` host) in `static/_headers` and `check-output.sh` together. The blocked URL with the suffix was observed in Lighthouse's console audit on staging, 2026-11-08. |
 | `render-blocking-insight` (CSS, 40 to 150 ms on mobile) | One 6 to 7 KB stylesheet is the only blocking request. Inlining it needs `style-src 'unsafe-inline'` | None. The strict CSP rules it out. It does not lower the Performance score. |
-| `cache-insight` and cache lifetime | Staging serves CSS, fonts and images with `cache-control: public, max-age=14400, must-revalidate` (Cloudflare Pages default). The CSS file name carries a content hash, so a one-year `immutable` lifetime is safe for `/css/*` | A second `/css/*` block in `static/_headers` is the fix, but `check-output.sh` requires `_headers` to be a single `/*` block (`headers-structure`). Changing that rule is an owner decision. Not changed here. |
+| `cache-insight` and cache lifetime | Fixed in issue 240: `static/_headers` has a second block, `/css/*`, that sets `Cache-Control: public, max-age=31536000, immutable`. Every file there is named by its own sha256 (Hugo fingerprint), proven on every build by `check-output.sh` (`immutable-unhashed`, `missing-immutable`, `headers-structure`). Fonts, brand images, post images and the pinned scripts keep unhashed names and the host default, on purpose | None. Cloudflare Pages merges the matching blocks; confirm with `curl -sI` on the staging stylesheet after the first deploy (the local test server applies `_headers` the same way, but the host is the judge). |
 | `image-delivery-insight` on the post (15 KiB) | The hero is already `fetchpriority=high`, `srcset`, WebP, with dimensions | Optional: a smaller hero encode. Not a scored audit. |
 | `network-dependency-tree-insight`, `lcp-discovery-insight`, `max-potential-fid` | Informational insights, score 0 with no weight in the Performance score; the web manifest and CSS are the whole chain (141 ms) | None. |
 | TLS and HTTP version | Staging answers `HTTP/2` with Brotli (`content-encoding: br`) | None. |
+
+## Full sweep of every page type (issue 248, 2026-11-08)
+
+Goal: every Lighthouse category at 100, mobile and desktop, on every page type
+the site controls. Same tooling as above (Lighthouse 13.6.0, Chrome headless,
+Hugo 0.168.0, `hugo --minify --gc`, a local static server that sends the build's
+own `_headers` and gzip), three runs per page and strategy, median of the three
+reported. One post (`best-headphone-...`) is a draft, so it was measured from a
+`hugo -D` build of the same tree.
+
+Pages: home, posts list, a long post with four body images, a short post,
+journal list, journal entry, search, a tag page (`/tags/mastodon/`; there is no
+`/tags/` index page, it answers 404), about, resume, support, social, products,
+privacy and 404 (Lighthouse refuses a 404 status, so it was audited through a path that serves the same file with status 200).
+
+| Result | Before | After |
+|---|---|---|
+| Local, mobile, 14 indexable page types | 100/100/100/100 | 100/100/100/100 |
+| Local, desktop, 14 indexable page types | 100/100/100/100 | 100/100/100/100 |
+| Local 404, mobile and desktop | 100/100/100/**69** | 100/100/100/**69** |
+
+Run to run, Performance on a loaded laptop moves 1 to 4 points (Total Blocking
+Time); every median above is 100. The one category under 100 on the local build
+is the 404 page's SEO score.
+
+### 404 SEO 69 is by design
+
+The failing audit is `is-crawlable` ("Page is blocked from indexing"): the 404
+template carries `<meta name="robots" content="noindex">` and `check-output.sh`
+requires it in production (`noindex-mismatch`). A not-found page should not be
+indexed, so the score stays 69. No other audit on that page fails. Do not remove
+the tag to chase the number.
+
+### Public staging site, measured separately (host-injected script)
+
+Run from this machine against `https://test-blog.chiefgyk3d.com`, read only,
+three runs per page, median. Staging is `noindex` on purpose and Cloudflare
+injects scripts at the edge, so these are not the production numbers.
+
+| Pages | Mobile P/A/BP/SEO | Desktop P/A/BP/SEO |
+|---|---|---|
+| All 14 indexable page types | 99/100/92/69 | 100/100/92/69 |
+| 404 (`/404.html`) | 99/100/92/69 | 100/100/92/69 |
+
+- Best Practices 92 on every page: `errors-in-console` and `inspector-issues`.
+  Cloudflare injects the Web Analytics beacon as
+  `https://static.cloudflareinsights.com/beacon.min.js/v<token>`; the CSP names
+  `.../beacon.min.js`, which matches that exact path only, so the browser blocks
+  it. Host-controlled; the owner's Cloudflare task is issue 241. The CSP and
+  `check-output.sh` are unchanged.
+- SEO 69: staging is `noindex` by design (see the table above); production
+  builds score 100 on every indexable page.
+- Performance 99 on mobile: First Contentful Paint 1.6 to 1.7 s under simulated
+  Slow 4G. The one render-blocking request is the stylesheet; inlining it needs
+  `style-src 'unsafe-inline'`, which the CSP forbids. Not a defect, no fix.
+- On posts that contain an e-mail-shaped string, Cloudflare also injects
+  `/cdn-cgi/scripts/.../email-decode.min.js` (Email Address Obfuscation), which
+  `cache-insight` flags for a short lifetime. Host-controlled, not in our HTML.
