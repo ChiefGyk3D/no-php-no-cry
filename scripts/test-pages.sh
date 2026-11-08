@@ -230,6 +230,25 @@ def support(p, errs, repo):
             errs.append("%s address has no id for the Copy button" % coin)
     if len(re.findall(r"role=status", html)) != len(ADDRESSES):
         errs.append("each Copy button needs one role=status region")
+    # Issue 194: inside each coin card the order is QR, address, then Copy (the
+    # button under the address, in the same card), named "Copy <coin> address".
+    names = {"btc": "Bitcoin", "xmr": "Monero", "eth": "Ethereum", "sol": "Solana"}
+    cards = [c.split("</li>", 1)[0] for c in re.split(r"<li class=[\"']?coin panel[\"']?>", html)[1:]]
+    if len(cards) != len(ADDRESSES):
+        errs.append("expected %d coin cards, found %d" % (len(ADDRESSES), len(cards)))
+    for coin, addr in ADDRESSES.items():
+        card = next((c for c in cards if "qr-%s.svg" % coin in c), None)
+        if card is None:
+            errs.append("%s card not found" % coin)
+            continue
+        q, a, b = card.find("<img class=qr"), card.find("<code"), card.find("<button")
+        if card.count("<button") != 1 or card.count("<code") != 1 or card.count("<img class=qr") != 1:
+            errs.append("%s card needs exactly one QR, one address and one Copy button" % coin)
+        elif not (0 <= q < a < b):
+            errs.append("%s card order must be QR, address, Copy (got QR %d, address %d, Copy %d)" % (coin, q, a, b))
+        name = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", card[b:].split("</button>", 1)[0])).strip()
+        if name != "Copy %s address" % names[coin]:
+            errs.append("%s Copy button accessible name is %r" % (coin, name))
     if html.count("<script") != 1 or "<script src=/copy.js></script>" not in html:
         errs.append("/support/ must carry exactly the one pinned <script src=/copy.js></script>")
     # Addresses: verbatim, in a <code> element each, once.
@@ -638,6 +657,30 @@ for kind in support about privacy; do
     fi
 done
 [[ -f "$pub/support/index.html" ]] && assert support "$pub/support/index.html" "$root/layouts/support/single.html"
+# Guard (issue 194): the card-order check bites. Copy moved above the address (and
+# before the QR) in the Bitcoin card must fail the support rules.
+if [[ -f "$pub/support/index.html" ]]; then
+    python3 -I - "$pub/support/index.html" "$work/support-copy-first.html" "$work/support-copy-mid.html" <<'PY'
+import re
+import sys
+
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<button[^>]*data-copy=\"?addr-btc\"?[^>]*>.*?</button>", s)
+assert m, "no btc Copy button in the built page"
+rest = s.replace(m.group(0), "", 1)
+first = rest.index("<img class=qr")
+open(sys.argv[2], "w", encoding="utf-8").write(rest[:first] + m.group(0) + rest[first:])
+addr = rest.index("<code", first)
+open(sys.argv[3], "w", encoding="utf-8").write(rest[:addr] + m.group(0) + rest[addr:])
+PY
+    for v in copy-first copy-mid; do
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" support "$work/support-$v.html" "$root/layouts/support/single.html" >/dev/null 2>&1; then
+            fail "guard: a support page with Copy out of order ($v) passed"
+        else
+            pass "guard: a support page with Copy out of order ($v) fails"
+        fi
+    done
+fi
 [[ -f "$pub/about/index.html" ]] && assert about "$pub/about/index.html"
 # Guard: the About check bites. One skill group's text altered, one group omitted, and a bio
 # paragraph altered must each fail (the unaltered page passed above).
@@ -978,6 +1021,23 @@ if grep -Eq 'support-tiles \.tile-item[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<
     pass "support button cells stretch to one height"
 else
     fail "support button cells do not stretch to one height"
+fi
+# Coin card layout (issue 194): one centered column (QR, address, Copy below it).
+# No grid that puts Copy beside the QR, Copy centered, the QR never below 10rem
+# (160 px, a phone camera still reads it).
+flat_sup="$(tr '\n' ' ' <<<"$sup")"
+if ! grep -Eq 'coin-body|auto minmax\(0, *1fr\)' <<<"$flat_sup" &&
+    grep -Eq '\.coin \{[^}]*justify-items: *center' <<<"$flat_sup" &&
+    grep -Eq '\.coin-actions \{[^}]*justify-content: *center' <<<"$flat_sup"; then
+    pass "support coin cards: QR, address and Copy centered in one column"
+else
+    fail "support coin cards are not one centered column (no Copy beside the QR)"
+fi
+qr_min="$(grep -Eo '\.qr \{[^}]*\}' <<<"$flat_sup" | grep -Eo 'width: *(min\(100%, *)?[0-9.]+rem' | grep -Eo '[0-9.]+rem' | sed 's/rem//' | sort -n | head -1 || true)"
+if [[ -n "$qr_min" ]] && awk -v w="$qr_min" 'BEGIN { exit !(w >= 10) }'; then
+    pass "support QR stays at 10rem (160 px) or larger at every width ($qr_min rem smallest)"
+else
+    fail "support QR is smaller than 10rem somewhere (${qr_min:-no width found})"
 fi
 # Rule order (issue 107): the desktop .coin-name override sits inside a media
 # query at equal specificity, so it must come AFTER the base rule or it never
