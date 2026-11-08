@@ -24,13 +24,9 @@ skills:
   - group: Security practice
     items: [Threat modeling, OSINT, Telecom security, Privacy, "AI-assisted workflows"]
 
-<<<<<<< HEAD
 # Clouds Against Humanity stays first (standing rule). The order is by security
-# relevance (issue 175). Lines for Stream Daemon, Reach Around and Clouds Against
-# Humanity match the tiles on the About page.
-=======
-# Clouds Against Humanity stays first. The About page shows six of these (see above).
->>>>>>> origin/main
+# relevance (issue 175). The About page shows six of these (see above) and keeps
+# its own order through data/about.yaml project_tiles.
 projects:
   - name: Clouds Against Humanity
     url: https://github.com/ChiefGyk3D/Clouds-Against-Humanity
