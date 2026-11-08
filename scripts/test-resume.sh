@@ -30,9 +30,13 @@ import re
 import sys
 from html.parser import HTMLParser
 
-HEADINGS = ["Summary", "Skills", "Open-Source Projects", "Certifications",
-            "Education", "Speaking and community", "Outside work", "Contact"]
-GONE_HEADINGS = ["Core Skills", "Technical Knowledge"]
+HEADINGS = ["Summary", "Background", "Skills", "Tools and platforms", "Open-Source Projects",
+            "Homelab and engineering practice", "Certifications",
+            "Education", "Speaking and community", "Creator and teaching work",
+            "Outside work", "Contact"]
+# "Selected accomplishments" renders only when data/resume.yaml `experience` is non-empty
+# (issue 262); it is empty until the owner supplies approved text, so it must not show.
+GONE_HEADINGS = ["Core Skills", "Technical Knowledge", "Selected accomplishments"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
     "Yes, the order is odd. CISSP came first, in 2024. I earned all three "
@@ -46,6 +50,17 @@ REQUIRED = [
     "How to reach me, on the About page",
     "Speaker: BSides Dayton and COISSA, 2026.",
     "Member of DEFCON 614. With the Call Center Village, where I volunteer.",
+    # Issue 262: owner text reused from data/about.yaml and the profile README.
+    "I’m primarily self-taught.",
+    "I’m more than ready for a security architecture role",
+    "I care about end-to-end encryption, zero trust, owning my infrastructure",
+    "I share cybersecurity knowledge with more than 500K followers across platforms",
+    "You’re not dead until you stop learning. Happy hacking.",
+    "Everything I build is open source.",
+    "Educational content focused on giving aspiring tech and cybersecurity professionals",
+    "Cybersecurity investigations and real-world threat and news breakdowns",
+    "Identity and access", "Where I'm headed", "Network and security",
+    "Radio, SDR, and time", "Cloud extension", "Cares about",
 ]
 PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
@@ -257,6 +272,13 @@ def check(html):
                 for x in re.findall(r"<li>(.*?)</li>", cm.group(1) if cm else "", re.S)]
     if cm_items != COMMUNITY or len(COMMUNITY) != 5:
         out.append("community list differs from data/resume.yaml: want %r, got %r" % (COMMUNITY, cm_items))
+    # Issue 262: the section order, and the homelab repo links come from data/about.yaml.
+    if [h for h in p.h2 if h in HEADINGS] != HEADINGS:
+        out.append("section order: want %r, got %r" % (HEADINGS, p.h2))
+    for u in ("https://github.com/ChiefGyk3D/siem-docker-stack", "https://github.com/ChiefGyk3D/FrankenLLM",
+              "https://github.com/Renegade-Penguin/hammunition-hill", "https://github.com/ChiefGyk3D/mother-ticker"):
+        if u not in p.links:
+            out.append("missing homelab link: " + u)
     if not re.search(r'class="?resume-subtitle', html):
         out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)

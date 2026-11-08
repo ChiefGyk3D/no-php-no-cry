@@ -72,17 +72,41 @@
   min-width: var(--tap);
 }
 
-.resume-skills {
+.resume-skills,
+.resume-detail {
   margin: var(--space-2) 0 0;
 }
 
-.resume-skills dt {
+.resume-skills dt,
+.resume-detail dt {
   color: var(--accent);
   font-weight: 700;
 }
 
-.resume-skills dd {
+.resume-skills dd,
+.resume-detail dd {
   margin: 0 0 var(--space-2);
+}
+
+.resume-detail {
+  margin-top: var(--space-3);
+}
+
+/* Repo links under a homelab entry: tap-sized, wrapping. */
+.resume-detail-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+}
+
+.resume-detail-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+.resume section > p {
+  margin: var(--space-2) 0 0;
 }
 
 /* Desktop screens (issue 107): the sections flow into two columns, in document
@@ -149,7 +173,8 @@
 
   .resume-title,
   .resume-subtitle,
-  .resume-skills dt {
+  .resume-skills dt,
+  .resume-detail dt {
     color: CanvasText;
   }
 
