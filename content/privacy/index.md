@@ -6,6 +6,6 @@ draft: false
 syndicate: false
 ---
 
-The code of this site sets no cookies and loads no embeds or third-party resources. Following a link takes you to another site, which has its own policies.
+The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.
 
-The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. The content security policy on this site allows scripts only from this site, so a browser will likely block the Cloudflare analytics script. This page does not describe what Cloudflare logs on its own, such as request or security records.
+The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.

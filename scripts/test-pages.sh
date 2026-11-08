@@ -50,17 +50,17 @@ BUTTONS = {
     "Shop merch": "https://shop.chiefgyk3d.com/",
 }
 PRIVACY = [
-    "The code of this site sets no cookies and loads no embeds or third-party resources. "
+    "The code of this site sets no cookies and embeds nothing from other sites. "
     "Following a link takes you to another site, which has its own policies.",
     "The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. "
+    "The content security policy on this site allows that analytics script and nothing else from outside. "
     "Cloudflare describes Web Analytics as collecting page-load timing and the country, "
     "browser, referring site, and page path of each visit, without cookies and without personal data. "
-    "The content security policy on this site allows scripts only from this site, so a browser will "
-    "likely block the Cloudflare analytics script. This page does not describe what Cloudflare logs "
-    "on its own, such as request or security records.",
+    "This page does not describe what Cloudflare logs on its own, such as request or security records.",
 ]
 # Claims the config cannot establish. The page must not make them (issue 159).
-PRIVACY_FORBIDDEN = ["I collect nothing", "collects nothing", "stores nothing", "no logs", "no analytics"]
+PRIVACY_FORBIDDEN = ["I collect nothing", "collects nothing", "stores nothing", "no logs", "no analytics",
+                     "likely block", "blocked"]
 SKILL_GROUPS = [
     "Identity and access",
     "Endpoint, email, and data security",
@@ -857,7 +857,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and loads no embeds or third-party resources. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. The content security policy on this site allows scripts only from this site, so a browser will likely block the Cloudflare analytics script. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
+good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"

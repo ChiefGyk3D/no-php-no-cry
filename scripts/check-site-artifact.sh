@@ -100,22 +100,23 @@ else
     fi
 fi
 
-# The expected policy: one script-src, exactly 'self' (same-origin scripts; the checks here pin the only one),
+# The expected policy: one script-src, exactly 'self' plus the Cloudflare Web Analytics beacon URL, one connect-src, exactly 'self',
 # and no script-src-elem or script-src-attr to override it.
-if ! awk '
+if ! awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js" '
     /^[[:space:]]*Content-Security-Policy:/ {
-        sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0
+        sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; cs = 0
         for (i = 1; i <= n; i++) {
             gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
             name = tolower(d[i]); sub(/[ \t].*/, "", name)
-            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+            if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"' " beacon) bad = 1 }
+            if (name == "connect-src") { cs++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
             if (name == "script-src-elem" || name == "script-src-attr") bad = 1
         }
-        if (count != 1) bad = 1
+        if (count != 1 || cs != 1) bad = 1
         seen = 1
     }
     END { exit (bad || !seen) }' "$expected_headers"; then
-    report headers-script-src "expected headers: script-src must be exactly 'self', once"
+    report headers-script-src "expected headers: script-src must be exactly 'self' plus the Cloudflare beacon URL, once, and connect-src exactly 'self'"
 fi
 
 for f in "$expected_headers" "$dir/_headers"; do

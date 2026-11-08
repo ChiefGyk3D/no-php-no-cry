@@ -73,7 +73,7 @@ make_good() {
 RED
     cat >"$dir/_headers" <<'HDR'
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'
   X-Content-Type-Options: nosniff
 HDR
 }
@@ -497,6 +497,22 @@ csp_script_src_elem() { sed -i "s#script-src 'self'#script-src 'self'; script-sr
 variant csp-script-src-elem weak-csp csp_script_src_elem
 csp_script_src_attr() { sed -i "s#script-src 'self'#script-src 'self'; script-src-attr 'unsafe-hashes'#" "$1/_headers"; }
 variant csp-script-src-attr weak-csp csp_script_src_attr
+# Cloudflare Web Analytics (issue 159): the policy carries exactly the beacon URL in
+# script-src and 'self' in connect-src, nothing wider, and the built HTML still
+# rejects a third-party script tag (the beacon is injected at the edge).
+csp_no_connect() { sed -i "s#; connect-src 'self'##" "$1/_headers"; }
+variant csp-without-connect-src weak-csp csp_no_connect
+csp_wide_connect() { sed -i "s#connect-src 'self'#connect-src 'self' https:#" "$1/_headers"; }
+variant csp-wide-connect-src weak-csp csp_wide_connect
+csp_connect_other() { sed -i "s#connect-src 'self'#connect-src https://cloudflareinsights.com#" "$1/_headers"; }
+variant csp-other-connect-src weak-csp csp_connect_other
+csp_beacon_origin() { sed -i "s#static.cloudflareinsights.com/beacon.min.js#static.cloudflareinsights.com#" "$1/_headers"; }
+variant csp-beacon-origin-only weak-csp csp_beacon_origin
+csp_beacon_wild() { sed -i "s#static.cloudflareinsights.com/beacon.min.js#*.cloudflareinsights.com/beacon.min.js#" "$1/_headers"; }
+variant csp-beacon-wildcard weak-csp csp_beacon_wild
+csp_beacon_twice() { sed -i "s#script-src 'self' \(https://static.cloudflareinsights.com/beacon.min.js\)#script-src 'self' \1 \1#" "$1/_headers"; }
+variant csp-beacon-twice weak-csp csp_beacon_twice
+APPEND='<script src=https://static.cloudflareinsights.com/beacon.min.js></script>' variant beacon-script-in-html script-not-allowed append_html
 csp_no_manifest_src() { sed -i "s#manifest-src 'self'; ##" "$1/_headers"; }
 variant csp-without-manifest-src weak-csp csp_no_manifest_src
 csp_default_open() { sed -i "s#default-src 'none'#default-src 'self'#" "$1/_headers"; }

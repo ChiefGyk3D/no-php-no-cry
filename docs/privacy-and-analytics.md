@@ -1,15 +1,20 @@
 # Privacy page and analytics (issues 62 and 84)
 
 `/privacy/` (`content/privacy/index.md`) says what the repository can establish:
-the site code sets no cookies and loads no embeds or third-party resources. The
-owner confirmed on 2026-11-07 that Cloudflare Web Analytics is turned on for the
-Pages project, so the page says so and quotes Cloudflare's own description of
-what it collects (developers.cloudflare.com/web-analytics/about, data-origin-and-collection
-and dimensions, read 2026-11-07). The page also notes that the content security
-policy (`script-src 'self'`, `default-src 'none'`) will likely block the
-automatically injected beacon (`static.cloudflareinsights.com/beacon.min.js`),
-and does not describe what Cloudflare logs on its own. `scripts/test-pages.sh`
-rejects "collect nothing" and "no analytics" claims (issue 159).
+the site code sets no cookies and embeds nothing from other sites. The owner
+confirmed on 2026-11-07 that Cloudflare Web Analytics is turned on for the Pages
+project, so the page says so and quotes Cloudflare's own description of what it
+collects (developers.cloudflare.com/web-analytics/about, data-origin-and-collection
+and dimensions, read 2026-11-07). The owner then decided to allow the beacon:
+`static/_headers` now carries `script-src 'self'
+https://static.cloudflareinsights.com/beacon.min.js` and `connect-src 'self'`,
+the two entries Cloudflare's FAQ (web-analytics/faq, "What do I need to add to
+my Content Security Policy", last updated Jul 14, 2026) names for automatic
+injection. Pages adds the beacon at the edge on the next deployment after the
+toggle (pages/how-to/web-analytics, Apr 21, 2026), so it never appears in built
+HTML and the build checks still reject any other script element. The page does
+not describe what Cloudflare logs on its own. `scripts/test-pages.sh` rejects
+"collect nothing", "no analytics" and "likely block" claims (issue 159).
 
 The collector is built but not deployed (issue 84): see
 `docs/analytics-deploy.md`. The replacement text is drafted in

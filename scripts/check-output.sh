@@ -30,7 +30,8 @@
 # each under 1 KB gzip (docs/redesign-brief.md section 10). The search page's
 # HTML is under 40 KB gzip (search-page-budget): it is the browse list with
 # JavaScript off, and past that size the approach needs another look. The CSP
-# must carry exactly one script-src, and it must be 'self'.
+# must carry exactly one script-src, and it must be 'self' plus the one
+# Cloudflare Web Analytics beacon URL (injected at the edge; never in built HTML).
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
@@ -125,18 +126,21 @@ has_redirect() {
 # Environment, from robots.txt: robots_wildcard comes from scripts/robots-wildcard.sh.
 
 # csp_scripts_ok: reads Content-Security-Policy header lines on stdin. Succeeds
-# when every policy has exactly one script-src whose whole value is 'self' and
-# no script-src-elem or script-src-attr (either would override script-src).
+# when every policy has exactly one script-src whose whole value is 'self' plus
+# the one Cloudflare Web Analytics beacon URL (BEACON), exactly one connect-src
+# that is 'self', and no script-src-elem or script-src-attr (either would
+# override script-src).
 csp_scripts_ok() {
-    awk '
-        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; ok = 1
+    awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js" '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; cs = 0; ok = 1
           for (i = 1; i <= n; i++) {
               gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
               name = tolower(d[i]); sub(/[ \t].*/, "", name)
-              if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") ok = 0 }
+              if (name == "script-src") { count++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"' " beacon) ok = 0 }
+              if (name == "connect-src") { cs++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") ok = 0 }
               if (name == "script-src-elem" || name == "script-src-attr") ok = 0
           }
-          if (count != 1 || !ok) bad = 1; seen = 1 }
+          if (count != 1 || cs != 1 || !ok) bad = 1; seen = 1 }
         END { exit (bad || !seen) }'
 }
 
@@ -517,10 +521,10 @@ if [[ ! -s "$dir/_headers" ]]; then
 else
     csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
     if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
-        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"$csp"; then
+        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js/}"; then
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
-        report weak-csp "_headers (script-src must be exactly 'self', once, with no script-src-elem or script-src-attr)"
+        report weak-csp "_headers (script-src must be exactly 'self' plus the Cloudflare beacon URL, once, connect-src exactly 'self', no script-src-elem or script-src-attr)"
     elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
         report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi

@@ -36,7 +36,7 @@ these reviewed files instead of an inspection of their code:
   `script-wrong-page`. The build may hold only the listed non-script file types
   (`scripts/artifact-rules.sh`). `_headers` must be one `/*` block with no
   removal directive and exactly one `nosniff`.
-- The CSP stays `script-src 'self'` exactly: no `connect-src`, no `unsafe-inline`.
+- The CSP carries `script-src 'self' https://static.cloudflareinsights.com/beacon.min.js` and `connect-src 'self'`, exactly: the beacon URL and `'self'` are the only entries Cloudflare's Web Analytics FAQ requires for automatic injection (issue 159). The beacon is injected at the edge, never in built HTML, so the allowlist above is unchanged and any other `<script>` element still fails. No `unsafe-inline`, no wildcard, no other host.
   No inline script, no event-handler attribute, no `style` attribute, and no
   `<form>` (`form-action 'none'`): the search box is a `<div role="search">`.
 
