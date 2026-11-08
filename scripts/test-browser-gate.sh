@@ -58,6 +58,7 @@ if [[ $rc -eq 0 && "$out" == *"browser gate: ok (1 runs"* ]]; then pass "good fi
 
 mutate overflow overflow overflow
 mutate tile-overflow tile tile-overflow
+mutate tile-overflow-vertical tile tile-overflow-vertical
 mutate console console console
 mutate missing-file network missing-file
 mutate off-site network off-site

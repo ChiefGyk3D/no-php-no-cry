@@ -66,6 +66,11 @@ def mutate(d, m):
     elif m == "tile-overflow":
         # A part that cannot wrap and is wider than its tile.
         edit(d, "index.html", "@host.example.org", "@a-very-long-host-name-that-cannot-wrap.example.org")
+    elif m == "tile-overflow-vertical":
+        # A child that protrudes below its tile (absolutely placed, inside the
+        # tile's width): only a vertical comparison catches it.
+        edit(d, "site.css", ".part{", ".tile{position:relative}.tile .drop{position:absolute;left:8px;top:100%;margin-top:20px;width:40px;height:20px;background:#888}.part{")
+        edit(d, "index.html", '<li class="tile">', '<li class="tile"><span class="drop"></span>')
     elif m == "console":
         write(d, "theme.js", "console.error('boom');")
         edit(d, "index.html", "</head>", '<script src="/theme.js"></script></head>')

@@ -59,7 +59,7 @@ Widths: 1440, 1024, 768, 390 CSS px. Two more viewports check reflow and zoom
 | `axe` | any axe-core violation with tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice | none |
 | `lcp` | Largest Contentful Paint over the limit, cold (cache off) | 2000 ms |
 | `cls` | Cumulative Layout Shift over the limit (layout shifts not caused by input) | 0.05 |
-| `tile` | text or a box inside a `.tile` (the /social/ grid) sticks out of the tile, so a handle or name that does not wrap is caught at every viewport (issue 170) | 0 px |
+| `tile` | text or a box inside a `.tile` (the /social/ grid) sticks out of the tile on any of its four sides (half a pixel of slack), so a handle or name that does not wrap is caught at every viewport (issue 170) | 0 px |
 | `target` | a control smaller than 44 x 44 CSS px | 44 px |
 | `tab` | see below | |
 | `toggle` | see below | |

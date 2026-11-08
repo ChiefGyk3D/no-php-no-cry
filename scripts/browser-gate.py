@@ -101,8 +101,9 @@ new PerformanceObserver(l => { for (const e of l.getEntries()) if (!e.hadRecentI
 JS_OVERFLOW = """(() => { const d = document.documentElement;
   return Math.max(d.scrollWidth - d.clientWidth, document.body.scrollWidth - d.clientWidth); })()"""
 
-# Text or boxes inside a .tile that stick out of the tile (any side, half a
-# pixel of slack). One-pixel clipped elements (visually-hidden text) are skipped.
+# Text or boxes inside a .tile that stick out of the tile (any of the four
+# sides, half a pixel of slack; a tile grows with its wrapped text, so only a
+# child that leaves the tile's own box counts). One-pixel clipped elements (visually-hidden text) are skipped.
 JS_TILES = """(() => { const out = [];
   document.querySelectorAll('.tile').forEach((t) => {
     const b = t.getBoundingClientRect();
@@ -110,8 +111,8 @@ JS_TILES = """(() => { const out = [];
     t.querySelectorAll('*').forEach((e) => {
       for (const r of e.getClientRects()) {
         if (r.width <= 1 || r.height <= 1) continue;
-        if (r.right > b.right + 0.5 || r.left < b.left - 0.5) {
-          out.push((e.className || e.tagName) + ' ' + Math.round(r.right - b.right) + 'px out of ' + (t.querySelector('.social-name, h3, h2') || t).textContent.trim().slice(0, 30));
+        if (r.right > b.right + 0.5 || r.left < b.left - 0.5 || r.bottom > b.bottom + 0.5 || r.top < b.top - 0.5) {
+          out.push((e.className || e.tagName) + ' ' + Math.round(Math.max(r.right - b.right, b.left - r.left, r.bottom - b.bottom, b.top - r.top)) + 'px out of ' + (t.querySelector('.social-name, h3, h2') || t).textContent.trim().slice(0, 30));
           return;
         }
       }
