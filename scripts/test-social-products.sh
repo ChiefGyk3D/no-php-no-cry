@@ -166,6 +166,16 @@ def check_social(page, root, bad):
             entries[-1][k] = v.strip().strip('"')
     want = ["Twitch", "YouTube", "Kick", "Mastodon", "Bluesky", "TikTok", "Instagram", "Pixelfed",
             "Threads", "Discord", "Matrix", "GitHub"]
+    # Issue 195: footer_only entries (LinkedIn) are in the footer icon row and nowhere else, so
+    # the tile grid follows the data file minus them, and nothing on the page names LinkedIn.
+    footer_only = [e["name"] for e in entries if e.get("footer_only") == "true"]
+    if footer_only != ["LinkedIn"]:
+        bad.append("socials.yaml footer_only entries: want ['LinkedIn'], got %r" % footer_only)
+    entries = [e for e in entries if e.get("footer_only") != "true"]
+    if "linkedin" in main.all_text().lower() or any("linkedin" in (a.attrs.get("href") or "").lower() for a in main.find("a")):
+        bad.append("LinkedIn is on the Socials page (it is footer-only)")
+    if main.find("span", "social-icon--linkedin"):
+        bad.append("a LinkedIn icon is on the Socials page")
     if [e["name"] for e in entries] != want:
         bad.append("socials.yaml networks/order: %r" % [e["name"] for e in entries])
     tiles = main.find("li", "tile-item")
@@ -237,7 +247,15 @@ def check_footer(page, root, bad):
         return 0
     foot = feet[0]
     navs = [n for n in foot.find("nav") if n.attrs.get("aria-label") == "Social profiles"]
-    live = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://")]
+    # Issue 195: the row is the live entries that are not footer_only, then the footer_only ones
+    # (LinkedIn), each group in data order; the data keeps the footer_only entries last, so this
+    # is also the data order.
+    live_all = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://")]
+    live = [e for e in live_all if e.get("footer_only") != "true"] + [e for e in live_all if e.get("footer_only") == "true"]
+    if live != live_all:
+        bad.append("footer_only entries are not last in data/socials.yaml")
+    if [e["name"] for e in live][-1:] != ["LinkedIn"] or len(live) != 13:
+        bad.append("footer row should be 12 networks then LinkedIn (13 icons), data gives %r" % [e["name"] for e in live])
     if len(navs) != 1:
         bad.append("footer has %d 'Social profiles' navs" % len(navs))
         return 0
@@ -279,6 +297,8 @@ def check_footer(page, root, bad):
         rel = (a.attrs.get("rel") or "").split()
         if "noopener" not in rel or (e.get("rel_me") == "true") != ("me" in rel):
             bad.append("%s footer rel wrong (%r)" % (name, rel))
+        if e.get("footer_only") == "true" and rel != ["noopener"]:
+            bad.append("%s footer rel must be noopener only (%r)" % (name, rel))
         icon = a.find("span", "social-icon")
         if not icon or "social-icon--" + e["icon"] not in icon[0].classes() or icon[0].attrs.get("aria-hidden") != "true":
             bad.append("%s footer icon class or aria-hidden wrong" % name)
@@ -287,6 +307,14 @@ def check_footer(page, root, bad):
     want = "footer-social-list--per-%d" % ((len(live) + 1) // 2)
     if not ul or want not in ul[0].classes():
         bad.append("icon list lacks the balanced-row class %s" % want)
+    # Every count from 1 to 24 has a CSS rule for the class the template writes, and 13 icons
+    # make 7 + 6 with no orphan.
+    for n in range(1, 25):
+        k = min(12, (n + 1) // 2)
+        if ".footer-social-list--per-%d { --per: %d; }" % (k, k) not in css:
+            bad.append("main.css has no rule for .footer-social-list--per-%d (needed for %d icons)" % (k, n))
+    if rows(13, 7) != [7, 6]:
+        bad.append("13 footer icons do not make 7 + 6: %r" % rows(13, 7))
     return len(links)
 
 
@@ -429,13 +457,15 @@ def check_home(page, root, bad):
     equal-width balanced rows (the per-row class, and the CSS that makes the columns equal)."""
     doc = load(page)
     lists = doc.find("ul", "home-social")
-    live = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://")]
+    live = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://") and e.get("footer_only") != "true"]
     if len(lists) != 1:
         bad.append("home has %d chip lists" % len(lists))
         return 0
     ul = lists[0]
     chips = ul.find("a")
     names = [a.all_text() for a in chips]
+    if "LinkedIn" in names or any("linkedin" in (a.attrs.get("href") or "").lower() for a in chips):
+        bad.append("LinkedIn is a Home chip (it is footer-only)")
     if names != [e["name"] for e in live]:
         bad.append("chips %r differ from the live networks of data/socials.yaml in order" % names)
     want = "home-social--per-%d" % min(12, (len(live) + 1) // 2)
@@ -548,7 +578,7 @@ css="$(cat "$public"/css/*.css 2>/dev/null || true)"
 if [[ -z "$css" ]]; then
     fail "built stylesheet found"
 else
-    for slug in twitch youtube kick mastodon bluesky tiktok instagram threads discord matrix github pixelfed; do
+    for slug in twitch youtube kick mastodon bluesky tiktok instagram threads discord matrix github pixelfed linkedin; do
         if ! grep -q "social-icon--${slug}" <<<"$css"; then
             fail "css rule for social-icon--${slug}"
         fi
@@ -586,8 +616,11 @@ if [[ -f "$public/index.html" ]]; then
     fguard "link not https" 's#href="?https://twitch.tv/chiefgyk3d"?#href=http://twitch.tv/chiefgyk3d#'
     fguard "row removed" 's/aria-label="?Social profiles"?/aria-label=Other/'
     fguard "one icon removed" '/<li><a class="?footer-social-link"? href="?https:\/\/kick\.com/d'
-    fguard "balanced-row class wrong" 's/footer-social-list--per-6/footer-social-list--per-11/'
+    fguard "balanced-row class wrong" 's/footer-social-list--per-7/footer-social-list--per-11/'
     fguard "rel=me dropped" 's/rel="me noopener"/rel=noopener/g'
+    # Issue 195: LinkedIn is the last icon, footer-only, noopener only.
+    fguard "LinkedIn dropped from the footer" '/<li><a class="?footer-social-link"? href="?https:\/\/www\.linkedin\.com/d'
+    fguard "LinkedIn given rel=me" 's#(href="https://www\.linkedin\.com/in/moshe-g" rel=")noopener#\1me noopener#'
     # The CSS guard: a desktop footer with the icons centered again must fail.
     mkdir -p "$work/footroot/assets/css" "$work/footroot/data"
     cp "$root/data/socials.yaml" "$work/footroot/data/"
@@ -630,6 +663,7 @@ if [[ -f "$public/index.html" ]]; then
     }
     hguard "per-row class wrong (orphan row)" 's/home-social--per-6/home-social--per-11/'
     hguard "a chip removed" '/<li><a class="?icon-kick"?/d'
+    hguard "LinkedIn leaked into the Home chips" 's#(<li><a class="icon-github" href="https://github\.com/ChiefGyk3D">GitHub</a></li>)#\1<li><a class="icon-linkedin" href="https://www.linkedin.com/in/moshe-g">LinkedIn</a></li>#'
     hguard "chip list class dropped" 's/class="?home-social home-social--per-6"?/class=home-social/'
     # The CSS guard: a stylesheet missing the rule of one generated per-row class must fail (the rule
     # for the real page's class, per-6, and for a small count, per-1).
@@ -708,6 +742,7 @@ if [[ -f "$social" && -f "$products" ]]; then
     }
     guard "rel=me dropped" social "$social" 's/rel="me noopener"/rel="noopener"/g'
     guard "pixelfed href altered" social "$social" 's/<a class="tile social-tile" href="https:\/\/pics\.chiefgyk3d\.com\/ChiefGyk3D" rel="me noopener">/<a class="tile social-tile" href="https:\/\/x.example\/" rel="me noopener">/'
+    guard "LinkedIn leaked into the Socials page" social "$social" '/class="tile social-tile" href="https:\/\/github\.com/,/<\/li>/ s#</li>#</li><li class="tile-item"><a class="tile social-tile" href="https://www.linkedin.com/in/moshe-g" rel="noopener"><span class="social-icon social-icon--linkedin" aria-hidden="true"></span><span class="social-name">LinkedIn</span></a></li>#'
     guard "pixelfed icon dropped" social "$social" 's/social-icon--pixelfed/social-icon--placeholder/'
     guard "vendor label wrong" products "$products" '0,/product-vendor">Amazon</{s/Amazon/Direct/}'
     guard "item dropped" products "$products" '0,/<li class="product">/s//<li class="product-x">/'

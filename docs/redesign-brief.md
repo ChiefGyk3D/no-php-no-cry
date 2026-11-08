@@ -211,7 +211,8 @@ TikTok stays on the hub (decision 1). X/Twitter is out. Support links (Ko-fi, St
 the hub.
 
 One data file, `data/socials.yaml`, with `name`, `icon` (slug), `url`, `handle`,
-`rel_me` (bool), `blurb`. Handles in this file are the public handles only.
+`rel_me` (bool), `blurb`, and the optional `footer_only` (bool, issue 195). Handles in this file are the public handles only.
+A `footer_only` entry (LinkedIn, owner direction 2026-11-08: "LinkedIn too but on Resume and the footer only. Not in my active socials and just as an icon in the footer.") is the last footer icon and appears nowhere else built from the file: not a `/social/` tile, not a Home chip (the chip count and per-row class ignore it), not a `rel="me"` head link, not in `sameAs`, not in `llms.txt`. Its footer link is `rel="noopener"` only, so the footer row is 13 icons (`footer-social-list--per-7`, 7 over 6). Its glyph is the MIT-licensed Bootstrap Icons `linkedin` (provenance in `brand/ICONS.md`), not the trademarked official mark. The Resume's Contact section links the same profile (`linkedin_url` in `data/resume.yaml`, shown as "Find me online: LinkedIn"). `scripts/test-social-products.sh`, `test-pages.sh`, `test-head.sh`, `test-llms.sh` and `test-resume.sh` assert each of these.
 The page and its nav and footer links are called "Socials" (issue 170; the URL stays
 `/social/`). A handle never splits mid-word: `layouts/_partials/handle.html` cuts
 it before the second `@` of a fediverse handle and after the `:` of a Matrix room,

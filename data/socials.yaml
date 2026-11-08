@@ -9,6 +9,11 @@
 #   rel_me  true renders rel="me" (identity verification: Mastodon and GitHub
 #           read it). Leave false where the network has no such mechanism.
 #   blurb   the short role line
+#   footer_only  true (issue 195) means the entry is a footer icon only: it is
+#           skipped by the /social/ tiles, the Home "Find me online" chips, the
+#           rel=me head links, the schema.org sameAs list and llms.txt, and the
+#           footer renders it with rel="noopener" only. Keep footer_only entries
+#           last: the footer row is the other live entries, then these.
 # Every URL below is already published by the maintainer: the GitHub profile
 # README, the old WordPress Social Media Links page, or the links page (Threads:
 # also brand/outro.json in the brand kit). None is guessed.
@@ -87,3 +92,12 @@
   handle: ChiefGyk3D
   rel_me: true
   blurb: Code and projects
+# LinkedIn (issue 195): the maintainer's professional profile, URL given by him
+# on 2026-11-08. Footer icon only; it is not one of his active socials.
+- name: LinkedIn
+  icon: linkedin
+  url: https://www.linkedin.com/in/moshe-g
+  handle: moshe-g
+  rel_me: false
+  footer_only: true
+  blurb: Professional profile
