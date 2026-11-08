@@ -188,6 +188,19 @@
   margin-bottom: 0;
 }
 
+/* The PGP fingerprint on its own line: monospace, selectable, wraps instead of overflowing at 320 px. */
+.pgp-fingerprint code {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.pgp-key-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
 .contact-links {
   display: flex;
   flex-wrap: wrap;
