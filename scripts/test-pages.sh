@@ -47,10 +47,20 @@ BUTTONS = {
     "StreamElements": "https://streamelements.com/chiefgyk3d/tip",
     "Ko-fi": "https://ko-fi.com/chiefgyk3d",
     "Patreon": "https://patreon.com/chiefgyk3d",
-    "Merch shop": "https://shop.chiefgyk3d.com/",
+    "Shop merch": "https://shop.chiefgyk3d.com/",
 }
-PRIVACY = ("This site uses no analytics, cookies, embeds, or third-party requests. "
-           "Following a link takes you to another site. I collect nothing here.")
+PRIVACY = [
+    "The code of this site sets no cookies and embeds nothing from other sites. "
+    "Following a link takes you to another site, which has its own policies.",
+    "The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. "
+    "The content security policy on this site allows that analytics script and nothing else from outside. "
+    "Cloudflare describes Web Analytics as collecting page-load timing and the country, "
+    "browser, referring site, and page path of each visit, without cookies and without personal data. "
+    "This page does not describe what Cloudflare logs on its own, such as request or security records.",
+]
+# Claims the config cannot establish. The page must not make them (issue 159).
+PRIVACY_FORBIDDEN = ["I collect nothing", "collects nothing", "stores nothing", "no logs", "no analytics",
+                     "likely block", "blocked"]
 SKILL_GROUPS = [
     "Identity and access",
     "Endpoint, email, and data security",
@@ -61,11 +71,40 @@ SKILL_GROUPS = [
     "Software and automation",
     "Local AI and agents",
     "Radio, RF, and telecom",
+    "Where I'm headed",
 ]
 MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
 MISSION_END = "You're not dead until you stop learning. Happy Hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
-CONTACT = ("There's no contact form. Reach me on Matrix or Discord.")
+CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
+           "or the Discord server. The two are bridged.")
+CONTACT_SOON = " Business inquiries go by email, and the address will be listed here soon."
+
+
+def contact_data():
+    """The contact block of data/about.yaml (email, pgp_fingerprint, pgp_url), empty strings when unset."""
+    text = open(os.environ["ABOUT_DATA"], encoding="utf-8").read()
+    out = {}
+    for k in ("email", "pgp_fingerprint", "pgp_url"):
+        m = re.search(r'^  %s: "(.*)"$' % k, text, re.M)
+        out[k] = m.group(1) if m else ""
+    return out
+
+
+def key_fingerprint(path):
+    """Primary key fingerprint of an armored public key, via gpg in a throwaway home; None without gpg."""
+    import shutil
+    import subprocess
+    import tempfile
+    if not shutil.which("gpg"):
+        return None
+    with tempfile.TemporaryDirectory() as home:
+        r = subprocess.run(["gpg", "--homedir", home, "--show-keys", "--with-colons", "--fingerprint", path],
+                           capture_output=True, text=True)
+    for ln in r.stdout.splitlines():
+        if ln.startswith("fpr:"):
+            return ln.split(":")[9]
+    return None
 
 
 class Page(HTMLParser):
@@ -154,12 +193,16 @@ def support(p, errs, repo):
     if p.h1 != ["Support my work"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
-    intro = ("Want to help keep the streams, videos, and projects going? "
-             "Pick an option below, and thanks for the support.")
+    intro = ("If you want to support the streams, videos, and projects, "
+             "these are the ways to do it. It is optional.")
     if intro not in flat:
         errs.append("intro text missing")
-    if "StreamElements tips get a live thank-you during the stream." not in flat:
-        errs.append("StreamElements note missing")
+    if "live thank-you" in flat or "thank-you" in flat.lower():
+        errs.append("a live thank-you promise is on the page (not supported)")
+    if "Before you send, verify the full address and make sure you are using the correct network." not in flat:
+        errs.append("full-address and network advice missing")
+    if "first and last" in flat.lower():
+        errs.append("advice to check only the first and last characters is back")
     for name, url in BUTTONS.items():
         hits = [a for a, t in p.links if re.sub(r"\s+", " ", t).startswith(name + " ")]
         if len(hits) != 1:
@@ -173,7 +216,7 @@ def support(p, errs, repo):
             errs.append("button %r is not styled as a tile" % name)
     # The cryptocurrency section follows the four tiles (zero clicks to pay).
     html = repo["html"]
-    if "Cryptocurrency tips" not in flat or html.find("Merch shop") > html.find("Cryptocurrency tips"):
+    if "Cryptocurrency tips" not in flat or html.find("Shop merch") > html.find("Cryptocurrency tips"):
         errs.append("the cryptocurrency section must follow the four tiles")
     if any(t == "details" and "coin" in (a.get("class") or "") for t, a in p.tags):
         errs.append("the cryptocurrency block is always open, not a details element")
@@ -259,8 +302,10 @@ def check_about_data(errs, html_src):
     if not d.get("mission") or d["mission"] not in ps:
         errs.append("mission paragraph differs from data/about.yaml")
     sp = d["speaking"]
-    if sp["before"] + sp["link_text"] + sp["after"] not in ps:
-        errs.append("speaking sentence differs from data/about.yaml")
+    if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
+        errs.append("speaking sentence or role differs from data/about.yaml")
+    if sp.get("role") != "I volunteer there.":
+        errs.append("data/about.yaml speaking role is not the owner-approved volunteer sentence")
     groups = [(norm(a), norm(b)) for a, b in re.findall(r"<h3[^>]*>(.*?)</h3>\s*<p[^>]*>(.*?)</p>", html_src, re.S)]
     want = [(g["name"], g["text"]) for g in d["skills"]]
     for w in want:
@@ -301,6 +346,15 @@ def about(p, errs, repo):
     if p.ids.get("skills") != "h2":
         errs.append("no #skills h2")
     h3s = [html.unescape(m) for m in re.findall(r"<h3[^>]*>(.*?)</h3>", repo["html"], re.S)]
+    # The Skills section is asserted from data/about.yaml (names, order and text, in
+    # check_about_data); this list pins the owner-approved group names and their order.
+    if h3s[-1:] != ["Where I'm headed"]:
+        errs.append("the last skill group must be Where I'm headed")
+    skills_text = " ".join(g["text"] for g in about_data()["skills"])
+    if chr(0x2014) in skills_text or chr(0x2013) in skills_text:
+        errs.append("a dash character is in the skills text")
+    if re.search(r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b", skills_text):
+        errs.append("callsign-shaped text in the skills text")
     if h3s != SKILL_GROUPS:
         errs.append("skill group headings are %r" % h3s)
     if p.count("h4") or p.count("h1") != 1:
@@ -311,8 +365,14 @@ def about(p, errs, repo):
         errs.append("no mascot image with alt text")
     if p.ids.get("contact") not in ("h2", "h3", "section"):
         errs.append("no #contact heading or section")
+    cd = contact_data()
+    # One rule (layouts/_partials/contact-complete.html): the address is published only
+    # when the email, the fingerprint and the key link are ALL set.
+    email_set = bool(cd["email"] and cd["pgp_fingerprint"] and cd["pgp_url"])
     if CONTACT not in flat:
         errs.append("contact sentence missing")
+    if email_set == (CONTACT_SOON.strip() in flat):
+        errs.append("the 'address will be listed soon' sentence must show exactly while no email is set")
     hrefs = [a.get("href") for a, _ in p.links]
     for h in ("https://discord.chiefgyk3d.com", "https://matrix.to/#/#renegade-penguin:chiefgyk3d.com",
               "https://github.com/ChiefGyk3D/Stream-Daemon", "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"):
@@ -325,23 +385,53 @@ def about(p, errs, repo):
             errs.append("project tile %r missing" % name)
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
-    if "mailto:" in " ".join(h or "" for h in hrefs):
-        errs.append("there is no email address: contact is Matrix and Discord only")
+    mailtos = [h for h in hrefs if (h or "").startswith("mailto:")]
+    if not email_set and mailtos:
+        errs.append("the contact config is incomplete, so the page must not link an email")
+    if email_set:
+        if mailtos != ["mailto:" + cd["email"]]:
+            errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
+        if "Email, for business inquiries only: %s." % cd["email"] not in flat:
+            errs.append("business email sentence missing")
+        if "PGP fingerprint: %s." % cd["pgp_fingerprint"] not in flat:
+            errs.append("PGP fingerprint missing from the contact section")
+        if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
+            errs.append("PGP key link missing")
+        else:
+            keyfile = os.path.join(os.path.dirname(os.path.dirname(os.environ["ABOUT_DATA"])), "static", cd["pgp_url"].lstrip("/"))
+            if not os.path.isfile(keyfile):
+                errs.append("the PGP key file %s is not in static/" % cd["pgp_url"])
+            else:
+                key = open(keyfile, encoding="ascii").read()
+                if "PRIVATE" in key or not key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----"):
+                    errs.append("the key file is not a public key block only")
+                want = key_fingerprint(keyfile)
+                if want is not None and want != cd["pgp_fingerprint"].replace(" ", "").upper():
+                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want))
+    stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - ({cd["email"]} if email_set else set())
+    if stray:
+        errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
     # The email ban is for the contact section; the Skills text legitimately says "email security".
     m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
     contact = re.sub(r"<[^>]+>", " ", m.group(0)).lower() if m else ""
     if not contact:
         errs.append("the contact section was not found")
-    if "TODO" in repo["html"] or "email" in contact:
-        errs.append("the contact section must not mention email or carry a TODO")
+    if "TODO" in repo["html"]:
+        errs.append("the page carries a TODO")
+    if not email_set and ("pgp" in contact or "@" in contact or "mailto" in contact):
+        errs.append("an empty email and PGP entry must render nothing")
 
 
 def privacy(p, errs, repo):
     common(p, errs)
     if p.h1 != ["Privacy"]:
         errs.append("h1 is %r" % p.h1)
-    if PRIVACY not in p.flat():
-        errs.append("privacy statement missing")
+    for para in PRIVACY:
+        if para not in p.flat():
+            errs.append("privacy statement missing: " + para[:40])
+    for phrase in PRIVACY_FORBIDDEN:
+        if phrase.lower() in p.flat().lower():
+            errs.append("privacy page makes an unsupported claim: %r" % phrase)
 
 
 KINDS = {"support": support, "about": about, "privacy": privacy}
@@ -365,19 +455,26 @@ if __name__ == "__main__":
     # The footer is two calm rows: page links (with Social and Support), then the
     # line and the copyright. No repeated social or support row.
     if fm:
-        hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", fm.group(0), re.S)
+        # The icon row (issue 169, a nav of its own, checked in test-social-products.sh)
+        # is cut out first; the page-link row is what is left.
+        foot = re.sub(r"<nav[^>]*footer-social.*?</nav>", "", fm.group(0), flags=re.S)
+        if foot == fm.group(0):
+            errs.append("footer social icon row missing")
+        hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", foot, re.S)
         names = [norm(t) for _, t in hrefs]
-        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Social", "Support"]:
+        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Socials", "Support"]:
             errs.append("footer links are %r" % names)
         targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
-        if not targets.get("Social", "").endswith("/social/"):
-            errs.append("footer Social does not point at /social/")
+        if not targets.get("Socials", "").endswith("/social/"):
+            errs.append("footer Socials does not point at /social/")
         if not targets.get("Support", "").endswith("/support/"):
             errs.append("footer Support does not point at /support/")
-        if "social-row" in fm.group(0) or "support-row" in fm.group(0) or "icon-" in fm.group(0):
+        if "social-row" in foot or "support-row" in foot or "icon-" in foot:
             errs.append("footer repeats the social or support row")
         if "&copy;" not in fm.group(0) and "©" not in fm.group(0):
             errs.append("footer copyright missing")
+        elif "Renegade Penguin LLC" not in " ".join(fps):
+            errs.append("footer copyright is not Renegade Penguin LLC")
     for e in sorted(set(errs)):
         print(e)
     sys.exit(1 if errs else 0)
@@ -425,6 +522,65 @@ if [[ -f "$pub/about/index.html" ]]; then
             pass "guard: an About page with $v-mutated text fails"
         fi
     done
+fi
+# Contact (issue 159): the populated page is asserted from data/about.yaml (one mailto,
+# the fingerprint, the key link, the fingerprint equal to the key file's), and each
+# break must fail. Then a copy of the repository with the email and PGP entries
+# emptied must build a page that renders none of them.
+if [[ -f "$pub/about/index.html" ]]; then
+    mutate "$work/about-fp.html" "98B2 D533 1A9F 17AC" "98B2 D533 1A9F 17AD"
+    mutate "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
+    mutate "$work/about-nokey.html" "/chiefgyk3d.asc" "/other.asc"
+    for v in fp addr nokey; do
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
+            fail "guard: an About page with a broken contact ($v) passed"
+        else
+            pass "guard: an About page with a broken contact ($v) fails"
+        fi
+    done
+    # Fail closed: only a COMPLETE contact config (email, fingerprint and key link) publishes the
+    # address. Build a copy of the repository for each combination and assert the page.
+    build_contact_case() { # <case> <email> <fingerprint> <url> <expect: complete|incomplete>
+        local name="$1" croot="$work/contact-$1"
+        mkdir -p "$croot"
+        for d in archetypes assets content data layouts static i18n; do
+            [[ -e "$root/$d" ]] && cp -R "$root/$d" "$croot/$d"
+        done
+        for f in hugo.toml .hugo-version; do
+            [[ -f "$root/$f" ]] && cp "$root/$f" "$croot/$f"
+        done
+        sed -i "s/^  email: \".*\"\$/  email: \"$2\"/; s/^  pgp_fingerprint: \".*\"\$/  pgp_fingerprint: \"$3\"/; s#^  pgp_url: \".*\"\$#  pgp_url: \"$4\"#" "$croot/data/about.yaml"
+        if ! (cd "$croot" && hugo --minify --destination "$work/contact-public-$name" --quiet >"$work/contact-build-$name.log" 2>&1); then
+            cat "$work/contact-build-$name.log"
+            fail "contact case $name did not build"
+            return
+        fi
+        local page="$work/contact-public-$name/about/index.html" has_mail=0
+        grep -q "mailto:" "$page" && has_mail=1
+        if [[ "$5" == complete && $has_mail -eq 0 ]] || [[ "$5" == incomplete && $has_mail -eq 1 ]]; then
+            fail "contact case $name: wrong exposure of the address (mailto present: $has_mail)"
+        elif grep -q "chief@chiefgyk3d.com" "$page" && [[ "$5" == incomplete ]]; then
+            fail "contact case $name: the address is on the page although the config is incomplete"
+        elif ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$page" >/dev/null 2>&1; then
+            pass "contact case $name ($5): the About page matches the rule"
+        else
+            fail "contact case $name ($5): the About asserter rejected the page"
+        fi
+    }
+    FP="93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
+    build_contact_case neither "" "" "" incomplete
+    build_contact_case email-only "chief@chiefgyk3d.com" "" "" incomplete
+    build_contact_case key-only "" "$FP" "/chiefgyk3d.asc" incomplete
+    build_contact_case email-and-fingerprint "chief@chiefgyk3d.com" "$FP" "" incomplete
+    build_contact_case email-and-url "chief@chiefgyk3d.com" "" "/chiefgyk3d.asc" incomplete
+    build_contact_case both "chief@chiefgyk3d.com" "$FP" "/chiefgyk3d.asc" complete
+    # The checker bites: an address injected into an incomplete page is rejected.
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Business inquiries go by email"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Business inquiries go by <a href=mailto:chief@chiefgyk3d.com>email</a>", 1))' "$work/contact-public-email-only/about/index.html" "$work/about-mail.html"
+    if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
+        fail "guard: an About page linking an email with an incomplete config passed"
+    else
+        pass "guard: an About page linking an email with an incomplete config fails"
+    fi
 fi
 # Guard: the footer check bites. The footer line removed from About must fail.
 if [[ -f "$pub/about/index.html" ]]; then
@@ -778,10 +934,10 @@ fi
 
 if grep -q 'Placeholder posts section' "$root/content/posts/_index.md"; then
     fail "posts index still says 'Placeholder posts section.'"
-elif grep -q '^Newest first\.$' "$root/content/posts/_index.md"; then
-    pass "posts index intro is 'Newest first.'"
+elif grep -q '^Write-ups on open-source projects, self-hosting, streaming tools, and gear I use\. Newest first\.$' "$root/content/posts/_index.md"; then
+    pass "posts index intro says what the posts are"
 else
-    fail "posts index intro is not 'Newest first.'"
+    fail "posts index intro does not describe the posts"
 fi
 if tr '\n' ' ' <<<"$(src_css posts)" | grep -Eq '\.archive-links[^}]*margin-bottom|\.archive-tags[^}]*margin: *var\(--space-5\)'; then
     pass "tag list has spacing under the RSS link"
@@ -791,15 +947,15 @@ fi
 # Nav: the current section carries aria-current="page" and no other link does.
 nav_current() { # <html> -> text of the aria-current links in the main nav
     python3 -I - "$1" <<'PY'
-import re, sys
+import html, re, sys
 h = open(sys.argv[1], encoding="utf-8").read()
 nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
 nav = nav.group(0) if nav else ""
 for m in re.finditer(r"<a\b[^>]*aria-current=\"?page\"?[^>]*>(.*?)</a>", nav, re.S):
-    print(re.sub(r"<[^>]+>", "", m.group(1)).strip())
+    print(html.unescape(re.sub(r"<[^>]+>", "", m.group(1)).strip()))
 PY
 }
-for pair in "posts:Posts" "products:Products" "social:Social" "support:Support" "about:About"; do
+for pair in "posts:Posts" "products:Gear & tools" "social:Socials" "support:Support" "about:About"; do
     got="$(nav_current "$pub/${pair%%:*}/index.html")"
     if [[ "$got" == "${pair##*:}" ]]; then
         pass "nav marks ${pair##*:} current on /${pair%%:*}/"
@@ -838,18 +994,24 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>This site uses no analytics, cookies, embeds, or third-party requests. Following a link takes you to another site. I collect nothing here.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Social</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><p class=credit>&copy; 2026 ChiefGyk3D</p></footer>'
+good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC</p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"
 else
     fail "guard: a correct privacy page was rejected"
 fi
-sed 's/I collect nothing here/I collect a little/' "$work/ok-privacy.html" >"$work/bad-privacy.html"
+sed 's/sets no cookies/sets a few cookies/' "$work/ok-privacy.html" >"$work/bad-privacy.html"
 if python3 -I "$asserter" privacy "$work/bad-privacy.html" >/dev/null 2>&1; then
     fail "guard: a changed privacy statement passed"
 else
     pass "guard: a changed privacy statement fails"
+fi
+printf '%s<p>I collect nothing here.</p>\n' "$good_privacy" >"$work/bad-claim.html"
+if python3 -I "$asserter" privacy "$work/bad-claim.html" >/dev/null 2>&1; then
+    fail "guard: an unsupported 'collect nothing' claim passed"
+else
+    pass "guard: an unsupported 'collect nothing' claim fails"
 fi
 printf '%s<iframe src="https://ko-fi.com/"></iframe>\n' "$good_privacy" >"$work/bad-frame.html"
 if python3 -I "$asserter" privacy "$work/bad-frame.html" >/dev/null 2>&1; then

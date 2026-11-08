@@ -1,8 +1,37 @@
 # Privacy page and analytics (issues 62 and 84)
 
-`/privacy/` (`content/privacy/index.md`) states the current truth: this site
-uses no analytics, cookies, embeds, or third-party requests, and collects
-nothing.
+## Business contact on /about/ (issue 159)
+
+The Contact section publishes the business email only when the contact config in
+`data/about.yaml` is complete: `email`, `pgp_fingerprint` and `pgp_url` all set.
+Anything less shows no address anywhere on the page, only "the address will be
+listed here soon". The rule is written once for the template
+(`layouts/_partials/contact-complete.html`) and once for the build checks
+(`scripts/about-email.sh`, which prints the address only for a complete config
+and is the only source of the `--allow-email` exemption in `check-output.sh`
+and `smoke-site.sh`). `scripts/test-pages.sh` builds a copy of the repository for
+neither, email-only, key-only, email+fingerprint, email+url and both, and
+`scripts/test-check-output.sh` checks `about-email.sh` for the same cases.
+If Cloudflare Email Address Obfuscation is enabled on the zone it may rewrite the
+address on the live page; that is a host setting this repository does not control.
+
+## Privacy page
+
+`/privacy/` (`content/privacy/index.md`) says what the repository can establish:
+the site code sets no cookies and embeds nothing from other sites. The owner
+confirmed on 2026-11-07 that Cloudflare Web Analytics is turned on for the Pages
+project, so the page says so and quotes Cloudflare's own description of what it
+collects (developers.cloudflare.com/web-analytics/about, data-origin-and-collection
+and dimensions, read 2026-11-07). The owner then decided to allow the beacon:
+`static/_headers` now carries `script-src 'self'
+https://static.cloudflareinsights.com/beacon.min.js` and `connect-src 'self'`,
+the two entries Cloudflare's FAQ (web-analytics/faq, "What do I need to add to
+my Content Security Policy", last updated Jul 14, 2026) names for automatic
+injection. Pages adds the beacon at the edge on the next deployment after the
+toggle (pages/how-to/web-analytics, Apr 21, 2026), so it never appears in built
+HTML and the build checks still reject any other script element. The page does
+not describe what Cloudflare logs on its own. `scripts/test-pages.sh` rejects
+"collect nothing", "no analytics" and "likely block" claims (issue 159).
 
 The collector is built but not deployed (issue 84): see
 `docs/analytics-deploy.md`. The replacement text is drafted in

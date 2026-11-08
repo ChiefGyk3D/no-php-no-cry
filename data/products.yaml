@@ -5,8 +5,9 @@
 #   name     product or service name
 #   line     one plain sentence, taken from what the old post or links page said
 #   url      https only; the page renders rel="sponsored noopener"
-#   checked  date the item was last seen at its source (YYYY-MM-DD). The page
-#            says "Price checked on <date>"; there are no live prices. TODO
+#   checked  date the item was last seen at its source (YYYY-MM-DD). Kept for
+#            maintenance only: the page does not show it, because no price is
+#            shown and an old date would read as a fresh check. TODO
 #            (maintainer): recheck each item and update its date before publish.
 #   vendor   optional. Where the link goes: "Amazon" (a retailer link such as
 #            amzn.to) or "Direct" (the company's own site or affiliate page).
@@ -23,7 +24,7 @@
 - group: Security hardware
   items:
     - name: YubiKey 5C NFC
-      line: A hardware security key for signing in to your accounts.
+      line: A hardware security key with USB-C and NFC for signing in to your accounts.
       url: https://amzn.to/3PSRPp7
       checked: 2026-10-24
       vendor: Amazon
@@ -56,7 +57,7 @@
       checked: 2026-10-24
       vendor: Direct
     - name: BlinkDisk
-      line: A desktop app that backs up your files in a few clicks.
+      line: A desktop app for backing up your files.
       url: https://blinkdisk.com?via=chiefgyk3d
       checked: 2026-10-24
       vendor: Direct
@@ -75,7 +76,7 @@
       vendor: Amazon
       program: Amazon Associates
     - name: Antlion ModMic (3.5mm)
-      line: The original modular microphone, the pricier alternative to the Sahara.
+      line: The original modular microphone for headphones, and the pricier alternative to the Sahara.
       url: https://amzn.to/3nu4F1y
       checked: 2023-04-01
       vendor: Amazon
@@ -137,7 +138,7 @@
       vendor: Amazon
       program: Amazon Associates
     - name: Magnetic hex bit set
-      line: A strong pairing with the SKIL screwdriver for hex screws on 3D printers.
+      line: Magnetic hex bits for the SKIL screwdriver, for the hex screws on 3D printers.
       url: https://amzn.to/3JCuOnG
       checked: 2023-03-13
       vendor: Amazon
@@ -181,14 +182,14 @@
 - group: Developer learning
   items:
     - name: CodeCrafters
-      line: Build real developer tools from scratch to sharpen your engineering skills.
+      line: A platform where you build real developer tools from scratch.
       url: https://app.codecrafters.io/join?via=ChiefGyk3D
       checked: 2026-10-24
       vendor: Direct
 - group: Air quality
   items:
     - name: OdorStop 36-watt UV system, 16 inch bulb
-      line: UV-C for the HVAC system; I installed one in 2018 to fight mold and help my asthma.
+      line: A UV-C light for the HVAC system. I installed one in 2018 to fight mold.
       url: https://amzn.to/41ifQJi
       checked: 2023-04-10
       vendor: Amazon
@@ -200,7 +201,7 @@
       vendor: Amazon
       program: Amazon Associates
     - name: GermGuardian AC5900WCA
-      line: The same idea for larger rooms.
+      line: A standalone air cleaner with UV and a HEPA filter, for larger rooms.
       url: https://amzn.to/41dhv2Q
       checked: 2023-04-10
       vendor: Amazon
@@ -208,7 +209,7 @@
 - group: Creator and social media tools
   items:
     - name: Fedica
-      line: Crosspost to all your social networks from one place.
+      line: Crossposts to your social networks from one place.
       url: https://fedica.com?_by=chiefgyk3d
       checked: 2026-10-24
       vendor: Direct

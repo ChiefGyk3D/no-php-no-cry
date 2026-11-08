@@ -19,6 +19,8 @@ Fails (exit 1) on any of, printed as "[rule] page@width detail":
   lcp, cls    Largest Contentful Paint above 2000 ms or Cumulative Layout
               Shift above 0.05, measured cold under an emulated mid-range
               phone on 4G (1.6 Mbps, 150 ms round trip, 4x CPU slowdown)
+  tile        text of a .tile (the /social/ grid, products, support) sticks out
+              of its box: a handle or name that does not wrap (issue 170)
   target      a control under 44 x 44 CSS px (links inside running text are
               exempt, WCAG 2.5.8 inline exception)
   fit         standing rule (issue 123): a short page must fit a 1920x1080 browser
@@ -115,6 +117,25 @@ new PerformanceObserver(l => { for (const e of l.getEntries()) if (!e.hadRecentI
 
 JS_OVERFLOW = """(() => { const d = document.documentElement;
   return Math.max(d.scrollWidth - d.clientWidth, document.body.scrollWidth - d.clientWidth); })()"""
+
+# Text or boxes inside a .tile that stick out of the tile (any of the four
+# sides, half a pixel of slack; a tile grows with its wrapped text, so only a
+# child that leaves the tile's own box counts). One-pixel clipped elements (visually-hidden text) are skipped.
+JS_TILES = """(() => { const out = [];
+  document.querySelectorAll('.tile').forEach((t) => {
+    const b = t.getBoundingClientRect();
+    if (b.width === 0) return;
+    t.querySelectorAll('*').forEach((e) => {
+      for (const r of e.getClientRects()) {
+        if (r.width <= 1 || r.height <= 1) continue;
+        if (r.right > b.right + 0.5 || r.left < b.left - 0.5 || r.bottom > b.bottom + 0.5 || r.top < b.top - 0.5) {
+          out.push((e.className || e.tagName) + ' ' + Math.round(Math.max(r.right - b.right, b.left - r.left, r.bottom - b.bottom, b.top - r.top)) + 'px out of ' + (t.querySelector('.social-name, h3, h2') || t).textContent.trim().slice(0, 30));
+          return;
+        }
+      }
+    });
+  });
+  return out; })()"""
 
 # Controls under 44 x 44. Skips what is not rendered or is clipped to a pixel
 # (the skip link until focused), and links inside running text.
@@ -508,6 +529,9 @@ def run_one(cdp, base, name, url, width, height, dpr, mobile, full, axe_src, has
         ov = pg.js(JS_OVERFLOW)
         if ov > 0:
             fails.append("[overflow] %s the page is %d px wider than the viewport" % (label, ov))
+
+        for t in pg.js(JS_TILES):
+            fails.append("[tile] %s %s" % (label, t))
 
         row = {"label": label, "lcp": None, "cls": None, "req": n_req}
         if full:

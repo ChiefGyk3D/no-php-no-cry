@@ -11,7 +11,7 @@
 
 .social-tile {
   display: grid;
-  grid-template-columns: var(--space-6) 1fr;
+  grid-template-columns: var(--space-6) minmax(0, 1fr);
   grid-template-areas:
     "icon name"
     "icon handle"
@@ -19,7 +19,23 @@
   column-gap: var(--space);
   align-items: center;
   width: 100%;
+  /* Last resort only: a handle is cut at natural points by
+   * layouts/_partials/handle.html, so this breaks a part only when that part is
+   * wider than the box. */
   overflow-wrap: anywhere;
+}
+
+/* The text column may shrink below its content, so a long handle wraps inside
+ * the tile instead of pushing it wider. */
+.social-name,
+.social-handle,
+.social-role {
+  min-width: 0;
+}
+
+/* One piece of a handle (a user part or a domain): never split inside it. */
+.handle-part {
+  white-space: nowrap;
 }
 
 .social-icon {

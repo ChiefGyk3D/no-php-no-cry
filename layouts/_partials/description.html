@@ -7,7 +7,7 @@
   {{- else if eq .Kind "404" -}}
     {{- $d = printf "Page not found on %s." site.Title -}}
   {{- else if eq .Kind "term" -}}
-    {{- $d = printf "Posts filed under the %s %s on %s." (.Data.Singular | default "term") .Title site.Title -}}
+    {{- $d = printf "Posts and journal entries filed under the %s %s on %s." (.Data.Singular | default "term") .Title site.Title -}}
   {{- else if eq .Kind "section" -}}
     {{- $d = printf "Everything in %s on %s, newest first." .Title site.Title -}}
   {{- else -}}

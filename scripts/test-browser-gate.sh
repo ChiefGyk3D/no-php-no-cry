@@ -57,6 +57,8 @@ out="$(run_gate "$work/good")" || rc=$?
 if [[ $rc -eq 0 && "$out" == *"browser gate: ok (2 runs"* ]]; then pass "good fixture passes (one width run plus the 1920x930 fit run)"; else fail "good fixture: exit $rc: $out"; fi
 
 mutate overflow overflow overflow
+mutate tile-overflow tile tile-overflow
+mutate tile-overflow-vertical tile tile-overflow-vertical
 mutate console console console
 mutate missing-file network missing-file
 mutate off-site network off-site

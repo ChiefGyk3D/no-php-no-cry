@@ -20,7 +20,6 @@
             {{- end }}
           </div>
           <p class="product-line">{{ .line }}</p>
-          <p class="product-checked meta">Price checked on <time datetime="{{ (time.AsTime .checked).Format "2006-01-02" }}">{{ (time.AsTime .checked).Format "January 2, 2006" }}</time></p>
         </div>
         {{- if strings.HasPrefix .url "https://" }}
         <a class="btn btn-ghost" href="{{ .url }}" rel="sponsored noopener">View product<span class="visually-hidden">: {{ .name }} (affiliate link, external site)</span></a>
@@ -31,11 +30,11 @@
   </details>
 </section>
 {{- end }}
-{{- /* The disclosure is rendered once, after the last group (owner ruling 2026-11-08, issue 123); each item still carries its Amazon or Direct label and a "sponsored" link. Not every link goes to Amazon: some go straight to the company, so the copy says so. The Amazon Associates line shows only while at least one item has vendor Amazon (data/products.yaml). */}}
+{{- /* The disclosure is rendered once, after the last group (owner ruling 2026-11-08, issue 123); each item still carries its Amazon or Direct label and a "sponsored" link. Not every link goes to Amazon: some go straight to the company, so the copy and the card labels say so. The Amazon Associates line shows only while at least one item has vendor Amazon (data/products.yaml). */}}
 {{- $amazon := false }}
 {{- range site.Data.products }}{{ range .items }}{{ if eq .vendor "Amazon" }}{{ $amazon = true }}{{ end }}{{ end }}{{ end }}
 <div class="disclosure" role="note">
-  <p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. Some products I link directly to the company instead of a store. I only list products I use myself or would recommend.</p>
+  <p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. The label on each card says whether the link goes to Amazon or straight to the company.</p>
   {{- if $amazon }}
   <p class="meta">As an Amazon Associate I earn from qualifying purchases.</p>
   {{- end }}

@@ -1,2 +1,8 @@
-{{- /* A fediverse handle (@user@host) is shaped like an email address, and Cloudflare Email Obfuscation rewrites it to "[email protected]" and injects a script. An @ that follows a word character goes in its own inert span, so no text node has the user@host shape; copy and paste, and screen readers, still read the whole handle. scripts/check-output.sh (email-shaped-text) keeps it that way. */ -}}
-{{- . | htmlEscape | replaceRE `(\w)@` `${1}<span>@</span>` | safeHTML -}}
+{{- /* A handle (a fediverse @user@host, a Matrix #room:host, a bare host) shown so it never splits mid-word or mid-domain (issue 170). It is cut into parts at the natural points: before the second @ of a fediverse handle and after the : of a Matrix room. Each part is one nowrap span (so a hyphen inside a room name is no break either), and a <wbr> sits between parts: when the whole handle does not fit, the user part and the domain take separate lines. overflow-wrap: anywhere on the tile stays only as a last resort for a part wider than the box (assets/css/pages/social.css). A fediverse handle is shaped like an email address, and Cloudflare Email Obfuscation rewrites it to "[email protected]" and injects a script, so an @ that follows a word character or starts a later part goes in its own inert span: no text node has the user@host shape; copy and paste, and screen readers, still read the whole handle. scripts/check-output.sh (email-shaped-text) keeps it that way. */ -}}
+{{- $h := . | htmlEscape | replaceRE `(\w)@` "${1}\n@" | replaceRE `:` ":\n" -}}
+{{- range $i, $part := split $h "\n" -}}
+{{- if $i }}<wbr>{{ end -}}
+<span class="handle-part">
+{{- if and $i (hasPrefix $part "@") }}<span>@</span>{{ strings.TrimPrefix "@" $part | replaceRE `(\w)@` `${1}<span>@</span>` | safeHTML }}{{ else }}{{ $part | replaceRE `(\w)@` `${1}<span>@</span>` | safeHTML }}{{ end -}}
+</span>
+{{- end -}}

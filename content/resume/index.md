@@ -1,5 +1,5 @@
 ---
 title: "Resume"
-description: "Skills, knowledge, credentials and projects. Not a job history."
+description: "Senior Cybersecurity Engineer resume: skills, open-source projects, certifications, and education."
 layout: resume
 ---
