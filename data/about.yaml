@@ -9,11 +9,10 @@ paragraphs:
 # The speaking sentence: before + link text + after. The link renders only
 # while url is set (https only).
 speaking:
-  before: "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the "
+  before: "In 2026 I spoke at BSides Dayton and COISSA. I'm a member of DEFCON 614 and I'm with the "
   link_text: "Call Center Village"
   url: "https://www.callcentervillage.com/"
-  after: "."
-  role: "I volunteer there."
+  after: ", where I volunteer."
 # The mission paragraph (owner-approved wording, verbatim): rendered right after
 # the bio and the speaking sentence, before the projects and Contact.
 mission: "I make cybersecurity knowledge available to more than 500K followers across all platforms, with one goal: breaking down the barriers around who gets to learn it. Knowledge is power, money is power, and leaving knowledge behind a price tag means power stays with the people who already have money. I have an ethical issue with that, so I open source a lot of my work. You're not dead until you stop learning. Happy Hacking."

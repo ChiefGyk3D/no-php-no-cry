@@ -78,6 +78,8 @@ MISSION_END = "You're not dead until you stop learning. Happy Hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
            "or the Discord server. The two are bridged.")
+SPEAKING = ("In 2026 I spoke at BSides Dayton and COISSA. I'm a member of DEFCON 614 "
+            "and I'm with the Call Center Village, where I volunteer.")
 CONTACT_SOON = " Business inquiries go by email, and the address will be listed here soon."
 
 
@@ -143,6 +145,8 @@ class Page(HTMLParser):
         if tag == "summary" and self._summary is not None:
             self.summaries.append(self._summary.strip())
             self._summary = None
+        if tag == "p":
+            self.text.append(" ")  # paragraphs never run together in flat()
         if self._stack and self._stack[-1] == tag:
             self._stack.pop()
 
@@ -304,8 +308,10 @@ def check_about_data(errs, html_src):
     sp = d["speaking"]
     if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
         errs.append("speaking sentence or role differs from data/about.yaml")
-    if sp.get("role") != "I volunteer there.":
-        errs.append("data/about.yaml speaking role is not the owner-approved volunteer sentence")
+    if sp.get("role"):
+        errs.append("data/about.yaml speaking role must be empty: the volunteer clause is in 'after' (issue 186)")
+    if sp["before"] + sp["link_text"] + sp["after"] != SPEAKING:
+        errs.append("data/about.yaml speaking sentence is not the owner-approved one (issue 186)")
     groups = [(norm(a), norm(b)) for a, b in re.findall(r"<h3[^>]*>(.*?)</h3>\s*<p[^>]*>(.*?)</p>", html_src, re.S)]
     want = [(g["name"], g["text"]) for g in d["skills"]]
     for w in want:
@@ -365,7 +371,8 @@ def about(p, errs, repo):
         errs.append("mission paragraph missing")
     if flat.find(MISSION_START) < flat.find("In 2026 I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
         errs.append("mission paragraph is not right after the bio and before the projects and Contact")
-    if "In 2026 I spoke at BSides Dayton and COISSA, and I'm with the Call Center Village" not in flat:
+    # The link carries a visually-hidden " (opens in a new tab)" after its text.
+    if SPEAKING.replace("Call Center Village", "Call Center Village (opens in a new tab)") not in flat:
         errs.append("speaking sentence missing")
     cc = [a for a, t in p.links if t == "Call Center Village"]
     if len(cc) != 1:
@@ -423,8 +430,13 @@ def about(p, errs, repo):
             errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
         if "Email, for business inquiries only: %s." % cd["email"] not in flat:
             errs.append("business email sentence missing")
-        if "PGP fingerprint: %s." % cd["pgp_fingerprint"] not in flat:
-            errs.append("PGP fingerprint missing from the contact section")
+        # Issue 186: the fingerprint sits on its own line (its own paragraph), not in the email paragraph.
+        fp_paras = re.findall(r"<p[^>]*>((?:(?!</p>).)*?%s(?:(?!</p>).)*?)</p>" % re.escape(cd["pgp_fingerprint"]), repo["html"], re.S)
+        fp_texts = [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", x))).strip() for x in fp_paras]
+        if fp_texts != ["PGP fingerprint: %s" % cd["pgp_fingerprint"]]:
+            errs.append("the PGP fingerprint must be alone in its own paragraph; found %r" % fp_texts)
+        if not re.search(r"<p[^>]*>\s*PGP fingerprint:\s*<code[^>]*>%s</code>\s*</p>" % re.escape(cd["pgp_fingerprint"]), repo["html"]):
+            errs.append("the fingerprint paragraph must be 'PGP fingerprint: <code>...</code>'")
         if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
             errs.append("PGP key link missing")
         else:
