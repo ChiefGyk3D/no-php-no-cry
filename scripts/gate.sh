@@ -7,6 +7,7 @@
 #   scripts/gate.sh --plan           print the steps, run nothing (combines with --fast/--only)
 #   scripts/gate.sh --only NAME      run just that step (repeatable); a build it needs runs first
 #   scripts/gate.sh --keep           keep the temp directory with the per-step logs
+#   scripts/gate.sh --with-drift     also run the live Reach Around token drift check (network)
 #
 # Every step prints its name and exit code; a failure does not stop the run. The
 # exit code is 0 only when every step passed, and the last line names the failed
@@ -77,6 +78,7 @@ step gen-tokens "" 'python3 -I scripts/gen-tokens.py --check'
 step check-contrast "" 'python3 -I scripts/check-contrast.py assets/css/tokens.css'
 step check-brand-assets "" 'scripts/check-brand-assets.sh'
 step test-brand "" 'scripts/test-brand.sh'
+step test-check-reach-around-drift "" 'scripts/test-check-reach-around-drift.sh'
 step test-gitleaks-config "" 'scripts/test-gitleaks-config.sh'
 step check-budget build-production 'python3 -I scripts/check-budget.py "$T/public"'
 step test-check-budget "" 'scripts/test-check-budget.sh'
@@ -84,8 +86,14 @@ step browser-gate build-production '"$CHROME" --version && python3 -I scripts/br
 step test-browser-gate "" 'scripts/test-browser-gate.sh'
 step shfmt "" 'shfmt -d -i 4 -ci scripts/*.sh'
 step shellcheck "" 'shellcheck -S warning scripts/*.sh'
+# Live and optional: reads another repo's state over the network (docs/token-drift.md),
+# so it runs only with --with-drift or --only check-reach-around-drift, never by default.
+step check-reach-around-drift "" 'scripts/check-reach-around-drift.sh'
 # Not in CI: this script's own test (CI lists tests one by one and is unchanged).
 step test-gate "" 'scripts/test-gate.sh'
+
+declare -A optional
+optional["check-reach-around-drift"]="live check: needs the network and Reach Around's state"
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
@@ -100,19 +108,24 @@ docs_steps=(check-wording test-check-wording check-license test-check-license)
 declare -A requires
 requires["test-analytics"]="node"
 requires["test-browser-gate"]="chrome"
+# The drift wrapper and its fixture test (which serves a local fake API) call curl and python3.
+requires["check-reach-around-drift"]="curl python3"
+requires["test-check-reach-around-drift"]="curl python3"
 
 # --- arguments -----------------------------------------------------------------
 fast=0
+with_drift=0
 plan=0
 keep=0
 only=()
-usage() { sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --fast) fast=1 ;;
         --plan) plan=1 ;;
         --keep) keep=1 ;;
+        --with-drift) with_drift=1 ;;
         --only)
             if [[ $# -lt 2 ]]; then
                 echo "gate: --only needs a step name" >&2
@@ -205,6 +218,14 @@ elif [[ $fast -eq 1 ]]; then
     }
     while IFS= read -r f; do
         case "$f" in
+            brand/tokens.json | scripts/gen-tokens.py)
+                # Brand-affecting: the layout, contrast, brand and budget group runs too.
+                pick "${layout_steps[@]}"
+                ;;&
+            brand/tokens.json | scripts/gen-tokens.py | scripts/*reach-around-drift* | docs/token-drift.md)
+                # The offline fixture test; the live check follows the flag (below).
+                pick test-check-reach-around-drift check-reach-around-drift
+                ;;&
             scripts/*)
                 pick shfmt shellcheck
                 select_script "$(basename "$f")"
@@ -236,6 +257,22 @@ elif [[ $fast -eq 1 ]]; then
 else
     for n in "${names[@]}"; do sel["$n"]=1; done
 fi
+
+# Optional steps run only when asked for: --with-drift or an explicit --only.
+skipped_optional=()
+for n in "${names[@]}"; do
+    [[ -n "${optional[$n]:-}" ]] || continue
+    if [[ ${#only[@]} -gt 0 ]]; then continue; fi
+    if [[ $with_drift -eq 1 ]]; then
+        if [[ $fast -eq 0 ]]; then sel["$n"]=1; fi
+    elif [[ $fast -eq 0 || -n "${sel[$n]:-}" ]]; then
+        skipped_optional+=("$n")
+        unset 'sel[$n]'
+    fi
+done
+for n in "${skipped_optional[@]}"; do
+    echo "gate: skipped $n (${optional[$n]}); run with --with-drift or --only $n"
+done
 
 # A selected step pulls in the build it reads.
 for n in "${names[@]}"; do

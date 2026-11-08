@@ -37,7 +37,7 @@ echo "$name $*" >>"${STUB_LOG:-/dev/null}"
 [[ " ${STUB_FAIL:-} " == *" $name "* ]] && exit 1
 exit 0'
 
-for t in hugo shellcheck shfmt google-chrome node; do
+for t in hugo shellcheck shfmt google-chrome node curl; do
     printf '%s\n' "$stub_body" >"$stubs/$t"
 done
 cat >"$stubs/python3" <<'PY'
@@ -101,6 +101,15 @@ for n in check-hugo-version build-production check-output-staging test-pages gen
     check "plan lists $n" has "$out" "$n"
 done
 check "plan runs nothing" test -z "$calls"
+check "plan lists the offline drift test" grep -qx 'test-check-reach-around-drift: .*' <<<"$out"
+check "plan leaves out the live drift check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
+check "plan says the live drift check is skipped" has "$out" "skipped check-reach-around-drift"
+gate --plan --with-drift
+check "--with-drift plans the live drift check" grep -q '^check-reach-around-drift: ' <<<"$out"
+check "--with-drift prints no skip message" lacks "$out" "skipped check-reach-around-drift"
+gate --plan --only check-reach-around-drift
+check "--only plans the live drift check" grep -q '^check-reach-around-drift: ' <<<"$out"
+check "--only plans nothing else" lacks "$out" "test-pages"
 
 # --- full run, all green ---------------------------------------------------
 gate
@@ -140,6 +149,18 @@ check "--only reports a failing step" test "$rc" -ne 0
 check "failed browser gate hints at --only" has "$out" "--only browser-gate"
 gate --only no-such-step
 check "--only with an unknown step exits 2" test "$rc" -eq 2
+
+# --- the drift check: offline always, live only on request ------------------
+gate
+check "full run ran the offline drift test" has "$calls" "test-check-reach-around-drift.sh"
+check "full run did not run the live drift check" bash -c '! grep -q "^check-reach-around-drift.sh" <<<"$1"' _ "$calls"
+gate --with-drift
+check "--with-drift runs the live check" grep -q '^check-reach-around-drift.sh' <<<"$calls"
+gate --only check-reach-around-drift
+check "--only runs the live check" grep -q '^check-reach-around-drift.sh' <<<"$calls"
+check "--only runs it alone" lacks "$calls" "test-check"
+STUB_FAIL="check-reach-around-drift.sh" gate --with-drift
+check "a failing live check fails the gate" test "$rc" -ne 0
 
 # --- --keep ----------------------------------------------------------------
 gate --keep --only check-wording
@@ -226,6 +247,36 @@ gate --fast --plan
 check "an edit to gate.sh plans test-gate" has "$out" "test-gate"
 reset_repo
 
+for f in brand/tokens.json scripts/gen-tokens.py docs/token-drift.md scripts/check-reach-around-drift.sh; do
+    reset_repo
+    mkdir -p "$repo/$(dirname "$f")"
+    echo "x" >>"$repo/$f"
+    gate --fast --plan
+    check "fast: $f plans the offline drift test" grep -q '^test-check-reach-around-drift: ' <<<"$out"
+    check "fast: $f leaves out the live check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
+    gate --fast --plan --with-drift
+    check "fast: $f with the flag plans the live check" grep -q '^check-reach-around-drift: ' <<<"$out"
+done
+for f in brand/tokens.json scripts/gen-tokens.py; do
+    reset_repo
+    mkdir -p "$repo/$(dirname "$f")"
+    echo "x" >>"$repo/$f"
+    gate --fast --plan
+    for n in build-production check-contrast check-brand-assets test-brand check-budget browser-gate gen-tokens; do
+        check "fast: $f also plans $n" grep -q "^$n: " <<<"$out"
+    done
+done
+reset_repo
+mkdir -p "$repo/docs"
+echo x >>"$repo/docs/token-drift.md"
+gate --fast --plan
+check "fast: token-drift.md plans only docs-level steps, not the build" lacks "$out" "build-production"
+reset_repo
+echo new >"$repo/content/new.md"
+gate --fast --plan --with-drift
+check "fast: unrelated change with the flag skips the live check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
+reset_repo
+
 # --- missing tool ----------------------------------------------------------
 bare="$work/bare"
 mkdir -p "$bare"
@@ -248,6 +299,24 @@ out="$(cd "$repo" && PATH="$work/stubs-no-node:$bare" GATE_TOOLS='' GATE_TMP="$w
     scripts/gate.sh --only test-analytics 2>&1)" || rc=$?
 check "a missing node exits 2" test "$rc" -eq 2
 check "the missing node names the step" has "$out" "node for test-analytics"
+
+for step in check-reach-around-drift test-check-reach-around-drift; do
+    for gone in curl python3; do
+        mkdir -p "$work/stubs-no-$gone"
+        for t in hugo shellcheck shfmt google-chrome node curl python3; do
+            [[ "$t" == "$gone" ]] || ln -sf "$stubs/$t" "$work/stubs-no-$gone/$t"
+        done
+        rc=0
+        out="$(cd "$repo" && PATH="$work/stubs-no-$gone:$bare" GATE_TOOLS='' GATE_TMP="$work/gt" \
+            scripts/gate.sh --only "$step" 2>&1)" || rc=$?
+        check "$step without $gone exits 2" test "$rc" -eq 2
+        check "$step without $gone names the tool and step" has "$out" "$gone for $step"
+    done
+done
+rc=0
+out="$(cd "$repo" && PATH="$work/stubs-no-curl:$bare" GATE_TOOLS='' GATE_TMP="$work/gt" \
+    scripts/gate.sh --only check-wording 2>&1)" || rc=$?
+check "an unrelated step is unaffected when curl is absent" test "$rc" -eq 0
 
 if [[ $failures -gt 0 ]]; then
     echo "$failures gate test(s) failed"
