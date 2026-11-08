@@ -821,6 +821,7 @@ make_image() {
     python3 -I - "$1" "$2" <<'PY'
 import struct
 import sys
+import zlib
 
 out, kind = sys.argv[1], sys.argv[2]
 # TIFF block, little endian, one IFD0 entry: tag 0x8825 (GPSInfo), type LONG, count 1.
@@ -829,10 +830,32 @@ empty = b"MM" + struct.pack(">HIH", 42, 8, 0) + bytes(4)
 riff = lambda *chunks: b"RIFF" + struct.pack("<I", 4 + sum(len(c) for c in chunks)) + b"WEBP" + b"".join(chunks)
 chunk = lambda tag, body: tag + struct.pack("<I", len(body)) + body + bytes(len(body) & 1)
 vp8 = chunk(b"VP8 ", bytes(10))
-png = lambda tag, body: struct.pack(">I", len(body)) + tag + body + bytes(4)
+png = lambda tag, body: struct.pack(">I", len(body)) + tag + body + struct.pack(">I", zlib.crc32(tag + body))
 seg = lambda marker, body: bytes([0xFF, marker]) + struct.pack(">H", len(body) + 2) + body
 jpeg_end = bytes([0xFF, 0xDA, 0, 2, 0xFF, 0xD9])
 exif_prefix = b"Exif" + bytes(2)
+
+
+def tiff(o, ifds, loop=False):
+    """TIFF block in byte order o ("<" or ">"). ifds is a list of entry lists, chained
+    IFD0 -> IFD1 -> ...; an entry is (tag, value). With loop, the last IFD links back to the first."""
+    sig = b"II" if o == "<" else b"MM"
+    pos, offs = 8, []
+    for ents in ifds:
+        offs.append(pos)
+        pos += 2 + 12 * len(ents) + 4
+    body = b""
+    for i, ents in enumerate(ifds):
+        nxt = offs[i + 1] if i + 1 < len(ifds) else (offs[0] if loop else 0)
+        body += struct.pack(o + "H", len(ents))
+        for tag, val in ents:
+            body += struct.pack(o + "HHII", tag, 4, 1, val)
+        body += struct.pack(o + "I", nxt)
+    return sig + struct.pack(o + "HI", 42, 8) + body
+
+
+png_sig = bytes([0x89]) + b"PNG\r\n" + bytes([0x1A, 0x0A])
+text = lambda kind, key: png_sig + png(kind, key + bytes(1) + b"x") + png(b"IEND", b"")
 data = {
     "webp-clean": riff(vp8),
     "webp-gps": riff(vp8, chunk(b"EXIF", gps)),
@@ -842,12 +865,29 @@ data = {
     "jpeg-gps": bytes([0xFF, 0xD8]) + seg(0xE1, exif_prefix + gps) + jpeg_end,
     "jpeg-comment": bytes([0xFF, 0xD8]) + seg(0xFE, b"hello") + jpeg_end,
     "png-gps": bytes([0x89]) + b"PNG\r\n" + bytes([0x1A, 0x0A]) + png(b"eXIf", gps) + png(b"IEND", b""),
+    # IFD0 empty, IFD1 (a thumbnail's IFD) holds a tag: only the chain walk sees it.
+    "webp-ifd1-ii": riff(vp8, chunk(b"EXIF", tiff("<", [[], [(0x0103, 6)]]))),
+    "webp-ifd1-mm": riff(vp8, chunk(b"EXIF", tiff(">", [[], [(0x0103, 6)]]))),
+    # IFD0 only points at the GPS sub-IFD (tag 0x8825), whose own IFD holds the tag.
+    "webp-gpssub-ii": riff(vp8, chunk(b"EXIF", tiff("<", [[(0x8825, 26)]]))),
+    "webp-gpssub-mm": riff(vp8, chunk(b"EXIF", tiff(">", [[(0x8825, 26)]]))),
+    # A chain that loops back to IFD0 must be flagged, not hang.
+    "webp-cycle-ii": riff(vp8, chunk(b"EXIF", tiff("<", [[], []], loop=True))),
+    "webp-cycle-mm": riff(vp8, chunk(b"EXIF", tiff(">", [[], []], loop=True))),
+    "png-iptc-text": text(b"tEXt", b"IPTC"),
+    "png-rawiptc-ztxt": text(b"zTXt", b"Raw profile type iptc"),
+    "png-rawapp13-itxt": text(b"iTXt", b"Raw profile type APP13"),
+    "png-rawexif-text": text(b"tEXt", b"Raw profile type exif"),
+    "png-rawxmp-itxt": text(b"iTXt", b"Raw profile type xmp"),
+    "png-clean-text": text(b"tEXt", b"Comment"),
 }[kind]
 open(out, "wb").write(data)
 PY
 }
 image_case() { make_image "$1/brand-test.${KIND%%-*}" "$KIND"; }
-for k in webp-gps webp-xmp webp-garbage-exif jpeg-gps jpeg-comment png-gps; do
+for k in webp-gps webp-xmp webp-garbage-exif jpeg-gps jpeg-comment png-gps \
+    webp-ifd1-ii webp-ifd1-mm webp-gpssub-ii webp-gpssub-mm webp-cycle-ii webp-cycle-mm \
+    png-iptc-text png-rawiptc-ztxt png-rawapp13-itxt png-rawexif-text png-rawxmp-itxt; do
     KIND="$k" variant "image-metadata-$k" image-metadata image_case
 done
 image_case_dir="$work/image-clean"
@@ -858,6 +898,10 @@ image_empty_dir="$work/image-empty-exif"
 make_good "$image_empty_dir"
 KIND=webp-empty-exif image_case "$image_empty_dir"
 expect_pass "an empty EXIF block (no tags) passes" "an empty EXIF block was rejected" "$image_empty_dir"
+image_text_dir="$work/image-clean-text"
+make_good "$image_text_dir"
+KIND=png-clean-text image_case "$image_text_dir"
+expect_pass "a PNG text chunk with an unrelated keyword passes" "a harmless PNG text chunk was rejected" "$image_text_dir"
 
 # email-shaped-text: a user@host handle in page text is rewritten by Cloudflare
 # Email Obfuscation (and a script injected). The split form must pass.

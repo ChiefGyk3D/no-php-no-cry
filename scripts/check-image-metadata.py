@@ -8,7 +8,7 @@ structure directly (Python stdlib only; no ExifTool or Pillow needed):
 
   WebP  an EXIF or XMP  RIFF chunk
   JPEG  an APP1 segment (Exif or XMP), an APP13 segment (IPTC) or a COM segment
-  PNG   an eXIf chunk, or an iTXt chunk holding XMP
+  PNG   an eXIf chunk, or a tEXt/zTXt/iTXt chunk with an XMP, IPTC, APP13 or raw EXIF/XMP profile keyword
 
 GPS tags live inside the EXIF block, so an EXIF finding covers them. Findings
 print as "[image-metadata] path: what" and the exit status is 1. The portrait
@@ -23,25 +23,53 @@ import sys
 
 EXTS = {".webp", ".jpg", ".jpeg", ".png"}
 JPEG_SOI = bytes([0xFF, 0xD8])
+# Textual PNG metadata keywords (lower case): XMP, and the ImageMagick/ExifTool "raw profile"
+# forms of IPTC, APP13, EXIF and XMP.
+PNG_META_KEYS = {
+    "xml:com.adobe.xmp",
+    "iptc",
+    "raw profile type iptc",
+    "raw profile type app13",
+    "raw profile type exif",
+    "raw profile type xmp",
+}
 PNG_SIG = bytes([0x89]) + b"PNG\r\n" + bytes([0x1A, 0x0A])
 
 
 EXIF_PREFIX = b"Exif" + bytes(2)
 
 
+MAX_IFDS = 16
+
+
 def exif_finding(blob):
-    """EXIF is a finding when its TIFF block has any tag (GPS, camera, date, serial and
-    so on live there as IFD entries) or cannot be read. An empty IFD, which some encoders
-    write, holds nothing and passes."""
+    """EXIF is a finding when ANY IFD in its TIFF block holds a tag, or when the block
+    cannot be read. GPS, camera, date, serial and thumbnail data live in IFD0, the linked
+    IFD1 (thumbnail) or sub-IFDs reached through a pointer tag (Exif 0x8769, GPS 0x8825,
+    Interop 0xA005); a pointer is itself a tag, so an IFD that points anywhere is non-empty
+    and is a finding. The IFD chain (IFD0 -> IFD1 -> ...) is walked with a cycle guard and
+    a cap of MAX_IFDS. A structure with zero tags in every IFD, which some encoders write,
+    holds nothing and passes."""
     if blob[:6] == EXIF_PREFIX:
         blob = blob[6:]
     try:
         order = {b"II": "<", b"MM": ">"}[blob[:2]]
         off = struct.unpack(order + "I", blob[4:8])[0]
-        count = struct.unpack(order + "H", blob[off : off + 2])[0]
+        seen = set()
+        while off:
+            if off in seen or len(seen) >= MAX_IFDS:
+                return "EXIF IFD chain loops or is too long"
+            seen.add(off)
+            count = struct.unpack(order + "H", blob[off : off + 2])[0]
+            end = off + 2 + 12 * count
+            if end + 4 > len(blob):
+                return "EXIF block that cannot be read"
+            if count:
+                return "EXIF block with %d tags" % count
+            off = struct.unpack(order + "I", blob[end : end + 4])[0]
     except (KeyError, struct.error):
         return "EXIF block that cannot be read"
-    return "EXIF block with %d tags" % count if count else None
+    return None
 
 
 def webp_findings(b):
@@ -97,8 +125,10 @@ def png_findings(b):
         body = b[i + 8 : i + 8 + n]
         if kind == b"eXIf":
             out.append(exif_finding(body))
-        elif kind == b"iTXt" and body.startswith(b"XML:com.adobe.xmp"):
-            out.append("XMP chunk")
+        elif kind in (b"tEXt", b"zTXt", b"iTXt"):
+            key = body.split(bytes(1), 1)[0].decode("latin-1").lower()
+            if key in PNG_META_KEYS:
+                out.append("%s metadata chunk" % key)
         i += 12 + n
     return [x for x in out if x]
 
