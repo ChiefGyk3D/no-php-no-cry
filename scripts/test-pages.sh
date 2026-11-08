@@ -441,7 +441,7 @@ def check_glance_homelab(errs, html_src):
     if not (0 < i < j < k):
         errs.append("section order must be skills, glance, homelab (found %d, %d, %d)" % (i, j, k))
     if len(re.findall(r"<h2[ >]", html_src)) != 5:
-        errs.append("expected five h2 sections on About (projects, contact, skills, glance, homelab)")
+        errs.append("expected five h2 sections on About (projects, skills, glance, homelab, contact)")
 
 
 def check_project_tiles(errs, html_src, flat):
@@ -470,8 +470,14 @@ def check_project_tiles(errs, html_src, flat):
         if not any(need in t[0] for t in tiles):
             errs.append("missing project link %s" % need)
     i, j, k = (html_src.find(x) for x in ('id=projects', 'id=contact', 'id=skills'))
-    if not (0 < i < j < k):
-        errs.append("section order must be projects, contact, skills (found %d, %d, %d)" % (i, j, k))
+    if not (0 < i < k < j):
+        errs.append("section order must be projects, skills, then contact (found %d, %d, %d)" % (i, j, k))
+    # Issue 261: Contact is the last section of the page (after glance and homelab), anchored at #contact.
+    h = [m.group(1) for m in re.finditer(r"<h2[^>]*\bid=\"?([a-z]+)", html_src)]
+    if h[-1:] != ["contact"] or h.count("contact") != 1:
+        errs.append("the contact section must be the last h2 section on About (found order %r)" % h)
+    if not re.search(r"<section[^>]*about-contact[^>]*>(?:(?!<section).)*?id=\"?contact", html_src, re.S):
+        errs.append("the #contact anchor must sit inside the about-contact section")
     if flat.find("lists my skills, open-source projects") > flat.find("Current projects") or flat.find("lists my skills, open-source projects") < flat.find(MISSION_START):
         errs.append("the resume line must close the bio card, before Current projects")
 
