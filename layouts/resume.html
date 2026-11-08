@@ -22,6 +22,25 @@
     </div>
   </section>
 
+  {{- /* Issue 262: Background reuses the owner-approved About bio (data/about.yaml); nothing is copied, so the two pages cannot drift. */}}
+  {{- with site.Data.about }}
+  <section aria-labelledby="r-background">
+    <h2 id="r-background" class="hud-heading">Background</h2>
+    <div class="resume-summary">
+      {{- range .paragraphs }}
+      <p>{{ . }}</p>
+      {{- end }}
+    </div>
+    {{- with .glance }}
+    <ul class="resume-list">
+      {{- range . }}
+      <li><strong>{{ .name }}:</strong> {{ .text }}</li>
+      {{- end }}
+    </ul>
+    {{- end }}
+  </section>
+  {{- end }}
+
   <section aria-labelledby="r-skills">
     <h2 id="r-skills" class="hud-heading">Skills</h2>
     <dl class="resume-skills">
@@ -34,8 +53,50 @@
     </dl>
   </section>
 
+  {{- /* The About skills text (data/about.yaml), the detail behind the skill groups above. */}}
+  {{- with site.Data.about }}
+  {{- with .skills }}
+  <section aria-labelledby="r-tools">
+    <h2 id="r-tools" class="hud-heading">Tools and platforms</h2>
+    <dl class="resume-detail">
+      {{- range . }}
+      <div>
+        <dt>{{ .name }}</dt>
+        <dd>{{ .text }}</dd>
+      </div>
+      {{- end }}
+    </dl>
+  </section>
+  {{- end }}
+  {{- end }}
+
+  {{- with .site_proof }}
+  <section aria-labelledby="r-proof">
+    <h2 id="r-proof" class="hud-heading">{{ .heading }}</h2>
+    <p>{{ .text }}</p>
+  </section>
+  {{- end }}
+
+  {{- /* Build-safe slot (issue 262): renders only when data/resume.yaml has an `experience` list of {name, text}. Empty today, so nothing shows. */}}
+  {{- with .experience }}
+  <section aria-labelledby="r-experience">
+    <h2 id="r-experience" class="hud-heading">Selected accomplishments</h2>
+    <dl class="resume-detail">
+      {{- range . }}
+      <div>
+        <dt>{{ .name }}</dt>
+        <dd>{{ .text }}</dd>
+      </div>
+      {{- end }}
+    </dl>
+  </section>
+  {{- end }}
+
   <section aria-labelledby="r-projects">
     <h2 id="r-projects" class="hud-heading">Open-Source Projects</h2>
+    {{- with .projects_intro }}
+    <p>{{ . }}</p>
+    {{- end }}
     <ul class="resume-list">
       {{- range .projects }}
       <li><a href="{{ .url }}" rel="noopener">{{ .name }}</a>: {{ .line }}</li>
@@ -45,6 +106,34 @@
     <p class="resume-more"><a href="{{ .url }}" rel="noopener">{{ .label }}</a></p>
     {{- end }}
   </section>
+
+  {{- with site.Data.about }}
+  {{- with .homelab }}
+  <section aria-labelledby="r-homelab">
+    <h2 id="r-homelab" class="hud-heading">Homelab and engineering practice</h2>
+    {{- with $.Site.Data.about.homelab_intro }}
+    <p>{{ . }}</p>
+    {{- end }}
+    <dl class="resume-detail">
+      {{- range . }}
+      <div>
+        <dt>{{ .name }}</dt>
+        <dd>{{ .text }}
+          {{- with .links }}
+          <span class="resume-detail-links">
+            {{- range . }}
+            {{- if not (strings.HasPrefix .url "https://github.com/") }}{{ errorf "resume homelab link %q is not an https GitHub URL" .name }}{{ end }}
+            <a href="{{ .url }}" rel="noopener">{{ .name }}</a>
+            {{- end }}
+          </span>
+          {{- end }}
+        </dd>
+      </div>
+      {{- end }}
+    </dl>
+  </section>
+  {{- end }}
+  {{- end }}
 
   <section aria-labelledby="r-credentials">
     <h2 id="r-credentials" class="hud-heading">Certifications</h2>
@@ -65,6 +154,23 @@
     <ul class="resume-list">
       {{- range .community }}<li>{{ . }}</li>{{ end }}
     </ul>
+  </section>
+
+  <section aria-labelledby="r-creator">
+    <h2 id="r-creator" class="hud-heading">Creator and teaching work</h2>
+    {{- with site.Data.about.mission }}
+    <p>{{ . }}</p>
+    {{- end }}
+    {{- with .creator }}
+    <p>{{ .intro }}</p>
+    <ul class="resume-list">
+      {{- range .topics }}<li>{{ . }}</li>{{ end }}
+    </ul>
+    <p>{{ .outro }}</p>
+    {{- end }}
+    {{- with site.Data.about.closing }}
+    <p class="resume-closing">{{ . }}</p>
+    {{- end }}
   </section>
 
   <section aria-labelledby="r-outside">
