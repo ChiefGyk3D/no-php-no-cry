@@ -977,7 +977,7 @@ else
     bite "with an enabled input" 's#(<input[^>]*id=q[^>]*) disabled#\1#'
     bite "without the status region" 's#role=status ##'
     bite "without the label" 's#<label#<span#'
-    bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'
+    bite "without a post entry" 's#<li><a href=/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/>#<li><a href=/posts/other/>#'
 fi
 if [[ -e "$pub/search/index.xml" ]]; then
     fail "the search page published a feed"
@@ -1096,7 +1096,7 @@ for f in "$pub/index.html" "$pub/404.html"; do
         fail "ghost layer trigger missing on ${f#"$pub"/}"
     fi
 done
-for f in "$pub/about/index.html" "$pub/posts/sample-post/index.html"; do
+for f in "$pub/about/index.html" "$pub/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/index.html"; do
     if has_ghost_trigger "$f"; then
         fail "ghost layer trigger must be absent on ${f#"$pub"/}"
     else
