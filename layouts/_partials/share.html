@@ -21,7 +21,7 @@
       {{- $t = replace $t "{url}" (replace (urlquery $url) "+" "%20") }}
       {{- $t = replace $t "{text}" (replace (urlquery $text) "+" "%20") }}
       {{- $t = replace $t "{image}" (replace (urlquery $image) "+" "%20") }}
-    <li><a class="icon-{{ .id }} share-link" href="{{ $t }}" rel="noopener noreferrer" target="_blank" aria-label="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}">{{ .label }}</a></li>
+    <li>{{ if eq .kind "mailto" }}{{ "<!--email_off-->" | safeHTML }}{{ end }}<a class="icon-{{ .id }} share-link" href="{{ $t }}" rel="noopener noreferrer" target="_blank" aria-label="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}">{{ .label }}</a>{{ if eq .kind "mailto" }}{{ "<!--/email_off-->" | safeHTML }}{{ end }}</li>
       {{- end }}
     {{- else if eq .kind "mastodon" }}
     <li><button type="button" class="icon-{{ .id }} share-link" data-share="mastodon" data-text="{{ $text }}" aria-label="Share on {{ .label }}" hidden>{{ .label }}</button></li>
