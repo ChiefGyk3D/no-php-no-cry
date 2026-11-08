@@ -3,7 +3,7 @@
   ways to chip in as tiles (the link entries in data/support.yaml that carry a
   "button" label), then one panel per cryptocurrency (the entries with kind:
   cryptocurrency): coin mark, QR code with the coin mark in its middle, the
-  address as selectable text, and a Copy button.
+  address as selectable text, and a Copy button below it (issue 194).
 
   Copy buttons are progressive enhancement. The address is always visible text
   (selectable with one click). The button carries the hidden attribute and
@@ -46,15 +46,13 @@
           <h3 class="coin-name">{{ .name }}</h3>
           <span class="coin-ticker">{{ .ticker }}</span>
         </div>
-        {{- /* QR and Copy side by side from 80rem (so the page fits 1920x1080 without scrolling); stacked below that. */}}
-        <div class="coin-body">
-          <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
-          <div class="coin-actions">
-            <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
-            <span class="copy-status" role="status"></span>
-          </div>
-        </div>
+        {{- /* One centered column in every card: QR, the address, then Copy below it. */}}
+        <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
         <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+        <div class="coin-actions">
+          <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
+          <span class="copy-status" role="status"></span>
+        </div>
       </li>
       {{- end }}{{ end }}
     </ul>

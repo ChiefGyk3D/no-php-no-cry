@@ -59,5 +59,57 @@ skills:
 # docs/rotating-pgp-key.md.
 contact:
   email: "chief@chiefgyk3d.com"
+<<<<<<< HEAD
   pgp_fingerprint: "5AFF B5C1 C37A 63AB DB93 07C1 70EA A2B2 49A3 50E7"
   pgp_url: "https://keys.openpgp.org/vks/v1/by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E7"
+=======
+  pgp_fingerprint: "93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
+  pgp_url: "/chiefgyk3d.asc"
+# At a glance and Hardware and homelab (issue 196). Owner wording from his public
+# GitHub profile, trimmed for this page. Facts only: no hostnames, addresses, serial
+# numbers or room details. Each card renders its name and text, then its repo links
+# (https GitHub URLs only). scripts/test-pages.sh checks the page against these entries.
+glance_heading: "At a glance"
+glance:
+  - name: "Desktop"
+    text: "Pop!_OS, Parrot OS, and Debian on hand-built desktops and laptops from Tuxedo Computers, System76, and MNT. Ubuntu on production servers."
+  - name: "Radio"
+    text: "Licensed amateur radio operator. SDR, Meshtastic, LoRa, antenna builds, and a growing toolchain for turning a Linux box into an RF workstation."
+  - name: "Self-hosted"
+    text: "My own Mastodon instance, Matrix homeserver, Pixelfed, link aggregator, support page, and more."
+  - name: "Cares about"
+    text: "End-to-end encryption, zero trust, owning your infrastructure, right to repair, privacy rights, threat modeling, OSINT, and telecom security."
+homelab_heading: "Hardware and homelab"
+homelab_intro: "A production-grade home lab for building, breaking, and learning. I use single-board computers and repurposed hardware wherever practical."
+homelab:
+  - name: "Network and security"
+    text: "A Supermicro E300-8D firewall running pfSense, Suricata IDS/IPS, and pfBlockerNG on VLAN-segmented networks. UniFi managed switches and access points send telemetry into Grafana and InfluxDB through UniFi Poller, and device logs go to Wazuh for EDR alerting."
+  - name: "SIEM server"
+    text: "A Supermicro SuperServer 5019A-FTN4 with an Intel Atom C3758 and 64 GB of DDR4 ECC, on tiered SSD and NVMe storage. It runs a Dockerized OpenSearch hot/warm cluster with Wazuh, Grafana, Logstash, Prometheus, InfluxDB, Syslog-ng, UniFi Poller, and Portainer."
+    links:
+      - name: "siem-docker-stack"
+        url: "https://github.com/ChiefGyk3D/siem-docker-stack"
+      - name: "pfsense-siem-stack"
+        url: "https://github.com/ChiefGyk3D/pfsense-siem-stack"
+  - name: "AI inference"
+    text: "The FrankenLLM server runs two GPUs, an NVIDIA RTX 5060 Ti 16 GB and an NVIDIA RTX 3050 8 GB, for simultaneous multi-model inference."
+    links:
+      - name: "FrankenLLM"
+        url: "https://github.com/ChiefGyk3D/FrankenLLM"
+  - name: "Compute and storage"
+    text: "Raspberry Pi 4 and 5, Pine64, and other single-board computers for power-efficient computing. Second-hand PCs repurposed whenever possible to reduce e-waste. A Synology NAS with NUT (Network UPS Tools) monitoring and notifications."
+  - name: "Radio, SDR, and time"
+    text: "Meshtastic nodes, LoRa experiments, and custom antenna builds. SDR for ADS-B aircraft tracking, UAT weather, and RF signal analysis. Hammunition builds the workstation, and Hammunition Hill watches propagation from it. In progress: two GPS-disciplined stratum-1 NTP appliances built from Mother Ticker."
+    links:
+      - name: "Hammunition"
+        url: "https://github.com/Renegade-Penguin/Hammunition"
+      - name: "Hammunition Hill"
+        url: "https://github.com/Renegade-Penguin/hammunition-hill"
+      - name: "Mother Ticker"
+        url: "https://github.com/ChiefGyk3D/mother-ticker"
+  - name: "Cloud extension"
+    text: "Clouds Against Humanity: DigitalOcean droplets managed with OpenTofu through Spacelift, secrets in Doppler, and reachable only over Twingate zero-trust access with zero public inbound ports."
+    links:
+      - name: "Clouds Against Humanity"
+        url: "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"
+>>>>>>> origin/main

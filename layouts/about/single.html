@@ -76,5 +76,36 @@
     </div>
   </section>
   {{- end }}
+
+  {{- /* Issue 196: At a glance and Hardware and homelab, read from data/about.yaml. Definition lists (not h3) so the cards add no skill-group headings. */}}
+  {{- with site.Data.about }}
+  {{- $sections := slice (dict "id" "glance" "heading" .glance_heading "cards" .glance "modifier" " fact-grid-wide") (dict "id" "homelab" "heading" .homelab_heading "cards" .homelab "intro" .homelab_intro) }}
+  {{- range $sections }}
+  {{- if .cards }}
+  <section class="about-facts" aria-labelledby="{{ .id }}">
+    <h2 id="{{ .id }}">{{ .heading }}</h2>
+    {{- with .intro }}
+    <p class="facts-intro">{{ . }}</p>
+    {{- end }}
+    <dl class="fact-grid{{ .modifier }}">
+    {{- range .cards }}
+      <div class="fact-card">
+        <dt>{{ .name }}</dt>
+        <dd class="card-text">{{ .text }}</dd>
+        {{- with .links }}
+        <dd class="card-links"><ul>
+          {{- range . }}
+          {{- if not (strings.HasPrefix .url "https://github.com/") }}{{ errorf "about card link %q is not an https GitHub URL" .name }}{{ end }}
+          <li><a href="{{ .url }}" target="_blank" rel="noopener">{{ .name }}<span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+          {{- end }}
+        </ul></dd>
+        {{- end }}
+      </div>
+    {{- end }}
+    </dl>
+  </section>
+  {{- end }}
+  {{- end }}
+  {{- end }}
 </article>
 {{ end }}
