@@ -7,7 +7,7 @@
 #      (artifact_name_ok): there is no second file a script could load;
 #   2. nosniff is in the headers (headers_nosniff_ok), so a response that is not
 #      served as JavaScript is not run as a script;
-#   3. the allowed scripts, /copy.js and /search.js, are accepted only if each
+#   3. the allowed scripts, /copy.js, /search.js and /share.js, are accepted only if each
 #      one's sha256 equals the value in its committed hash file
 #      (script_hash_state): with no hash file that script is not allowed, and
 #      any change to a script is a reviewed change to its hash file
@@ -37,10 +37,12 @@ artifact_name_ok() {
 
 # The pinned scripts: the allowlist, script file name -> the one page (path
 # relative to the site root) that may load it. script-src is 'self', which cannot
-# name a file, so this list and the hash files are what make exactly these two
-# scripts, each on its own page, the only code the site runs. Adding a script is
-# a reviewed change here, to the hash file and to docs/pinned-script.md.
-PINNED_SCRIPTS=("copy.js:support/index.html" "search.js:search/index.html")
+# name a file, so this list and the hash files are what make exactly these
+# scripts, each on its own page(s), the only code the site runs. The page may be
+# a comma-separated list of bash patterns (share.js loads on every post and
+# journal entry: issue 220); a pattern with no "*" is one exact page. Adding a
+# script is a reviewed change here, to the hash file and to docs/pinned-script.md.
+PINNED_SCRIPTS=("copy.js:support/index.html" "search.js:search/index.html" "share.js:posts/*/index.html,journal/*/index.html")
 
 # pinned_script_names: the script file names, one per line.
 pinned_script_names() {
@@ -61,11 +63,29 @@ pinned_script_page() {
     return 1
 }
 
+# pinned_script_on_page <name> <page relative to the site root>: succeeds when
+# the script may load on that page. A "*" in a pattern is exactly one path
+# segment (posts/*/index.html matches posts/a-post/index.html, not
+# posts/page/2/index.html).
+pinned_script_on_page() {
+    local page pat pats re
+    page="$(pinned_script_page "$1")" || return 1
+    IFS=, read -r -a pats <<<"$page"
+    for pat in "${pats[@]}"; do
+        re="${pat//./\\.}"
+        re="${re//\*/[^/]+}"
+        [[ "$2" =~ ^${re}$ ]] && return 0
+    done
+    return 1
+}
+
 # pinned_script_url <name>: the same page as a URL path, "/support/" for
-# support/index.html.
+# support/index.html. Fails for a script allowed on several pages (a pattern),
+# which has no single URL.
 pinned_script_url() {
     local page
     page="$(pinned_script_page "$1")" || return 1
+    [[ "$page" != *[,*]* ]] || return 1
     printf '/%s\n' "${page%index.html}"
 }
 

@@ -47,9 +47,10 @@ domain. It deploys to Cloudflare Pages.
   [Build checks and budgets](docs/wiki/Build-checks-and-budgets.md),
   [Performance](docs/wiki/Performance.md) and [Accessibility](docs/wiki/Accessibility.md).
 
-Share-to-platform links on posts are open as pull request #229 and are not on
-`main` yet; the wiki page [Share links](docs/wiki/Share-links.md) says what
-is there today and what that pull request changes.
+- **Share links on posts.** A Share row under each post and journal entry:
+  plain links to Threads, Bluesky, Twitter, Reddit, LinkedIn, Facebook, Hacker
+  News, Pinterest (posts with a headline image) and Email, plus copy-link
+  buttons and a Mastodon button. See [Share links](docs/wiki/Share-links.md).
 
 ## Quick start
 
@@ -120,8 +121,8 @@ them and is the single required check. Deploys run from `main` only, after
   `static/_headers` allows only the site's own files. The build fails on inline
   script, inline style, event handlers, third-party assets and plain-HTTP
   references.
-- **Two small scripts, pinned by hash,** each on its own page: `/copy.js` on
-  Support and `/search.js` on Search. See [docs/pinned-script.md](docs/pinned-script.md).
+- **Three small scripts, pinned by hash:** `/copy.js` on Support, `/search.js`
+  on Search and `/share.js` on posts and journal entries. See [docs/pinned-script.md](docs/pinned-script.md).
 - **No cookies set by the site's code and no embeds.** The host's own
   analytics are described on the site's Privacy page
   ([content/privacy/index.md](content/privacy/index.md)).
@@ -161,7 +162,6 @@ Copyright 2026 ChiefGyk3D. This section is a summary, not legal advice.
 
 If you reuse the code, keep the notices in [NOTICE](NOTICE). If you reuse the
 written content, credit "ChiefGyk3D", link to the license and say if you changed
-it. The site footer carries a copyright line for Renegade Penguin LLC; a
-"powered by" credit link in the footer is tracked in issue #233 and is not on
-`main` yet. Please do not reuse the mascot or the brand art: those are not
+it. The site footer carries a copyright line for Renegade Penguin LLC and a
+"Powered by No PHP No Cry" credit link back to this repository. Please do not reuse the mascot or the brand art: those are not
 licensed for reuse.

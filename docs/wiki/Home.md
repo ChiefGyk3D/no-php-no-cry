@@ -19,7 +19,7 @@ version: [README](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/README.m
 | [Journal entries](Journal-entries.md) | The work journal section and how it differs from posts. |
 | [Images and alt text](Images-and-alt-text.md) | The image render hook and every rule it enforces. |
 | [Headline images](Headline-images.md) | The optional featured image, thumbnail and social card. |
-| [Share links](Share-links.md) | What a post shows for sharing today, and what is coming. |
+| [Share links](Share-links.md) | The Share row under a post, its targets and its one script. |
 | [Search and tags](Search-and-tags.md) | The no-JavaScript search page, its pinned script and tags. |
 | [Build checks and budgets](Build-checks-and-budgets.md) | Every check, what it fails on and the size budget. |
 | [Deploy overview](Deploy-overview.md) | CI, the deploy gate, staging versus production. |

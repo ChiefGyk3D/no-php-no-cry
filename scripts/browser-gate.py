@@ -165,6 +165,19 @@ JS_TARGETS = """((px) => {
   return out;
 })(%d)"""
 
+# Raster images drawn wider than their file (the file the browser chose, at
+# device pixel ratio 1): Lighthouse's image-size-responsive audit (issue 232).
+# SVG scales and is skipped; a half pixel of slack for rounding.
+JS_IMAGES = """(() => {
+  const out = [];
+  for (const e of document.querySelectorAll('img')) {
+    if (!e.checkVisibility() || !e.complete || !e.naturalWidth) continue;
+    if (/\\.svg(\\?|$)/i.test(e.currentSrc)) continue;
+    const w = e.getBoundingClientRect().width;
+    if (e.naturalWidth < w - 0.5) out.push((e.getAttribute('src') || '').slice(-40) + ' file ' + e.naturalWidth + ' px, drawn ' + Math.round(w) + ' px');
+  }
+  return out; })()"""
+
 # Tags the controls that can take Tab focus, in document order, and reports
 # tabindex above zero (which would reorder the walk).
 JS_TABBABLE = """(() => {
@@ -550,6 +563,8 @@ def run_one(cdp, base, name, url, width, height, dpr, mobile, full, axe_src, has
                          "t: v.nodes.slice(0, 3).map(n => n.target.join(' '))})))" % json.dumps(AXE_TAGS))
             for v in viol:
                 fails.append("[axe] %s %s (%s) %d node(s): %s" % (label, v["id"], v["impact"], v["n"], "; ".join(v["t"])[:200]))
+            for t in pg.js(JS_IMAGES):
+                fails.append("[image] %s %s" % (label, t))
             for t in pg.js(JS_TARGETS % TARGET_PX):
                 fails.append("[target] %s under %dx%d: %s" % (label, TARGET_PX, TARGET_PX, t))
         keyboard(pg, label, fails, menu=full and width <= 768)

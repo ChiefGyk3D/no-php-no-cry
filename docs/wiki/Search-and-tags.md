@@ -52,13 +52,15 @@ and no `fetch`, because the list is part of the page.
 ### How a script is allowed
 
 The Content Security Policy says `script-src 'self'`, and `'self'` allows every
-same-origin file, not one. So the build holds the site to two reviewed scripts,
-`/copy.js` (Support) and `/search.js` (Search):
+same-origin file, not one. So the build holds the site to three reviewed scripts,
+`/copy.js` (Support), `/search.js` (Search) and `/share.js` (posts and journal
+entries):
 
-- each has a committed hash file at the repository root, `search.js.sha256` and
-  `copy.js.sha256`, and the build checks accept the script only if its sha256
+- each has a committed hash file at the repository root, `search.js.sha256`,
+  `copy.js.sha256` and `share.js.sha256`, and the build checks accept the script only if its sha256
   matches;
-- each may appear only on its own page, once, in the form
+- each may appear only on its own page (`/share.js` on any post or journal
+  entry), once, in the form
   `<script src=/search.js></script>`; the same tag elsewhere is
   `script-wrong-page`;
 - the allowlist is `PINNED_SCRIPTS` in `scripts/artifact-rules.sh`.

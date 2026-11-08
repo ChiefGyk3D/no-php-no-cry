@@ -34,10 +34,18 @@ def pinned_scripts():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifact-rules.sh")
     with open(path, encoding="utf-8") as fh:
         m = re.search(r"^PINNED_SCRIPTS=\(([^)]*)\)", fh.read(), re.M)
-    entries = re.findall(r'"([A-Za-z0-9_.-]+):([A-Za-z0-9_./-]+)"', m.group(1)) if m else []
+    entries = re.findall(r'"([A-Za-z0-9_.-]+):([A-Za-z0-9_./*,-]+)"', m.group(1)) if m else []
     if not entries:
         sys.exit("check-budget: no PINNED_SCRIPTS entries found in scripts/artifact-rules.sh")
     return {"/" + name: "/" + page for name, page in entries}
+
+
+def script_page_ok(allowed, page):
+    """allowed is the page field of PINNED_SCRIPTS with a leading "/": one exact
+    page, or comma-separated patterns where "*" is exactly one path segment
+    (share.js: /posts/*/index.html,journal/*/index.html, see artifact-rules.sh)."""
+    pats = [p if p.startswith("/") else "/" + p for p in allowed.split(",")]
+    return any(re.fullmatch(re.escape(p).replace(r"\*", "[^/]+"), page) for p in pats)
 
 
 # Pinned scripts (docs/pinned-script.md) and the one page each may load on, from
@@ -211,7 +219,7 @@ def main():
             u = local(s, page)
             if u:
                 count(u, "js")
-                if u in PAGE_SCRIPTS and page != PAGE_SCRIPTS[u]:
+                if u in PAGE_SCRIPTS and not script_page_ok(PAGE_SCRIPTS[u], page):
                     bad("js-page", page, "%s may load only on %s" % (u, PAGE_SCRIPTS[u]))
         for cands in refs.img:
             urls = [u for u in (local(c, page) for c in cands) if u]

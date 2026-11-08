@@ -265,6 +265,16 @@ a:focus-visible {
   min-width: var(--tap);
 }
 
+/* The credit link (issue 233) sits in the copyright line: it is a link inside
+ * running text, so the 44 px rule above would push short pages past the 1920x1080
+ * fit. It is still at least 24 px tall (WCAG 2.5.8 minimum), with an underline. */
+.credit a {
+  display: inline-block;
+  min-height: 1.5rem;
+  line-height: 1.5rem;
+  text-decoration: underline;
+}
+
 /* Tablets, menu open: a compact panel under the Menu button, right edge on the
  * header's content edge, instead of a full-bleed sheet. */
 @media (min-width: 36rem) and (max-width: 63.99rem) {

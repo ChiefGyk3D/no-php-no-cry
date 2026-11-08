@@ -98,6 +98,10 @@ def mutate(d, m):
         edit(d, "index.html", "</head>", '<script src="/shift.js"></script></head>')
     elif m == "slow-lcp":
         edit(d, "index.html", '<img src="/pic.png" width="64" height="64"', '<img src="/big.png" width="512" height="512"')
+    elif m == "low-res-image":
+        # The 64 px file is drawn 128 px wide (a class, not a style attribute: the CSP forbids inline style).
+        edit(d, "site.css", "main{", ".up{width:128px;height:128px}main{")
+        edit(d, "index.html", '<img src="/pic.png" width="64" height="64"', '<img class="up" src="/pic.png" width="64" height="64"')
     elif m == "menu-escape":
         # A manual popover has no light dismiss: Escape no longer closes it.
         edit(d, "index.html", '<ul id="nav-list" popover>', '<ul id="nav-list" popover="manual">')

@@ -32,7 +32,7 @@ It reads the built files, not the sources. Among its rules:
 - Any `<script>` element other than a page's own pinned script, any inline
   script, `javascript:` URL, `<style>` element, `style=` attribute or `on*=`
   event handler.
-- A third script file, or a script of 1 KB gzip or more; a `/search/` page of
+- A fourth script file, or a script of 1 KB gzip or more; a `/search/` page of
   40 KB gzip or more.
 - Any plain-HTTP reference, any external asset in HTML, an external `@import` or
   `url()` in CSS or SVG, an `xml-stylesheet` instruction, a `<base>` element.
@@ -71,7 +71,7 @@ counts. To change a limit, edit `LIMITS` in the script and the table in
 
 | Rule | Limit |
 | --- | --- |
-| `js-count`, `js-name`, `js-page` | Only the hash-pinned scripts, each only on its own page |
+| `js-count`, `js-name`, `js-page` | Only the hash-pinned scripts, each only on its own page or page pattern |
 | `js-size` | 1 KB gzip per script |
 | `css-count`, `css-size` | One stylesheet per page, 20 KB gzip |
 | `font-count`, `font-size` | At most 2 font files per page, each 30 KB transferred |

@@ -9,8 +9,8 @@ this page is the map.
 
 ## What keeps the pages light
 
-- **No JavaScript by default.** Two scripts ship, each under 1 KB gzip and each
-  on one page (Support and Search). Everything else is HTML and CSS: the phone
+- **No JavaScript by default.** Three scripts ship, each under 1 KB gzip and each
+  only on its own pages (Support, Search, and posts and journal entries). Everything else is HTML and CSS: the phone
   menu is a native popover, accordions are native `<details>`.
 - **No third-party requests.** The Content Security Policy forbids them and the
   build fails on any. Zero external fonts, scripts, styles, images or embeds.
@@ -59,6 +59,7 @@ performance it fails when:
 | A failed or blocked request, or any request that leaves the local server | any |
 | A console error or a CSP violation | any |
 | Horizontal overflow | any, at six viewports including 320 CSS px and 200 percent zoom |
+| A visible raster image drawn wider than the file the browser chose | any |
 
 LCP and CLS are measured under a throttled profile (1.6 Mbps down, 150 ms round
 trip, 4x CPU slowdown), the same shape as Lighthouse's mobile preset. The gate
@@ -69,9 +70,17 @@ version is not pinned.
 
 ## Lighthouse and PageSpeed
 
-Lighthouse itself is not a CI check. A task to measure the site with PageSpeed
-and Lighthouse and close the gaps is open as issue #232 and is not on `main`.
-When it lands, record what it adds here.
+Lighthouse itself is not a CI check, but a pass was done and recorded in
+`docs/performance.md` (issue #232, 2026-11-08, Lighthouse 13.6.0). On a local
+production build, desktop and mobile scored 100 for accessibility, best practices
+and SEO on every page except the 404 page, whose SEO score is 69 on purpose
+because it is `noindex`. Performance was 96 to 100; mobile differences of a few
+points between runs were noise. The pass fixed the About mascot, which was drawn
+wider than its file, by adding a `srcset`, and added an `image` rule to the
+browser gate that fails any visible raster image drawn wider than the file the
+browser chose. The public staging site scores SEO 69 by design (`noindex`) and
+Best Practices 92 because of a blocked analytics beacon request; those are
+owner decisions listed in `docs/performance.md`.
 
 ## Tips for authors
 

@@ -38,15 +38,11 @@
   {{ .Content }}
   </div>
   {{ partial "comments-archive.html" . }}
-  {{- /* Syndication row: the canonical link, and "Discuss" links once the deploy job writes the syndicated map (docs/redesign-brief.md section 5). Plain links only. */}}
+  {{- /* Syndication row: the canonical link, then the share links (issue 220, data/share.yaml). The front matter "syndicated" map stays in the data, unrendered: its "Discuss on" links were broken. */}}
   <div class="syndication meta">
     <p>Permalink: <a href="{{ .Permalink }}">{{ .Permalink }}</a></p>
-    {{- with .Params.syndicated }}
-    <ul class="footer-row" aria-label="Discuss this post">
-      {{- range $net, $url := . }}{{ if strings.HasPrefix $url "https://" }}
-      <li><a href="{{ $url }}" rel="noopener">Discuss on {{ $net | title }}</a></li>
-      {{- end }}{{ end }}
-    </ul>
+    {{- if in (slice "posts" "journal") .Section }}
+    {{ partial "share.html" . }}
     {{- end }}
   </div>
   {{- with or .PrevInSection .NextInSection }}

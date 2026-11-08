@@ -30,7 +30,7 @@ content/ + data/ + layouts/ + assets/ + static/
 | `data/` | `socials.yaml` (the Social page and footer icons), `products.yaml` (Gear and tools), `support.yaml` (wallet addresses), `about.yaml`, `resume.yaml`, `comments/` (archived comments from the old site), `legacy_uploads.json` (old upload redirects). |
 | `layouts/` | Templates written from scratch: `baseof.html` (the shell), `single.html` (a post or entry), `list.html` (an archive), a folder per special page, `_partials/`, `_markup/render-image.html` and the non-HTML outputs (`home.redirects`, `home.robots.txt`, `home.llms.txt`, `home.feed.xml`, `rss.xml`, `sitemap.xml`). |
 | `assets/css/` | `tokens.css` (generated), `main.css`, `highlight.css`, one file per page type in `pages/`. Hugo Pipes concatenates, minifies and fingerprints them into one stylesheet per page. |
-| `static/` | Files copied as they are: `_headers`, `_routes.json`, the two pinned scripts, fonts, the brand folder, the web manifest. |
+| `static/` | Files copied as they are: `_headers`, `_routes.json`, the three pinned scripts, fonts, the brand folder, the web manifest. |
 | `archetypes/` | The starting files for `hugo new content`. |
 | `brand/` | `tokens.json` (the design token source), the approved-asset manifest and brand notes. |
 | `scripts/` | The checks, their tests and `gate.sh`. |
@@ -84,7 +84,7 @@ cutover plan is `docs/cutover.md`.
 same-origin images, styles, fonts and manifest, `script-src 'self'` (and the one
 host analytics beacon injected by the host at the edge), no forms, no framing.
 `'self'` allows every same-origin script, so the build holds the site to exactly
-two reviewed scripts by hash, each on one page. See
+three reviewed scripts by hash, each only on its own pages. See
 `docs/pinned-script.md` and [Build checks and budgets](Build-checks-and-budgets.md).
 
 ## Where each decision is recorded

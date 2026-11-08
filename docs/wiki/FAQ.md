@@ -29,12 +29,12 @@ The Content Security Policy allows only the site's own files and raw HTML in
 Markdown is off. An embed would need a third-party frame or script. Link to it
 instead. A new source needs its own issue and an explicit decision.
 
-## Why only two scripts?
+## Why only three scripts?
 
 Each script is a risk and a cost. The policy says `script-src 'self'`, which
-allows any same-origin file, so the build pins the two reviewed scripts by hash
-and lets each load on one page only. See [Search and tags](Search-and-tags.md)
-and, for a pending proposal to add a third, [Share links](Share-links.md).
+allows any same-origin file, so the build pins the three reviewed scripts by hash
+and lets each load only on its own pages. See [Search and tags](Search-and-tags.md)
+and, for the most recent addition, [Share links](Share-links.md).
 
 ## Does the site track visitors?
 
