@@ -979,6 +979,66 @@ else
     bite "without the label" 's#<label#<span#'
     bite "without a post entry" 's#<li><a href=/posts/sample-post/>#<li><a href=/posts/other/>#'
 fi
+# Tags (issue 222): the Posts page no longer lists every tag; /search/ carries
+# them in a collapsed native <details> (no script), most used first, counts kept,
+# the rest behind a nested <details>. Each tag still links to its tag page.
+tags_check() { # tags_check <posts page> <search page>: prints one problem per line
+    python3 -I - "$1" "$2" <<'PY'
+import re, sys
+posts = open(sys.argv[1], encoding="utf-8").read()
+search = open(sys.argv[2], encoding="utf-8").read()
+errs = []
+if re.search(r"archive-tags|Browse by tag|class=tag-list", posts):
+    errs.append("the Posts page still lists tags")
+m = re.search(r"<p[^>]*archive-links[^>]*>(.*?)</p>", posts, re.S)
+if not m or "href=/search/" not in m.group(1):
+    errs.append("the Posts page has no short link to /search/ beside the RSS link")
+m = re.search(r"<details[^>]*search-tags-box[^>]*>(.*?)</details>(?=\s*<section|\s*<script|\s*</article)", search, re.S)
+if not m:
+    errs.append("/search/ has no tags <details>")
+else:
+    box = m.group(0)
+    if re.match(r"<details[^>]*[\s]open[\s>]", box):
+        errs.append("the tags <details> must start collapsed")
+    if not re.search(r"<summary[^>]*>[^<]*[Tt]ag", box):
+        errs.append("the tags <details> needs a <summary> naming tags")
+    first = box.split("<details", 2)
+    top = first[1] if len(first) > 2 else box
+    pat = r"<a href=(/tags/[^ >]+)[^>]*>.*?\((\d+)\)</span></a>"
+    counts = [int(c) for _, c in re.findall(pat, top)]
+    if not counts:
+        errs.append("no tag links with counts")
+    if counts != sorted(counts, reverse=True):
+        errs.append("the first tags are not most used first: %s" % counts)
+    if "<script" in box:
+        errs.append("a script inside the tags box")
+for e in errs:
+    print(e)
+PY
+}
+if [[ -f "$pub/posts/index.html" && -f "$search_page" ]]; then
+    out="$(tags_check "$pub/posts/index.html" "$search_page")"
+    if [[ -z "$out" ]]; then
+        pass "tags: gone from the Posts page, collapsed and counted on /search/"
+    else
+        fail "tags: $out"
+    fi
+    tbite() { # tbite <label> <sed expression>
+        sed -E "$2" "$search_page" >"$work/bad-search-tags.html"
+        if [[ -z "$(tags_check "$pub/posts/index.html" "$work/bad-search-tags.html")" ]]; then
+            fail "guard: a search page $1 passed the tags check"
+        else
+            pass "guard: a search page $1 fails the tags check"
+        fi
+    }
+    tbite "with the tags open" 's#<details class=([^>]*search-tags-box)#<details open class=\1#'
+    tbite "without the tags box" 's#search-tags-box#other-box#'
+    if [[ -z "$(tags_check "$search_page" "$search_page")" ]]; then
+        fail "guard: a Posts page that is the search page passed the tags check"
+    else
+        pass "guard: a Posts page that still lists tags fails the tags check"
+    fi
+fi
 if [[ -e "$pub/search/index.xml" ]]; then
     fail "the search page published a feed"
 else
@@ -1298,10 +1358,11 @@ elif grep -q '^Write-ups on open-source projects, self-hosting, streaming tools,
 else
     fail "posts index intro does not describe the posts"
 fi
-if tr '\n' ' ' <<<"$(src_css posts)" | grep -Eq '\.archive-links[^}]*margin-bottom|\.archive-tags[^}]*margin: *var\(--space-5\)'; then
-    pass "tag list has spacing under the RSS link"
+if tr '\n' ' ' <<<"$(src_css posts)" | grep -Eq '\.archive-links[^}]*margin-bottom' &&
+    tr '\n' ' ' <<<"$(src_css search)" | grep -Eq '\.search-tags-box[^}]*margin: *var\(--space-5\)'; then
+    pass "RSS link row and the search tags box have spacing"
 else
-    fail "tag list has no spacing under the RSS link"
+    fail "the RSS link row or the search tags box has no spacing"
 fi
 # Nav: the current section carries aria-current="page" and no other link does.
 nav_current() { # <html> -> text of the aria-current links in the main nav

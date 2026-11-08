@@ -58,3 +58,24 @@
 .search-tags {
   gap: 0 var(--space-2);
 }
+
+/* Tags section (issue 222): collapsed by default; the inner list scrolls nowhere, it wraps. */
+.search-tags-box {
+  margin: var(--space-5) 0;
+}
+
+.search-tags-box .tag-list li {
+  margin-right: var(--space-3);
+}
+
+.tags-more {
+  margin-top: var(--space-3);
+}
+
+.tags-more > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--accent);
+  cursor: pointer;
+}
