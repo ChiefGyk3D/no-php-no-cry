@@ -21,6 +21,12 @@
       {{- with site.Data.about.mission }}
       <p class="about-mission">{{ . }}</p>
       {{- end }}
+      {{- with site.Data.about.built }}
+      <p class="about-mission">{{ . }}</p>
+      {{- end }}
+      {{- with site.Data.about.creator }}
+      <p class="about-mission">{{ . }}</p>
+      {{- end }}
       {{- with site.Data.about.closing }}
       <p class="about-closing">{{ . }}</p>
       {{- end }}

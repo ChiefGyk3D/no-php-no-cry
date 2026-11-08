@@ -75,6 +75,8 @@ SKILL_GROUPS = [
 ]
 MISSION_START = "I share cybersecurity knowledge with more than 500K followers across platforms"
 MISSION_END = "so I open source a lot of my work and share what I learn."
+BUILT_START = "PHP2Shell made me take another look at how I build for the web"
+CREATOR_START = "I am a content creator with over 500,000 followers across platforms"
 CLOSING = "You’re not dead until you stop learning. Happy hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
@@ -339,6 +341,9 @@ def check_about_data(errs, html_src):
             errs.append("%s differs from data/about.yaml" % label)
     if not d.get("mission") or d["mission"] not in ps:
         errs.append("mission paragraph differs from data/about.yaml")
+    for key, start in (("built", BUILT_START), ("creator", CREATOR_START)):
+        if not d.get(key) or not d[key].startswith(start) or d[key] not in ps:
+            errs.append("%s paragraph differs from data/about.yaml (issue 264)" % key)
     if not d.get("closing") or d["closing"] != CLOSING or d["closing"] not in ps:
         errs.append("closing line differs from the owner-approved one (issue 225)")
     sp = d["speaking"]
@@ -501,6 +506,10 @@ def about(p, errs, repo):
         errs.append("mission paragraph missing")
     if flat.find(MISSION_START) < flat.find("In 2026, I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
         errs.append("mission paragraph is not right after the bio and before the projects and Contact")
+    # Issue 264: mission, then built, then creator, then the closing line, all before Current projects.
+    pos = [flat.find(x) for x in (MISSION_START, BUILT_START, CREATOR_START, CLOSING)]
+    if min(pos) < 0 or pos != sorted(pos) or pos[3] > flat.find("Current projects"):
+        errs.append("About paragraphs must run mission, built, creator, closing, before Current projects (issue 264)")
     # The link carries a visually-hidden " (opens in a new tab)" after its text.
     if SPEAKING.replace("Call Center Village", "Call Center Village (opens in a new tab)") not in flat:
         errs.append("speaking sentence missing")
@@ -731,6 +740,8 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-extra.html" "<li class=tile-more>" "<li><a class=tile href=https://example.org/x rel=noopener><strong>Extra</strong></a></li><li class=tile-more>"
     mutate "$work/about-bio.html" "right to repair" "right to fix"
     mutate "$work/about-mission.html" "behind a price tag" "behind a paywall"
+    mutate "$work/about-built.html" "minimal attack surface" "tiny attack surface"
+    mutate "$work/about-creator.html" "a Kick partner and a Twitch partner" "a Twitch partner and a Kick partner"
     # Issue 196: the At a glance and Hardware and homelab sections. An IP address injected into
     # the homelab section, a changed glance row, an http repo link, a dropped rel=noopener and an
     # em dash each fail.
@@ -741,7 +752,7 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-noopener.html" "https://github.com/ChiefGyk3D/siem-docker-stack target=_blank rel=noopener" "https://github.com/ChiefGyk3D/siem-docker-stack target=_blank"
     dash="$(python3 -I -c 'print(chr(0x2014))')"
     mutate "$work/about-emdash.html" "stratum-1 NTP appliances" "stratum-1 NTP $dash appliances"
-    for v in alt omit tile more extra bio mission ip ipextra glance repo noopener emdash; do
+    for v in alt omit tile more extra bio mission built creator ip ipextra glance repo noopener emdash; do
         if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
             fail "guard: an About page with $v-mutated text passed"
         else

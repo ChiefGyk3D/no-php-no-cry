@@ -17,6 +17,10 @@ speaking:
 # The mission paragraph (owner-approved wording, verbatim): rendered right after
 # the bio and the speaking sentence, before the projects and Contact.
 mission: "I share cybersecurity knowledge with more than 500K followers across platforms because I want more people to have access to it. Knowledge is power. Money is power. When you put knowledge behind a price tag, you help keep that power with the people who already have money. I have an ethical issue with that, so I open source a lot of my work and share what I learn."
+# Two paragraphs after the mission paragraph (owner-approved wording, verbatim, issue 264): why the site is
+# built this way, then the creator paragraph. Order: mission, built, creator, closing.
+built: "PHP2Shell made me take another look at how I build for the web, and I wanted a site that was fast, light, and more secure, with a minimal attack surface. So I built it as a static site on Cloudflare Pages, with strict security headers and a small set of pinned scripts. The same drive shows up in my homelab and public repos, where I build and document the systems I want to understand. If I put this much work into my own homelab, you can probably guess what I bring when I work with you."
+creator: "I am a content creator with over 500,000 followers across platforms, a Kick partner and a Twitch partner, and I work directly with TikTok in their educators program. I make tutorials, security breakdowns, and livestreams about Linux as a daily driver and production environment, cybersecurity investigations, and real-world threat and news breakdowns. I also cover radio and Meshtastic communications, mesh networking, endpoint security, enterprise tooling, home labs, and networking architecture. My content also includes device reviews, privacy tools, and open-source infrastructure."
 # The closing line (owner-approved wording, verbatim), after the mission paragraph.
 closing: "You’re not dead until you stop learning. Happy hacking."
 # Current projects on the About page: these names, in this order, are looked up
