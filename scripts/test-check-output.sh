@@ -696,6 +696,13 @@ EXTRA='/*.html\n  Cache-Control: public, max-age=31536000, immutable\n' variant 
 EXTRA='/css/*\n  Cache-Control: public, max-age=31536000, immutable\n' variant headers-cache-block-twice headers-structure headers_extra
 immutable_main() { sed -i 's#^/\*$#/*\n  Cache-Control: public, max-age=31536000, immutable#' "$1/_headers"; }
 variant headers-immutable-on-everything headers-structure immutable_main
+empty_cache_block() { sed -i '/^  Cache-Control/d' "$1/_headers"; }
+variant headers-cache-block-empty headers-structure empty_cache_block
+empty_cache_block_mid() {
+    printf '/other/*\n' >>"$1/_headers"
+    sed -i '/^  Cache-Control/d' "$1/_headers"
+}
+variant headers-cache-block-empty-then-block headers-structure empty_cache_block_mid
 cache_wrong_value() { sed -i 's#max-age=31536000, immutable#max-age=31536000#' "$1/_headers"; }
 variant headers-cache-no-immutable headers-structure cache_wrong_value
 cache_long_value() { sed -i 's#immutable#immutable, stale-while-revalidate=1#' "$1/_headers"; }

@@ -157,6 +157,7 @@ headers_policy_ok() {
         { sub(/\r$/, "") }
         /^[ \t]*$/ || /^[ \t]*#/ { next }
         /^[^ \t]/ {
+            if (kind == "cache" && lines != 1) bad = 1
             blocks++; kind = "x"
             if (blocks == 1) { if ($0 == "/*") kind = "main"; else bad = 1 }
             else if (($0 in ok) && !($0 in seen)) { seen[$0] = 1; kind = "cache" }
@@ -170,7 +171,7 @@ headers_policy_ok() {
             if (kind == "main" && tolower(line) ~ /^cache-control[ \t]*:/) bad = 1
             if (kind == "x") bad = 1
         }
-        END { exit (blocks < 1 || bad) }' "$1"
+        END { if (kind == "cache" && lines != 1) bad = 1; exit (blocks < 1 || bad) }' "$1"
 }
 
 # immutable_assets_bad <site dir>: prints one line for each file under an

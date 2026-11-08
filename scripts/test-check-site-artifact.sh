@@ -452,6 +452,7 @@ headers_variant "per-path override of the policy" headers-structure "/api/*\\n  
 headers_variant "long cache on the fonts" headers-structure '/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n'
 headers_variant "long cache on every page" headers-structure '/*.html\n  Cache-Control: public, max-age=31536000, immutable\n'
 headers_variant "another header in the long-cache block" headers-structure '  Referrer-Policy: no-referrer\n'
+headers_variant "second long-cache block, empty" headers-structure '/css/*\n'
 headers_variant "rule block with a different path" headers-structure '/a\n  X-Test: 1\n'
 
 # The pinned _headers must carry script-src 'self' (not 'none') once the copy script
