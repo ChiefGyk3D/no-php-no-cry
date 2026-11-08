@@ -4,9 +4,9 @@ This guide takes you from an empty folder to a pull request. It works for a
 post under `content/posts/` and for a work journal entry under
 `content/journal/`. The steps are the same; the differences are noted.
 
-You need the pinned Hugo (standard edition). The README, section "Build
-locally", shows how to install it. The examples below use `hugo` for the pinned
-binary.
+You need the pinned Hugo (standard edition).
+[Getting started](wiki/Getting-started.md) shows how to install it. The examples
+below use `hugo` for the pinned binary.
 
 ## 1. Create the post
 

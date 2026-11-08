@@ -19,7 +19,7 @@ By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 2. Make the smallest change that does the job. Add or update a test when you
    change behavior.
 3. Run the checks with `scripts/gate.sh` (the whole gate) or `scripts/gate.sh --fast`
-   (only what your changed files touch); the README lists the individual checks. `shellcheck -S warning` and
+   (only what your changed files touch); [docs/wiki/Build-checks-and-budgets.md](docs/wiki/Build-checks-and-budgets.md) lists the individual checks. `shellcheck -S warning` and
    `shfmt -d -i 4 -ci` must pass on `scripts/*.sh`.
 4. Open a pull request with the template filled in.
 

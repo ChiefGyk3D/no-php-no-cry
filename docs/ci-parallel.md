@@ -74,6 +74,8 @@ Setup and build run in the `ci / Build` job (`setup-command`, `build-command`).
 | Check `tokens.css` is generated from `brand/tokens.json` | C |
 | Check design-token contrast | C |
 | Check the brand asset manifest | C |
+| Check README and wiki links and paths (`scripts/check-wiki.py`, issue 234) | C |
+| Test the README and wiki check | S |
 | Size budget | B |
 | Browser gate | G |
 
