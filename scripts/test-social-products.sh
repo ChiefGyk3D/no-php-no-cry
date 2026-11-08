@@ -844,6 +844,18 @@ PY
 else
     fail "the not-live site did not build: $(tail -n 3 "$nolive/build.log")"
 fi
+# A site with NO data/socials.yaml still builds (the redirects fixtures are such sites): the
+# footer_only filter must be nil-safe.
+nosoc="$work/nosocials"
+mkdir -p "$nosoc/content" "$nosoc/data"
+cp -r "$root/layouts" "$root/assets" "$root/static" "$nosoc/"
+cp "$root/hugo.toml" "$nosoc/hugo.toml"
+printf -- '---\ntitle: "Home"\n---\n' >"$nosoc/content/_index.md"
+if (cd "$nosoc" && hugo --destination "$nosoc/public" >"$nosoc/build.log" 2>&1); then
+    pass "a site without data/socials.yaml builds"
+else
+    fail "a site without data/socials.yaml does not build: $(tail -n 3 "$nosoc/build.log" | tr '\n' ' ')"
+fi
 dead_class() { # dead_class <dir>...: files that still mention the dead class
     grep -rl 'coming-soon' "$@" 2>/dev/null || true
 }

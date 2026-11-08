@@ -43,7 +43,7 @@
 <link rel="icon" href="{{ "brand/favicon-192.png" | relURL }}" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="{{ "brand/apple-touch-icon-180.png" | relURL }}" sizes="180x180">
 {{- /* Identity verification (Mastodon, GitHub read rel="me"): one head link per data/socials.yaml entry with rel_me, https only. The footer icon row (baseof.html) repeats rel="me" on its links. */ -}}
-{{- range where site.Data.socials "footer_only" "ne" true }}{{ if and .rel_me (strings.HasPrefix .url "https://") }}
+{{- range where (site.Data.socials | default slice) "footer_only" "ne" true }}{{ if and .rel_me (strings.HasPrefix .url "https://") }}
 <link rel="me" href="{{ .url }}">
 {{- end }}{{ end }}
 {{- /* params.me: the same, for identities not in data/socials.yaml. https only. */ -}}
@@ -52,7 +52,7 @@
 {{- end }}{{ end }}
 {{- /* JSON-LD. sameAs: the https links of data/socials.yaml (params.me when that file is empty). */ -}}
 {{- $sameAs := slice -}}
-{{- range where site.Data.socials "footer_only" "ne" true }}{{ if strings.HasPrefix .url "https://" }}{{ $sameAs = $sameAs | append .url }}{{ end }}{{ end -}}
+{{- range where (site.Data.socials | default slice) "footer_only" "ne" true }}{{ if strings.HasPrefix .url "https://" }}{{ $sameAs = $sameAs | append .url }}{{ end }}{{ end -}}
 {{- if not $sameAs }}{{ range site.Params.me }}{{ if strings.HasPrefix .url "https://" }}{{ $sameAs = $sameAs | append .url }}{{ end }}{{ end }}{{ end -}}
 {{- $ld := false -}}
 {{- if .IsHome -}}
