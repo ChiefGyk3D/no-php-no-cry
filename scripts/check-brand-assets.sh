@@ -50,7 +50,13 @@ while IFS= read -r -d '' file; do
     if [[ -z "${listed[$rel]+x}" ]]; then
         report "$rel is not in approved-assets.txt"
     fi
-    if printf '%s' "$rel" | grep -q -i -E "$banned"; then
+    # A post bundle folder name is the page slug (URL text), so the ban is
+    # matched on what follows it: the file name and any folder below it.
+    ban_part="$rel"
+    if [[ "$rel" == content/posts/*/* ]]; then
+        ban_part="${rel#content/posts/*/}"
+    fi
+    if printf '%s' "$ban_part" | grep -q -i -E "$banned"; then
         report "$rel has a banned name"
     fi
 done < <(
