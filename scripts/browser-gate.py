@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Browser gate for the built site (issue 65, docs/performance-gates.md).
 
-Usage: python3 -I scripts/browser-gate.py [site-dir] [--shots DIR] [--pages a,b] [--widths 1440,390]
+Usage: python3 -I scripts/browser-gate.py [site-dir] [--shots DIR] [--pages a,b] [--widths 1440,393]
        (site-dir defaults to public; CHROME names the browser binary)
 
 Serves the built site on 127.0.0.1 with the response headers from its own
 _headers file (so the real Content-Security-Policy is enforced), drives
 headless Chrome over the DevTools protocol through a pipe (no WebSocket, no
-Node, no pip packages), and loads one URL per template at 1440, 1024, 768 and
-390 CSS px wide. The 404 template is loaded from a path that does not exist.
+Node, no pip packages), and loads one URL per template at 1440, 1024, 768, 393 (the
+iPhone 15 viewport, 393 x 852) and 390 CSS px wide. The 404 template is loaded from a path that does not exist.
 
 Fails (exit 1) on any of, printed as "[rule] page@width detail":
   overflow    the page scrolls sideways (also at 200 percent zoom and 320 px)
@@ -71,7 +71,9 @@ TARGET_PX = 44
 # Lighthouse's mobile preset: Slow 4G, 4x CPU slowdown. Bytes per second.
 NET = dict(offline=False, latency=150, downloadThroughput=int(1.6 * 1024 * 1024 / 8), uploadThroughput=int(0.75 * 1024 * 1024 / 8))
 CPU_SLOWDOWN = 4
-FULL_WIDTHS = [1440, 1024, 768, 390]
+# 393 x 852 is the iPhone 15 viewport (issue 123); 390 x 844 stays as the older phone size.
+FULL_WIDTHS = [1440, 1024, 768, 393, 390]
+PHONE_HEIGHTS = {393: 852}  # a phone width not listed here is 844 tall; wider than 500 is 900 tall
 # Zoom: 1440 px at 200 percent is 720 CSS px at device pixel ratio 2; 320 px is
 # 400 percent of 1280 and the WCAG 1.4.10 reflow width.
 ZOOM_VIEWPORTS = [("zoom200", 720, 450, 2), ("reflow320", 320, 256, 1)]
@@ -607,7 +609,7 @@ def main():
     ap.add_argument("site", nargs="?", default="public")
     ap.add_argument("--shots")
     ap.add_argument("--pages", help="comma list of template names (default: all)")
-    ap.add_argument("--widths", help="comma list of widths (default: 1440,1024,768,390)")
+    ap.add_argument("--widths", help="comma list of widths (default: 1440,1024,768,393,390)")
     ap.add_argument("--no-zoom", action="store_true")
     ap.add_argument("--fit-allow", help="comma list of template names to treat as allowed to scroll (default: FIT_ALLOW)")
     ap.add_argument("--axe", default=os.path.join(ROOT, "tools", "axe", "axe.min.js"))
@@ -654,7 +656,7 @@ def main():
     try:
         for name, url in pages:
             for w in widths:
-                run_one(cdp, base, name, url, w, 900 if w > 500 else 844, 1, w <= 500, True, axe_src, has_theme, a.shots, fails, rows)
+                run_one(cdp, base, name, url, w, 900 if w > 500 else PHONE_HEIGHTS.get(w, 844), 1, w <= 500, True, axe_src, has_theme, a.shots, fails, rows)
             if name not in allow:
                 fit_one(cdp, base, name, url, fails, rows)
             if not a.no_zoom:

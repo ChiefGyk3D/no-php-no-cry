@@ -85,6 +85,17 @@ PY
 )"
 if [[ "$allow_ok" == "True" ]]; then pass "FIT_ALLOW names real templates with reasons and leaves Home, Social, Support, Privacy and 404 checked"; else fail "FIT_ALLOW is stale or exempts a page that must fit"; fi
 
+# The iPhone 15 viewport (issue 123): 393 x 852 is its own run. A page that overflows
+# only at that size passes at 390 x 844 and fails at 393 x 852 and in the default run.
+cp -r "$work/good" "$work/m-overflow-393"
+python3 -I "$root/scripts/fixture-site.py" "$work/m-overflow-393" overflow-393
+rc=0
+out="$(run_gate "$work/m-overflow-393" --widths 390)" || rc=$?
+if [[ $rc -eq 0 ]]; then pass "overflow-393 fixture is fine at 390 x 844"; else fail "overflow-393 at 390: exit $rc: $out"; fi
+expect_fail "overflow only at 393 x 852" overflow "$work/m-overflow-393" --widths 393
+if [[ "$(run_gate "$work/m-overflow-393" --widths 393 || true)" == *"home@393"* ]]; then pass "the 393 run is labelled home@393"; else fail "no home@393 run"; fi
+if grep -Eq '^FULL_WIDTHS = \[.*393' "$root/scripts/browser-gate.py"; then pass "393 is in the default widths"; else fail "393 is not in FULL_WIDTHS"; fi
+
 # The popover Menu button (phones, 390 px): the good fixture passes the keyboard
 # pass there, and a manual popover (Escape does not close it) fails it.
 rc=0

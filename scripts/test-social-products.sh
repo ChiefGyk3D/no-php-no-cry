@@ -118,6 +118,13 @@ class Dom(HTMLParser):
         self.cur.parts.append(data)
 
 
+def ancestors(n):
+    n = n.parent
+    while n is not None:
+        yield n
+        n = n.parent
+
+
 def load(path):
     d = Dom()
     d.feed(pathlib.Path(path).read_text(encoding="utf-8"))
@@ -303,9 +310,16 @@ def check_products(page, root, bad):
         bad.append("disclosure copy missing or changed")
     if main.all_text().count("Some links on this page are affiliate links") != 1:
         bad.append("disclosure text must be on the page exactly once")
-    order = list(main.walk())
-    if first_group and order.index(disc) < order.index(first_group[-1]):
-        bad.append("disclosure comes before the last group")
+    # Structure, not document order: the START of the last section precedes everything inside it,
+    # so compare siblings. The note must not sit inside any group, and must follow the last
+    # section as a later sibling under the same parent.
+    if any(a.tag == "section" and "product-group" in a.classes() for a in ancestors(disc)):
+        bad.append("disclosure is inside a group")
+    if first_group:
+        last = first_group[-1]
+        sibs = disc.parent.kids if disc.parent else []
+        if disc.parent is not last.parent or disc not in sibs or last not in sibs or sibs.index(disc) < sibs.index(last):
+            bad.append("disclosure is not a sibling after the last group")
     if disc.find("a"):
         bad.append("disclosure holds a link")
     data = load_products(root)
@@ -528,6 +542,23 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
     guard "fediverse handle loses its @" social "$social" 's#<span>@</span>(social\.chiefgyk3d\.com)#<span></span>\1#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
+    # The disclosure inside the last section (before its details) is not "after the last group".
+    inside="$work/guard-inside.html"
+    python3 -I - "$products" "$inside" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r'<div class="?disclosure"?[^>]*>.*?</div>', s, re.S)
+s = s[:m.start()] + s[m.end():]
+k = s.rindex("<details")
+open(sys.argv[2], "w", encoding="utf-8").write(s[:k] + m.group(0) + s[k:])
+PY
+    if cmp -s "$products" "$inside"; then
+        fail "guard 'disclosure inside the last section' did not change the page (the test is stale)"
+    elif run_assert products "$inside" >/dev/null; then
+        fail "guard 'disclosure inside the last section': asserter accepted a broken page"
+    else
+        pass "guard 'disclosure inside the last section' fails as it should"
+    fi
 fi
 
 # Mutation check: the rel="me" assertion follows data/socials.yaml. Flip one rel_me value
