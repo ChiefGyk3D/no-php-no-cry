@@ -268,3 +268,81 @@
     }
   }
 }
+
+/* At a glance and Hardware and homelab (issue 196): the same card look as the skills grid, built
+ * from a definition list so a card adds no heading level. Six cards run 3, 2, 1 columns; the
+ * four-card At a glance grid tops out at two columns, so no row ends with a lone card. Subgrid
+ * keeps the term, text and repo links of neighbouring cards on shared rows. */
+.about-facts {
+  margin-top: var(--space-6);
+}
+
+.facts-intro {
+  margin: 0 0 var(--space-4);
+}
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.fact-card {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fact-card dt {
+  margin: 0 0 var(--space-2);
+  font-size: 1.17em;
+  font-weight: 700;
+}
+
+.fact-card dd {
+  margin: 0;
+}
+
+.fact-card .card-links {
+  margin-top: var(--space-3);
+}
+
+.fact-card .card-links ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fact-card .card-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+@media (min-width: 40rem) {
+  .fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 60rem) {
+  .fact-grid:not(.fact-grid-wide) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@supports (grid-template-rows: subgrid) {
+  @media (min-width: 40rem) {
+    .fact-card {
+      display: grid;
+      grid-row: span 3;
+      grid-template-rows: subgrid;
+      row-gap: 0;
+    }
+  }
+}
