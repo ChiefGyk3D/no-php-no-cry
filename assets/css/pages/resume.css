@@ -59,6 +59,19 @@
   margin-bottom: var(--space-2);
 }
 
+/* The closing "More on GitHub" link stands alone, so it is a full --tap target
+ * (the browser gate measures standalone links). */
+.resume-more {
+  margin: var(--space-2) 0 0;
+}
+
+.resume-more a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+
 .resume-skills {
   margin: var(--space-2) 0 0;
 }
