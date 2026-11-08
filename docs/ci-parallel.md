@@ -159,3 +159,4 @@ push to main:
    leg dominates, split it.
 7. `shell` and `security` run at the new pin with no change in what they check.
 8. The harden-runner reports are readable for the roadmap item above.
+<!-- scratch docs-only CI proof, issue 185 -->
