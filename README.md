@@ -112,8 +112,8 @@ Front matter on every page: `title`, `date`, `draft`, `slug`, `categories`,
 `tags`, `syndicate` (boolean, default true). Old WordPress permalinks go in
 `aliases`; the build writes a 301 line for each into `public/_redirects`
 (Cloudflare Pages), and Hugo's meta-refresh pages cover GitHub Pages. A
-directory-style alias (`/2023/02/10/sample-post/`) gets two lines, with and
-without the trailing slash; an alias ending in `.html` (`/sample-post.html`)
+directory-style alias (`/2023/02/10/some-post/`) gets two lines, with and
+without the trailing slash; an alias ending in `.html` (`/some-post.html`)
 gets exactly one. The checker derives the alias list from the built pages, so
 a missing line fails the build.
 

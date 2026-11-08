@@ -189,7 +189,7 @@ cp "$work/t8/static/fonts/orbitron-wght.ttf" "$work/t8/static/fonts/Cyber City.o
 expect_fail "a Cyber City font file is caught" "banned" "$assets" "$work/t8"
 
 mk_tree "$work/t9"
-cp "$work/t9/static/brand/og-card.png" "$work/t9/content/posts/sample-post/extra.png"
+cp "$work/t9/static/brand/og-card.png" "$work/t9/content/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/extra.png"
 expect_fail "unlisted image under content/ is caught" "extra.png is not in approved-assets.txt" "$assets" "$work/t9"
 
 mk_tree "$work/t10"
