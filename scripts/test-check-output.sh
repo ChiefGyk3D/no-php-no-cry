@@ -181,8 +181,9 @@ build_good() {
 RED
     cat >"$dir/_headers" <<'HDR'
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'; require-trusted-types-for 'script'
   X-Content-Type-Options: nosniff
+  Cross-Origin-Opener-Policy: same-origin
 /css/*
   Cache-Control: public, max-age=31536000, immutable
 HDR
@@ -613,6 +614,14 @@ variant csp-beacon-twice weak-csp csp_beacon_twice
 APPEND='<script src=https://static.cloudflareinsights.com/beacon.min.js></script>' variant beacon-script-in-html script-not-allowed append_html
 csp_no_manifest_src() { sed -i "s#manifest-src 'self'; ##" "$1/_headers"; }
 variant csp-without-manifest-src weak-csp csp_no_manifest_src
+csp_no_tt() { sed -i "s#; require-trusted-types-for 'script'##" "$1/_headers"; }
+variant csp-without-trusted-types weak-csp csp_no_tt
+csp_tt_twice() { sed -i "s#require-trusted-types-for 'script'#require-trusted-types-for 'script'; require-trusted-types-for 'script'#" "$1/_headers"; }
+variant csp-trusted-types-twice weak-csp csp_tt_twice
+csp_tt_policy() { sed -i "s#require-trusted-types-for 'script'#require-trusted-types-for 'script'; trusted-types default#" "$1/_headers"; }
+variant csp-trusted-types-policy weak-csp csp_tt_policy
+csp_tt_other() { sed -i "s#require-trusted-types-for 'script'#require-trusted-types-for 'style'#" "$1/_headers"; }
+variant csp-trusted-types-wrong-sink weak-csp csp_tt_other
 csp_default_open() { sed -i "s#default-src 'none'#default-src 'self'#" "$1/_headers"; }
 variant csp-default-src-self weak-csp csp_default_open
 csp_second_line() { printf '/other/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "'none'" >>"$1/_headers"; }
@@ -679,6 +688,14 @@ dup_nosniff() { printf '  X-Content-Type-Options: sniff\n' >>"$1/_headers"; }
 variant headers-conflicting-nosniff missing-nosniff dup_nosniff
 dup_nosniff_same() { printf '  x-content-type-options: nosniff\n' >>"$1/_headers"; }
 variant headers-duplicate-nosniff missing-nosniff dup_nosniff_same
+no_coop() { sed -i '/Cross-Origin-Opener-Policy/d' "$1/_headers"; }
+variant headers-without-coop headers-coop no_coop
+coop_wrong() { sed -i 's#Cross-Origin-Opener-Policy: same-origin#Cross-Origin-Opener-Policy: unsafe-none#' "$1/_headers"; }
+variant headers-coop-unsafe-none headers-coop coop_wrong
+coop_allow_popups() { sed -i 's#Cross-Origin-Opener-Policy: same-origin#Cross-Origin-Opener-Policy: same-origin-allow-popups#' "$1/_headers"; }
+variant headers-coop-allow-popups headers-coop coop_allow_popups
+coop_dup() { printf '  Cross-Origin-Opener-Policy: same-origin\n' >>"$1/_headers"; }
+variant headers-coop-twice headers-coop coop_dup
 headers_extra() { printf '%b' "$EXTRA" >>"$1/_headers"; }
 EXTRA='/admin/*\n  ! X-Content-Type-Options\n' variant headers-removal-nosniff headers-structure headers_extra
 EXTRA='/admin/*\n  ! Content-Security-Policy\n' variant headers-removal-policy headers-structure headers_extra

@@ -13,11 +13,20 @@
 # site's own /cdn-cgi/rum). Nothing wider. The build checks still reject any
 # <script> element that is not one of the two pinned scripts.
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Cross-Origin-Opener-Policy: same-origin
+
+# Cross-Origin-Opener-Policy: same-origin (issue 259). Nothing here needs a
+# cross-origin window reference: every target=_blank link carries rel=noopener
+# and the share row opens its one popup with noopener,noreferrer.
+# require-trusted-types-for 'script' (issue 259): no pinned script uses a DOM
+# injection sink (docs/performance.md, Trusted Types), so no policy is needed.
+# When issue 241 turns off the Cloudflare injection, delete the beacon URL from
+# script-src (see docs/performance.md, CSP allowlist note).
 
 # Long cache for content-hashed assets only (issue 240). Hugo fingerprints the
 # stylesheet: the file name carries the sha256 of its bytes (css/site.min.<64 hex>.css),
