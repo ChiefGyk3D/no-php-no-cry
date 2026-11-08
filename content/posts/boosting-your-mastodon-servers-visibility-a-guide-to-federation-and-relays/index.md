@@ -1,9 +1,9 @@
 ---
 title: "Boosting Your Mastodon Server's Visibility: A Guide to Federation and Relays"
 date: 2023-02-08T23:13:50-05:00
-draft: true
 slug: "boosting-your-mastodon-servers-visibility-a-guide-to-federation-and-relays"
 description: "How a new Mastodon server gets noticed: directories, follower scanning tools and relays that improve federation."
+archive: true
 categories: ["Social Media"]
 tags: ["mastodon", "fediverse", "relays"]
 syndicate: false
@@ -17,7 +17,7 @@ Starting your own Mastodon server can be an exciting journey, but it can also be
 
 One way is to list your account from your server in various wikis and databases, such as [https://communitywiki.org/trunk](https://communitywiki.org/trunk) and [https://fedi.directory/](https://fedi.directory/). You can also try scanning your Twitter followers with tools like [https://twitodon.com/](https://twitodon.com/).
 
-Another way to boost your server's visibility is by subscribing to a relay. A relay is a piece of software that increases federation between instances that subscribe to it. This is a great way for smaller instances to populate their federated timeline. You can find a list of relays at [https://joinfediverse.wiki/index.php?title=Fediverse_relays](https://joinfediverse.wiki/index.php?title=Fediverse_relays) .
+Another way to boost your server's visibility is by subscribing to a relay. A relay is a piece of software that increases federation between instances that subscribe to it. This is a great way for smaller instances to populate their federated timeline. You can find a list of relays at [https://joinfediverse.wiki/index.php?title=Fediverse_relays](https://joinfediverse.wiki/index.php?title=Fediverse_relays).
 
 As an instance admin, you can subscribe to a relay by going to Settings > Administration > Relays, entering the URL of the relay and adding "/inbox" to the end. You'll then need to wait for the relay owners to accept your instance.
 

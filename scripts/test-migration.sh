@@ -202,6 +202,79 @@ else
     fail "the site did not build: $(tail -n 3 "$work/real.log")"
 fi
 
+# --- the four batch-1 posts are published (issue #178) -------------------------
+# Each is built (not a draft) at its permalink, keeps its original date, carries
+# the archive note, and the Twitch and Toot post and page hold no wallet address.
+wallet_re='bc1[a-z0-9]{20,}|0x[0-9a-fA-F]{30,}|\b[48][0-9A-Za-z]{94}\b|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b'
+wallet_scan() { # wallet_scan <file>: succeeds when the file holds a wallet-shaped string
+    grep -Eq "$wallet_re" "$1"
+}
+note='This is a record, not a current view.'
+if [[ -d "$work/real/posts" ]]; then
+    for entry in \
+        "stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators 2025-11-05" \
+        "introducing-twitch-and-toot-the-open-source-solution-for-mastodon-stream-alerts 2023-02-06" \
+        "boosting-your-mastodon-servers-visibility-a-guide-to-federation-and-relays 2023-02-08" \
+        "discovering-the-magic-of-mastodon-a-journey-into-the-decentralized-social-networking-world 2023-02-06"; do
+        slug="${entry% *}"
+        day="${entry#* }"
+        page="$work/real/posts/$slug/index.html"
+        src="$root/content/posts/$slug/index.md"
+        if [[ -f "$page" ]]; then
+            pass "published: $slug"
+        else
+            fail "not built (still a draft?): $slug"
+            continue
+        fi
+        if grep -q "^draft:" "$src"; then fail "$slug still has a draft flag"; fi
+        if grep -Eq "datetime=\"?$day" "$page" && grep -Eq "^date: $day" "$src"; then
+            pass "original date kept: $slug $day"
+        else
+            fail "date is not $day: $slug"
+        fi
+        if [[ "$(grep -o 'class="\?archive-banner' "$page" | wc -l)" -eq 1 ]] && grep -Fq "$note" "$page"; then
+            pass "one archive notice renders: $slug"
+        else
+            fail "archive notice missing or repeated: $slug"
+        fi
+        if grep -Fq "/$slug/ /posts/$slug/ 301" "$work/real/_redirects"; then
+            pass "old permalink redirects: $slug"
+        else
+            fail "no redirect for the old permalink: $slug"
+        fi
+    done
+    tt="introducing-twitch-and-toot-the-open-source-solution-for-mastodon-stream-alerts"
+    if wallet_scan "$root/content/posts/$tt/index.md" || wallet_scan "$work/real/posts/$tt/index.html"; then
+        fail "a wallet address string remains in the Twitch and Toot post"
+    else
+        pass "no wallet address string in the Twitch and Toot post"
+    fi
+    if grep -Fq 'href=/support/' "$work/real/posts/$tt/index.html" || grep -Fq 'href="/support/"' "$work/real/posts/$tt/index.html"; then
+        pass "the Twitch and Toot post points to the Support page"
+    else
+        fail "the Twitch and Toot post has no link to /support/"
+    fi
+    # Guard: the scanner must bite on each address shape.
+    for sample in \
+        "bc1q$(printf 'a%.0s' {1..30})" \
+        "0x$(printf 'b%.0s' {1..40})" \
+        "4$(printf 'c%.0s' {1..94})" \
+        "$(printf 'D%.0s' {1..44})"; do
+        printf 'Tip: %s\n' "$sample" >"$work/wallet-sample"
+        if wallet_scan "$work/wallet-sample"; then
+            pass "guard: the wallet scan flags a sample of ${#sample} characters"
+        else
+            fail "guard: the wallet scan missed a sample of ${#sample} characters"
+        fi
+    done
+    printf 'Tips go through the Support page now.\n' >"$work/wallet-sample"
+    if wallet_scan "$work/wallet-sample"; then
+        fail "guard: the wallet scan flagged plain prose"
+    else
+        pass "guard: the wallet scan passes plain prose"
+    fi
+fi
+
 # --- guard self-test: the line checker must reject bad lines -------------------
 i=0
 for bad in '/a /b' '/a /b 301 extra' '/a /b 200' '/a https://evil.example/ 301' '/a /b#c%20d 301' '/a /b 308' '/a*b /b 301'; do

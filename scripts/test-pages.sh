@@ -230,6 +230,25 @@ def support(p, errs, repo):
             errs.append("%s address has no id for the Copy button" % coin)
     if len(re.findall(r"role=status", html)) != len(ADDRESSES):
         errs.append("each Copy button needs one role=status region")
+    # Issue 194: inside each coin card the order is QR, address, then Copy (the
+    # button under the address, in the same card), named "Copy <coin> address".
+    names = {"btc": "Bitcoin", "xmr": "Monero", "eth": "Ethereum", "sol": "Solana"}
+    cards = [c.split("</li>", 1)[0] for c in re.split(r"<li class=[\"']?coin panel[\"']?>", html)[1:]]
+    if len(cards) != len(ADDRESSES):
+        errs.append("expected %d coin cards, found %d" % (len(ADDRESSES), len(cards)))
+    for coin, addr in ADDRESSES.items():
+        card = next((c for c in cards if "qr-%s.svg" % coin in c), None)
+        if card is None:
+            errs.append("%s card not found" % coin)
+            continue
+        q, a, b = card.find("<img class=qr"), card.find("<code"), card.find("<button")
+        if card.count("<button") != 1 or card.count("<code") != 1 or card.count("<img class=qr") != 1:
+            errs.append("%s card needs exactly one QR, one address and one Copy button" % coin)
+        elif not (0 <= q < a < b):
+            errs.append("%s card order must be QR, address, Copy (got QR %d, address %d, Copy %d)" % (coin, q, a, b))
+        name = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", card[b:].split("</button>", 1)[0])).strip()
+        if name != "Copy %s address" % names[coin]:
+            errs.append("%s Copy button accessible name is %r" % (coin, name))
     if html.count("<script") != 1 or "<script src=/copy.js></script>" not in html:
         errs.append("/support/ must carry exactly the one pinned <script src=/copy.js></script>")
     # Addresses: verbatim, in a <code> element each, once.
@@ -262,7 +281,7 @@ def about_data():
     (double-quoted strings, no escapes), so a line scan avoids a YAML dependency."""
     with open(os.environ["ABOUT_DATA"], encoding="utf-8") as f:
         lines = f.read().splitlines()
-    d = {"paragraphs": [], "skills": [], "speaking": {}}
+    d = {"paragraphs": [], "skills": [], "speaking": {}, "glance": [], "homelab": []}
     sect = None
     for ln in lines:
         m = re.match(r'^(\w+):(?: "(.*)")?$', ln)
@@ -286,6 +305,20 @@ def about_data():
             m = re.match(r'^    text: "(.*)"$', ln)
             if m:
                 d["skills"][-1]["text"] = m.group(1)
+        elif sect in ("glance", "homelab"):
+            items = d[sect]
+            m = re.match(r'^  - name: "(.*)"$', ln)
+            if m:
+                items.append({"name": m.group(1), "links": []})
+            m = re.match(r'^    text: "(.*)"$', ln)
+            if m:
+                items[-1]["text"] = m.group(1)
+            m = re.match(r'^      - name: "(.*)"$', ln)
+            if m:
+                items[-1]["links"].append({"name": m.group(1)})
+            m = re.match(r'^        url: "(.*)"$', ln)
+            if m:
+                items[-1]["links"][-1]["url"] = m.group(1)
     return d
 
 
@@ -313,6 +346,93 @@ def check_about_data(errs, html_src):
             errs.append("skill group %r is missing or its text differs from data/about.yaml" % w[0])
     if len(groups) != len(want):
         errs.append("expected %d skill groups, found %d" % (len(want), len(groups)))
+
+
+GLANCE_NAMES = ["Desktop", "Radio", "Self-hosted", "Cares about"]
+HOMELAB_NAMES = ["Network and security", "SIEM server", "AI inference", "Compute and storage", "Radio, SDR, and time", "Cloud extension"]
+SECTION_FORBIDDEN = [
+    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b"), "an IP address"),
+    (re.compile(r"\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|lan|local|home|internal)\b", re.I), "a hostname"),
+    (re.compile(r"serial|\brack\b|callsign", re.I), "a serial, rack or callsign word"),
+    (re.compile(r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"), "a callsign-shaped token"),
+    (re.compile(r"\b[A-R]{2}\d\d[a-x]{2}\b"), "a grid-square-shaped token"),
+]
+
+
+def fact_section(html_src, sid):
+    m = re.search(r"<section[^>]*aria-labelledby=\"?%s\"?[^>]*>(.*?)</section>" % sid, html_src, re.S)
+    return m.group(1) if m else None
+
+
+def check_fact_section(errs, html_src, sid, names, repo_links):
+    """Issue 196: a card section built from data/about.yaml; every card name, text and repo link must match it exactly."""
+    sec = fact_section(html_src, sid)
+    if sec is None:
+        errs.append("section #%s was not found" % sid)
+        return
+    want = about_data()[sid]
+    if [w["name"] for w in want] != names:
+        errs.append("data/about.yaml %s names are %r, expected %r" % (sid, [w["name"] for w in want], names))
+    if not all(w.get("text") for w in want):
+        errs.append("data/about.yaml %s has an item without text" % sid)
+    cards = re.findall(r"<div[^>]*class=\"?fact-card\"?[^>]*>(.*?)</div>", sec, re.S)
+    got = []
+    for c in cards:
+        dt = re.search(r"<dt[^>]*>(.*?)</dt>", c, re.S)
+        dd = re.search(r"<dd[^>]*class=\"?card-text\"?[^>]*>(.*?)</dd>", c, re.S)
+        links = []
+        for a, t in re.findall(r"<a ([^>]*)>(.*?)</a>", c, re.S):
+            hm = re.search(r"href=\"?([^\"\s>]+)", a)
+            links.append((hm.group(1) if hm else "", re.sub(r" \((?:GitHub, )?opens in a new tab\)", "", norm(t)), a))
+        got.append((norm(dt.group(1)) if dt else "", norm(dd.group(1)) if dd else "", links))
+    if [g[0] for g in got] != names:
+        errs.append("%s cards are %r, expected %r in this order" % (sid, [g[0] for g in got], names))
+    for w in want:
+        hit = [g for g in got if g[0] == w["name"]]
+        if not hit:
+            continue
+        if hit[0][1] != w.get("text"):
+            errs.append("%s card %r text differs from data/about.yaml" % (sid, w["name"]))
+        if [(u, n) for u, n, _ in hit[0][2]] != [(x.get("url"), x.get("name")) for x in w["links"]]:
+            errs.append("%s card %r links differ from data/about.yaml" % (sid, w["name"]))
+        for u, n, attrs in hit[0][2]:
+            if not u.startswith("https://github.com/"):
+                errs.append("%s link %r is not an https GitHub URL: %r" % (sid, n, u))
+            if "noopener" not in attrs:
+                errs.append("%s link %r lacks rel=noopener" % (sid, n))
+            repo_links.append(u)
+    text = norm(sec)
+    plain = re.sub(r"https://github\.com/[\w./-]+", "", text)
+    if chr(0x2014) in text or chr(0x2013) in text:
+        errs.append("a dash character is in the %s section" % sid)
+    for rx, label in SECTION_FORBIDDEN:
+        if rx.search(plain):
+            errs.append("the %s section contains %s" % (sid, label))
+
+
+def check_glance_homelab(errs, html_src):
+    repo_links = []
+    check_fact_section(errs, html_src, "glance", GLANCE_NAMES, repo_links)
+    check_fact_section(errs, html_src, "homelab", HOMELAB_NAMES, repo_links)
+    for n in ["siem-docker-stack", "pfsense-siem-stack", "FrankenLLM", "Clouds-Against-Humanity", "mother-ticker"]:
+        if not any(x.endswith("/" + n) for x in repo_links):
+            errs.append("homelab is missing the %s repo link" % n)
+    intro = about_data().get("homelab_intro", "")
+    ps = [norm(m) for m in re.findall(r"<p[^>]*>(.*?)</p>", html_src, re.S)]
+    if not intro or intro not in ps:
+        errs.append("homelab intro differs from data/about.yaml")
+    for key, sid in (("glance_heading", "glance"), ("homelab_heading", "homelab")):
+        hm = re.search(r"<h2[^>]*id=\"?%s\"?[^>]*>(.*?)</h2>" % sid, html_src, re.S)
+        if not hm or norm(hm.group(1)) != about_data().get(key):
+            errs.append("the %s heading differs from data/about.yaml" % sid)
+    radio = [w for w in about_data()["homelab"] if w["name"] == "Radio, SDR, and time"]
+    if radio and "In progress" not in radio[0].get("text", ""):
+        errs.append("the stratum-1 NTP appliances must be labeled In progress")
+    i, j, k = (html_src.find(x) for x in ("id=skills", "id=glance", "id=homelab"))
+    if not (0 < i < j < k):
+        errs.append("section order must be skills, glance, homelab (found %d, %d, %d)" % (i, j, k))
+    if len(re.findall(r"<h2[ >]", html_src)) != 5:
+        errs.append("expected five h2 sections on About (projects, contact, skills, glance, homelab)")
 
 
 def check_project_tiles(errs, html_src, flat):
@@ -350,6 +470,7 @@ def check_project_tiles(errs, html_src, flat):
 def about(p, errs, repo):
     common(p, errs)
     check_about_data(errs, repo["html"])
+    check_glance_homelab(errs, repo["html"])
     if p.h1 != ["About"]:
         errs.append("h1 is %r" % p.h1)
     flat = p.flat()
@@ -536,6 +657,30 @@ for kind in support about privacy; do
     fi
 done
 [[ -f "$pub/support/index.html" ]] && assert support "$pub/support/index.html" "$root/layouts/support/single.html"
+# Guard (issue 194): the card-order check bites. Copy moved above the address (and
+# before the QR) in the Bitcoin card must fail the support rules.
+if [[ -f "$pub/support/index.html" ]]; then
+    python3 -I - "$pub/support/index.html" "$work/support-copy-first.html" "$work/support-copy-mid.html" <<'PY'
+import re
+import sys
+
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<button[^>]*data-copy=\"?addr-btc\"?[^>]*>.*?</button>", s)
+assert m, "no btc Copy button in the built page"
+rest = s.replace(m.group(0), "", 1)
+first = rest.index("<img class=qr")
+open(sys.argv[2], "w", encoding="utf-8").write(rest[:first] + m.group(0) + rest[first:])
+addr = rest.index("<code", first)
+open(sys.argv[3], "w", encoding="utf-8").write(rest[:addr] + m.group(0) + rest[addr:])
+PY
+    for v in copy-first copy-mid; do
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" support "$work/support-$v.html" "$root/layouts/support/single.html" >/dev/null 2>&1; then
+            fail "guard: a support page with Copy out of order ($v) passed"
+        else
+            pass "guard: a support page with Copy out of order ($v) fails"
+        fi
+    done
+fi
 [[ -f "$pub/about/index.html" ]] && assert about "$pub/about/index.html"
 # Guard: the About check bites. One skill group's text altered, one group omitted, and a bio
 # paragraph altered must each fail (the unaltered page passed above).
@@ -548,7 +693,17 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-extra.html" "<li class=tile-more>" "<li><a class=tile href=https://example.org/x rel=noopener><strong>Extra</strong></a></li><li class=tile-more>"
     mutate "$work/about-bio.html" "right to repair" "right to fix"
     mutate "$work/about-mission.html" "leaving knowledge behind a price tag" "leaving knowledge behind a paywall"
-    for v in alt omit tile more extra bio mission; do
+    # Issue 196: the At a glance and Hardware and homelab sections. An IP address injected into
+    # the homelab section, a changed glance row, an http repo link, a dropped rel=noopener and an
+    # em dash each fail.
+    mutate "$work/about-ip.html" "Supermicro E300-8D" "Supermicro E300-8D at 192.168.1.1"
+    mutate "$work/about-ipextra.html" "</dl></section>" "<p>192.168.1.1</p></dl></section>"
+    mutate "$work/about-glance.html" "right to repair, privacy rights" "right to repair, privacy"
+    mutate "$work/about-repo.html" "https://github.com/ChiefGyk3D/FrankenLLM" "http://github.com/ChiefGyk3D/FrankenLLM"
+    mutate "$work/about-noopener.html" "https://github.com/ChiefGyk3D/siem-docker-stack target=_blank rel=noopener" "https://github.com/ChiefGyk3D/siem-docker-stack target=_blank"
+    dash="$(python3 -I -c 'print(chr(0x2014))')"
+    mutate "$work/about-emdash.html" "stratum-1 NTP appliances" "stratum-1 NTP $dash appliances"
+    for v in alt omit tile more extra bio mission ip ipextra glance repo noopener emdash; do
         if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
             fail "guard: an About page with $v-mutated text passed"
         else
@@ -906,6 +1061,23 @@ if grep -Eq 'support-tiles \.tile-item[^}]*display: *flex' <<<"$(tr '\n' ' ' <<<
     pass "support button cells stretch to one height"
 else
     fail "support button cells do not stretch to one height"
+fi
+# Coin card layout (issue 194): one centered column (QR, address, Copy below it).
+# No grid that puts Copy beside the QR, Copy centered, the QR never below 10rem
+# (160 px, a phone camera still reads it).
+flat_sup="$(tr '\n' ' ' <<<"$sup")"
+if ! grep -Eq 'coin-body|auto minmax\(0, *1fr\)' <<<"$flat_sup" &&
+    grep -Eq '\.coin \{[^}]*justify-items: *center' <<<"$flat_sup" &&
+    grep -Eq '\.coin-actions \{[^}]*justify-content: *center' <<<"$flat_sup"; then
+    pass "support coin cards: QR, address and Copy centered in one column"
+else
+    fail "support coin cards are not one centered column (no Copy beside the QR)"
+fi
+qr_min="$(grep -Eo '\.qr \{[^}]*\}' <<<"$flat_sup" | grep -Eo 'width: *(min\(100%, *)?[0-9.]+rem' | grep -Eo '[0-9.]+rem' | sed 's/rem//' | sort -n | head -1 || true)"
+if [[ -n "$qr_min" ]] && awk -v w="$qr_min" 'BEGIN { exit !(w >= 10) }'; then
+    pass "support QR stays at 10rem (160 px) or larger at every width ($qr_min rem smallest)"
+else
+    fail "support QR is smaller than 10rem somewhere (${qr_min:-no width found})"
 fi
 # Rule order (issue 107): the desktop .coin-name override sits inside a media
 # query at equal specificity, so it must come AFTER the base rule or it never
