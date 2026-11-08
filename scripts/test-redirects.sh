@@ -263,10 +263,10 @@ PY
         done
         grep -qE 'href="?/feed/index.xml"?>RSS</a>' "$2" || echo "feed: the footer RSS link does not point at /feed/index.xml"
         # _headers stays the one pinned /* block (scripts/check-site-artifact.sh):
-        # byte for byte the repository's file, one CSP line, no other rule block.
+        # byte for byte the repository's file, one CSP line, no other rule block than the /css/* long-cache one (issue 240).
         cmp -s "$4" "$root/static/_headers" || echo "feed: _headers differs from static/_headers"
         [[ "$(grep -c 'Content-Security-Policy' "$4")" == 1 ]] || echo "feed: _headers must keep exactly one CSP line"
-        [[ "$(grep -c '^/' "$4")" == 1 ]] || echo "feed: _headers must stay a single /* block"
+        [[ "$(grep -c '^/\*$' "$4")" == 1 && "$(grep -cvE '^(/\*|/css/\*|[[:space:]]|#|$)' "$4")" == 0 ]] || echo "feed: _headers must stay the /* block plus the /css/* long-cache block"
     }
     run_feed_check() { feed_check "$1/feed/index.xml" "$1/index.html" "$1/posts/x/index.html" "$1/_headers"; }
     out="$(run_feed_check "$legacy/public")"

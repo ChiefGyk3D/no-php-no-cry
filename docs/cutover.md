@@ -215,7 +215,7 @@ Why `/feed/` is a redirect and not the feed itself: Pages serves
 "Serving Pages" names only HTML). Serving the XML at `/feed/` would take a
 `200` rewrite in `_redirects` plus a `Content-Type` block in `_headers`, and
 `scripts/check-site-artifact.sh` forbids both on purpose (`_headers` must be
-the one `/*` block, `_redirects` internal 301/302 lines only). That is a
+the `/*` block plus the one `Cache-Control` block for `/css/*`, `_redirects` internal 301/302 lines only). That is a
 decision for the site owner, not a side effect of the feed work. Until then
 the file is served with the type Pages derives from `.xml` (inferred,
 `application/xml`), which feed readers accept, and a reader that follows the

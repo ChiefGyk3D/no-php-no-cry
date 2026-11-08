@@ -11,7 +11,7 @@
 # Rules: inline-script, script-not-allowed, script-count, missing-script,
 # extra-script-file, js-budget, javascript-url, style-element, style-attribute,
 # event-handler, http-reference, external-asset, external-css-reference,
-# skip-link, landmark, email-shaped-text, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, script-wrong-page, search-page-budget, headers-structure,
+# skip-link, landmark, email-shaped-text, xml-stylesheet, bad-xml, base-element, unexpected-file, script-hash, script-hash-file, script-wrong-page, search-page-budget, headers-structure, missing-immutable, immutable-unhashed,
 # script-in-markup, missing-nosniff, missing-robots, bad-robots, env-mismatch,
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
@@ -35,8 +35,9 @@
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
-# nosniff is in _headers, _headers is one /* block with no removal directive
-# (headers-structure), and each pinned script is accepted only if its sha256
+# nosniff is in _headers, _headers is one /* block with no removal directive plus
+# the one long-cache block for /css/* (headers-structure, missing-immutable; every
+# file under it must be named by its own sha256: immutable-unhashed), and each pinned script is accepted only if its sha256
 # equals the one in its committed <name>.sha256 (SCRIPT_HASH_DIR overrides the
 # directory; script-hash, script-hash-file). With no hash file for a script, no
 # element and no file of that name may exist. URLs are judged as the browser reads them, after character
@@ -540,6 +541,14 @@ fi
 if [[ -s "$dir/_headers" ]] && ! headers_policy_ok "$dir/_headers"; then
     report headers-structure "_headers (must be one /* rule block with no removal directive)"
 fi
+if [[ -s "$dir/_headers" ]] && ! headers_immutable_ok "$dir/_headers"; then
+    report missing-immutable "_headers (no long-cache block for the content-hashed assets: ${IMMUTABLE_PATHS[*]})"
+fi
+# The long-cache block is only safe because each file under it is named by its
+# own sha256. A new stylesheet name or a changed file with an old name fails here.
+while IFS= read -r bad; do
+    [[ -n "$bad" ]] && report immutable-unhashed "$bad (under a long-cache path but not named by its own sha256)"
+done < <(immutable_assets_bad "$dir" || true)
 if [[ -s "$dir/_headers" ]] && ! headers_nosniff_ok "$dir/_headers"; then
     report missing-nosniff "_headers (X-Content-Type-Options must be nosniff)"
 fi

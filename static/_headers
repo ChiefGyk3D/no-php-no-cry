@@ -18,3 +18,13 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Long cache for content-hashed assets only (issue 240). Hugo fingerprints the
+# stylesheet: the file name carries the sha256 of its bytes (css/site.min.<64 hex>.css),
+# so a changed stylesheet gets a new URL and a year-long immutable lifetime is safe.
+# Nothing else is listed: HTML, fonts, brand images and the pinned scripts keep
+# unhashed names and the host default (revalidate). Cache-Control is the only
+# header this block may carry; scripts/check-output.sh (headers-structure,
+# missing-immutable, immutable-unhashed) pins the path, the value and the hashes.
+/css/*
+  Cache-Control: public, max-age=31536000, immutable

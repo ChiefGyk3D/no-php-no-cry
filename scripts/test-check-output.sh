@@ -22,6 +22,10 @@ mkdir -p "$root/tmp"
 work="$(mktemp -d "$root/tmp/check-output.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
+# The stylesheet fixture is named by its own sha256, as Hugo's fingerprint does.
+CSS_FIXTURE='body{background:url(data:image/png;base64,AAAA);color:red}'
+CSSH="$(printf '%s\n' "$CSS_FIXTURE" | sha256sum | cut -d' ' -f1)"
+
 jobs_max="${CHECK_OUTPUT_JOBS:-$(nproc 2>/dev/null || echo 2)}"
 ((jobs_max > 4)) && jobs_max=4
 ((jobs_max < 1)) && jobs_max=1
@@ -145,7 +149,7 @@ build_good() {
     local post_body='<article><h1>Sample post</h1><time datetime=2023-02-10>February 10, 2023</time> <span class=reading-time>1 min read</span></article>'
     local person_ld='<script type=application/ld+json>{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"t","url":"https://test-blog.chiefgyk3d.com/"},{"@type":"Person","name":"ChiefGyk3D","sameAs":["https://github.com/ChiefGyk3D"]}]}</script>'
     local article_ld='<script type=application/ld+json>{"@context":"https://schema.org","@type":"Article","headline":"Sample post","datePublished":"2023-02-10T09:00:00-05:00","author":{"@type":"Person","name":"ChiefGyk3D"}}</script>'
-    local common='<meta name=twitter:card content=summary_large_image><meta name=theme-color content=#0F0F0F><meta name=twitter:image content=https://test-blog.chiefgyk3d.com/brand/og-card.png><link rel=manifest href=/site.webmanifest><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.css integrity=sha256-AAAA>'
+    local common='<meta name=twitter:card content=summary_large_image><meta name=theme-color content=#0F0F0F><meta name=twitter:image content=https://test-blog.chiefgyk3d.com/brand/og-card.png><link rel=manifest href=/site.webmanifest><meta property=og:site_name content=t><meta property=og:title content=t><meta property=og:image content=https://test-blog.chiefgyk3d.com/brand/penguin-color.png><link rel=icon href=/brand/penguin-glyph.svg type=image/svg+xml><link rel=icon href=/brand/penguin-color.png type=image/png sizes=512x512><link rel=apple-touch-icon href=/brand/penguin-color.png><link rel=stylesheet href=/css/site.min.'"${CSSH}"'.css integrity=sha256-AAAA>'
     printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta name=description content=\"Home description.\"><meta property=og:description content=\"Home description.\"><meta property=og:type content=website><meta property=og:url content=https://test-blog.chiefgyk3d.com/><link rel=canonical href=https://test-blog.chiefgyk3d.com/>${person_ld}</head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${home_body}${shell_close}</body></html>" >"$dir/index.html"
     printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>t</title>${common}<meta name=description content=\"Post description.\"><meta property=og:description content=\"Post description.\"><meta property=og:type content=article><meta property=article:published_time content=2023-02-10T09:00:00-05:00><meta property=og:url content=https://test-blog.chiefgyk3d.com/posts/sample-post/><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/>${article_ld}</head><body>${shell_open}<a href=https://example.org/outbound>outbound links are fine</a><img src=/posts/sample-post/a.png width=1 height=1 alt=x>${post_body}${shell_close}</body></html>" >"$dir/posts/sample-post/index.html"
     plain_page() { printf '%s\n' "<!doctype html><html lang=en-us><head><meta charset=utf-8><title>t</title></head><body>${shell_open}$1${shell_close}</body></html>" >"$2"; }
@@ -162,7 +166,7 @@ build_good() {
     alias_page='<!doctype html><html lang=en-us><head><title>https://test-blog.chiefgyk3d.com/posts/sample-post/</title><link rel=canonical href=https://test-blog.chiefgyk3d.com/posts/sample-post/><meta name=robots content=noindex><meta http-equiv=refresh content="0; url=https://test-blog.chiefgyk3d.com/posts/sample-post/"></head></html>'
     printf '%s\n' "$alias_page" >"$dir/2023/02/10/sample-post/index.html"
     printf '%s\n' "$alias_page" >"$dir/sample-post.html"
-    printf 'body{background:url(data:image/png;base64,AAAA);color:red}\n' >"$dir/css/site.min.css"
+    printf '%s\n' "$CSS_FIXTURE" >"$dir/css/site.min.${CSSH}.css"
     printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/index.xml" rel="self" type="application/rss+xml"/></channel></rss>\n' >"$dir/index.xml"
     mkdir -p "$dir/feed"
     printf '<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><atom:link href="https://test-blog.chiefgyk3d.com/feed/index.xml" rel="self" type="application/rss+xml"/></channel></rss>\n' >"$dir/feed/index.xml"
@@ -179,6 +183,8 @@ RED
 /*
   Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'
   X-Content-Type-Options: nosniff
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
 HDR
 }
 build_good "$work/base"
@@ -523,11 +529,11 @@ big_other_page "$d"
 expect_pass "the search page budget applies to the search page only" "a large page other than the search page was rejected" "$d"
 
 append_file() { printf '%s\n' "$APPEND" >>"$1/$FILE"; }
-FILE=css/site.min.css APPEND='@import "https://fonts.example.org/css";' variant css-import external-css-reference append_file
-FILE=css/site.min.css APPEND='@import url(//fonts.example.org/css);' variant css-import-scheme-relative external-css-reference append_file
-FILE=css/site.min.css APPEND='a{background:url(https://cdn.example.org/a.png)}' variant css-url-https external-css-reference append_file
-FILE=css/site.min.css APPEND='a{background:url("//cdn.example.org/a.png")}' variant css-url-scheme-relative external-css-reference append_file
-FILE=css/site.min.css APPEND='a{background:url(http://cdn.example.org/a.png)}' variant css-url-http external-css-reference append_file
+FILE=css/site.min.${CSSH}.css APPEND='@import "https://fonts.example.org/css";' variant css-import external-css-reference append_file
+FILE=css/site.min.${CSSH}.css APPEND='@import url(//fonts.example.org/css);' variant css-import-scheme-relative external-css-reference append_file
+FILE=css/site.min.${CSSH}.css APPEND='a{background:url(https://cdn.example.org/a.png)}' variant css-url-https external-css-reference append_file
+FILE=css/site.min.${CSSH}.css APPEND='a{background:url("//cdn.example.org/a.png")}' variant css-url-scheme-relative external-css-reference append_file
+FILE=css/site.min.${CSSH}.css APPEND='a{background:url(http://cdn.example.org/a.png)}' variant css-url-http external-css-reference append_file
 FILE=logo.svg APPEND='<svg xmlns="http://www.w3.org/2000/svg"><image href="https://cdn.example.org/a.png"/></svg>' variant svg-external external-css-reference append_file
 FILE=index.xml APPEND='<?xml-stylesheet type="text/xsl" href="/feed.xsl"?>' variant feed-stylesheet xml-stylesheet append_file
 
@@ -681,6 +687,34 @@ EXTRA='  ! Referrer-Policy\n' variant headers-removal-first-block headers-struct
 EXTRA='/other/*\n  Referrer-Policy: no-referrer\n' variant headers-second-block headers-structure headers_extra
 EXTRA='/api/*\n  X-Content-Type-Options: sniff\n' variant headers-path-override-nosniff headers-structure headers_extra
 EXTRA="/api/*\\n  Content-Security-Policy: default-src 'none'; script-src 'self'\\n" variant headers-path-override-policy headers-structure headers_extra
+# Long cache for content-hashed assets (issue 240): the one allowed second block
+# carries Cache-Control, exactly that value, on /css/* only.
+EXTRA='  Referrer-Policy: no-referrer\n' variant headers-cache-block-extra-header headers-structure headers_extra
+EXTRA='  Cache-Control: public, max-age=1\n' variant headers-cache-block-two-values headers-structure headers_extra
+EXTRA='/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n' variant headers-immutable-fonts headers-structure headers_extra
+EXTRA='/*.html\n  Cache-Control: public, max-age=31536000, immutable\n' variant headers-immutable-html headers-structure headers_extra
+EXTRA='/css/*\n  Cache-Control: public, max-age=31536000, immutable\n' variant headers-cache-block-twice headers-structure headers_extra
+immutable_main() { sed -i 's#^/\*$#/*\n  Cache-Control: public, max-age=31536000, immutable#' "$1/_headers"; }
+variant headers-immutable-on-everything headers-structure immutable_main
+empty_cache_block() { sed -i '/^  Cache-Control/d' "$1/_headers"; }
+variant headers-cache-block-empty headers-structure empty_cache_block
+empty_cache_block_mid() {
+    printf '/other/*\n' >>"$1/_headers"
+    sed -i '/^  Cache-Control/d' "$1/_headers"
+}
+variant headers-cache-block-empty-then-block headers-structure empty_cache_block_mid
+cache_wrong_value() { sed -i 's#max-age=31536000, immutable#max-age=31536000#' "$1/_headers"; }
+variant headers-cache-no-immutable headers-structure cache_wrong_value
+cache_long_value() { sed -i 's#immutable#immutable, stale-while-revalidate=1#' "$1/_headers"; }
+variant headers-cache-extra-directive headers-structure cache_long_value
+no_cache_block() { sed -i '/^\/css/,$d' "$1/_headers"; }
+variant headers-without-cache-block missing-immutable no_cache_block
+css_unhashed() { mv "$1/css/site.min.${CSSH}.css" "$1/css/site.min.css"; }
+variant css-unhashed-name immutable-unhashed css_unhashed
+css_changed() { printf 'a{color:blue}\n' >>"$1/css/site.min.${CSSH}.css"; }
+variant css-content-differs-from-hash immutable-unhashed css_changed
+css_extra_file() { printf 'a{}\n' >"$1/css/extra.css"; }
+variant css-extra-unhashed-file immutable-unhashed css_extra_file
 
 # Environment rules. The good fixture is a production tree (robots.txt allows
 # all and names the sitemap; pages carry no noindex).

@@ -341,7 +341,7 @@ expect expected-without-script-src input good "$d"
 
 # Header structure of the build's own _headers: one "/*" block, no removal
 # directive, one nosniff, one policy. Refused before any request is made.
-for variant in 'removal-nosniff:/admin/*\n  ! X-Content-Type-Options\n' 'removal-policy:/admin/*\n  ! Content-Security-Policy\n' 'removal-first-block:  ! Referrer-Policy\n' 'second-block:/other/*\n  Referrer-Policy: no-referrer\n' 'path-override-nosniff:/api/*\n  X-Content-Type-Options: sniff\n' 'duplicate-nosniff:  X-Content-Type-Options: nosniff\n'; do
+for variant in 'removal-nosniff:/admin/*\n  ! X-Content-Type-Options\n' 'removal-policy:/admin/*\n  ! Content-Security-Policy\n' 'removal-first-block:  ! Referrer-Policy\n' 'second-block:/other/*\n  Referrer-Policy: no-referrer\n' 'path-override-nosniff:/api/*\n  X-Content-Type-Options: sniff\n' 'duplicate-nosniff:  X-Content-Type-Options: nosniff\n' 'immutable-fonts:/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n'; do
     d="$work/hdr-${variant%%:*}"
     mkdir -p "$d"
     cp "$pub/_redirects" "$d/"
