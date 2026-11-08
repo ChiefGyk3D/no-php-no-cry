@@ -30,7 +30,7 @@ import re
 import sys
 from html.parser import HTMLParser
 
-HEADINGS = ["Summary", "Background", "Skills", "Tools and platforms", "Open-Source Projects",
+HEADINGS = ["Summary", "Background", "Skills", "Tools and platforms", "This site is the proof", "Open-Source Projects",
             "Homelab and engineering practice", "Certifications",
             "Education", "Speaking and community", "Creator and teaching work",
             "Outside work", "Contact"]
@@ -59,6 +59,7 @@ REQUIRED = [
     "Everything I build is open source.",
     "Educational content focused on giving aspiring tech and cybersecurity professionals",
     "Cybersecurity investigations and real-world threat and news breakdowns",
+    "I built this site on Cloudflare Pages, and the security headers include a strict CSP with hashed scripts pinned by SHA-256.",
     "Identity and access", "Where I'm headed", "Network and security",
     "Radio, SDR, and time", "Cloud extension", "Cares about",
 ]
@@ -259,8 +260,8 @@ def check(html):
     sk = re.search(r"Skills</h2>(.*?)(?:<h2|$)", html, re.S)
     groups = re.findall(r"<dt>(.*?)</dt>", sk.group(1) if sk else "")
     dds = [htmlmod.unescape(x) for x in re.findall(r"<dd>(.*?)</dd>", sk.group(1) if sk else "", re.S)]
-    if len(SKILLS) != 6 or sum(len(i) for _, i in SKILLS) != 25:
-        out.append("yaml skills: want 6 groups and 25 items, got %d and %d"
+    if len(SKILLS) != 7 or sum(len(i) for _, i in SKILLS) != 37:
+        out.append("yaml skills: want 7 groups and 37 items, got %d and %d"
                    % (len(SKILLS), sum(len(i) for _, i in SKILLS)))
     if groups != [g for g, _ in SKILLS]:
         out.append("skill groups: want %r, got %r" % ([g for g, _ in SKILLS], groups))
@@ -502,7 +503,7 @@ for it in items:
         print("removal not flagged: " + it, file=sys.stderr)
         bad += 1
 print(len(items), bad)
-sys.exit(1 if bad or len(items) != 25 else 0)
+sys.exit(1 if bad or len(items) != 37 else 0)
 PY
     )" && pass "guard: removing any single skill item is rejected ($n)" || fail "guard: a removed skill item was not flagged"
 fi

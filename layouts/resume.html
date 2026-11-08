@@ -70,6 +70,13 @@
   {{- end }}
   {{- end }}
 
+  {{- with .site_proof }}
+  <section aria-labelledby="r-proof">
+    <h2 id="r-proof" class="hud-heading">{{ .heading }}</h2>
+    <p>{{ .text }}</p>
+  </section>
+  {{- end }}
+
   {{- /* Build-safe slot (issue 262): renders only when data/resume.yaml has an `experience` list of {name, text}. Empty today, so nothing shows. */}}
   {{- with .experience }}
   <section aria-labelledby="r-experience">
