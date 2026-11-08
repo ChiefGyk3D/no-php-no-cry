@@ -51,7 +51,9 @@ The wiki is Markdown under `docs/wiki/` and changes in pull requests like any
 other file. `python3 -I scripts/check-wiki.py` fails when a page links to a file
 that does not exist, names a repository path that does not exist, uses an em dash
 or a home-folder path, or when a required page is missing; its test is
-`scripts/test-check-wiki.sh`. Conventions:
+`scripts/test-check-wiki.sh`. `scripts/publish-wiki.sh <wiki-clone>` mirrors
+the pages into a clone of the GitHub wiki and rewrites `Page.md` links to full
+wiki addresses (tested by `scripts/test-publish-wiki.sh`). Conventions:
 
 - Link to another wiki page with its file name, for example
   `[Getting started](Getting-started.md)`.
