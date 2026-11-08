@@ -6,7 +6,11 @@
   {{- end }}
   <div class="about-layout">
   <div class="about-intro">
-    <img class="about-mascot" src="{{ "brand/mascot-256.webp" | relURL }}" width="256" height="256" alt="ChiefGyk3D's penguin mascot">
+    {{- /* The portrait leads the hero; the penguin mascot stays as the small brand mark beside or under it. Both are published copies (brand/ICONS.md, Portrait). Eager: it is above the fold. */}}
+    <div class="about-figure">
+      <img class="about-portrait" src="{{ "brand/portrait-640.webp" | relURL }}" srcset="{{ "brand/portrait-320.webp" | relURL }} 320w, {{ "brand/portrait-640.webp" | relURL }} 640w" sizes="(min-width: 40rem) 12rem, 8rem" width="640" height="640" loading="eager" decoding="async" alt="Portrait of ChiefGyk3D in front of a network rack">
+      <img class="about-mascot" src="{{ "brand/mascot-128.webp" | relURL }}" width="128" height="128" alt="ChiefGyk3D's penguin mascot">
+    </div>
     <div class="panel">
       {{- range site.Data.about.paragraphs }}
       <p>{{ . }}</p>

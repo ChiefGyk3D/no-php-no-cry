@@ -24,16 +24,41 @@ largest candidate of an `<img srcset>`.
 |---|---|---|---|
 | `js-count`, `js-name`, `js-page` | only the hash-pinned scripts ship, each only on its own page; the table is read from `PINNED_SCRIPTS` in `scripts/artifact-rules.sh` (today `/copy.js` on `/support/` and `/search.js` on `/search/`), and `test-check-budget.sh` fails if the two ever differ; any `.js`, `.mjs` or `.cjs` file counts, the file count limit is the size of that table, and each script is under 1 KB gzip (`js-size`) | `/copy.js` and `/search.js` (2 files) | docs/pinned-script.md; the hash pin and CSP rules stay in `check-output.sh` |
 | `js-size` | 1 KB gzip | n/a | brief section 10 |
-| `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 4.1 KB | brief (target 12 KB) |
+| `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 6.1 KB (6.3 KB on Home and 404) | brief (target 12 KB) |
 | `font-count`, `font-size` | at most 2 font files per page, each 30 KB transferred | Jost 26.6 KB, Orbitron 19.9 KB | brief says one font; the brand kit ships two (Jost body, Orbitron headings), so the count is 2 |
 | `html-size` | 15 KB gzip per page | 4.2 KB | brief: home page HTML |
 | `image-size` | 120 KB per image an `<img>` loads | 20.7 KB | brief |
 | `image-file-size` | 300 KB per image file anywhere in the build | 267 KB (Open Graph card, never loaded by a page) | local limit |
-| `page-total` | 150 KB cold transfer per page | about 80 KB | brief: home page |
-| `post-no-images` | 80 KB for a post page without its body images | about 70 KB | brief |
+| `page-total` | 150 KB cold transfer per page | 82.1 KB (Home, the largest) | brief: home page |
+| `post-no-images` | 80 KB for a post page without its body images | 61.0 KB for the sample post; 61.8 to 64.1 KB for four real batch-1 posts (see the fixed weight below) | brief |
 | `missing-asset`, `no-pages` | every referenced file exists; there are pages | | |
 
 To change a limit, edit `LIMITS` in the script and this table in one commit.
+
+### Fixed weight of a post page (issue 182)
+
+What every post pays before its own text, measured with the script's own
+accounting (gzip -9 for HTML, CSS, SVG and TTF; stored size for woff2 and WebP;
+every `url()` in the stylesheet counts, used or not). Measured on the sample post
+(a post with about 2 KB of gzip HTML text on top of the shell):
+
+| Item | Raw | Counted |
+|---|---|---|
+| `fonts/jost-latin-wght-normal.woff2` | 26.6 KB | 26.6 KB |
+| `fonts/orbitron-wght.ttf` | 38.6 KB | 19.9 KB |
+| `css/site.min.*.css` | 28.9 KB | 6.1 KB |
+| the 12 footer social icons (`brand/icons/*.svg`, in the stylesheet) | 9.9 KB | 4.9 KB |
+| the post HTML | about 18 KB | about 6 KB |
+| Total, sample post | | 61.0 KB, so about 19 KB of the 80 KB limit remains for text |
+
+The Home and 404 penguin ghost (`mascot-512.webp`, 20.7 KB) is its own file,
+`assets/css/home-ghost.css`, appended to the stylesheet of those two pages only
+(`layouts/baseof.html`). Before issue 182 it sat in `pages/home.css`, so every
+page was charged for an image only Home and 404 draw, which left a post about
+2 KB for text. `scripts/test-pages.sh` fails if a stylesheet other than Home or
+404 mentions `mascot-512`. Not taken, because each changes either the look or the
+license position: subsetting Jost or Orbitron (Orbitron carries a Reserved Font
+Name, so a subset would need a new name) and converting Orbitron to woff2.
 
 ## Browser gate (`browser-gate.py`)
 

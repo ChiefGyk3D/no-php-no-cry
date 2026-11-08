@@ -14,9 +14,94 @@
   }
 }
 
-.about-mascot {
+/* The figure: the portrait (the face of the page) with the penguin mascot kept as a small brand
+ * mark. On phones they sit side by side, the mascot on the portrait's lower edge; from 40rem the
+ * portrait stands 12rem wide with the mascot under it. */
+.about-figure {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.about-portrait {
   width: 8rem;
   height: auto;
+  aspect-ratio: 1;
+  border: calc(var(--rule-width) * 2) solid var(--accent-deep);
+  border-radius: var(--radius);
+}
+
+.about-mascot {
+  width: 4rem;
+  height: auto;
+}
+
+@media (min-width: 40rem) {
+  .about-figure {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .about-portrait {
+    width: 12rem;
+  }
+
+  .about-mascot {
+    width: 5rem;
+  }
+}
+
+/* The resume line closes the card: a next step, set off by a rule. */
+.about-intro .panel > :last-child {
+  margin-bottom: 0;
+}
+
+.about-intro .resume-link {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--border);
+}
+
+/* Bio opener (issue 125): the intro line under the page heading. */
+.about-lede {
+  font-size: var(--text-lg, 1.25rem);
+  margin-block: 0 var(--space-5);
+}
+
+/* Current projects: a full-width grid, equal heights, three columns wide, two on tablets, one on
+ * phones. The GitHub tile always takes a full row so no tile sits alone in a half-empty row. */
+.about-projects,
+.about-contact {
+  margin-top: var(--space-6);
+}
+
+.about-projects h2,
+.about-contact h2 {
+  margin-top: 0;
+}
+
+.project-tiles {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 40rem) {
+  .project-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 60rem) {
+  .project-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.project-tiles > li {
+  display: flex;
+}
+
+.project-tiles .tile {
+  flex: 1;
 }
 
 @media (min-width: 60rem) {

@@ -145,7 +145,7 @@ Header, in this order: Home, Posts, Products, Social, Support, About (Home added
 menu had six items; this keeps every destination but merges Contact.
 
 On a phone the header is a wordmark plus a Menu button. The button is a native
-`popovertarget` that opens a `<ul popover>` list below 52rem; from 52rem up the
+`popovertarget` that opens a `<ul popover>` list below 64rem (52rem until Home made nine links, issue 123); from 64rem up the
 list shows inline. Escape, a click outside or a second press closes the popover
 and returns focus to the button. No script. A browser without `:popover-open`
 support gets a plain list, always shown.
@@ -500,6 +500,28 @@ provider price list.
 
 No generation call is made by this brief. Anything generated also needs the
 by-eye star check, the third-party-mark check and a manifest line.
+
+### Portrait (issue 179)
+
+The owner's portrait shows on /about/ (12rem on wide screens, 8rem on phones, the
+penguin mascot kept as a small brand mark beside or under it) and on /resume/ (8rem,
+at the top beside the name, stacked above it on phones, hidden in print). The rules:
+
+- **Published copy only.** `static/brand/portrait-640.webp` and `portrait-320.webp`
+  are resized, metadata-stripped WebP copies. The original photo is never committed,
+  in any form, and never stored in the repository. Processing and sha256 are in
+  `brand/ICONS.md` ("Portrait") and `brand/approved-assets.txt`.
+- **No metadata.** No EXIF, XMP, IPTC, GPS, camera, serial or date tags and no embedded
+  thumbnail. `scripts/check-image-metadata.py` (run by `scripts/check-output.sh`, rule
+  `image-metadata`) fails the build on any of them in any published image, and
+  `scripts/test-pages.sh` proves it bites with a GPS-tag fixture.
+- **Size caps.** 640 px file under 60 KB, 320 px file under 25 KB (`test-pages.sh`),
+  on top of the global budget in `docs/performance-gates.md`.
+- **Same origin.** Both files are served from the site; the CSP stays `img-src 'self'`.
+- **Markup.** Exact alt text `Portrait of ChiefGyk3D in front of a network rack`,
+  explicit `width` and `height`, `loading="eager"` (above the fold), and a `srcset`
+  with both sizes. Both pages are on the long-page allow-list, so the portrait changes
+  no fit rule.
 
 ### Alt text
 

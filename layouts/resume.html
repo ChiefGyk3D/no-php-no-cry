@@ -2,11 +2,15 @@
 {{- with site.Data.resume }}
 <article class="resume">
   <div class="resume-head">
-    <h1>{{ .name }}</h1>
-    <p class="resume-title">{{ .title }}</p>
-    {{- with .subtitle }}
-    <p class="resume-subtitle">{{ . }}</p>
-    {{- end }}
+    {{- /* A small portrait (published, metadata-stripped copy; brand/ICONS.md, Portrait). Eager: it is above the fold. Screen only: hidden in print. */}}
+    <img class="resume-portrait" src="{{ "brand/portrait-320.webp" | relURL }}" srcset="{{ "brand/portrait-320.webp" | relURL }} 320w, {{ "brand/portrait-640.webp" | relURL }} 640w" sizes="8rem" width="320" height="320" loading="eager" decoding="async" alt="Portrait of ChiefGyk3D in front of a network rack">
+    <div class="resume-id">
+      <h1>{{ .name }}</h1>
+      <p class="resume-title">{{ .title }}</p>
+      {{- with .subtitle }}
+      <p class="resume-subtitle">{{ . }}</p>
+      {{- end }}
+    </div>
   </div>
 
   <section aria-labelledby="r-summary">

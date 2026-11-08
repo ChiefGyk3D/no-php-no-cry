@@ -127,7 +127,10 @@ class Page(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
-        if tag in ("img", "iframe", "script", "style") or "style" in a:
+        # The one allowed image is the owner's portrait (issue 179; its attributes are asserted in
+        # scripts/test-pages.sh): a same-origin /brand/portrait file, nothing else.
+        portrait = tag == "img" and re.fullmatch(r"/brand/portrait-(320|640)\.webp", a.get("src") or "") and a.get("class") == "resume-portrait"
+        if (tag in ("img", "iframe", "script", "style") or "style" in a) and not portrait:
             if tag != "script":
                 self.bad.append(tag)
         if tag == "h2":
