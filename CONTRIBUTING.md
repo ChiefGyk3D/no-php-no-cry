@@ -47,6 +47,12 @@ and Chrome or Chromium (`CHROME`); a missing tool is reported by step with exit 
 - `scripts/gate.sh --only browser-gate` reruns one step (the browser gate can flake
   on a loaded machine); a build it needs runs first.
 - `--keep` keeps the temp directory with the per-step logs.
+- The offline token drift test (`test-check-reach-around-drift`) is a normal step and
+  `--fast` picks it when `brand/tokens.json`, `scripts/gen-tokens.py`, the drift
+  scripts or `docs/token-drift.md` change. The live check
+  (`check-reach-around-drift`) reads Reach Around over the network, so it never runs
+  by default: add `--with-drift`, or use `--only check-reach-around-drift`. Without
+  either, the gate prints a skip line. See `docs/token-drift.md`.
 
 CI does not call the script. The `build` job runs each step natively, and the shell
 lint comes from a shared workflow, so a swap would not cover the same steps. Keep

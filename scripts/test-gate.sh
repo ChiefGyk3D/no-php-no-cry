@@ -101,6 +101,15 @@ for n in check-hugo-version build-production check-output-staging test-pages gen
     check "plan lists $n" has "$out" "$n"
 done
 check "plan runs nothing" test -z "$calls"
+check "plan lists the offline drift test" grep -qx 'test-check-reach-around-drift: .*' <<<"$out"
+check "plan leaves out the live drift check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
+check "plan says the live drift check is skipped" has "$out" "skipped check-reach-around-drift"
+gate --plan --with-drift
+check "--with-drift plans the live drift check" grep -q '^check-reach-around-drift: ' <<<"$out"
+check "--with-drift prints no skip message" lacks "$out" "skipped check-reach-around-drift"
+gate --plan --only check-reach-around-drift
+check "--only plans the live drift check" grep -q '^check-reach-around-drift: ' <<<"$out"
+check "--only plans nothing else" lacks "$out" "test-pages"
 
 # --- full run, all green ---------------------------------------------------
 gate
@@ -140,6 +149,18 @@ check "--only reports a failing step" test "$rc" -ne 0
 check "failed browser gate hints at --only" has "$out" "--only browser-gate"
 gate --only no-such-step
 check "--only with an unknown step exits 2" test "$rc" -eq 2
+
+# --- the drift check: offline always, live only on request ------------------
+gate
+check "full run ran the offline drift test" has "$calls" "test-check-reach-around-drift.sh"
+check "full run did not run the live drift check" bash -c '! grep -q "^check-reach-around-drift.sh" <<<"$1"' _ "$calls"
+gate --with-drift
+check "--with-drift runs the live check" grep -q '^check-reach-around-drift.sh' <<<"$calls"
+gate --only check-reach-around-drift
+check "--only runs the live check" grep -q '^check-reach-around-drift.sh' <<<"$calls"
+check "--only runs it alone" lacks "$calls" "test-check"
+STUB_FAIL="check-reach-around-drift.sh" gate --with-drift
+check "a failing live check fails the gate" test "$rc" -ne 0
 
 # --- --keep ----------------------------------------------------------------
 gate --keep --only check-wording
@@ -224,6 +245,22 @@ reset_repo
 echo "# edit" >>"$repo/scripts/gate.sh"
 gate --fast --plan
 check "an edit to gate.sh plans test-gate" has "$out" "test-gate"
+reset_repo
+
+for f in brand/tokens.json scripts/gen-tokens.py docs/token-drift.md scripts/check-reach-around-drift.sh; do
+    reset_repo
+    mkdir -p "$repo/$(dirname "$f")"
+    echo "x" >>"$repo/$f"
+    gate --fast --plan
+    check "fast: $f plans the offline drift test" grep -q '^test-check-reach-around-drift: ' <<<"$out"
+    check "fast: $f leaves out the live check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
+    gate --fast --plan --with-drift
+    check "fast: $f with the flag plans the live check" grep -q '^check-reach-around-drift: ' <<<"$out"
+done
+reset_repo
+echo new >"$repo/content/new.md"
+gate --fast --plan --with-drift
+check "fast: unrelated change with the flag skips the live check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
 reset_repo
 
 # --- missing tool ----------------------------------------------------------
