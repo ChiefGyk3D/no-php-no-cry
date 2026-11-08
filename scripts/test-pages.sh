@@ -73,13 +73,14 @@ SKILL_GROUPS = [
     "Radio, RF, and telecom",
     "Where I'm headed",
 ]
-MISSION_START = "I make cybersecurity knowledge available to more than 500K followers across all platforms"
-MISSION_END = "You're not dead until you stop learning. Happy Hacking."
+MISSION_START = "I share cybersecurity knowledge with more than 500K followers across platforms"
+MISSION_END = "so I open source a lot of my work and share what I learn."
+CLOSING = "You’re not dead until you stop learning. Happy hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
            "or the Discord server. The two are bridged.")
-SPEAKING = ("In 2026 I spoke at BSides Dayton and COISSA. I'm a member of DEFCON 614 "
-            "and I'm with the Call Center Village, where I volunteer.")
+SPEAKING = ("In 2026, I spoke at BSides Dayton and COISSA. I also volunteer with the "
+            "Call Center Village.")
 CONTACT_SOON = " Business inquiries go by email, and the address will be listed here soon."
 
 
@@ -329,7 +330,7 @@ def about_data():
 def check_about_data(errs, html_src):
     """Every bio and skill text on the page must equal its data/about.yaml entry, exactly."""
     d = about_data()
-    if len(d["paragraphs"]) != 2 or len(d["skills"]) != len(SKILL_GROUPS) or not d.get("opener"):
+    if len(d["paragraphs"]) != 3 or len(d["skills"]) != len(SKILL_GROUPS) or not d.get("opener"):
         errs.append("data/about.yaml is not the expected shape")
         return
     ps = [norm(m).replace(" (opens in a new tab)", "") for m in re.findall(r"<p[^>]*>(.*?)</p>", html_src, re.S)]
@@ -338,6 +339,8 @@ def check_about_data(errs, html_src):
             errs.append("%s differs from data/about.yaml" % label)
     if not d.get("mission") or d["mission"] not in ps:
         errs.append("mission paragraph differs from data/about.yaml")
+    if not d.get("closing") or d["closing"] != CLOSING or d["closing"] not in ps:
+        errs.append("closing line differs from the owner-approved one (issue 225)")
     sp = d["speaking"]
     if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
         errs.append("speaking sentence or role differs from data/about.yaml")
@@ -486,11 +489,11 @@ def about(p, errs, repo):
         errs.append("bio opener missing")
     if "I’m more than ready for a security architecture role, and that’s where I’m headed." not in flat:
         errs.append("bio closing sentence missing")
-    if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator." not in flat:
+    if "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, ham radio operator, open-source builder, and content creator." not in flat:
         errs.append("bio first paragraph missing")
     if MISSION_START not in flat or MISSION_END not in flat:
         errs.append("mission paragraph missing")
-    if flat.find(MISSION_START) < flat.find("In 2026 I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
+    if flat.find(MISSION_START) < flat.find("In 2026, I spoke at BSides") or flat.find(MISSION_START) > flat.find("Current projects"):
         errs.append("mission paragraph is not right after the bio and before the projects and Contact")
     # The link carries a visually-hidden " (opens in a new tab)" after its text.
     if SPEAKING.replace("Call Center Village", "Call Center Village (opens in a new tab)") not in flat:
@@ -714,7 +717,7 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate "$work/about-more.html" "More projects on GitHub" "More on GitHub"
     mutate "$work/about-extra.html" "<li class=tile-more>" "<li><a class=tile href=https://example.org/x rel=noopener><strong>Extra</strong></a></li><li class=tile-more>"
     mutate "$work/about-bio.html" "right to repair" "right to fix"
-    mutate "$work/about-mission.html" "leaving knowledge behind a price tag" "leaving knowledge behind a paywall"
+    mutate "$work/about-mission.html" "behind a price tag" "behind a paywall"
     # Issue 196: the At a glance and Hardware and homelab sections. An IP address injected into
     # the homelab section, a changed glance row, an http repo link, a dropped rel=noopener and an
     # em dash each fail.
@@ -787,8 +790,8 @@ PYEOF
             fail "contact case $name ($5): the About asserter rejected the page"
         fi
     }
-    FP="5AFF B5C1 C37A 63AB DB93 07C1 70EA A2B2 49A3 50E7"
-    KEYURL="https://keys.openpgp.org/vks/v1/by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E7"
+    FP="93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
+    KEYURL="/chiefgyk3d.asc"
     build_contact_case neither "" "" "" incomplete
     build_contact_case email-only "chief@chiefgyk3d.com" "" "" incomplete
     build_contact_case key-only "" "$FP" "$KEYURL" incomplete

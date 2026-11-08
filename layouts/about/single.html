@@ -21,6 +21,9 @@
       {{- with site.Data.about.mission }}
       <p class="about-mission">{{ . }}</p>
       {{- end }}
+      {{- with site.Data.about.closing }}
+      <p class="about-closing">{{ . }}</p>
+      {{- end }}
       <p class="resume-link">My <a href="{{ "/resume/" | relURL }}">resume</a> lists my skills, open-source projects, certifications, and education.</p>
     </div>
   </div>

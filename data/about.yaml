@@ -4,18 +4,21 @@
 # are the body, in order.
 opener: "Hi, I'm Moshe, and I go by ChiefGyk3D online."
 paragraphs:
-  - "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, open-source builder, and content creator. I’m primarily self-taught through homelabbing, curiosity, and hands-on work. My work covers IAM, EDR, SOAR, ZTNA, SASE, cloud security, threat modeling, OSINT, telecom security, and SIEM/SOC work. I run Linux on desktops and servers and work with pfSense, Suricata, Wazuh, and OpenSearch."
-  - "My production-style homelab includes repurposed hardware, a dual-GPU local AI box, and self-hosted Mastodon, Matrix, and Pixelfed. I’m also a licensed ham radio operator working with SDR, Meshtastic, and LoRa. I care about end-to-end encryption, zero trust, owning my infrastructure, right to repair, and privacy rights. I’m more than ready for a security architecture role, and that’s where I’m headed."
+  - "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, ham radio operator, open-source builder, and content creator. I’m primarily self-taught. Most of what I know came from curiosity, building things in my homelab, and figuring out why they didn’t work."
+  - "My work spans identity and access management, endpoint security, security automation, zero trust, and cloud and network security. I also work with threat modeling, OSINT, telecom security, and SIEM/SOC tooling. That includes IAM, EDR, SOAR, ZTNA, and SASE, along with tools like pfSense, Suricata, Wazuh, and OpenSearch. I’m more than ready for a security architecture role, and that’s where I’m headed."
+  - "I run Linux on my desktops and servers, and my homelab is where a lot of my interests come together. It’s a production-style environment built partly from repurposed hardware, with a dual-GPU local AI box and self-hosted services including Mastodon, Matrix, and Pixelfed. Radio is part of that curiosity too, from software-defined radio to Meshtastic and LoRa. I care about end-to-end encryption, zero trust, owning my infrastructure, right to repair, and privacy rights."
 # The speaking sentence: before + link text + after. The link renders only
 # while url is set (https only).
 speaking:
-  before: "In 2026 I spoke at BSides Dayton and COISSA. I'm a member of DEFCON 614 and I'm with the "
+  before: "In 2026, I spoke at BSides Dayton and COISSA. I also volunteer with the "
   link_text: "Call Center Village"
   url: "https://www.callcentervillage.com/"
-  after: ", where I volunteer."
+  after: "."
 # The mission paragraph (owner-approved wording, verbatim): rendered right after
 # the bio and the speaking sentence, before the projects and Contact.
-mission: "I make cybersecurity knowledge available to more than 500K followers across all platforms, with one goal: breaking down the barriers around who gets to learn it. Knowledge is power, money is power, and leaving knowledge behind a price tag means power stays with the people who already have money. I have an ethical issue with that, so I open source a lot of my work. You're not dead until you stop learning. Happy Hacking."
+mission: "I share cybersecurity knowledge with more than 500K followers across platforms because I want more people to have access to it. Knowledge is power. Money is power. When you put knowledge behind a price tag, you help keep that power with the people who already have money. I have an ethical issue with that, so I open source a lot of my work and share what I learn."
+# The closing line (owner-approved wording, verbatim), after the mission paragraph.
+closing: "You’re not dead until you stop learning. Happy hacking."
 # Current projects on the About page: these names, in this order, are looked up
 # in data/resume.yaml (projects) for the URL and the one-line description, so the
 # About tiles and the resume cannot drift. The last link is the "More projects
