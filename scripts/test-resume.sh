@@ -31,7 +31,7 @@ import sys
 from html.parser import HTMLParser
 
 HEADINGS = ["Summary", "Skills", "Open-Source Projects", "Certifications",
-            "Education", "Community", "Outside work", "Contact"]
+            "Education", "Speaking and community", "Outside work", "Contact"]
 GONE_HEADINGS = ["Core Skills", "Technical Knowledge"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
@@ -44,6 +44,8 @@ REQUIRED = [
     "References, job history and a phone number are available to prospective "
     "employers on request.",
     "How to reach me, on the About page",
+    "Speaker: BSides Dayton and COISSA, 2026.",
+    "Member of DEFCON 614. With the Call Center Village, where I volunteer.",
 ]
 PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
@@ -89,9 +91,26 @@ def load_skills(path):
     return groups
 
 
+def load_community(path):
+    """The `community:` list lines from data/resume.yaml, stdlib only (double-quoted items)."""
+    items, on = [], False
+    for line in open(path, encoding="utf-8"):
+        line = line.rstrip("\n")
+        if re.match(r"^community:\s*$", line):
+            on = True
+            continue
+        if on and re.match(r"^\S", line):
+            break
+        m = re.match(r'^\s+- "(.*)"\s*$', line)
+        if on and m:
+            items.append(m.group(1))
+    return items
+
+
 import os
 YAML = os.environ.get("RESUME_YAML", "data/resume.yaml")
 SKILLS = load_skills(YAML)
+COMMUNITY = load_community(YAML)
 
 
 def load_linkedin(path):
@@ -215,6 +234,12 @@ def check(html):
         out.append("skill groups: want %r, got %r" % ([g for g, _ in SKILLS], groups))
     if dds != [", ".join(i) for _, i in SKILLS]:
         out.append("skill items differ from data/resume.yaml (exact, per group, in order)")
+    # The community list is exactly data/resume.yaml's community lines, in order (issue 186).
+    cm = re.search(r"Speaking and community</h2>(.*?)(?:<h2|$)", html, re.S)
+    cm_items = [htmlmod.unescape(re.sub(r"<[^>]+>", "", x)).strip()
+                for x in re.findall(r"<li>(.*?)</li>", cm.group(1) if cm else "", re.S)]
+    if cm_items != COMMUNITY or len(COMMUNITY) != 5:
+        out.append("community list differs from data/resume.yaml: want %r, got %r" % (COMMUNITY, cm_items))
     if not re.search(r'class="?resume-subtitle', html):
         out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)

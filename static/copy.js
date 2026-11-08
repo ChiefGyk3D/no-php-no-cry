@@ -1,3 +1,4 @@
+// Copy buttons for /support/. Behavior unchanged; this line only changes the file bytes (issue 216).
 (function () {
   var d = document;
   function legacy(t) {

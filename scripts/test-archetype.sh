@@ -54,7 +54,7 @@ publish() {
         */posts/*) sed -i -e 's#^slug: \(.*\)$#slug: \1\naliases: ["/2026/11/06/example-post/"]#' "$f" ;;
     esac
     printf '\n![%s](pic.png)\n' "$alt" >>"$f"
-    cp "$root/content/posts/sample-post/sample-image.png" "$(dirname "$f")/pic.png"
+    cp "$root/scripts/testdata/pic.png" "$(dirname "$f")/pic.png"
 }
 
 site="$work/site"
