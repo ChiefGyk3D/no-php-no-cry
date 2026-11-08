@@ -53,6 +53,6 @@ failure this system exists to avoid.
 
 ## Weight
 
-No image, no font. The CSS is about 4 KB minified; an L2 frame is about 0.8 KB
+No image, no font. The CSS is about 6 KB before minifying; an L2 frame is about 0.8 KB
 of markup and an L3 frame about 1.8 KB, identical at every use so gzip folds the
 repeats. The page budget in `docs/performance-gates.md` is unchanged.
