@@ -56,6 +56,26 @@ rc=0
 out="$(run rel)" || rc=$?
 if [[ $rc -ne 0 ]] && grep -q 'relative link not valid' <<<"$out" && [[ ! -e "$work/rel/dest/Other.md" ]]; then ok "relative path fails, nothing written"; else bad "rel: rc=$rc $out"; fi
 
+mk title 'See [o](Other.md "A title") and [p](<Other.md#x> '"'"'t'"'"') and \\[no](Other.md) and plain ](Other.md) text.'
+rc=0
+out="$(run title)" || rc=$?
+page="$work/title/dest/Page.md"
+if [[ $rc -eq 0 ]] && grep -qF "[o]($b/Other \"A title\")" "$page" && grep -qF "[p](<$b/Other#x> 't')" "$page" &&
+    grep -qF '\\[no](Other.md)' "$page" && grep -qF 'plain ](Other.md) text' "$page"; then ok "titles and angle brackets handled, escaped and bare text untouched"; else bad "title: rc=$rc $out"; fi
+
+mk fences "$(printf '%s\n' '````' '[o](Other.md)' '```' '[o](Other.md)' '````' '[o](Other.md)' '~~~' '```' '[o](Other.md)' '~~~')"
+rc=0
+out="$(run fences)" || rc=$?
+page="$work/fences/dest/Page.md"
+if [[ $rc -eq 0 ]] && [[ "$(grep -cF "[o](Other.md)" "$page")" -eq 3 ]] && [[ "$(grep -cF "[o]($b/Other)" "$page")" -eq 1 ]]; then ok "fence closes only on a matching marker and length"; else bad "fences: rc=$rc $out"; fi
+
+mk stale 'See [o](Other.md).'
+printf 'old\n' >"$work/stale/dest/Gone.md"
+printf 'img\n' >"$work/stale/dest/keep.png"
+rc=0
+out="$(run stale)" || rc=$?
+if [[ $rc -eq 0 ]] && [[ ! -e "$work/stale/dest/Gone.md" ]] && [[ -f "$work/stale/dest/keep.png" ]]; then ok "stale pages removed, other files kept"; else bad "stale: rc=$rc $out"; fi
+
 mkdir -p "$work/real"
 rc=0
 out="$("$root/scripts/publish-wiki.sh" "$work/real" 2>&1)" || rc=$?

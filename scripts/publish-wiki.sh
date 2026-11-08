@@ -43,8 +43,9 @@ if not pages:
 names = {p[:-3] for p in pages}
 
 span = re.compile(r"(`+[^`]*`+)")
-link = re.compile(r"(\]\()([^)\s]+)(\))")
-fence = re.compile(r"^\s*(```|~~~)")
+# An unescaped inline link: a [label] then (destination, optional title).
+link = re.compile(r"""((?<!\\)\[[^\]\n]*\]\(\s*)(<[^>\n]+>|[^)\s]+)((?:\s+(?:"[^"]*"|'[^']*'))?\s*\))""")
+fence = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 errors, rewritten, out = [], 0, {}
 
 
@@ -63,20 +64,29 @@ def fix(target, page, n):
     return target
 
 
+def fix_dest(dest_text, page, n):
+    if dest_text.startswith("<") and dest_text.endswith(">"):
+        return "<" + fix(dest_text[1:-1], page, n) + ">"
+    return fix(dest_text, page, n)
+
+
 for page in pages:
-    lines, infence = [], False
+    lines, opener = [], None
     with open(os.path.join(src, page), encoding="utf-8") as fh:
         for n, line in enumerate(fh.read().split("\n"), 1):
-            if fence.match(line):
-                infence = not infence
+            m = fence.match(line)
+            if opener is None and m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+                opener = m.group(1)
                 lines.append(line)
                 continue
-            if infence:
+            if opener is not None:
+                if m and m.group(1)[0] == opener[0] and len(m.group(1)) >= len(opener) and not m.group(2).strip():
+                    opener = None
                 lines.append(line)
                 continue
             parts = span.split(line)
             for i in range(0, len(parts), 2):
-                parts[i] = link.sub(lambda m: m.group(1) + fix(m.group(2), page, n) + m.group(3), parts[i])
+                parts[i] = link.sub(lambda m: m.group(1) + fix_dest(m.group(2), page, n) + m.group(3), parts[i])
             lines.append("".join(parts))
     out[page] = "\n".join(lines)
 
@@ -89,5 +99,11 @@ if errors:
 for page, text in out.items():
     with open(os.path.join(dest, page), "w", encoding="utf-8") as fh:
         fh.write(text)
-print(f"publish-wiki: ok ({len(pages)} pages written, {rewritten} links rewritten)")
+removed = 0
+for f in sorted(os.listdir(dest)):
+    if f.endswith(".md") and f not in out and os.path.isfile(os.path.join(dest, f)):
+        os.remove(os.path.join(dest, f))
+        print("publish-wiki: removed stale page", f)
+        removed += 1
+print(f"publish-wiki: ok ({len(pages)} pages written, {rewritten} links rewritten, {removed} stale removed)")
 PY
