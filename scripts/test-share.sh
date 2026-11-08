@@ -145,6 +145,12 @@ def check_page(root, path, title, url, image, bad):
     scripts = [n for n in g.walk() if n.tag == "script"]
     if len(scripts) != 1 or scripts[0].attrs != {"src": "/share.js"}:
         bad.append("the block must carry exactly <script src=/share.js>, got %r" % [s.attrs for s in scripts])
+    if any(e["kind"] == "mailto" and e["template"] for e in ents):
+        # Cloudflare rewrites a mailto: href and injects a script unless it is
+        # wrapped in email_off comments (issue 249; docs/share-links.md).
+        raw = open(path, encoding="utf-8").read()
+        if not re.search(r"<!--email_off--><a [^>]*href=\"mailto:[^>]*>[^<]*</a><!--/email_off-->", raw):
+            bad.append("the mailto link is not wrapped in email_off comments")
     seen = set()
     for e in ents:
         if e["kind"] in ("intent", "mailto"):

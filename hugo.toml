@@ -60,6 +60,8 @@ timeZone = "America/New_York"
 
 [minify]
   minifyOutput = true
+  [minify.tdewolff.html]
+    keepComments = true
 
 [markup.goldmark.renderer]
   # Content is the owner's own; raw HTML in Markdown stays off until needed.

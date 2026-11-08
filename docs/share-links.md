@@ -45,6 +45,15 @@ exact shape `mailto:?subject=V&body=V` with percent-encoded V holding no
 email-shaped text once decoded (`scripts/scan-markup.py`). A post title that
 decodes to `name@host` therefore fails the build until it is reworded.
 
+The Email link is wrapped in `<!--email_off-->` and `<!--/email_off-->`
+(Cloudflare's documented opt-out, read 2026-11-08:
+https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/).
+Without it the edge rewrote the `mailto:` href to `/cdn-cgi/l/email-protection#...`
+and injected `email-decode.min.js` into every post, which broke the link without
+JavaScript and failed the post-deploy smoke test (issue 249). The minifier drops
+comments by default, so `hugo.toml` sets `[minify.tdewolff.html] keepComments`;
+these two markers are the only comments in the output.
+
 ## Behavior without JavaScript
 
 The anchors work as they are. The buttons (Mastodon, Discord, Matrix, Lemmy, Copy
