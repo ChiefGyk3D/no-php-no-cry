@@ -50,7 +50,7 @@
 #                 Unset, the environment is read from robots.txt and every page
 #                 is checked against it.
 #   EXPECT_ALIAS  an alias that must have a 301 line in _redirects
-#                 (default: /2023/02/10/sample-post/, from the sample post)
+#                 (default: the old WordPress permalink of a real post)
 #
 # Environment: robots.txt decides it. Staging disallows everything, names no
 # sitemap, and every page carries noindex. Production allows everything, names
@@ -90,7 +90,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/robots-wildcard.sh"
 
 dir="${1:-public}"
 site_host="${SITE_HOST:-test-blog.chiefgyk3d.com}"
-expect_alias="${EXPECT_ALIAS:-/2023/02/10/sample-post/}"
+expect_alias="${EXPECT_ALIAS:-/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/}"
 findings=0
 
 if [[ ! -d "$dir" ]]; then

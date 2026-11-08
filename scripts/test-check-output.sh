@@ -16,6 +16,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 checker="$root/scripts/check-output.sh"
+# The fixtures below are synthetic trees with a sample-post alias, not the real content.
+export EXPECT_ALIAS=/2023/02/10/sample-post/
 mkdir -p "$root/tmp"
 work="$(mktemp -d "$root/tmp/check-output.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
@@ -1002,7 +1004,7 @@ printf '%s\n' '<p>@someone<span>@</span>social.example.org <a href=https://youtu
 expect_pass "split handle passes" "split handle was rejected" "$split"
 
 public_case() {
-    if env -u SCRIPT_HASH_DIR "$checker" "$root/public" >/dev/null 2>&1; then
+    if env -u SCRIPT_HASH_DIR -u EXPECT_ALIAS "$checker" "$root/public" >/dev/null 2>&1; then
         echo "ok: real build in public/ passes"
     else
         echo "FAIL: real build in public/ was rejected"

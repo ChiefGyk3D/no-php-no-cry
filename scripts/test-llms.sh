@@ -44,7 +44,7 @@ check_llms() {
     for h in "## Sections" "## Latest posts" "## Feeds" "## Find me online" "## Support"; do
         grep -qxF "$h" "$f" || echo "no section: $h"
     done
-    for path in posts journal social support products about resume privacy posts/sample-post; do
+    for path in posts journal social support products about resume privacy posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators; do
         grep -qE "\]\(https://[^/)]+/${path}/\)" "$f" || echo "no link to /${path}/"
     done
     # Every https URL in the data files must be listed (kind: cryptocurrency has none).
