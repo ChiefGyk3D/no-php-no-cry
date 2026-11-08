@@ -85,6 +85,7 @@ viewport the issue names; 390 at 390 x 844 stays; the rest at 900 px tall). Two 
 | `axe` | any axe-core violation with tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice | none |
 | `lcp` | Largest Contentful Paint over the limit, cold (cache off) | 2000 ms |
 | `cls` | Cumulative Layout Shift over the limit (layout shifts not caused by input) | 0.05 |
+| `image` | a visible raster `<img>` is drawn wider (CSS px, device pixel ratio 1) than the file the browser chose is wide; SVG is skipped (issue 232) | 0 px |
 | `tile` | text or a box inside a `.tile` (the /social/ grid) sticks out of the tile on any of its four sides (half a pixel of slack), so a handle or name that does not wrap is caught at every viewport (issue 170) | 0 px |
 | `target` | a control smaller than 44 x 44 CSS px | 44 px |
 | `tab` | see below | |
