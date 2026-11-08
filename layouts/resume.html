@@ -4,13 +4,18 @@
   <div class="resume-head">
     <h1>{{ .name }}</h1>
     <p class="resume-title">{{ .title }}</p>
+    {{- with .subtitle }}
+    <p class="resume-subtitle">{{ . }}</p>
+    {{- end }}
   </div>
 
   <section aria-labelledby="r-summary">
     <h2 id="r-summary" class="hud-heading">Summary</h2>
-    <ul class="resume-list">
-      {{- range .summary }}<li>{{ . }}</li>{{ end }}
-    </ul>
+    <div class="resume-summary">
+      {{- range .summary }}
+      <p>{{ . }}</p>
+      {{- end }}
+    </div>
   </section>
 
   <section aria-labelledby="r-skills">

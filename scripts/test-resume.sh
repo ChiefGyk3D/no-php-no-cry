@@ -45,9 +45,30 @@ REQUIRED = [
     "employers on request.",
     "How to reach me, on the About page",
 ]
-PROJECTS = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack",
-            "pfSense SIEM Stack", "git-your-ship-together", "Hammunition",
-            "Reach Around", "Skid Finder"]
+PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
+            "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
+            "Stream Daemon", "Reach Around", "Hammunition"]
+SUMMARY = [
+    "Senior Cybersecurity Engineer and CISSP with about 15 years across IT and "
+    "security. I design, build, integrate, and test security systems across "
+    "identity, network defense, SIEM engineering, cloud security, zero trust, "
+    "and automation. I question unnecessary access and use hands-on testing to "
+    "check whether the design actually works.",
+    "I maintain open-source security tools and reusable CI workflows, and I "
+    "share cybersecurity knowledge through tutorials, security breakdowns, and "
+    "livestreams with more than 500,000 followers across YouTube, Twitch, Kick, "
+    "and social platforms. My goal is to break down knowledge barriers.",
+]
+SKILL_GROUPS = ["Identity and access", "Detection and response",
+                "Zero trust and cloud", "Network defense and systems",
+                "Automation and code", "Security practice"]
+SKILL_ITEMS = ["IAM", "Single sign-on and MFA", "passkeys", "LDAP integration",
+               "EDR", "SOAR", "SIEM and SOC operations", "Detection engineering",
+               "ZTNA and SASE", "Cloud security", "Zero trust", "Linux",
+               "Networking with pfSense, Suricata and UniFi", "Python", "Bash", "PowerShell",
+               "OpenTofu and Terraform", "DevSecOps",
+               "Reusable GitHub Actions workflows", "Threat modeling", "OSINT",
+               "Telecom security", "Privacy", "AI-assisted workflows"]
 FORBIDDEN = [r"\bITIL\b", r"\bLPI\b", r"Western Governors",
              r"\bMoshe\b", r"\bTODO\b", r"map\["]
 CALLSIGN = r"\b[A-Z]{1,2}\d[A-Z]{1,3}\b"
@@ -122,16 +143,27 @@ def check(html):
     if not cred.search(text):
         out.append("credential order: CISSP 2024, then Security+, Network+, "
                    "A+ each with February 2026")
-    pos = -1
-    for name in PROJECTS:
-        i = text.find(name, pos + 1) if pos >= 0 else text.find(name)
-        if i < 0:
-            out.append("missing project: " + name)
-    if "Clouds Against Humanity" in text:
-        projs = text[text.find("Open-Source Projects"):]
-        for name in PROJECTS[1:]:
-            if name in projs and projs.find(name) < projs.find("Clouds Against Humanity"):
-                out.append("Clouds Against Humanity is not first: " + name)
+    sec = re.search(r"Open-Source Projects</h2>(.*?)(?:<h2|$)", html, re.S)
+    names = re.findall(r"<li><a [^>]*>(.*?)</a>", sec.group(1) if sec else "")
+    if names != PROJECTS:
+        out.append("project order: want %r, got %r" % (PROJECTS, names))
+    sm = re.search(r"Summary</h2>(.*?)(?:<h2|$)", html, re.S)
+    paras = [htmlmod.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", x))).strip()
+             for x in re.findall(r"<p>(.*?)</p>", sm.group(1) if sm else "", re.S)]
+    if paras != SUMMARY:
+        out.append("summary must be exactly the two approved paragraphs")
+    if sm and "<li>" in sm.group(1):
+        out.append("summary must be paragraphs, not a list")
+    sk = re.search(r"Skills</h2>(.*?)(?:<h2|$)", html, re.S)
+    groups = re.findall(r"<dt>(.*?)</dt>", sk.group(1) if sk else "")
+    if groups != SKILL_GROUPS:
+        out.append("skill groups: want %r, got %r" % (SKILL_GROUPS, groups))
+    skt = htmlmod.unescape(sk.group(1)) if sk else ""
+    for it in SKILL_ITEMS:
+        if it not in skt:
+            out.append("skill item lost: " + it)
+    if not re.search(r'class="?resume-subtitle', html):
+        out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
     if m and (not h1 or re.sub(r"<[^>]+>", "", h1.group(1)).strip() != "ChiefGyk3D"):
         out.append("name line is not exactly ChiefGyk3D")
