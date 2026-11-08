@@ -105,6 +105,22 @@ else
     fail "/search.js on /search/ failed: $(cat "$work/ok-search.out")"
 fi
 
+# /share.js (issue 220) is allowed on a post (one segment under posts/ or journal/),
+# not on a list page or the home page.
+ok_share="$work/ok-share"
+cp -r "$ok_copy" "$ok_share"
+printf 'x' >"$ok_share/share.js"
+printf '%s' '<!doctype html><title>t</title><link rel=stylesheet href=/css/site.css><script src=/share.js></script>' >"$ok_share/posts/hello/index.html"
+if python3 -I "$root/scripts/check-budget.py" "$ok_share" >"$work/ok-share.out" 2>&1; then
+    pass "/share.js on a post passes"
+else
+    fail "/share.js on a post failed: $(cat "$work/ok-share.out")"
+fi
+bad_share="$work/bad-share"
+cp -r "$ok_share" "$bad_share"
+cp "$ok_share/posts/hello/index.html" "$bad_share/index.html"
+expect_fail "/share.js on the home page" js-page "$bad_share"
+
 # Both pinned scripts together pass; a third script, a pinned script on the wrong
 # page, a missing pinned script and an oversize one each fail on their own rule.
 both="$work/both"
@@ -135,11 +151,12 @@ done
 d="$work/m-third-count"
 cp -r "$both" "$d"
 printf x >"$d/third.js"
-expect_fail "third script is over the count" js-count "$d"
+printf x >"$d/share.js"
+expect_fail "a fourth script is over the count" js-count "$d"
 
 # The budget table must equal the shell allowlist (scripts/artifact-rules.sh),
 # the single source of truth; a mismatch makes this fail.
-shell_list="$(bash -c 'source "$1"; for n in $(pinned_script_names); do printf "/%s %s\n" "$n" "$(pinned_script_url "$n")index.html"; done | sort' _ "$root/scripts/artifact-rules.sh")"
+shell_list="$(bash -c 'source "$1"; for n in $(pinned_script_names); do printf "/%s /%s\n" "$n" "$(pinned_script_page "$n")"; done | sort' _ "$root/scripts/artifact-rules.sh")"
 py_list="$(python3 -I -c 'import importlib.util,sys
 sp=importlib.util.spec_from_file_location("cb",sys.argv[1]); m=importlib.util.module_from_spec(sp); sp.loader.exec_module(m)
 print("\n".join(sorted("%s %s" % (k,v) for k,v in m.PAGE_SCRIPTS.items())))' "$root/scripts/check-budget.py")"

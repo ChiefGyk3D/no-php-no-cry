@@ -1,0 +1,36 @@
+{{- /*
+  Share links (issue 220), from data/share.yaml. Static anchors built from this page's permalink and title; every value is percent-encoded (spaces as %20). No third-party script, no embed. The one script, /share.js (docs/pinned-script.md), only un-hides the buttons: copy a link, and share to Mastodon, whose server is per user. With JavaScript off the buttons stay hidden and the permalink line above is the fallback (a link to select and copy). Pinterest, whose endpoint wants an image, is left out of a post with no front matter "image". See docs/share-links.md.
+*/ -}}
+{{- $url := .Permalink -}}
+{{- $title := .Title | plainify -}}
+{{- $text := printf "%s %s" ($title | truncate 200) $url -}}
+{{- $image := "" -}}
+{{- with .Params.image -}}
+  {{- $res := $.Resources.GetMatch . -}}
+  {{- /* A bundle image is shared as a derived JPEG (the original may be unpublished or large), as in head-meta.html. */ -}}
+  {{- if $res }}{{ $image = ($res.Fit "1200x1200 jpg q80").Permalink }}{{ else }}{{ $image = . | absURL }}{{ end -}}
+{{- end -}}
+<div class="share" role="group" aria-label="Share this post">
+  <span class="share-title meta" aria-hidden="true">Share</span>
+  <ul class="share-list">
+    {{- range site.Data.share }}
+    {{- $t := .template }}
+    {{- if or (eq .kind "intent") (eq .kind "mailto") }}
+      {{- if and $t (or $image (not (strings.Contains $t "{image}"))) }}
+      {{- $t = replace $t "{title}" (replace (urlquery $title) "+" "%20") }}
+      {{- $t = replace $t "{url}" (replace (urlquery $url) "+" "%20") }}
+      {{- $t = replace $t "{text}" (replace (urlquery $text) "+" "%20") }}
+      {{- $t = replace $t "{image}" (replace (urlquery $image) "+" "%20") }}
+    <li><a class="icon-{{ .id }} share-link" href="{{ $t }}" rel="noopener noreferrer" target="_blank" aria-label="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}">{{ .label }}</a></li>
+      {{- end }}
+    {{- else if eq .kind "mastodon" }}
+    <li><button type="button" class="icon-{{ .id }} share-link" data-share="mastodon" data-text="{{ $text }}" aria-label="Share on {{ .label }}" hidden>{{ .label }}</button></li>
+    <li><button type="button" class="share-link share-change" data-share="server" aria-label="Change {{ .label }} server" hidden>Change server</button></li>
+    {{- else if eq .kind "copy" }}
+    <li><button type="button" class="{{ if ne .id "lemmy" }}icon-{{ .id }} {{ end }}share-link" data-share="copy" data-url="{{ $url }}" aria-label="{{ if eq .id "copy" }}Copy link{{ else }}Copy link to share on {{ .label }}{{ end }}" hidden>{{ .label }}</button></li>
+    {{- end }}
+    {{- end }}
+  </ul>
+  <p class="share-status meta" role="status" aria-live="polite"></p>
+  <script src="{{ "share.js" | relURL }}"></script>
+</div>

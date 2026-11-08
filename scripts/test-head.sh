@@ -72,7 +72,9 @@ class Head(HTMLParser):
         elif tag == "script":
             # A JSON-LD data block is not executable and not a script for the
             # CSP; every other script element is a failure.
-            if (a.get("type") or "").lower() != "application/ld+json":
+            # /share.js (issue 220) is the pinned share-link script on a post; where it may
+            # load, and its hash, are held by scripts/check-output.sh.
+            if (a.get("type") or "").lower() != "application/ld+json" and a.get("src") != "/share.js":
                 self.scripts += 1
         elif tag == "title":
             self.in_title = True
@@ -339,7 +341,7 @@ class Page(HTMLParser):
         elif tag == "script":
             if (a.get("type") or "").lower() == "application/ld+json" and "src" not in a:
                 self._ld = []
-            else:
+            elif a.get("src") != "/share.js":  # the pinned share-link script on a post (issue 220)
                 self.other_scripts += 1
 
     def handle_data(self, data):

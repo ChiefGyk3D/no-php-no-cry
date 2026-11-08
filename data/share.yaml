@@ -1,0 +1,126 @@
+# Share links on posts and journal entries (issue 220). One entry per target, in
+# display order. The layout (layouts/_partials/share.html) and the test
+# (scripts/test-share.sh) both read this file; no URL template lives anywhere
+# else. Flat "- id:" entries with simple scalar keys (the test reads it without
+# a YAML library). Keys:
+#   id          slug, also the icon class icon-<id> (assets/css/pages/icons.css)
+#   label       the visible name, also what the accessible name says
+#   kind        intent    a plain anchor built from `template`
+#               mailto    the same, a mailto: link
+#               mastodon  button; /share.js asks for the server once, keeps it in
+#                         localStorage and opens https://SERVER/share?text=...
+#               copy      button; /share.js copies the post link (no known share
+#                         URL for this target, or none wanted)
+#   template    intent and mailto only. Placeholders: {title} (page title),
+#               {url} (the permalink), {text} (title, a space, permalink; the
+#               title is cut to 200 characters), {image} (the front matter
+#               "image" as an absolute URL). Each is percent-encoded. A template
+#               that uses {image} is left out of a post with no image. An empty
+#               template with kind intent is not rendered.
+#   source      vendor      the URL is on the vendor's own documentation page
+#               standard    an RFC
+#               third-party documented by others only, no vendor page: it can
+#                           change without notice; needs a logged-in click test
+#               inferred    read from the platform's source, undocumented
+#               none        no share URL exists
+#   source_url  where it was read
+#   read        the date it was read (YYYY-MM-DD)
+# Everything verified by the researcher on 2026-11-08; see docs/share-links.md.
+- id: threads
+  label: Threads
+  kind: intent
+  template: "https://www.threads.com/intent/post?text={title}&url={url}"
+  source: vendor
+  source_url: https://developers.facebook.com/docs/threads/threads-web-intents
+  read: 2026-11-08
+- id: bluesky
+  label: Bluesky
+  kind: intent
+  template: "https://bsky.app/intent/compose?text={text}"
+  source: vendor
+  source_url: https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/intent-links.md (the raw docs source; the rendered page came back empty)
+  read: 2026-11-08
+- id: mastodon
+  label: Mastodon
+  kind: mastodon
+  template: ""
+  source: inferred
+  source_url: https://github.com/mastodon/mastodon (the /share route; the text parameter is not documented)
+  read: 2026-11-08
+- id: twitter
+  label: Twitter
+  kind: intent
+  template: "https://x.com/intent/tweet?text={title}&url={url}"
+  source: vendor
+  source_url: https://docs.x.com/x-for-websites/post-button/guides/web-intent.md (documents the x.com/intent/tweet host; twitter.com/intent/tweet redirects to x.com)
+  read: 2026-11-08
+- id: discord
+  label: Discord
+  kind: copy
+  template: ""
+  source: none
+  source_url: no documented share URL; copies the post link to paste
+  read: 2026-11-08
+- id: matrix
+  label: Matrix
+  kind: copy
+  template: ""
+  source: none
+  source_url: the Matrix spec limits matrix.to links to room, user and event ids; copies the post link to paste
+  read: 2026-11-08
+- id: lemmy
+  label: Lemmy
+  kind: copy
+  template: ""
+  source: none
+  source_url: no per-instance submit URL confirmed yet; copies the post link to paste
+  read: 2026-11-08
+- id: reddit
+  label: Reddit
+  kind: intent
+  template: "https://www.reddit.com/submit?url={url}&title={title}"
+  source: third-party
+  source_url: no vendor page found; documented by third-party share-link guides
+  read: 2026-11-08
+- id: linkedin
+  label: LinkedIn
+  kind: intent
+  template: "https://www.linkedin.com/sharing/share-offsite/?url={url}"
+  source: third-party
+  source_url: no vendor page for this URL (vendor docs cover an API and a script plugin only)
+  read: 2026-11-08
+- id: facebook
+  label: Facebook
+  kind: intent
+  template: "https://www.facebook.com/sharer/sharer.php?u={url}"
+  source: third-party
+  source_url: no vendor page for this URL (the documented share dialog needs an app id)
+  read: 2026-11-08
+- id: hacker-news
+  label: Hacker News
+  kind: intent
+  template: "https://news.ycombinator.com/submitlink?u={url}&t={title}"
+  source: third-party
+  source_url: forum-sourced; no vendor page. Shows a login screen when logged out
+  read: 2026-11-08
+- id: pinterest
+  label: Pinterest
+  kind: intent
+  template: "https://pinterest.com/pin/create/button/?url={url}&media={image}&description={title}"
+  source: third-party
+  source_url: no vendor page; the endpoint wants an image, so a post with no image has no Pinterest button
+  read: 2026-11-08
+- id: email
+  label: Email
+  kind: mailto
+  template: "mailto:?subject={title}&body={text}"
+  source: standard
+  source_url: https://www.rfc-editor.org/rfc/rfc6068
+  read: 2026-11-08
+- id: copy
+  label: Copy link
+  kind: copy
+  template: ""
+  source: standard
+  source_url: https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText (needs a secure context)
+  read: 2026-11-08

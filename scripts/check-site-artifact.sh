@@ -177,7 +177,7 @@ done
 while IFS= read -r -d '' p; do
     rel="${p#"$dir"/}"
     for name in "${script_names[@]}"; do
-        if [[ "$rel" != "$(pinned_script_page "$name")" ]] &&
+        if ! pinned_script_on_page "$name" "$rel" &&
             grep -qEi "<script[^>]*[[:space:]]src=[\"']?/${name//./\\.}([\"'[:space:]>]|\$)" "$p"; then
             report script-wrong-page "$rel loads /${name}, which belongs on $(pinned_script_page "$name") only"
         fi

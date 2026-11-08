@@ -37,7 +37,7 @@ Delete the comments you do not need before you open the pull request.
 | `categories` | yes | One broad topic, for example `["Linux"]`. Reuse an existing category before you add one. |
 | `tags` | no | A few specific words. They show as `#tag` links under the title. |
 | `syndicate` | yes | `true` lets the deploy job announce the post once it is live. The archetype sets `false`. A journal entry is not announced unless you say so. |
-| `syndicated` | no | A map of announcement links (`bluesky`, `mastodon`, `discord`, `matrix`), written by the syndication step. Do not write it by hand for a new post. Only `https://` values render, as "Discuss on ..." links. |
+| `syndicated` | no | A map of announcement links (`bluesky`, `mastodon`, `discord`, `matrix`), written by the syndication step. Do not write it by hand for a new post. The map is kept as data and not rendered: the old "Discuss on ..." links did not work and were replaced by share links (`docs/share-links.md`). |
 | `image` | no | The headline image: the name of a file in the post's folder, for example `featured.jpg` (section 3). Shown above the title, as a small thumbnail on the Posts and Home cards, and as the social card. No `image` means no hero and the default brand card. |
 | `imageAlt` | yes, with `image` | What the headline image shows, in one sentence. The build fails without it. |
 | `build` | with a large `image` | Set `publishResources: false` under `build:` when the headline image file is over 300 KB (section 3). |
