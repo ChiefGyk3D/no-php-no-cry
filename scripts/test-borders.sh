@@ -6,9 +6,11 @@
 #     two pages that own one (Home, Support) carry exactly one;
 #   - every frame (svg class "fr") is aria-hidden and the build holds no style
 #     attribute or style element (the CSP forbids both);
-#   - assets/css/borders.css has no url(), no hard-coded animation outside a
-#     prefers-reduced-motion: no-preference block, and no amber text color on
-#     body text rules.
+#   - assets/css/borders.css has no url(), no hex color (colors come from the
+#     tokens in assets/css/tokens.css; the partial has none either), no animation
+#     outside a prefers-reduced-motion: no-preference block, no rule that sets an
+#     amber text color (color: var(--accent)), the support L3 label override, and
+#     a print block that resets frame backgrounds and borders.
 # A self-test feeds the counter a page with two L3 frames and requires it to fail,
 # so a green run cannot come from a counter that counts nothing. Needs the pinned
 # Hugo; a missing Hugo is a failure, not a skip.
@@ -85,6 +87,32 @@ rest = css.replace(allowed.group(0), "") if allowed else css
 sys.exit(1 if re.search(r"animation\s*:", rest) or not allowed else 0)
 PY
 then pass "animation only under prefers-reduced-motion: no-preference"; else fail "borders.css animates outside no-preference"; fi
+
+# Colors come from tokens.css (brand rule), and no frame rule sets amber text.
+if python3 -I - "$css" "$root/layouts/_partials/frame.html" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+part = re.sub(r"\{\{-?\s*/\*.*?\*/\s*-?\}\}", "", open(sys.argv[2]).read(), flags=re.S)
+bad = []
+if re.search(r"#[0-9A-Fa-f]{3,8}\b", css):
+    bad.append("hex color in borders.css")
+if re.search(r"(stop-color|fill)=\"#", part):
+    bad.append("hex color in frame.html")
+if re.search(r"(^|[;{\s])color\s*:\s*var\(--accent\)", css):
+    bad.append("amber text color in borders.css")
+if not re.search(r"\.tile\.bx \.support-tile-name\s*\{\s*color:\s*var\(--text\)", css):
+    bad.append("support L3 label override missing")
+m = re.search(r"@media print \{(.*)\}\s*$", css, flags=re.S)
+if not m or "background: none" not in m.group(1) or "border: 1px solid CanvasText" not in m.group(1) or "::before" not in m.group(1):
+    bad.append("print block does not reset frames")
+print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+then
+    pass "colors come from tokens, no amber frame text, print falls back to a border"
+else
+    fail "borders.css or frame.html breaks the token, text-color or print contract"
+fi
 
 if ((failures > 0)); then
     echo "test-borders: ${failures} failure(s)"

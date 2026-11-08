@@ -12,7 +12,6 @@
  * label on a light ground; amber lettering is not used. */
 :root {
   --frame-fill: rgb(251 176 59 / 0.16);
-  --frame-edge: #606060;
   --frame-glow: rgb(251 176 59 / 0.45);
 }
 
@@ -130,6 +129,18 @@
   fill: var(--accent);
 }
 
+.fr .g0 {
+  stop-color: var(--frame-dark);
+}
+
+.fr .g1 {
+  stop-color: var(--frame-edge);
+}
+
+.fr .g2 {
+  stop-color: var(--frame-mid);
+}
+
 /* The geometry is drawn at the original size; the scale and the mirroring are CSS. */
 .fr .c-tl,
 .fr .p-t,
@@ -184,6 +195,16 @@
   box-shadow: 0 calc(var(--s) * 16px) calc(var(--s) * 16px) var(--frame-glow);
 }
 
+/* Text inside a frame is --text, or --on-accent on an amber fill: the support
+ * tile label would otherwise keep its amber page color on the amber-tinted fill. */
+.tile.bx .support-tile-name {
+  color: var(--text);
+}
+
+.tile.bx:hover .support-tile-name {
+  color: var(--on-accent);
+}
+
 /* An element that is itself a control: hover swaps the fill, the focus ring sits outside. */
 a.bx:hover {
   --f: linear-gradient(var(--accent), var(--accent));
@@ -220,13 +241,30 @@ a.bx:hover {
     forced-color-adjust: auto;
   }
 
-  .fr {
+  .fr,
+  .bx::before,
+  .bx::after {
     display: none;
   }
 }
 
+/* Print: no frame art. Every framed element falls back to a plain border. */
 @media print {
-  .fr {
+  .fr,
+  .bx::before,
+  .bx::after {
     display: none;
+  }
+
+  .bx.l2,
+  .bx.l3,
+  .l1,
+  .panel,
+  .tile,
+  .btn {
+    background: none;
+    border: 1px solid CanvasText;
+    color: CanvasText;
+    padding: var(--space-2) var(--space);
   }
 }

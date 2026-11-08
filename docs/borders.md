@@ -6,6 +6,8 @@ top level only) angled end-cap plates and a faint glow under the bottom rule.
 The site is dark only, so there is one set of colors. Calm is the goal: one
 frame per region, never a frame inside a framed parent.
 
+Colors come from the tokens in `assets/css/tokens.css` (the frame ones, `frame-edge`, `frame-dark` and `frame-mid`, live in `brand/tokens.json`); the frame files hold no hex color.
+
 Files: `assets/css/borders.css` (all of it), `layouts/_partials/frame.html`
 (the one partial that emits a frame), `scripts/test-borders.sh` (the build
 test), and the `multiple-l3` rule in `scripts/check-output.sh`.
@@ -49,7 +51,7 @@ failure this system exists to avoid.
 - No animation by default. The L3 glow may breathe only on an element with the
   class `live`, only inside `prefers-reduced-motion: no-preference`. Nothing uses
   that class yet.
-- Forced colors and print hide the SVG and fall back to a plain border.
+- Forced colors and print hide the SVG and the rule and glow layers, and fall back to a plain border (print also drops the backgrounds).
 
 ## Weight
 
