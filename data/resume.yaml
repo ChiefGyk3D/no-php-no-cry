@@ -1,7 +1,8 @@
 # Content for /resume/ (layouts/resume.html). Generalities only: no employer
 # names, no job dates, no callsign, no grid square. Source: the GitHub profile
 # README (approved for reuse). Copy was revised in the owner's voice pass
-# (issue 159); change it freely. Project lines match the About page tiles.
+# (issue 159); change it freely. The About page tiles read their URL and line from the
+# projects below (data/about.yaml project_tiles names them), so the two stay in sync.
 name: ChiefGyk3D
 title: Senior Cybersecurity Engineer (CISSP)
 subtitle: Identity, Detection, Cloud, Network Defense, and Automation
@@ -23,9 +24,13 @@ skills:
   - group: Security practice
     items: [Threat modeling, OSINT, Telecom security, Privacy, "AI-assisted workflows"]
 
+<<<<<<< HEAD
 # Clouds Against Humanity stays first (standing rule). The order is by security
 # relevance (issue 175). Lines for Stream Daemon, Reach Around and Clouds Against
 # Humanity match the tiles on the About page.
+=======
+# Clouds Against Humanity stays first. The About page shows six of these (see above).
+>>>>>>> origin/main
 projects:
   - name: Clouds Against Humanity
     url: https://github.com/ChiefGyk3D/Clouds-Against-Humanity
