@@ -1,245 +1,170 @@
 # no-php-no-cry
 
-chiefgyk3d.com without WordPress: a static site and work journal built with Hugo.
+A personal site and work journal built with [Hugo](https://gohugo.io/), no PHP,
+no database and no third-party code in the repository or the built site (the
+host adds its own analytics beacon at the edge, described on the Privacy page). It is the source of the
+[ChiefGyk3D](https://chiefgyk3d.com) site, moved off WordPress, and it is
+published as a worked example: a small static site with strict build checks, in
+the open, that you can read, copy and adapt.
 
-Staging at test-blog.chiefgyk3d.com until it replaces the apex domain.
+Staging runs at `test-blog.chiefgyk3d.com` until the site replaces the apex
+domain. It deploys to Cloudflare Pages.
 
-Deploys to Cloudflare Pages: see [docs/deploy.md](docs/deploy.md).
+## Who it is for
 
-Contributing and writing a post: [CONTRIBUTING.md](CONTRIBUTING.md) and
-[docs/writing-a-post.md](docs/writing-a-post.md).
+- You want to leave WordPress (or any CMS) for a static site and want to see one
+  done with the checks that keep it honest.
+- You want a Hugo site with templates written from scratch, not a theme, and a
+  strict Content Security Policy that the build enforces.
+- You write posts and want a guide from an empty folder to a pull request.
+- You are learning CI and want to see every check paired with a test that proves
+  the check fails when it should.
 
-Status: scaffold. Content is synthetic placeholder text; design tokens are
-placeholders (brand spec: issue #2). See issue #1 for the plan.
+## What is in it
 
-## Build locally
+- **Posts and a work journal.** Two sections, one page bundle per entry
+  (`index.md` plus its images), tags and categories, an archive banner and a
+  forward link for old posts. See [Writing a post](docs/wiki/Writing-a-post.md)
+  and [Journal entries](docs/wiki/Journal-entries.md).
+- **Images that cannot ship without alt text.** An image render hook makes
+  responsive markup (`srcset`, dimensions, lazy loading) and fails the build on missing alt text, a remote image
+  or an unsupported format. See [Images and alt text](docs/wiki/Images-and-alt-text.md).
+- **Headline images.** An optional featured image shows above the title, as a
+  small card thumbnail and as the social card. See
+  [Headline images](docs/wiki/Headline-images.md).
+- **Search that works without JavaScript.** `/search/` is a full A to Z index
+  first; a tiny pinned script only adds filtering. Tags live in a collapsed
+  section. See [Search and tags](docs/wiki/Search-and-tags.md).
+- **Feeds and discovery.** RSS at `/feed/index.xml`, a sitemap, `robots.txt`
+  that follows the staging or production setting, and an `/llms.txt`.
+- **Pages beyond posts.** Home, About, Resume (with a print stylesheet), Social
+  links, Gear and tools with an affiliate disclosure, Support with
+  cryptocurrency QR codes and Copy buttons, Privacy, and a 404.
+- **WordPress migration tooling.** `tools/wxr2hugo/` turns a WordPress export
+  into page bundles, keeps old addresses as 301 redirects and scrubs private
+  data. See [Migrating from WordPress](docs/wiki/Migrating-from-WordPress.md).
+- **A page-weight and accessibility gate.** A size budget and a real-browser
+  gate with axe-core run on every pull request that changes the site (a
+  documentation-only pull request skips them). See
+  [Build checks and budgets](docs/wiki/Build-checks-and-budgets.md),
+  [Performance](docs/wiki/Performance.md) and [Accessibility](docs/wiki/Accessibility.md).
 
-Hugo version: the one in `.hugo-version` (standard edition, not extended).
-CI installs the same release and verifies its sha256 first.
+- **Share links on posts.** A Share row under each post and journal entry:
+  plain links to Threads, Bluesky, Twitter, Reddit, LinkedIn, Facebook, Hacker
+  News, Pinterest (posts with a headline image) and Email, plus copy-link
+  buttons and a Mastodon button. See [Share links](docs/wiki/Share-links.md).
 
-Install it once under `~/.local/share/no-php-no-cry-dev/` (not as root):
+## Quick start
 
-```sh
-V="$(cat .hugo-version)"
-D="$HOME/.local/share/no-php-no-cry-dev"
-mkdir -p "$D/dl" "$D/hugo-$V" && cd "$D/dl"
-gh release download "v$V" -R gohugoio/hugo -p "hugo_${V}_linux-amd64.tar.gz" -p "hugo_${V}_checksums.txt" --clobber
-grep " hugo_${V}_linux-amd64.tar.gz\$" "hugo_${V}_checksums.txt" | sha256sum -c -
-tar -xzf "hugo_${V}_linux-amd64.tar.gz" -C "$D/hugo-$V"
-ln -sfn "$D/hugo-$V/hugo" "$D/hugo"
-```
-
-Then, from the repository root:
-
-```sh
-H="$HOME/.local/share/no-php-no-cry-dev/hugo"
-"$H" server                      # live preview
-"$H" --minify --gc               # production build into public/
-scripts/check-hugo-version.sh "$(cat .hugo-version)"   # pinned standard edition only
-scripts/check-output.sh public   # see the rules below
-scripts/check-site-artifact.sh public   # no Pages worker/functions; _headers, _routes.json and _redirects pinned
-scripts/test-check-site-artifact.sh
-scripts/test-pages.sh          # Support, About and Privacy pages, the /contact/ redirect, wallet addresses and QR files
-scripts/test-comments.sh       # archived comments from the old site (data/comments/), rendered under their posts
-scripts/test-redirects.sh      # _redirects fragment grammar and line shape
-scripts/gen-support-qr.sh --check   # QR SVGs equal a fresh encoding of data/support.yaml
-scripts/test-pin-script.sh
-scripts/test-deploy-sparse.sh   # the deploy job's sparse checkout lists every file its scripts need
-scripts/test-check-output.sh     # negative tests for the checker
-scripts/test-head.sh             # head tags and rel=me links against hostile front matter
-scripts/test-social-products.sh  # /social/ tiles and /products/ disclosure, items and affiliate links
-scripts/test-check-hugo-version.sh
-scripts/test-wxr2hugo.sh        # unit tests for the WordPress converter
-scripts/test-wxr2hugo-webp.sh   # WebP step tests (pinned Pillow in a throwaway venv, needs the package index)
-scripts/test-migration.sh       # converter output builds: drafts, redirect rules, banners, alt guard
-scripts/test-archetype.sh       # hugo new content makes a post that builds and passes the checks; missing alt fails
-scripts/test-analytics.sh       # page-view collector (not deployed): node --test and the SQL, all local
-```
-
-`check-output.sh` fails the build output on any of: any `<script>` element
-other than a page's own pinned script, `<script src=/copy.js></script>` on
-/support/ or `<script src=/search.js></script>` on /search/, once (`script-src
-'self'` allows same-origin scripts; these checks and the hash pins make those two
-the only ones, each on its own page; the same tag on another page is
-`script-wrong-page`; inline scripts are also reported separately), a third script
-file, a script of 1 KB gzip or more, a /search/ page of 40 KB gzip or more, `javascript:` URLs,
-`<style>`, `style=` attributes, `on*=` handlers, `http://` references, external assets in
-HTML, an external `@import` or `url()` (including `//host`) in CSS or SVG, an
-`xml-stylesheet` instruction in a feed or SVG, any `*.xml` that does not parse,
-a missing `_redirects`, feed or `_headers`, a weak CSP, any alias in the build
-without its 301 line, a `robots.txt` and noindex tags that disagree (staging
-versus production, `EXPECT_ENV` pins which), and a home page, post or journal
-entry missing its description, canonical, icon, Open Graph or Twitter card tags.
-
-`script-src 'self'` allows every same-origin response, not one file, so the
-checks also refuse any file of an unlisted type (including one with no
-extension), a `copy.js` or `search.js` whose sha256 is not the one in its committed
-`copy.js.sha256` or `search.js.sha256` (no hash file means that script is not allowed; see
-`docs/pinned-script.md` and `scripts/pin-script.sh`), an SVG with script, and
-`_headers` that is not one `/*` block with exactly one `nosniff`. URLs are judged after character references are
-decoded, attributes are read quote-aware (a `>` or `=` inside a quoted value is
-text), the same rules apply to `.svg`, `.xml` and `.xhtml` outputs, and a
-`<base>` element is refused. The post-deploy `smoke-site.sh`
-checks the policy and `nosniff` on one page per template, not on the home page
-alone.
-
-No JSON-LD: it needs a `<script>`, which the CSP and `check-output.sh` both
-ban. Structured data is skipped rather than weakening either.
-
-`shellcheck` and `shfmt -i 4 -ci` must pass on `scripts/*.sh`.
-
-## Layout
-
-```
-.hugo-version            pinned Hugo release
-hugo.toml                site config, output formats (RSS, _redirects)
-content/posts/           posts, one leaf page bundle each (index.md + images)
-content/journal/         work journal, a separate section
-assets/css/              tokens.css (placeholders) and main.css, via Hugo Pipes
-assets/css/pages/        one stylesheet per page template (social.css, products.css), concatenated by baseof
-data/                    socials.yaml (hub, footer) and products.yaml (affiliate items)
-layouts/                 templates written from scratch
-layouts/_markup/         image render hook (srcset, width/height, lazy, alt required)
-layouts/home.redirects   builds public/_redirects from page aliases
-layouts/home.robots.txt      environment-aware robots.txt (docs/cutover.md)
-static/_headers          Cloudflare Pages headers (strict CSP)
-scripts/                 check-output.sh, check-site-artifact.sh, check-hugo-version.sh and their tests
-tools/wxr2hugo/         WordPress export to Hugo page bundles, with a scrub pass
-.github/workflows/ci.yml shared parallel-ci, shell and security workflows, CI green gate (docs/ci-parallel.md)
-```
-
-Front matter on every page: `title`, `date`, `draft`, `slug`, `categories`,
-`tags`, `syndicate` (boolean, default true). Old WordPress permalinks go in
-`aliases`; the build writes a 301 line for each into `public/_redirects`
-(Cloudflare Pages), and Hugo's meta-refresh pages cover GitHub Pages. A
-directory-style alias (`/2023/02/10/some-post/`) gets two lines, with and
-without the trailing slash; an alias ending in `.html` (`/some-post.html`)
-gets exactly one. The checker derives the alias list from the built pages, so
-a missing line fails the build.
-
-Images go beside `index.md` in the bundle and are referenced with Markdown
-(`![alt text](file.png)`). Alt text is required, JPEG and PNG only.
-
-## Raw WordPress material is never committed
-
-Exports, database dumps, crawls, `wp-config*`, unscrubbed drafts and commenter
-data stay outside the repository. `.gitignore` blocks the usual names
-(`import/`, `raw/`, `*.wxr`, `*.sql`, archives), but the rule is the rule even
-where the ignore list has no pattern: only scrubbed, reviewed content is added
-under `content/`.
-
-## Converting the WordPress export
-
-`tools/wxr2hugo/` turns a WXR export into page bundles (Python 3 standard
-library only). The export, the terms file and the output stay outside the
-repository, and the tool refuses a path inside it.
+You need the Hugo release named in `.hugo-version` (standard edition, not
+extended), `git`, Python 3 and a POSIX shell. Download that release from the
+[Hugo releases page](https://github.com/gohugoio/hugo/releases), verify it
+against the checksums file published with it, and put the `hugo` binary on your
+`PATH`. The full walk-through, with the commands, is in
+[Getting started](docs/wiki/Getting-started.md).
 
 ```sh
-python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR \
-    [--scrub-terms FILE|-] [--require-terms] [--site-url URL] [--media DIR] \
-    [--draft-all] [--posts-only] [--annotations tools/wxr2hugo/annotations.json]
+git clone https://github.com/ChiefGyk3D/no-php-no-cry.git
+cd no-php-no-cry
+hugo version                       # must match .hugo-version
+hugo server --buildDrafts          # live preview, drafts shown
+hugo --minify --gc                 # production build into public/
 ```
 
-It writes `posts/<slug>/index.md` for posts and `<slug>/index.md` for pages, at
-the site root with a `url: /<slug>/` front-matter key (images and
-`comments.json` beside them), plus `permalink-map.json` and `decision-log.json`.
-A page slug that collides with `posts`, `journal` or any other top-level
-directory stops the run with exit 2 and nothing is overwritten. A page with an
-empty body (the old front page) is skipped and listed under `skipped` in the
-log. An old permalink that equals the page's own URL is not written as an alias.
-`--posts-only` writes the posts and lists the pages under `pages_not_migrated`
-(the new site has its own About, Support and Social pages; the old `/blog/`,
-`/support-me/`, `/social-media/`, `/contact/` and `/sample-page/` URLs are aliases
-on those pages in `content/`). Drafts get `draft: true`; `--draft-all` makes every post and page a draft while
-the old permalinks still become `aliases` (Hugo builds no draft, so no redirect
-rule goes live until the owner removes `draft`). `syndicate` is always false for
-converted content, so the deploy job never announces old posts again; where the
-old site recorded its Mastodon announcement, the https URL becomes
-`syndicated.mastodon` (any other value is dropped and logged as
-`bad-syndicated-url`). An old permalink that is not a plain path (whitespace,
-quotes, `..`, `//`) gets no alias and is logged as `bad-old-permalink`; non-ASCII
-paths are percent-encoded. Image file names are reduced to `[A-Za-z0-9._-]`. Only
-approved comments are kept, and ActivityPub items are dropped. Links to the old
-temporary Bluehost domain are rewritten to `--site-url`; builder pages take
-their text from the builder JSON.
+## Build and test
 
-Images without alt text in the source get the alt `TODO alt text` and an
-`alt-todo` warning; `layouts/_markup/render-image.html` fails the build for a
-published page that still has it. `--annotations` adds the front matter the
-export cannot carry (`archive` banner text, `supersededBy` forward link) from a
-reviewed JSON file keyed by post slug; an entry that matches no post is logged
-as `annotation-unmatched`. `decision-log.json` has a `review` list: each page
-the owner must look at before it goes public, with the reasons.
-
-`tools/wxr2hugo/webp.py DIR` then converts the PNG and JPEG images in the
-bundles to WebP (smaller files only; EXIF and GPS dropped; orientation applied;
-non-images, decompression bombs, animated PNGs and symlinks refused and left
-alone) and updates the references in `index.md`. It needs Pillow, pinned with
-hashes in `tools/wxr2hugo/requirements-webp.txt`; run it from a venv that
-installed that file.
-
-Every post with an `amzn.to` link gets one line, "As an Amazon Associate I earn
-from qualifying purchases.", appended once. The log records it per post under
-`disclosures` and on each `affiliate_links` entry.
-
-The scrub pass checks the output for callsign and grid-square shapes and for
-generic private-network hostnames (10/8, 172.16/12 and 192.168/16 addresses,
-and names ending `.local`, `.lan`, `.internal` or `.home.arpa`), none of which
-need a terms file. The `employer`, `hostname` and `serial` terms come from
-`--scrub-terms` (one `category:term` per line; `allow:TOKEN` exempts a false
-positive). The run prints which categories ran and prints `NOT RUN` for each
-term category without terms, so a missing terms file cannot look like a clean
-pass; `--require-terms` turns a missing file into exit 2. A finding prints its
-category, file and line only, exits 3 and writes nothing.
-
-`--scrub-terms -` reads the same lines from stdin, so the terms can live only in
-a Doppler secret and never touch disk:
+These are the commands the project runs; each was run on a clean checkout while
+writing this README.
 
 ```sh
-doppler secrets get SCRUB_TERMS --project no-php-no-cry --config prd --plain | python3 -I tools/wxr2hugo/convert.py \
-    --wxr PATH/export.xml --out DIR --scrub-terms - --require-terms
+scripts/check-hugo-version.sh "$(cat .hugo-version)"    # pinned standard edition only
+EXPECT_ENV=production scripts/check-output.sh public     # the output rules
+scripts/check-site-artifact.sh public                   # Cloudflare Pages control files
+python3 -I scripts/check-budget.py public               # the page-weight budget
+scripts/check-wording.sh                                # the house wording rule
+scripts/check-license.sh                                # the license files
+python3 -I scripts/check-wiki.py                        # README and wiki links and paths
+scripts/test-archetype.sh                               # a new post builds and passes the checks
+scripts/gate.sh --fast                                  # only what your changes touch
+scripts/gate.sh                                         # the whole local gate
 ```
 
-`-` skips the path checks (inside the repository, readable file), which apply to
-file paths only. A missing or unreadable terms file exits 2. With
-`--require-terms`, a file or stdin with no `employer`, `hostname` or `serial`
-term (empty, comments only, or `allow:` lines only) exits 2. The status lines
-still show a term category as `ran` only when stdin supplied terms for it.
-Terms are never echoed, logged or written. Where the terms live, how to add
-one and what the starter content does not yet cover: [docs/scrub-terms.md](docs/scrub-terms.md).
-Exit 2 is a refused
-path, a bad terms file or a slug collision.
+`scripts/gate.sh --plan` prints every step without running it. The full list
+of checks and what each one fails on is in
+[Build checks and budgets](docs/wiki/Build-checks-and-budgets.md).
 
-## Learn from this project
+## Write a post
 
-This repository is open source and meant to be read. If you want to build a
-static site the same careful way, start here.
+```sh
+hugo new content posts/my-post-title
+```
 
-- Write a post: [docs/writing-a-post.md](docs/writing-a-post.md) walks through
-  the archetype, front matter, images, checks and the pull request.
-- Contribute: [CONTRIBUTING.md](CONTRIBUTING.md) and the
-  [Code of Conduct](CODE_OF_CONDUCT.md).
-- Deploy it: [docs/deploy.md](docs/deploy.md) and [docs/cutover.md](docs/cutover.md).
-- The redesign plan and its reasons: [docs/redesign-brief.md](docs/redesign-brief.md).
+That creates `content/posts/<slug>/index.md` from the archetype, as a
+draft. Fill in `description`, `categories`, `tags`, put images beside the file
+with real alt text, set `draft: false`, run the checks and open a pull request.
+The full guide is [docs/writing-a-post.md](docs/writing-a-post.md); the wiki
+page [Writing a post](docs/wiki/Writing-a-post.md) is the short version.
 
-A short map of how it fits together:
+## How CI checks it
 
-| Piece | Where | What to learn |
-| --- | --- | --- |
-| Hugo | `hugo.toml`, `layouts/`, `archetypes/`, `.hugo-version` | A site with templates written from scratch, a pinned standard-edition Hugo, page bundles and an image render hook. |
-| Strict CSP | `static/_headers`, `scripts/check-output.sh` | A policy that allows only same-origin files, and a checker that fails the build on inline script, inline style and third-party references. |
-| Cloudflare Pages direct upload | `.github/workflows/deploy.yml`, `docs/deploy.md` | Deploying a prebuilt folder, gated on the `CI green` check, with the Pages control files checked by `scripts/check-site-artifact.sh`. |
-| CI gates | `.github/workflows/ci.yml`, `scripts/test-*.sh` | Each check has a test with a negative case that proves the check fails when it should. |
-| GYST reusable workflows | `shell` and `security` jobs in `ci.yml` | Shell lint and security scans come from [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together), pinned by commit. The Hugo build and the site checks run in the shared parallel-ci workflow, called with this repository's own commands ([docs/ci-parallel.md](docs/ci-parallel.md)). |
-| Converter tooling | `tools/wxr2hugo/` | Turning a WordPress export into page bundles, with WebP conversion and a scrub pass for private data. |
+`.github/workflows/ci.yml` calls reusable workflows from
+[git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together),
+pinned by commit: one shared `parallel-ci` workflow builds the site once (production and
+staging) and runs the checks side by side, one workflow lints the shell scripts,
+and one runs the security scans. A local job named `CI green` waits for all of
+them and is the single required check. Deploys run from `main` only, after
+`CI green` on the same commit. The job-by-job map is in
+[docs/ci-parallel.md](docs/ci-parallel.md), and the deploy is in
+[Deploy overview](docs/wiki/Deploy-overview.md).
+
+## Security and privacy stance
+
+- **No third-party assets in the built site.** The Content Security Policy in
+  `static/_headers` allows only the site's own files, plus the one analytics
+  beacon the host injects at the edge (see the Privacy page). The build fails on inline
+  script, inline style, event handlers, third-party assets and plain-HTTP
+  references.
+- **Three small scripts, pinned by hash:** `/copy.js` on Support, `/search.js`
+  on Search and `/share.js` on posts and journal entries. See [docs/pinned-script.md](docs/pinned-script.md).
+- **No cookies set by the site's code and no embeds.** The host's own
+  analytics are described on the site's Privacy page
+  ([content/privacy/index.md](content/privacy/index.md)).
+- **No secrets, no private data in the repository.** Raw WordPress exports are
+  never committed, secret scanning runs in CI, and the converter stops on private
+  data shapes. Security reports go through private vulnerability reporting, see
+  [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Learn from this site
+
+A reading order through the repository, with the idea each part teaches, is in
+the wiki: [Home](docs/wiki/Home.md), section "Learn from this site".
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Every change starts from an issue. Never weaken, skip or narrow a check to get
+CI green.
+
+## The wiki
+
+The wiki pages are written in this repository under [docs/wiki/](docs/wiki/Home.md)
+and are the reference for everything above. Start at [Home](docs/wiki/Home.md).
 
 ## License
 
 Copyright 2026 ChiefGyk3D. This section is a summary, not legal advice.
 
 - Code (scripts, templates, configuration, tooling): Apache-2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-- Written content (`content/`, `docs/`): CC BY 4.0, see [LICENSE-CONTENT](LICENSE-CONTENT).
+- Written content (`content/`, `docs/`, including the wiki): CC BY 4.0, see [LICENSE-CONTENT](LICENSE-CONTENT).
 - Brand assets (mascot, wordmark, logos): all rights reserved, not covered by either license. See [BRAND.md](BRAND.md).
 - Third-party material (vendored axe-core, fonts, icons, coin marks, the five product photos in the headphones post) keeps its own terms, listed in [BRAND.md](BRAND.md).
 
 `scripts/check-license.sh` fails the build if `LICENSE` is not the official Apache-2.0 text or if the content license or brand notice is missing.
+
+## Credit
+
+If you reuse the code, keep the notices in [NOTICE](NOTICE). If you reuse the
+written content, credit "ChiefGyk3D", link to the license and say if you changed
+it. The site footer carries a copyright line for Renegade Penguin LLC and a
+"Powered by No PHP No Cry" credit link back to this repository. Please do not reuse the mascot or the brand art: those are not
+licensed for reuse.

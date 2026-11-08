@@ -74,6 +74,8 @@ Setup and build run in the `ci / Build` job (`setup-command`, `build-command`).
 | Check `tokens.css` is generated from `brand/tokens.json` | C |
 | Check design-token contrast | C |
 | Check the brand asset manifest | C |
+| Check README and wiki links and paths (`scripts/check-wiki.py`, issue 234) | C |
+| Test the README and wiki check | S |
 | Size budget | B |
 | Browser gate | G |
 
@@ -107,7 +109,7 @@ On a pull request the changed paths decide which legs run:
 
 | Area | Patterns |
 | --- | --- |
-| `docs` | `docs/*.md`, `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` |
+| `docs` | `docs/*.md`, `docs/wiki/*.md`, `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` |
 | `site` | everything else (`*`) |
 
 Only `size budget` and `browser gate` carry `areas: ["site"]`. A change confined to
@@ -141,7 +143,7 @@ push to main:
 1. Exactly one check named `CI green` (the local job) appears next to `ci / CI
    green`, and the required-check list in branch protection is satisfied by the
    first.
-2. A pull request that touches only `docs/*.md` skips `size budget` and `browser
+2. A pull request that touches only `docs/*.md` or `docs/wiki/*.md` skips `size budget` and `browser
    gate`, and `CI green` is still green. A pull request that touches a layout or a
    script runs them.
 3. Break one leg on purpose (for example a failing line in a scratch test script
