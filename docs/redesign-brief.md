@@ -139,8 +139,8 @@ to that list with a reason.
 
 Support coin cards (issue 194, owner feedback 2026-11-08): each card is one
 centered column at every width: coin heading, the QR code, the address, then the
-Copy button below the address. At 1920x930 the QR is 200 px (12.5rem; never
-below 160 px) and the page is 906 px tall, so it fits with about 24 px to spare.
+Copy button below the address. At 1920x930 the QR is 192 px (12rem; never
+below 160 px) and the page is 908 px tall, so it fits with 22 px to spare.
 `scripts/test-pages.sh` pins the order (QR, address, Copy) and the accessible
 name "Copy <coin> address". The "Copied" status text sits beside the button and
 takes no layout space.

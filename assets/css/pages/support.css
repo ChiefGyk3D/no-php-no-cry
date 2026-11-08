@@ -191,7 +191,7 @@
  * a phone camera still reads it; it is as large as the fit allows. */
 @media (min-width: 80rem) {
   .page-support h1 {
-    margin: 0 0 var(--space-3);
+    margin: 0 0 var(--space-2);
   }
 
   .page-support p {
@@ -208,7 +208,7 @@
   }
 
   .support-tiles .tile {
-    padding: var(--space-3) var(--space);
+    padding: var(--space-2) var(--space);
   }
 
   .page-support .meta {
@@ -242,7 +242,7 @@
   }
 
   .qr {
-    width: min(100%, 12.5rem);
+    width: min(100%, 12rem);
   }
 
   .address {
