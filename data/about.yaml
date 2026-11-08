@@ -59,12 +59,8 @@ skills:
 # docs/rotating-pgp-key.md.
 contact:
   email: "chief@chiefgyk3d.com"
-<<<<<<< HEAD
   pgp_fingerprint: "5AFF B5C1 C37A 63AB DB93 07C1 70EA A2B2 49A3 50E7"
   pgp_url: "https://keys.openpgp.org/vks/v1/by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E7"
-=======
-  pgp_fingerprint: "93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
-  pgp_url: "/chiefgyk3d.asc"
 # At a glance and Hardware and homelab (issue 196). Owner wording from his public
 # GitHub profile, trimmed for this page. Facts only: no hostnames, addresses, serial
 # numbers or room details. Each card renders its name and text, then its repo links
@@ -112,4 +108,3 @@ homelab:
     links:
       - name: "Clouds Against Humanity"
         url: "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"
->>>>>>> origin/main
