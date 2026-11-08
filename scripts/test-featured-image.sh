@@ -90,7 +90,7 @@ def listing(path):
     without = [i for i in items if "No Image" in i]
     if len(with_i) != 1 or len(without) != 1:
         return ["list items not found (%d, %d)" % (len(with_i), len(without))]
-    if 'class="post-thumb"' not in with_i[0] or 'class="has-thumb"' not in with_i[0]:
+    if 'class="post-thumb"' not in with_i[0] or not re.search(r'class="[^"]*\bhas-thumb\b', with_i[0]):
         bad.append("no thumbnail on the card with an image")
     if 'loading="lazy"' not in with_i[0]:
         bad.append("thumbnail is not lazy")

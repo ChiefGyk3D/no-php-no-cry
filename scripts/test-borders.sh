@@ -75,7 +75,7 @@ styled="$(grep -rlE '(<style[ >]|[[:space:]]style=)' "$out" --include='*.html' |
 
 css="$root/assets/css/borders.css"
 if python3 -I -c 'import re,sys; sys.exit(0 if "url(" in re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S) else 1)' "$css"; then fail "borders.css has a url()"; else pass "borders.css has no url()"; fi
-if python3 -I - "$css" <<'PY'; then pass "animation only under prefers-reduced-motion: no-preference"; else fail "borders.css animates outside no-preference"; fi
+if python3 -I - "$css" <<'PY'
 import re, sys
 css = open(sys.argv[1]).read()
 css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
@@ -84,6 +84,7 @@ allowed = re.search(r"@media \(prefers-reduced-motion: no-preference\) \{.*?\n\}
 rest = css.replace(allowed.group(0), "") if allowed else css
 sys.exit(1 if re.search(r"animation\s*:", rest) or not allowed else 0)
 PY
+then pass "animation only under prefers-reduced-motion: no-preference"; else fail "borders.css animates outside no-preference"; fi
 
 if ((failures > 0)); then
     echo "test-borders: ${failures} failure(s)"
