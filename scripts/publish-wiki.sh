@@ -23,8 +23,14 @@ dest="$1"
 src="${2:-$root/docs/wiki}"
 base="${WIKI_BASE:-https://github.com/ChiefGyk3D/no-php-no-cry/wiki}"
 
-[[ -d "$dest" ]] || { echo "publish-wiki: not a directory: $dest" >&2; exit 2; }
-[[ -d "$src" ]] || { echo "publish-wiki: not a directory: $src" >&2; exit 2; }
+[[ -d "$dest" ]] || {
+    echo "publish-wiki: not a directory: $dest" >&2
+    exit 2
+}
+[[ -d "$src" ]] || {
+    echo "publish-wiki: not a directory: $src" >&2
+    exit 2
+}
 
 timeout 60 python3 -I - "$src" "$dest" "$base" <<'PY'
 import os, re, sys
