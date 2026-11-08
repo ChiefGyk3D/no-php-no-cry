@@ -121,7 +121,7 @@ a:focus-visible {
 
 /* One row: the wordmark left, the nav right. The header column is wider than the
  * reading column (42rem) and never narrower than the page container because the seven links plus the wordmark do not fit
- * in it, and a wrapped second row looked broken. Below 52rem the list collapses
+ * in it, and a wrapped second row looked broken. Below 64rem the list collapses (nine links, issue 123)
  * into the Menu button instead of wrapping. */
 .site-header .wrap {
   display: flex;
@@ -165,8 +165,8 @@ a:focus-visible {
   border: 0;
 }
 
-/* Header menu: a native popover below 52rem (phones and tablets), the plain
- * list from 52rem up. No script: the Menu button is a popovertarget, so the
+/* Header menu: a native popover below 64rem (phones and tablets), the plain
+ * list from 64rem up. No script: the Menu button is a popovertarget, so the
  * browser opens the list, closes it on Escape, on a click outside or on a second
  * press, and returns focus to the button. Following a link reloads the page with
  * the menu closed. */
@@ -267,7 +267,7 @@ a:focus-visible {
 
 /* Tablets, menu open: a compact panel under the Menu button, right edge on the
  * header's content edge, instead of a full-bleed sheet. */
-@media (min-width: 36rem) and (max-width: 51.99rem) {
+@media (min-width: 36rem) and (max-width: 63.99rem) {
   .nav-menu ul {
     inset-inline: auto var(--space);
     width: 18rem;
@@ -276,7 +276,7 @@ a:focus-visible {
   }
 }
 
-@media (min-width: 52rem) {
+@media (min-width: 64rem) {
   .nav-menu .nav-toggle {
     display: none;
   }
@@ -388,23 +388,31 @@ main {
 .footer-social-list--per-11 { --per: 11; }
 .footer-social-list--per-12 { --per: 12; }
 
-/* Standing rule (issue 123): from 80rem the footer is one row (sign-off line,
- * the social icons in a single row, the credit) so short pages still fit a
- * 1920x1080 browser; the two balanced icon rows stay below 80rem, where the
- * footer is not what decides the fit. */
+/* Standing rule (issue 123): from 80rem the footer is a left-aligned stack like
+ * the rest of it: the page links, then the sign-off line with the social icons
+ * in ONE row after it (tagline first, both left aligned), then the credit, so
+ * short pages still fit a 1920x1080 browser. Below 80rem the centered, balanced
+ * icon rows (#172) stay; they are for phones. */
 @media (min-width: 80rem) {
   .footer-meta {
-    flex-wrap: nowrap;
+    justify-content: flex-start;
     align-items: center;
+    gap: 0 var(--space-5);
   }
 
   .footer-social {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    justify-content: flex-start;
   }
 
   .footer-social-list {
     flex-wrap: nowrap;
+    justify-content: flex-start;
     max-width: none;
+  }
+
+  .footer-meta .credit {
+    flex: 0 0 100%;
   }
 }
 
