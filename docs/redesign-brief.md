@@ -153,7 +153,7 @@ Header, in this order: Home, Posts, Products, Social, Support, About (Home added
 menu had six items; this keeps every destination but merges Contact.
 
 On a phone the header is a wordmark plus a Menu button. The button is a native
-`popovertarget` that opens a `<ul popover>` list below 52rem; from 52rem up the
+`popovertarget` that opens a `<ul popover>` list below 64rem (52rem until Home made nine links, issue 123); from 64rem up the
 list shows inline. Escape, a click outside or a second press closes the popover
 and returns focus to the button. No script. A browser without `:popover-open`
 support gets a plain list, always shown.

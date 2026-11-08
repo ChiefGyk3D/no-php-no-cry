@@ -998,7 +998,7 @@ if has_ghost_trigger "$work/ghost-yes.html" && ! has_ghost_trigger "$work/ghost-
 else
     fail "guard: ghost trigger check does not bite"
 fi
-ghost="$(src_css home | tr '\n' ' ')"
+ghost="$(cat "$root"/assets/css/home-ghost.css | tr '\n' ' ')"
 ghost_rule="$(grep -Eo 'main:has\(\.home-grid\)::before, *main:has\(\.not-found\)::before *\{[^}]*\}' <<<"$ghost" || true)"
 ghost_ok=1
 for want in 'position: *absolute' 'width: *min\(60vw, *40rem\)' 'aspect-ratio: *1' 'opacity: *0\.(08|09|1|10|11|12)\b' 'filter: *grayscale\(1\)' 'pointer-events: *none' 'z-index: *0' '/brand/mascot-512\.webp' '(^|[ ;])mask-image: *radial-gradient' '-webkit-mask-image: *radial-gradient'; do
@@ -1011,13 +1011,41 @@ grep -Eq 'position: *fixed' <<<"$ghost_rule" && ghost_ok=0
 if [[ -n "$ghost_rule" && $ghost_ok -eq 1 ]]; then
     pass "ghost layer CSS: absolute, no CLS, masked, faint, grayscale, inert"
 else
-    fail "ghost layer CSS rule missing or incomplete in home.css"
+    fail "ghost layer CSS rule missing or incomplete in home-ghost.css"
 fi
 ghost_targets="$(grep -Eo 'main:has\([^)]*\)' <<<"$ghost" | sort -u | tr '\n' ' ')"
 if [[ "$ghost_targets" == 'main:has(.home-grid) main:has(.not-found) ' ]]; then
     pass "ghost layer selects only the home and 404 pages"
 else
     fail "ghost layer must select only .home-grid and .not-found"
+fi
+# Issue 182: the ghost rule ships in the Home and 404 stylesheet only. check-budget
+# counts every url() in a page's stylesheet, so a post carrying it pays 20 KB.
+css_of() { grep -Eo '/css/site[^" >]*\.css' "$1" | head -1; }
+ghost_pages=0 ghost_wrong=0
+for f in "$pub/index.html" "$pub/404.html"; do
+    [[ -f "$f" ]] || continue
+    ghost_pages=$((ghost_pages + 1))
+    grep -q 'mascot-512' "$pub$(css_of "$f")" || ghost_wrong=1
+done
+# Every built post page (the page type the split was made for) plus the other
+# pages: none may carry the ghost stylesheet or the mascot reference.
+post_pages=0
+for f in "$pub"/posts/*/index.html; do
+    [[ -f "$f" ]] || continue
+    post_pages=$((post_pages + 1))
+done
+if [[ $post_pages -lt 1 ]]; then ghost_wrong=1; fi
+for f in "$pub"/posts/*/index.html "$pub"/about/index.html "$pub"/posts/index.html "$pub"/social/index.html "$pub"/support/index.html "$pub"/resume/index.html "$pub"/privacy/index.html; do
+    [[ -f "$f" ]] || continue
+    ghost_pages=$((ghost_pages + 1))
+    ! grep -q 'mascot-512' "$pub$(css_of "$f")" || ghost_wrong=1
+    ! grep -q 'site-ghost' "$f" || ghost_wrong=1
+done
+if [[ $ghost_pages -ge 8 && $ghost_wrong -eq 0 ]]; then
+    pass "ghost stylesheet: on Home and 404 only ($ghost_pages pages checked)"
+else
+    fail "ghost stylesheet must be on Home and 404 only (checked $ghost_pages, wrong=$ghost_wrong)"
 fi
 if grep -q 'mascot-512.webp' "$root/brand/approved-assets.txt"; then
     pass "ghost layer image is an approved asset"

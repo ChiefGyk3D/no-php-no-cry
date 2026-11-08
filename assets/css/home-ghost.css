@@ -1,0 +1,43 @@
+/* Loaded on Home and the 404 page only (baseof.html), so no other page carries
+ * this rule or the mascot-512.webp it references (issue 182: check-budget counts
+ * every url() in the page's stylesheet). Appended last, as it was the last block
+ * of pages/home.css, so the cascade is unchanged. */
+/* Penguin ghost (issue 149). A faint grayscale mascot behind the hero on Home
+ * and the 404 page only; posts, About and the rest never match. Pure CSS on
+ * ::before: no extra element, no new asset (the approved mascot-512.webp, which
+ * Home already ships in its srcset), same-origin image only. It is absolutely
+ * positioned inside main (not fixed), sized by width plus aspect-ratio so it
+ * reserves nothing in the flow (no layout shift), cropped off the right edge,
+ * and sits under the content (.wrap is z-index 1). The mascot file is an opaque
+ * dark square, so a radial mask fades its edges and corners to transparent;
+ * otherwise a faint rectangle shows. Opacity stays low enough that text keeps
+ * 4.5:1 contrast. It does not animate, so reduced motion needs nothing. */
+main:has(.home-grid),
+main:has(.not-found) {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+main:has(.home-grid) > .wrap,
+main:has(.not-found) > .wrap {
+  position: relative;
+  z-index: 1;
+}
+
+main:has(.home-grid)::before,
+main:has(.not-found)::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: calc(-1 * min(12vw, 8rem));
+  width: min(60vw, 40rem);
+  aspect-ratio: 1;
+  background: url("/brand/mascot-512.webp") center / contain no-repeat;
+  opacity: 0.1;
+  filter: grayscale(1);
+  -webkit-mask-image: radial-gradient(closest-side, black 35%, transparent 100%);
+  mask-image: radial-gradient(closest-side, black 35%, transparent 100%);
+  pointer-events: none;
+}

@@ -25,7 +25,7 @@ GOOD_CSS = (
     "nav a,footer a{display:inline-flex;align-items:center;min-height:44px;min-width:44px}"
     ".nav-toggle{min-height:44px;min-width:44px;font:inherit}"
     ".nav-menu ul{position:absolute;top:60px;left:0;right:0;margin:0;padding:0;list-style:none;background:#222;border:0}"
-    "@media(min-width:52rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
+    "@media(min-width:64rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
     "main{padding:16px}"
     ".tiles{list-style:none;margin:0;padding:0}.tile{width:12rem;border:1px solid #888;padding:8px;box-sizing:border-box}.part{white-space:nowrap}"
     ".wide{width:3000px;height:1px;background:#fff}"

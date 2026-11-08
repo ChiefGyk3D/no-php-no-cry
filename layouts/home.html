@@ -17,7 +17,8 @@
   <h2 id="latest-posts" class="hud-heading">Latest posts</h2>
   {{ with where site.RegularPages "Section" "posts" }}
   <ul class="post-list">
-    {{- range first 5 . }}
+    {{- /* At most two entries (issue 180): Home must stay one screen at 1920x930 however many posts are published; the rest are one click away under All posts. scripts/test-social-products.sh builds ten posts and counts. */}}
+    {{- range first 2 . }}
     <li>
       <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
       <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
@@ -33,7 +34,10 @@
 {{- with site.Data.socials }}
 <section class="panel home-panel home-find" aria-labelledby="find-me">
   <h2 id="find-me" class="hud-heading">Find me online</h2>
-  <ul class="home-social">
+  {{- /* Balanced rows (issue 123): the chips are equal-width columns; the per-row count at desktop is half the live count rounded up (12 chips are 6 + 6), written as a class because the strict CSP forbids inline styles. Tablet is 4 across, phone 2; a short last row is centered. */}}
+  {{- $live := slice }}
+  {{- range . }}{{ if strings.HasPrefix .url "https://" }}{{ $live = $live | append . }}{{ end }}{{ end }}
+  <ul class="home-social home-social--per-{{ math.Min 12 (math.Ceil (div (float (len $live)) 2)) | int }}">
     {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
     <li><a class="icon-{{ $s.icon }}" href="{{ $s.url }}">{{ $s.name }}</a></li>
     {{- end }}{{ end }}

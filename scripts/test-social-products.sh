@@ -248,6 +248,17 @@ def check_footer(page, root, bad):
     credit = foot.find("p", "credit")
     if not line or not credit or not (order.index(line[0]) < order.index(nav) < order.index(credit[0])):
         bad.append("icon row is not between the sign-off line and the credit")
+    # Desktop (issue 123): from 80rem the icons are ONE line, left aligned like the rest of the
+    # footer; below that the centered balanced rows stay (the per-N cap).
+    css = " ".join(pathlib.Path(root, "assets/css/main.css").read_text(encoding="utf-8").split())
+    m = re.search(r"@media \(min-width: 80rem\) \{ \.footer-meta \{.*?\.footer-meta \.credit \{[^}]*\} \}", css)
+    blk = m.group(0) if m else ""
+    for need in (".footer-meta { justify-content: flex-start;", ".footer-social { flex: 0 0 auto; justify-content: flex-start; }",
+                 ".footer-social-list { flex-wrap: nowrap; justify-content: flex-start; max-width: none; }"):
+        if need not in blk:
+            bad.append("main.css lacks the left-aligned one-line desktop footer rule: %s" % need)
+    if "justify-content: center;" not in css.split(".footer-social-list {", 1)[-1][:200]:
+        bad.append("main.css lost the centered balanced icon rows for phones")
     links = nav.find("a")
     if len(links) != len(live):
         bad.append("footer has %d icon links, data has %d live entries" % (len(links), len(live)))
@@ -398,10 +409,83 @@ def check_products(page, root, bad):
     return len(items)
 
 
+def rows(n, per):
+    """Chip counts per row for n chips, per to a row."""
+    out = []
+    while n > 0:
+        out.append(min(per, n))
+        n -= per
+    return out
+
+
+def balanced(n):
+    """Desktop rows for n chips (per = half rounded up): no orphan, rows within one chip of each other."""
+    r = rows(n, (n + 1) // 2)
+    return len(r) <= 2 and max(r) - min(r) <= 1 and (n < 4 or min(r) >= 2)
+
+
+def check_home(page, root, bad):
+    """Home: the Find me online chips (issue 123): the data's live networks in the data's order, in
+    equal-width balanced rows (the per-row class, and the CSS that makes the columns equal)."""
+    doc = load(page)
+    lists = doc.find("ul", "home-social")
+    live = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://")]
+    if len(lists) != 1:
+        bad.append("home has %d chip lists" % len(lists))
+        return 0
+    ul = lists[0]
+    chips = ul.find("a")
+    names = [a.all_text() for a in chips]
+    if names != [e["name"] for e in live]:
+        bad.append("chips %r differ from the live networks of data/socials.yaml in order" % names)
+    want = "home-social--per-%d" % min(12, (len(live) + 1) // 2)
+    if want not in ul.classes():
+        bad.append("chip list lacks %s (balanced rows)" % want)
+    for n in range(2, 13):
+        if not balanced(n):
+            bad.append("%d chips do not make balanced rows: %r" % (n, rows(n, (n + 1) // 2)))
+    css = " ".join(pathlib.Path(root, "assets/css/pages/home.css").read_text(encoding="utf-8").split())
+    # Every class the template can write (1 to 24 live networks; it clamps the per-row count at 12)
+    # has a CSS rule that sets its own column count.
+    for n in range(1, 25):
+        k = min(12, (n + 1) // 2)
+        if ".home-social--per-%d { --per-desk: %d; }" % (k, k) not in css:
+            bad.append("home.css has no rule for .home-social--per-%d (needed for %d chips)" % (k, n))
+    for need, why in (
+        (".home-social { --per: 2; display: flex; flex-wrap: wrap; justify-content: center;", "centered wrapping rows"),
+        (".home-social li { flex: 0 0 calc((100% - (var(--per) - 1) * var(--space-2)) / var(--per));", "equal-width columns"),
+        ("white-space: nowrap;", "no wrapped chip text"),
+        ("min-height: var(--tap);", "44 px chips"),
+        ("--per: var(--per-desk, 6);", "desktop per-row count from the class"),
+    ):
+        if need not in css:
+            bad.append("home.css lacks %s (%s)" % (need, why))
+    return len(chips)
+
+
+def check_homeposts(page, root, bad):
+    """Home Latest posts (issue 180): at most two entries, each a link, a date and a summary, then All posts.
+    The count is min(2, posts on the build); the third argument is the number of posts the build holds."""
+    doc = load(page)
+    panels = doc.find("section", "home-latest")
+    if len(panels) != 1:
+        bad.append("home has %d Latest posts panels" % len(panels))
+        return 0
+    items = panels[0].find("li")
+    posts = int(pathlib.Path(root, "posts.count").read_text().strip())
+    if len(items) > 2:
+        bad.append("Latest posts lists %d entries, at most 2 allowed" % len(items))
+    if len(items) != min(2, posts):
+        bad.append("Latest posts lists %d entries for %d posts, expected %d" % (len(items), posts, min(2, posts)))
+    if not panels[0].find("p", "more-link"):
+        bad.append("the All posts link is missing")
+    return len(items)
+
+
 def main(argv):
     kind, page, root = argv[1:4]
     bad = []
-    n = {"social": check_social, "products": check_products, "footer": check_footer}[kind](page, root, bad)
+    n = {"social": check_social, "products": check_products, "footer": check_footer, "home": check_home, "homeposts": check_homeposts}[kind](page, root, bad)
     for b in sorted(set(bad)):
         print(b)
     print("count=%s" % n)
@@ -504,6 +588,17 @@ if [[ -f "$public/index.html" ]]; then
     fguard "one icon removed" '/<li><a class="?footer-social-link"? href="?https:\/\/kick\.com/d'
     fguard "balanced-row class wrong" 's/footer-social-list--per-6/footer-social-list--per-11/'
     fguard "rel=me dropped" 's/rel="me noopener"/rel=noopener/g'
+    # The CSS guard: a desktop footer with the icons centered again must fail.
+    mkdir -p "$work/footroot/assets/css" "$work/footroot/data"
+    cp "$root/data/socials.yaml" "$work/footroot/data/"
+    sed -E '/^  \.footer-social \{/,/^  \}/s/justify-content: flex-start;/justify-content: center;/' "$root/assets/css/main.css" >"$work/footroot/assets/css/main.css"
+    if cmp -s "$root/assets/css/main.css" "$work/footroot/assets/css/main.css"; then
+        fail "footer css guard did not change the stylesheet (the test is stale)"
+    elif python3 -I "$asserter" footer "$public/index.html" "$work/footroot" >/dev/null 2>&1; then
+        fail "footer css guard: asserter accepted centered icons on desktop"
+    else
+        pass "footer css guard fails as it should"
+    fi
     mkdir -p "$work/emptyroot/data"
     sed -E '/url: https:\/\/kick.com/s#url: .*#url: ""#' "$root/data/socials.yaml" >"$work/emptyroot/data/socials.yaml"
     if cmp -s "$root/data/socials.yaml" "$work/emptyroot/data/socials.yaml"; then
@@ -513,6 +608,89 @@ if [[ -f "$public/index.html" ]]; then
     else
         pass "empty-url guard fails as it should"
     fi
+fi
+
+# The Home chips (issue 123): equal-width balanced rows, in data order.
+if [[ -f "$public/index.html" ]]; then
+    if out="$(run_assert home "$public/index.html")"; then
+        pass "home chips: $(tr '\n' ' ' <<<"$out")"
+    else
+        fail "home chips: $(tr '\n' ';' <<<"$out")"
+    fi
+    hguard() { # label sed-expression
+        local label="$1" expr="$2" copy="$work/hguard.html"
+        sed -E "$expr" "$public/index.html" >"$copy"
+        if cmp -s "$public/index.html" "$copy"; then
+            fail "home guard '$label' did not change the page (the test is stale)"
+        elif run_assert home "$copy" >/dev/null; then
+            fail "home guard '$label': asserter accepted a broken page"
+        else
+            pass "home guard '$label' fails as it should"
+        fi
+    }
+    hguard "per-row class wrong (orphan row)" 's/home-social--per-6/home-social--per-11/'
+    hguard "a chip removed" '/<li><a class="?icon-kick"?/d'
+    hguard "chip list class dropped" 's/class="?home-social home-social--per-6"?/class=home-social/'
+    # The CSS guard: a stylesheet missing the rule of one generated per-row class must fail (the rule
+    # for the real page's class, per-6, and for a small count, per-1).
+    for k in 6 1; do
+        mkdir -p "$work/perroot$k/assets/css/pages" "$work/perroot$k/data"
+        cp "$root/data/socials.yaml" "$work/perroot$k/data/"
+        sed -E "/^\.home-social--per-$k \{/d" "$root/assets/css/pages/home.css" >"$work/perroot$k/assets/css/pages/home.css"
+        if cmp -s "$root/assets/css/pages/home.css" "$work/perroot$k/assets/css/pages/home.css"; then
+            fail "per-$k css guard did not change the stylesheet (the test is stale)"
+        elif python3 -I "$asserter" home "$public/index.html" "$work/perroot$k" >/dev/null 2>&1; then
+            fail "per-$k css guard: asserter accepted a stylesheet without the per-$k rule"
+        else
+            pass "per-$k css guard fails as it should"
+        fi
+    done
+    # The CSS guard: a stylesheet without the equal-width rule must fail.
+    mkdir -p "$work/cssroot/assets/css/pages" "$work/cssroot/data"
+    cp "$root/data/socials.yaml" "$work/cssroot/data/"
+    sed -E 's/flex: 0 0 calc\(\(100% - \(var\(--per\) - 1\) \* var\(--space-2\)\) \/ var\(--per\)\);/flex: 0 0 auto;/' "$root/assets/css/pages/home.css" >"$work/cssroot/assets/css/pages/home.css"
+    if cmp -s "$root/assets/css/pages/home.css" "$work/cssroot/assets/css/pages/home.css"; then
+        fail "home css guard did not change the stylesheet (the test is stale)"
+    elif python3 -I "$asserter" home "$public/index.html" "$work/cssroot" >/dev/null 2>&1; then
+        fail "home css guard: asserter accepted a stylesheet without equal-width columns"
+    else
+        pass "home css guard fails as it should"
+    fi
+fi
+
+# Home Latest posts (issue 180): the real build (one post) and a scratch site with ten posts. The
+# panel never exceeds two entries, so Home stays one screen however many posts are published.
+many="$work/many"
+mkdir -p "$many/content/posts" "$many/content/search" "$many/content/social" "$many/content/support" "$many/content/about" "$many/content/products" "$many/content/privacy" "$many/content/resume" "$many/content/journal"
+for d in layouts assets data static archetypes; do [[ -e "$root/$d" ]] && ln -s "$root/$d" "$many/$d"; done
+ln -s "$root/hugo.toml" "$many/hugo.toml"
+for f in content/_index.md content/posts/_index.md content/search/_index.md content/social/_index.md content/support/index.md content/about/index.md content/products/_index.md content/privacy/index.md content/resume/index.md content/journal/_index.md; do cp "$root/$f" "$many/$f"; done
+for i in 01 02 03 04 05 06 07 08 09 10; do
+    mkdir -p "$many/content/posts/post-$i"
+    printf -- '---\ntitle: "Synthetic post %s"\ndate: 2026-10-%sT09:00:00-05:00\ndraft: false\ndescription: "Synthetic summary %s."\n---\n\nBody %s.\n' "$i" "$i" "$i" "$i" >"$many/content/posts/post-$i/index.md"
+done
+if (cd "$many" && HUGO_MINIFY_MINIFYOUTPUT=false hugo --destination "$many/public" --quiet >"$work/many-build.log" 2>&1); then
+    echo 10 >"$many/posts.count"
+    if out="$(python3 -I "$asserter" homeposts "$many/public/index.html" "$many" 2>&1)"; then
+        pass "home Latest posts with ten posts: $(tr '\n' ' ' <<<"$out")"
+    else
+        fail "home Latest posts with ten posts: $(tr '\n' ';' <<<"$out")"
+    fi
+    # Negative: a third entry on the page must be refused.
+    python3 -I - "$many/public/index.html" "$work/three.html" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<li>.*?</li>", s[s.index("home-latest"):], re.S)
+k = s.index("home-latest") + m.end()
+open(sys.argv[2], "w", encoding="utf-8").write(s[:k] + m.group(0) + s[k:])
+PY
+    if python3 -I "$asserter" homeposts "$work/three.html" "$many" >/dev/null 2>&1; then
+        fail "home posts guard: asserter accepted three entries"
+    else
+        pass "home posts guard fails as it should (three entries)"
+    fi
+else
+    fail "scratch site with ten posts does not build: $(tail -n 3 "$work/many-build.log" | tr '\n' ' ')"
 fi
 
 # Guard self-test: the asserters must fail on broken pages.
