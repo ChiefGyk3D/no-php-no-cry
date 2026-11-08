@@ -638,7 +638,7 @@ if __name__ == "__main__":
             errs.append("footer social icon row missing")
         hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", foot, re.S)
         names = [norm(t) for _, t in hrefs]
-        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Socials", "Support"]:
+        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Socials", "Support", "No PHP No Cry (external site)"]:
             errs.append("footer links are %r" % names)
         targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
         if not targets.get("Socials", "").endswith("/social/"):
@@ -647,6 +647,13 @@ if __name__ == "__main__":
             errs.append("footer Support does not point at /support/")
         if "social-row" in foot or "support-row" in foot or "icon-" in foot:
             errs.append("footer repeats the social or support row")
+        # Issue 233: the credit link sits in the copyright line, after the LLC name.
+        if targets.get("No PHP No Cry (external site)", "").strip('"') != "https://github.com/ChiefGyk3D/no-php-no-cry":
+            errs.append("footer credit link is not the No PHP No Cry repo")
+        if fm.group(0).count("Renegade Penguin LLC") != 1:
+            errs.append("footer names Renegade Penguin LLC %d times, not once" % fm.group(0).count("Renegade Penguin LLC"))
+        if not re.search(r"<p[^>]*credit[^>]*>[^<]*Renegade Penguin LLC.*?Powered by\s*<a[^>]*noopener", fm.group(0), re.S):
+            errs.append("footer credit is not in the copyright line after the LLC name")
         if "&copy;" not in fm.group(0) and "©" not in fm.group(0):
             errs.append("footer copyright missing")
         elif "Renegade Penguin LLC" not in " ".join(fps):
@@ -804,6 +811,21 @@ PYEOF
         fail "guard: an About page linking an email with an incomplete config passed"
     else
         pass "guard: an About page linking an email with an incomplete config fails"
+    fi
+fi
+# Guard (issue 233): the credit link bites. A wrong href and a duplicated LLC name must fail.
+if [[ -f "$pub/about/index.html" ]]; then
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "https://github.com/ChiefGyk3D/no-php-no-cry"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "https://example.invalid/", 1))' "$pub/about/index.html" "$work/about-badcredit.html"
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-badcredit.html" >/dev/null 2>&1; then
+        fail "guard: an About page with a wrong credit link passed"
+    else
+        pass "guard: an About page with a wrong credit link fails"
+    fi
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Powered by"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Renegade Penguin LLC Powered by", 1))' "$pub/about/index.html" "$work/about-dupllc.html"
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-dupllc.html" >/dev/null 2>&1; then
+        fail "guard: an About page naming the LLC twice passed"
+    else
+        pass "guard: an About page naming the LLC twice fails"
     fi
 fi
 # Guard: the footer check bites. The footer line removed from About must fail.
@@ -1531,7 +1553,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC</p></footer>'
+good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC <span aria-hidden=true>&middot;</span> Powered by <a href=https://github.com/ChiefGyk3D/no-php-no-cry rel=noopener>No PHP No Cry<span class=visually-hidden> (external site)</span></a></p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"
