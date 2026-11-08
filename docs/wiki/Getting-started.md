@@ -8,6 +8,7 @@ From a fresh machine to a running preview and a passing set of checks.
 | --- | --- |
 | The Hugo release named in `.hugo-version` (standard edition, not extended) | Everything. `scripts/check-hugo-version.sh` refuses any other release or edition. |
 | `git` and a POSIX shell | Cloning and the scripts. |
+| `curl`, `grep`, `sha256sum` and `tar` | The Hugo install block below , which is written for Linux amd64 (other platforms: download the matching release by hand and verify its checksum). |
 | Python 3 | The Python checks (`scripts/check-budget.py`, `scripts/check-wiki.py` and others, run as `python3 -I`). |
 | Chrome or Chromium | Only `scripts/browser-gate.py` and its test. Set `CHROME` to pick a browser. |
 | `shellcheck` and `shfmt` | Only the shell lint steps of `scripts/gate.sh`. |

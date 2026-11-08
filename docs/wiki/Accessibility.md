@@ -3,7 +3,7 @@
 The target is WCAG 2.2 AA. The requirements are written in
 `docs/redesign-brief.md` (section 11); the checks are in
 `docs/performance-gates.md`. This page says what is built in, what a script
-checks on every pull request, and what no script can prove.
+checks on pull requests that change the site, and what no script can prove.
 
 ## Built in
 
@@ -31,7 +31,10 @@ checks on every pull request, and what no script can prove.
   filter message is a polite live region. See [Search and tags](Search-and-tags.md).
 - **Real text in the DOM** for disclosures, not images of text.
 
-## Checked on every pull request
+## Checked on site-changing pull requests
+
+The browser gate is skipped for a pull request that only changes documentation
+(`docs/*.md`, `docs/wiki/*.md`, `README.md`); see `docs/ci-parallel.md`.
 
 `scripts/browser-gate.py` loads each template in headless Chrome and fails on:
 

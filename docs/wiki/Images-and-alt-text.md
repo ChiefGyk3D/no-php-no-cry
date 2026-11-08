@@ -26,7 +26,8 @@ Markdown:
 For an accepted image the hook writes `width` and `height` (so the layout does
 not shift), `loading="lazy"`, `decoding="async"` and, when the file is wide
 enough, a `srcset` of 480, 800 and 1200 pixel copies with the page column as
-`sizes`. The largest version served in the page is capped at 800 pixels wide.
+`sizes`. The fallback `src` is capped at 800 pixels wide; a wide or high-density screen
+can pick the 1200 pixel copy from the `srcset`.
 
 ## Writing good alt text
 

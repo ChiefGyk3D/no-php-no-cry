@@ -62,7 +62,7 @@ jobs:
       # Only a change confined to these files leaves the size budget and the browser gate out. Every other
       # path (content, layouts, assets, static, scripts, hugo.toml, .github, anything unlisted) is `site`.
       # A push, a schedule, a manual run, a pull request to another branch and any diff problem run all.
-      areas: '{"docs": ["docs/*.md", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md"], "site": ["*"]}'
+      areas: '{"docs": ["docs/*.md", "docs/wiki/*.md", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md"], "site": ["*"]}'
       jobs: |
         [
             {"name": "output checks", "command": "EXPECT_ENV=production scripts/check-output.sh public\nscripts/check-site-artifact.sh public\nEXPECT_ENV=staging scripts/check-output.sh \"$RUNNER_TEMP/public-staging\"\nscripts/check-site-artifact.sh \"$RUNNER_TEMP/public-staging\"\nscripts/test-check-site-artifact.sh", "timeout": 10},

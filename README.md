@@ -1,7 +1,8 @@
 # no-php-no-cry
 
 A personal site and work journal built with [Hugo](https://gohugo.io/), no PHP,
-no database and no third-party scripts. It is the source of the
+no database and no third-party code in the repository or the built site (the
+host adds its own analytics beacon at the edge, described on the Privacy page). It is the source of the
 [ChiefGyk3D](https://chiefgyk3d.com) site, moved off WordPress, and it is
 published as a worked example: a small static site with strict build checks, in
 the open, that you can read, copy and adapt.
@@ -43,7 +44,8 @@ domain. It deploys to Cloudflare Pages.
   into page bundles, keeps old addresses as 301 redirects and scrubs private
   data. See [Migrating from WordPress](docs/wiki/Migrating-from-WordPress.md).
 - **A page-weight and accessibility gate.** A size budget and a real-browser
-  gate with axe-core run on every pull request. See
+  gate with axe-core run on every pull request that changes the site (a
+  documentation-only pull request skips them). See
   [Build checks and budgets](docs/wiki/Build-checks-and-budgets.md),
   [Performance](docs/wiki/Performance.md) and [Accessibility](docs/wiki/Accessibility.md).
 
@@ -117,8 +119,9 @@ them and is the single required check. Deploys run from `main` only, after
 
 ## Security and privacy stance
 
-- **No third-party anything on the page.** The Content Security Policy in
-  `static/_headers` allows only the site's own files. The build fails on inline
+- **No third-party assets in the built site.** The Content Security Policy in
+  `static/_headers` allows only the site's own files, plus the one analytics
+  beacon the host injects at the edge (see the Privacy page). The build fails on inline
   script, inline style, event handlers, third-party assets and plain-HTTP
   references.
 - **Three small scripts, pinned by hash:** `/copy.js` on Support, `/search.js`

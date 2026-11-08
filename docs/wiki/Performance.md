@@ -1,9 +1,11 @@
 # Performance
 
 The goal is a fast page on a mid-range phone on a slow connection, reached by
-sending very little: no framework, no third-party request, one small
-stylesheet. The numbers are enforced by two scripts on every pull request, not
-by a one-time audit. The source of truth is
+sending very little: no framework, no third-party request from the site's own assets, one small
+stylesheet. (The host injects its own analytics beacon at the edge; the CSP and
+the Privacy page name it.) The numbers are enforced by two scripts on every
+pull request that changes the site, not by a one-time audit. A
+documentation-only pull request skips them (`docs/ci-parallel.md`). The source of truth is
 [docs/performance-gates.md](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/docs/performance-gates.md);
 this page is the map.
 
@@ -12,8 +14,9 @@ this page is the map.
 - **No JavaScript by default.** Three scripts ship, each under 1 KB gzip and each
   only on its own pages (Support, Search, and posts and journal entries). Everything else is HTML and CSS: the phone
   menu is a native popover, accordions are native `<details>`.
-- **No third-party requests.** The Content Security Policy forbids them and the
-  build fails on any. Zero external fonts, scripts, styles, images or embeds.
+- **No third-party requests from the site's own pages.** The Content Security
+  Policy forbids them, apart from the host-injected analytics beacon, and the
+  build fails on any other. Zero external fonts, scripts, styles, images or embeds.
 - **One stylesheet per page,** concatenated, minified and fingerprinted by Hugo
   Pipes. Page-specific CSS lives in `assets/css/pages/`, and the penguin ghost
   image used only on Home and 404 is its own file appended on those two pages,
