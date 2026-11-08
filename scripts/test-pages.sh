@@ -315,6 +315,38 @@ def check_about_data(errs, html_src):
         errs.append("expected %d skill groups, found %d" % (len(want), len(groups)))
 
 
+def check_project_tiles(errs, html_src, flat):
+    """Issue 174: exactly six project tiles in the owner's order, then the GitHub link; every tile link https."""
+    m = re.search(r"<ul class=\"?tile-grid project-tiles\"?>(.*?)</ul>", html_src, re.S)
+    if not m:
+        errs.append("the Current projects tile list was not found")
+        return
+    tiles = []
+    for attrs, inner in re.findall(r"<li[^>]*><a ([^>]*)>(.*?)</a></li>", m.group(1), re.S):
+        href = re.search(r"href=\"?([^\"\s>]+)", attrs)
+        tiles.append((href.group(1) if href else "", norm(re.sub(r"<span[^>]*>.*?</span>", "", inner, flags=re.S)), attrs))
+    want = ["Clouds Against Humanity", "Stream Daemon", "SIEM Docker Stack", "git-your-ship-together", "Reach Around", "Hammunition"]
+    if len(tiles) != len(want) + 1:
+        errs.append("expected %d project tiles plus the GitHub link, found %d items" % (len(want), len(tiles)))
+    if [t[1] for t in tiles[:6]] != want:
+        errs.append("project tiles are %r, expected %r" % ([t[1] for t in tiles[:6]], want))
+    for href, name, attrs in tiles:
+        if not href.startswith("https://"):
+            errs.append("project tile %r link is not https: %r" % (name, href))
+        if "noopener" not in attrs:
+            errs.append("project tile %r link lacks rel=noopener" % name)
+    if tiles[6:] and (tiles[-1][0] != "https://github.com/ChiefGyk3D" or tiles[-1][1] != "More projects on GitHub"):
+        errs.append("the last tile must be the More projects on GitHub link to https://github.com/ChiefGyk3D")
+    for need in ("Clouds-Against-Humanity", "Stream-Daemon", "Reach-Around"):
+        if not any(need in t[0] for t in tiles):
+            errs.append("missing project link %s" % need)
+    i, j, k = (html_src.find(x) for x in ('id=projects', 'id=contact', 'id=skills'))
+    if not (0 < i < j < k):
+        errs.append("section order must be projects, contact, skills (found %d, %d, %d)" % (i, j, k))
+    if flat.find("lists my skills, open-source projects") > flat.find("Current projects") or flat.find("lists my skills, open-source projects") < flat.find(MISSION_START):
+        errs.append("the resume line must close the bio card, before Current projects")
+
+
 def about(p, errs, repo):
     common(p, errs)
     check_about_data(errs, repo["html"])
@@ -380,9 +412,7 @@ def about(p, errs, repo):
             errs.append("missing link %s" % h)
     if not any((h or "").startswith("https://github.com/ChiefGyk3D/") and "Reach" in (h or "") for h in hrefs):
         errs.append("missing Reach Around link")
-    for name in ("Stream Daemon", "Reach Around", "Clouds Against Humanity"):
-        if name not in flat:
-            errs.append("project tile %r missing" % name)
+    check_project_tiles(errs, repo["html"], flat)
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
     mailtos = [h for h in hrefs if (h or "").startswith("mailto:")]
@@ -506,9 +536,12 @@ if [[ -f "$pub/about/index.html" ]]; then
     mutate() { python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a, b = sys.argv[3], sys.argv[4]; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, b, 1))' "$pub/about/index.html" "$@"; }
     mutate "$work/about-alt.html" "Okta, Microsoft Entra, " "Okta, "
     mutate "$work/about-omit.html" "<h3>Radio, RF, and telecom</h3>" "<h3>Radio, RF, and telecom</h3><p>x</p><!--"
+    mutate "$work/about-tile.html" "https://github.com/ChiefGyk3D/Stream-Daemon" "http://github.com/ChiefGyk3D/Stream-Daemon"
+    mutate "$work/about-more.html" "More projects on GitHub" "More on GitHub"
+    mutate "$work/about-extra.html" "<li class=tile-more>" "<li><a class=tile href=https://example.org/x rel=noopener><strong>Extra</strong></a></li><li class=tile-more>"
     mutate "$work/about-bio.html" "right to repair" "right to fix"
     mutate "$work/about-mission.html" "leaving knowledge behind a price tag" "leaving knowledge behind a paywall"
-    for v in alt omit bio mission; do
+    for v in alt omit tile more extra bio mission; do
         if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
             fail "guard: an About page with $v-mutated text passed"
         else

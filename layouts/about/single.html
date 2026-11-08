@@ -17,17 +17,28 @@
       {{- with site.Data.about.mission }}
       <p class="about-mission">{{ . }}</p>
       {{- end }}
+      <p class="resume-link">My <a href="{{ "/resume/" | relURL }}">resume</a> lists my skills, open-source projects, certifications, and education.</p>
     </div>
   </div>
 
-  <p class="resume-link">My <a href="{{ "/resume/" | relURL }}">resume</a> lists my skills, open-source projects, certifications, and education.</p>
-
   <div class="about-projects">
   <h2 id="projects">Current projects</h2>
+  {{- /* The six tiles are named in data/about.yaml (project_tiles) and read from data/resume.yaml, so the lines stay in sync with the resume. */}}
+  {{- $all := site.Data.resume.projects }}
   <ul class="tile-grid project-tiles">
-    <li><a class="tile" href="https://github.com/ChiefGyk3D/Stream-Daemon" target="_blank" rel="noopener"><strong>Stream Daemon</strong><span class="meta"> Announces live streams from Twitch, YouTube, and Kick to Mastodon, Bluesky, Discord, and Matrix.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
-    <li><a class="tile" href="https://github.com/ChiefGyk3D/Reach-Around" target="_blank" rel="noopener"><strong>Reach Around</strong><span class="meta"> In development: an open-source, privacy-first link page for creators, with analytics and a media kit.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
-    <li><a class="tile" href="https://github.com/ChiefGyk3D/Clouds-Against-Humanity" target="_blank" rel="noopener"><strong>Clouds Against Humanity</strong><span class="meta"> An open-source cloud security lab where you build and secure the infrastructure yourself with OpenTofu, Spacelift, Doppler, and Twingate.</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    {{- range site.Data.about.project_tiles }}
+    {{- $name := . }}
+    {{- $hit := where $all "name" $name }}
+    {{- if ne (len $hit) 1 }}{{ errorf "about project tile %q is not exactly one entry in data/resume.yaml" $name }}{{ end }}
+    {{- with index $hit 0 }}
+    {{- if not (strings.HasPrefix .url "https://") }}{{ errorf "about project tile %q url is not https" $name }}{{ end }}
+    <li><a class="tile" href="{{ .url }}" target="_blank" rel="noopener"><strong>{{ .name }}</strong><span class="meta"> {{ .line }}</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    {{- end }}
+    {{- end }}
+    {{- with site.Data.about.projects_more_url }}
+    {{- if not (strings.HasPrefix . "https://") }}{{ errorf "about projects_more_url is not https" }}{{ end }}
+    <li class="tile-more"><a class="tile" href="{{ . }}" target="_blank" rel="noopener"><strong>More projects on GitHub</strong><span class="meta"> There is plenty more than fits here. Everything else I build is on my GitHub profile.</span><span class="visually-hidden"> (opens in a new tab)</span></a></li>
+    {{- end }}
   </ul>
   </div>
 

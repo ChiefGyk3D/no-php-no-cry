@@ -1,13 +1,16 @@
-/* /about/ (issue 62). Tokens only. */
+/* /about/ (issues 62, 107, 125, 174). Tokens only. One column that reads top to bottom:
+ * the hero (mascot and bio card), Current projects, Contact, Skills. */
+
+/* Hero: the mascot beside the bio card. The card's text keeps its 75ch measure from main p. */
 .about-intro {
   display: grid;
   gap: var(--space-5);
-  align-items: center;
+  align-items: start;
 }
 
 @media (min-width: 40rem) {
   .about-intro {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 }
 
@@ -16,8 +19,88 @@
   height: auto;
 }
 
+@media (min-width: 60rem) {
+  .about-mascot {
+    width: 11rem;
+  }
+}
+
+/* The resume line closes the card: a next step, set off by a rule. */
+.about-intro .panel > :last-child {
+  margin-bottom: 0;
+}
+
+.about-intro .resume-link {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--border);
+}
+
+/* Bio opener (issue 125): the intro line under the page heading. */
+.about-lede {
+  font-size: var(--text-lg, 1.25rem);
+  margin-block: 0 var(--space-5);
+}
+
+/* Current projects: a full-width grid, equal heights, three columns wide, two on tablets, one on
+ * phones. The GitHub tile always takes a full row so no tile sits alone in a half-empty row. */
+.about-projects,
+.about-contact {
+  margin-top: var(--space-6);
+}
+
+.about-projects h2,
+.about-contact h2 {
+  margin-top: 0;
+}
+
+.project-tiles {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 40rem) {
+  .project-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 60rem) {
+  .project-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.project-tiles > li {
+  display: flex;
+}
+
+.project-tiles .tile {
+  flex: 1;
+}
+
 .project-tiles .tile .meta {
   display: block;
+}
+
+.project-tiles > .tile-more {
+  grid-column: 1 / -1;
+}
+
+.project-tiles > .tile-more .tile {
+  border-color: var(--accent-deep);
+}
+
+/* Contact: its own labeled block after the projects. */
+.about-contact {
+  padding: var(--space-5);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.about-contact > :last-child,
+.about-contact p:last-of-type {
+  margin-bottom: 0;
 }
 
 .contact-links {
@@ -25,7 +108,7 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-5);
   list-style: none;
-  margin: 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
 }
 
@@ -35,71 +118,68 @@
   min-height: var(--tap);
 }
 
-/* Desktop (issue 107): the intro beside the projects, the resume link beside contact. The DOM order
- * stays intro, resume link, projects, contact; the grid areas place them. */
-@media (min-width: 60rem) {
-  .about-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    grid-template-areas:
-      "intro projects"
-      "link contact";
-    column-gap: var(--space-6);
-    align-content: start;
-    align-items: start;
-  }
-
-  .about-intro {
-    align-items: start;
-  }
-
-  .about-layout > .about-intro {
-    grid-area: intro;
-  }
-
-  .about-layout > .resume-link {
-    grid-area: link;
-  }
-
-  .about-layout > .about-projects {
-    grid-area: projects;
-  }
-
-  .about-layout > .about-contact {
-    grid-area: contact;
-  }
-
-  .about-projects h2 {
-    margin-top: 0;
-  }
-
-  .about-projects .tile-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Bio opener (issue 125): the intro line under the page heading. */
-.about-lede {
-  font-size: var(--text-lg, 1.25rem);
-  margin-block: 0 var(--space-5);
-}
-
-/* Skills (issue 125): groups in a responsive grid below the page body. */
+/* Skills (issues 125, 174): cards in a grid, three columns wide, two on tablets, one on phones.
+ * Where the browser supports subgrid, each card's heading and text sit on rows shared with its
+ * neighbours, so a heading that wraps to two lines moves its whole row, not one card. The closing
+ * block (Where I'm headed) spans the full width. */
 .about-skills {
   margin-top: var(--space-6);
 }
 
 .skill-groups {
   display: grid;
-  gap: var(--space-5);
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.skill-group {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.skill-group h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.skill-group p {
+  margin: 0;
+}
+
+.skill-group:last-child {
+  border-color: var(--accent-deep);
 }
 
 @media (min-width: 40rem) {
   .skill-groups {
-    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* An odd group at the end of a two-column row takes the full row, so no cell sits empty. */
+  .skill-group:nth-last-child(2):nth-child(odd),
+  .skill-group:last-child {
+    grid-column: 1 / -1;
   }
 }
 
-.skill-group h3 {
-  margin-top: 0;
+@media (min-width: 60rem) {
+  .skill-groups {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .skill-group:nth-last-child(2):nth-child(odd) {
+    grid-column: auto;
+  }
+}
+
+@supports (grid-template-rows: subgrid) {
+  @media (min-width: 40rem) {
+    .skill-group {
+      display: grid;
+      grid-row: span 2;
+      grid-template-rows: subgrid;
+      row-gap: 0;
+    }
+  }
 }
