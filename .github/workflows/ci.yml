@@ -86,6 +86,9 @@ jobs:
       - name: Test the page head and footer links (hostile front matter)
         run: scripts/test-head.sh
 
+      - name: Test the headline image slot (hero, thumbnail, alt text required)
+        run: scripts/test-featured-image.sh
+
       - name: Test the Social and Products pages (built site, guard self-tests)
         run: scripts/test-social-products.sh
 

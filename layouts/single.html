@@ -19,6 +19,8 @@
   </aside>
   {{- end }}
   {{- end }}
+  {{- /* Headline image above the title (issue 217); nothing when the post has none. */}}
+  {{ partial "featured-image.html" (dict "page" . "mode" "hero") }}
   <h1>{{ .Title }}</h1>
   <div class="meta">
     <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
@@ -30,6 +32,8 @@
     </ul>
     {{- end }}
   </div>
+  {{- /* A post with a headline image sets build.publishResources: false so the multi-megabyte original is never served (the page uses resized copies). The other files in the bundle (inline image originals the legacy upload redirects point at, downloads) are published here instead. */}}
+  {{- with .Params.image }}{{ range $.Resources }}{{ if and (ne .ResourceType "page") (ne .Name $.Params.image) }}{{ $_ := .RelPermalink }}{{ end }}{{ end }}{{ end }}
   <div class="post-body">
   {{ .Content }}
   </div>

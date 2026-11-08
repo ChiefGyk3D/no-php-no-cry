@@ -2,6 +2,10 @@
 title: "Introducing Twitch-and-toot: The Open-Source Solution for Mastodon Stream Alerts"
 date: 2023-02-06T12:22:12-05:00
 slug: "introducing-twitch-and-toot-the-open-source-solution-for-mastodon-stream-alerts"
+image: "featured.jpg"
+imageAlt: "A purple 3D-printed Raspberry Pi case with a small fan sits on a RODECaster Pro mixer with glowing multicolor pads, a yellow Ethernet cable plugged in, and a touchscreen behind it."
+build:
+  publishResources: false
 description: "Twitch-and-Toot is an open source tool that posts to Mastodon when a streamer goes live on Twitch. This is the story of how I built it."
 archive: true
 categories: ["Open Source"]

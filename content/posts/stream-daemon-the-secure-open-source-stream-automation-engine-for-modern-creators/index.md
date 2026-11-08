@@ -2,6 +2,10 @@
 title: "Stream Daemon: The Secure, Open-Source Stream Automation Engine for Modern Creators"
 date: 2025-11-05T16:51:12-05:00
 slug: "stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators"
+image: "featured.png"
+imageAlt: "The Stream Daemon logo: a glowing cyan and purple horned daemon face drawn with circuit lines, next to the words STREAM DAEMON on a dark background."
+build:
+  publishResources: false
 description: "Stream Daemon is a secure, open source engine that watches your live status on streaming platforms and announces it across your social networks."
 archive: true
 categories: ["Open Source"]

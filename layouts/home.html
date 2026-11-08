@@ -19,7 +19,11 @@
   <ul class="post-list">
     {{- /* At most two entries (issue 180): Home must stay one screen at 1920x930 however many posts are published; the rest are one click away under All posts. scripts/test-social-products.sh builds ten posts and counts. */}}
     {{- range first 2 . }}
-    <li>
+    {{- $thumb := partial "featured-image.html" (dict "page" . "mode" "thumb") }}
+    <li{{ if $thumb }} class="has-thumb"{{ end }}>
+      {{- with $thumb }}
+      {{ . }}
+      {{- end }}
       <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
       <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
       <p class="post-summary">{{ with .Description }}{{ . | plainify }}{{ else }}{{ .Summary | plainify }}{{ end }}</p>

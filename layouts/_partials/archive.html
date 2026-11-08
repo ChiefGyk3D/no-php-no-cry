@@ -17,7 +17,11 @@
   <h2 class="archive-year hud-heading">{{ .Key }}</h2>
   <ul class="post-list">
     {{- range .Pages }}
-    <li>
+    {{- $thumb := partial "featured-image.html" (dict "page" . "mode" "thumb") }}
+    <li{{ if $thumb }} class="has-thumb"{{ end }}>
+      {{- with $thumb }}
+      {{ . }}
+      {{- end }}
       <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
       <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
       {{- with partial "description.html" . }}{{ if ne . site.Params.description }}

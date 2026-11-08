@@ -2,6 +2,10 @@
 title: "Boosting Your Mastodon Server's Visibility: A Guide to Federation and Relays"
 date: 2023-02-08T23:13:50-05:00
 slug: "boosting-your-mastodon-servers-visibility-a-guide-to-federation-and-relays"
+image: "featured.jpg"
+imageAlt: "Six sprinters in a black and white photo run toward the camera on a track during a relay race, one holding a baton."
+build:
+  publishResources: false
 description: "How a new Mastodon server gets noticed: directories, follower scanning tools and relays that improve federation."
 archive: true
 categories: ["Social Media"]

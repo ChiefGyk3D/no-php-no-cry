@@ -38,6 +38,9 @@ Delete the comments you do not need before you open the pull request.
 | `tags` | no | A few specific words. They show as `#tag` links under the title. |
 | `syndicate` | yes | `true` lets the deploy job announce the post once it is live. The archetype sets `false`. A journal entry is not announced unless you say so. |
 | `syndicated` | no | A map of announcement links (`bluesky`, `mastodon`, `discord`, `matrix`), written by the syndication step. Do not write it by hand for a new post. Only `https://` values render, as "Discuss on ..." links. |
+| `image` | no | The headline image: the name of a file in the post's folder, for example `featured.jpg` (section 3). Shown above the title, as a small thumbnail on the Posts and Home cards, and as the social card. No `image` means no hero and the default brand card. |
+| `imageAlt` | yes, with `image` | What the headline image shows, in one sentence. The build fails without it. |
+| `build` | with a large `image` | Set `publishResources: false` under `build:` when the headline image file is over 300 KB (section 3). |
 | `affiliate` | no | A reminder for you and the reviewer. The build does not read it. Set `true` when the post has affiliate links. |
 | `aliases` | no | Old paths that should redirect to this page. The build writes a 301 line for each. New posts rarely need one. |
 | `archive` | no | `true` or a short text. Shows a dated "this is a record, not a current view" banner. |
@@ -48,6 +51,47 @@ Everything above it is the summary. Write the opening paragraph so it works on
 its own.
 
 ## 3. Images and alt text
+
+### Headline image
+
+A headline image is optional. To add one:
+
+1. Put the file in the post's folder and name it `featured.<ext>` (`featured.jpg`,
+   `featured.png` or `featured.webp`). Only JPEG, PNG and WebP work.
+2. Add two lines to the front matter, and write the alt text yourself:
+
+   ```yaml
+   image: "featured.jpg"
+   imageAlt: "A purple 3D-printed case with a small fan sitting on a mixer with glowing pads"
+   build:
+     publishResources: false
+   ```
+
+3. The page shows it above the title (not lazy loaded, it is the first thing a
+   reader sees), makes a small thumbnail of it for the Posts and Home cards, and
+   uses a 1200 by 630 JPEG copy as the social card. A post with no `image` shows
+   none of that and uses the default brand card.
+
+Rules:
+
+- `imageAlt` is required. A missing or `TODO alt text` value fails the build.
+  The thumbnail on a card is decorative (empty alt) because the title link sits
+  next to it; the hero carries the alt text.
+- The page uses resized WebP copies, never the original file. The `build:` lines
+  keep the original out of the published site; the budget check
+  (`scripts/check-budget.py`) fails any image file over 300 KB. A small file
+  does not need them.
+- Landscape photos about 1200 pixels wide or more work best. The hero is capped
+  in height and never cropped, so a logo or a square graphic is letterboxed on
+  the dark surface instead of cut off.
+- Remove EXIF data and GPS location first (`scripts/check-image-metadata.py`
+  fails the build otherwise). `exiftool -all= featured.jpg` does it without
+  re-encoding the picture. Keep the color profile on photos that have one:
+  `exiftool -all= -tagsfromfile @ -icc_profile featured.jpg`.
+- A value that starts with `/` or `https://` is a site path or URL used for the
+  social card only: no hero, no thumbnail.
+
+### Images in the text
 
 Put each image in the post's folder, next to `index.md`. Only those files are
 allowed. A remote image, or an image from elsewhere in the site, fails the

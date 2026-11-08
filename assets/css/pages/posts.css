@@ -172,3 +172,42 @@
 .tag-list a {
   gap: var(--space-2);
 }
+
+/* Headline image (issue 217). The post hero sits above the title at its natural
+ * proportions, capped in height so a tall image never pushes the title off the
+ * first screen; contain, never crop, since some are logos. The card thumbnail
+ * (list and home) is a small image left of the title, date and summary. */
+.post-hero {
+  margin: 0 0 var(--space-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.post-hero img {
+  display: block;
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+}
+
+.post-list li.has-thumb {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  column-gap: var(--space);
+  align-items: start;
+}
+
+.post-list li.has-thumb > * {
+  grid-column: 2;
+}
+
+.post-list li.has-thumb > .post-thumb {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 6rem;
+  height: 4rem;
+  object-fit: cover;
+  background: var(--surface);
+  border-radius: var(--radius);
+}

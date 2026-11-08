@@ -962,6 +962,9 @@ def convert(wxr_path, site_url, media_root, draft_all=False, annotations=None, p
             ("aliases", aliases),
             ("image", featured),
             ("imageAlt", featured_alt),
+            # The original is a source for the resize pipeline, never served as is
+            # (scripts/check-budget.py rejects an image file over 300 KB).
+            ("build", {"publishResources": False} if featured else None),
         ]
         # Aliases are settled after every page has a URL (see resolve_aliases).
         pending[page_path] = {"fields": fields, "body": body, "aliases": aliases, "new": new_url}

@@ -52,12 +52,15 @@ class FeaturedImageTests(unittest.TestCase):
         self.assertIn('image: "featured.png"\n', head)
         self.assertIn('imageAlt: "A striped test pattern"\n', head)
         self.assertEqual(json.loads(proc.stdout)["featured_images"], 1)
+        # The original is only a source for the resize pipeline: not published as is.
+        self.assertIn("build:\n  publishResources: false\n", head)
 
     def test_post_without_thumbnail_has_no_image_keys(self):
         proc, out, _ = convert(thumb_export())
         second = (out / "posts/second-post/index.md").read_text().split("---\n")[1]
         self.assertNotIn("image:", second)
         self.assertNotIn("imageAlt", second)
+        self.assertNotIn("publishResources", second)
         self.assertFalse((out / "posts/second-post/featured.png").exists())
 
     def test_missing_alt_is_a_warning_and_placeholder(self):
