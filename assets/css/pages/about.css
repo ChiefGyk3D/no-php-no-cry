@@ -104,6 +104,65 @@
   flex: 1;
 }
 
+@media (min-width: 60rem) {
+  .about-mascot {
+    width: 11rem;
+  }
+}
+
+/* The resume line closes the card: a next step, set off by a rule. */
+.about-intro .panel > :last-child {
+  margin-bottom: 0;
+}
+
+.about-intro .resume-link {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--border);
+}
+
+/* Bio opener (issue 125): the intro line under the page heading. */
+.about-lede {
+  font-size: var(--text-lg, 1.25rem);
+  margin-block: 0 var(--space-5);
+}
+
+/* Current projects: a full-width grid, equal heights, three columns wide, two on tablets, one on
+ * phones. The GitHub tile always takes a full row so no tile sits alone in a half-empty row. */
+.about-projects,
+.about-contact {
+  margin-top: var(--space-6);
+}
+
+.about-projects h2,
+.about-contact h2 {
+  margin-top: 0;
+}
+
+.project-tiles {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 40rem) {
+  .project-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 60rem) {
+  .project-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.project-tiles > li {
+  display: flex;
+}
+
+.project-tiles .tile {
+  flex: 1;
+}
+
 .project-tiles .tile .meta {
   display: block;
 }

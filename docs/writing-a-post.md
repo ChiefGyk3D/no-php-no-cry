@@ -85,7 +85,7 @@ If a post has an affiliate link:
    without saying what it is.
 
 Long lists of products belong on the Products page (`data/products.yaml`),
-which carries its own disclosure at the top. Change that disclosure text only
+which carries its own disclosure at the bottom of the page. Change that disclosure text only
 with the maintainer's agreement.
 
 ## 5. Syndication fields

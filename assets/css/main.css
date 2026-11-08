@@ -315,6 +315,14 @@ main {
   padding: var(--space-6) 0;
 }
 
+/* Standing rule (issue 123): short pages fit 1920x1080 without scrolling, so
+ * from 80rem the page's top and bottom padding is smaller. */
+@media (min-width: 80rem) {
+  main {
+    padding: var(--space-5) 0;
+  }
+}
+
 .site-footer {
   border-top: var(--rule-width) solid var(--rule);
   padding: var(--space) 0;
@@ -379,6 +387,26 @@ main {
 .footer-social-list--per-10 { --per: 10; }
 .footer-social-list--per-11 { --per: 11; }
 .footer-social-list--per-12 { --per: 12; }
+
+/* Standing rule (issue 123): from 80rem the footer is one row (sign-off line,
+ * the social icons in a single row, the credit) so short pages still fit a
+ * 1920x1080 browser; the two balanced icon rows stay below 80rem, where the
+ * footer is not what decides the fit. */
+@media (min-width: 80rem) {
+  .footer-meta {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .footer-social {
+    flex: 1 1 auto;
+  }
+
+  .footer-social-list {
+    flex-wrap: nowrap;
+    max-width: none;
+  }
+}
 
 .footer-social-link {
   display: flex;

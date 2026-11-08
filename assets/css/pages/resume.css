@@ -135,6 +135,7 @@
   }
 
   .resume-title,
+  .resume-subtitle,
   .resume-skills dt {
     color: CanvasText;
   }

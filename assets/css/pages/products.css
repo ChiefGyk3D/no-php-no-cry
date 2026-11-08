@@ -1,7 +1,9 @@
-/* /products/: the disclosure panel and the grouped item list. Tokens only. */
+/* /products/: the grouped item list and, after the last group, the disclosure
+ * (one plain note, lightly ruled). Tokens only. */
 .disclosure {
-  margin: var(--space-5) 0;
-  background-color: var(--plate);
+  margin: var(--space-6) 0 0;
+  padding-top: var(--space);
+  border-top: var(--rule-width) solid var(--rule);
 }
 
 .disclosure p {
