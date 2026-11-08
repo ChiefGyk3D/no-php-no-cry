@@ -20,15 +20,10 @@
 }
 
 .archive-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
   margin-bottom: var(--space-5);
-}
-
-.archive-tags {
-  margin: var(--space-5) 0;
-}
-
-.archive-tags .tag-list li {
-  margin-right: var(--space-3);
 }
 
 .post {
