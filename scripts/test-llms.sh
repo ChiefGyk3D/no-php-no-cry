@@ -52,7 +52,11 @@ check_llms() {
         [[ -n "$url" ]] || continue
         grep -qF "]($url)" "$f" || echo "missing data link: $url"
         n=$((n + 1))
-    done < <(grep -hE '^[[:space:]]*(-[[:space:]]+)?url:[[:space:]]*https://' "$root/data/socials.yaml" "$root/data/support.yaml" | sed -E 's/^[^:]*:[[:space:]]*//')
+    done < <({
+        # footer_only entries (LinkedIn, issue 195) are in the footer icon row only, not in llms.txt.
+        awk '/^- name:/ { if (url != "" && fo != "true") print url; url = ""; fo = "" } $1 == "url:" && $2 ~ /^https:\/\// { url = $2 } $1 == "footer_only:" { fo = $2 } END { if (url != "" && fo != "true") print url }' "$root/data/socials.yaml"
+        grep -hE '^[[:space:]]*(-[[:space:]]+)?url:[[:space:]]*https://' "$root/data/support.yaml" | sed -E 's/^[^:]*:[[:space:]]*//'
+    })
     [[ $n -gt 0 ]] || echo "no data links read (test bug)"
     # No affiliate link, no wallet address.
     while IFS= read -r url; do

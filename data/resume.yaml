@@ -78,3 +78,5 @@ outside_work:
 contact: "References, job history and a phone number are available to prospective employers on request."
 contact_link_text: "How to reach me, on the About page"
 contact_url: /about/#contact
+# The one profile link of the Contact section (issue 195); shown as "Find me online: LinkedIn".
+linkedin_url: https://www.linkedin.com/in/moshe-g

@@ -43,6 +43,11 @@
   --icon: url("../brand/icons/matrix.svg");
 }
 
+/* LinkedIn is footer-only (issue 195): no Home chip uses this; scripts/test-brand.sh wants a rule per icon file. */
+.icon-linkedin {
+  --icon: url("../brand/icons/linkedin.svg");
+}
+
 .icon-pixelfed {
   --icon: url("../brand/icons/pixelfed.svg");
 }
