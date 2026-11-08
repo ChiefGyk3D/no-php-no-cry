@@ -783,7 +783,25 @@ APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-sh
 APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
 # The owner-approved business address is allowed on the About page only (issue 159):
 # a different address there, and the approved one on any other page, are findings.
-ABOUT_MAIL="$(sed -n 's/^  email: "\(.*\)"$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../data/about.yaml" | head -n 1)"
+ABOUT_MAIL="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
+# about-email.sh fails closed: it prints the address only for a COMPLETE contact config.
+contact_case() { # <label> <email> <fingerprint> <url> <expect: yes|no>
+    local f="$work/about-email-$1.yaml" got
+    printf 'contact:\n  email: "%s"\n  pgp_fingerprint: "%s"\n  pgp_url: "%s"\n' "$2" "$3" "$4" >"$f"
+    got="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh" "$f")"
+    if { [[ "$5" == yes && "$got" == "$2" ]] || [[ "$5" == no && -z "$got" ]]; }; then
+        echo "ok: contact config $1 -> address allowed: $5"
+    else
+        echo "FAIL: contact config $1 allowed '$got' (wanted $5)"
+        failures=$((failures + 1))
+    fi
+}
+contact_case neither "" "" "" no
+contact_case email-only "a@example.org" "" "" no
+contact_case key-only "" "AAAA" "/k.asc" no
+contact_case email-and-fingerprint "a@example.org" "AAAA" "" no
+contact_case email-and-url "a@example.org" "" "/k.asc" no
+contact_case both "a@example.org" "AAAA" "/k.asc" yes
 append_about() { mkdir -p "$1/about" && printf '%s\n' "$APPEND" >>"$1/about/index.html"; }
 APPEND='<p>mail me at other@example.org</p>' variant about-other-address email-shaped-text append_about
 APPEND="<p>mail me at ${ABOUT_MAIL}</p>" variant approved-address-on-home email-shaped-text append_html

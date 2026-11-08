@@ -257,7 +257,7 @@ while IFS= read -r -d '' f; do
     # About page only, as text and as a mailto: link to exactly that address.
     email_opts=()
     if [[ "$rel" == about/index.html ]]; then
-        about_email="$(sed -n 's/^  email: "\(.*\)"$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../data/about.yaml" | head -n 1)"
+        about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
         [[ -n "$about_email" ]] && email_opts=(--allow-email "$about_email")
     fi
     while IFS= read -r rule; do

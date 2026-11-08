@@ -276,7 +276,7 @@ check_page() {
         fi
         [[ "$path" == *.xml ]] && opts=(--markup)
         if [[ "$path" == /about/ ]]; then
-            about_email="$(sed -n 's/^  email: "\(.*\)"$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../data/about.yaml" | head -n 1)"
+            about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
             [[ -n "$about_email" ]] && opts+=(--allow-email "$about_email")
         fi
         found="$(python3 -I "$scan_py" "${opts[@]}" "$site_host" "$body_file")" || found="unparseable-html"

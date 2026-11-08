@@ -1,5 +1,22 @@
 # Privacy page and analytics (issues 62 and 84)
 
+## Business contact on /about/ (issue 159)
+
+The Contact section publishes the business email only when the contact config in
+`data/about.yaml` is complete: `email`, `pgp_fingerprint` and `pgp_url` all set.
+Anything less shows no address anywhere on the page, only "the address will be
+listed here soon". The rule is written once for the template
+(`layouts/_partials/contact-complete.html`) and once for the build checks
+(`scripts/about-email.sh`, which prints the address only for a complete config
+and is the only source of the `--allow-email` exemption in `check-output.sh`
+and `smoke-site.sh`). `scripts/test-pages.sh` builds a copy of the repository for
+neither, email-only, key-only, email+fingerprint, email+url and both, and
+`scripts/test-check-output.sh` checks `about-email.sh` for the same cases.
+If Cloudflare Email Address Obfuscation is enabled on the zone it may rewrite the
+address on the live page; that is a host setting this repository does not control.
+
+## Privacy page
+
 `/privacy/` (`content/privacy/index.md`) says what the repository can establish:
 the site code sets no cookies and embeds nothing from other sites. The owner
 confirmed on 2026-11-07 that Cloudflare Web Analytics is turned on for the Pages

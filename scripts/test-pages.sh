@@ -366,7 +366,9 @@ def about(p, errs, repo):
     if p.ids.get("contact") not in ("h2", "h3", "section"):
         errs.append("no #contact heading or section")
     cd = contact_data()
-    email_set = bool(cd["email"])
+    # One rule (layouts/_partials/contact-complete.html): the address is published only
+    # when the email, the fingerprint and the key link are ALL set.
+    email_set = bool(cd["email"] and cd["pgp_fingerprint"] and cd["pgp_url"])
     if CONTACT not in flat:
         errs.append("contact sentence missing")
     if email_set == (CONTACT_SOON.strip() in flat):
@@ -385,7 +387,7 @@ def about(p, errs, repo):
         errs.append("the About body must link to /resume/")
     mailtos = [h for h in hrefs if (h or "").startswith("mailto:")]
     if not email_set and mailtos:
-        errs.append("data/about.yaml has no email set, so the page must not link one")
+        errs.append("the contact config is incomplete, so the page must not link an email")
     if email_set:
         if mailtos != ["mailto:" + cd["email"]]:
             errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
@@ -406,7 +408,7 @@ def about(p, errs, repo):
                 want = key_fingerprint(keyfile)
                 if want is not None and want != cd["pgp_fingerprint"].replace(" ", "").upper():
                     errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want))
-    stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - {cd["email"]}
+    stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - ({cd["email"]} if email_set else set())
     if stray:
         errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
     # The email ban is for the contact section; the Skills text legitimately says "email security".
@@ -529,32 +531,48 @@ if [[ -f "$pub/about/index.html" ]]; then
             pass "guard: an About page with a broken contact ($v) fails"
         fi
     done
-    croot="$work/emptycontact"
-    mkdir -p "$croot"
-    for d in archetypes assets content data layouts static i18n; do
-        [[ -e "$root/$d" ]] && cp -R "$root/$d" "$croot/$d"
-    done
-    for f in hugo.toml .hugo-version; do
-        [[ -f "$root/$f" ]] && cp "$root/$f" "$croot/$f"
-    done
-    sed -i 's/^  email: ".*"$/  email: ""/; s/^  pgp_fingerprint: ".*"$/  pgp_fingerprint: ""/; s/^  pgp_url: ".*"$/  pgp_url: ""/' "$croot/data/about.yaml"
-    if cmp -s "$root/data/about.yaml" "$croot/data/about.yaml"; then
-        fail "empty-contact mutation did not change the data (the test is stale)"
-    elif (cd "$croot" && hugo --minify --destination "$work/emptypublic" --quiet >"$work/emptybuild.log" 2>&1); then
-        if ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$work/emptypublic/about/index.html" >/dev/null 2>&1; then
-            pass "empty email and PGP entries render nothing (and the 'listed soon' sentence shows)"
-        else
-            fail "empty email and PGP entries still render something"
+    # Fail closed: only a COMPLETE contact config (email, fingerprint and key link) publishes the
+    # address. Build a copy of the repository for each combination and assert the page.
+    build_contact_case() { # <case> <email> <fingerprint> <url> <expect: complete|incomplete>
+        local name="$1" croot="$work/contact-$1"
+        mkdir -p "$croot"
+        for d in archetypes assets content data layouts static i18n; do
+            [[ -e "$root/$d" ]] && cp -R "$root/$d" "$croot/$d"
+        done
+        for f in hugo.toml .hugo-version; do
+            [[ -f "$root/$f" ]] && cp "$root/$f" "$croot/$f"
+        done
+        sed -i "s/^  email: \".*\"\$/  email: \"$2\"/; s/^  pgp_fingerprint: \".*\"\$/  pgp_fingerprint: \"$3\"/; s#^  pgp_url: \".*\"\$#  pgp_url: \"$4\"#" "$croot/data/about.yaml"
+        if ! (cd "$croot" && hugo --minify --destination "$work/contact-public-$name" --quiet >"$work/contact-build-$name.log" 2>&1); then
+            cat "$work/contact-build-$name.log"
+            fail "contact case $name did not build"
+            return
         fi
-        python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Business inquiries go by email"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Business inquiries go by <a href=mailto:x@example.org>email</a>", 1))' "$work/emptypublic/about/index.html" "$work/about-mail.html"
-        if ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
-            fail "guard: an About page linking an email with an empty data entry passed"
+        local page="$work/contact-public-$name/about/index.html" has_mail=0
+        grep -q "mailto:" "$page" && has_mail=1
+        if [[ "$5" == complete && $has_mail -eq 0 ]] || [[ "$5" == incomplete && $has_mail -eq 1 ]]; then
+            fail "contact case $name: wrong exposure of the address (mailto present: $has_mail)"
+        elif grep -q "chief@chiefgyk3d.com" "$page" && [[ "$5" == incomplete ]]; then
+            fail "contact case $name: the address is on the page although the config is incomplete"
+        elif ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$page" >/dev/null 2>&1; then
+            pass "contact case $name ($5): the About page matches the rule"
         else
-            pass "guard: an About page linking an email with an empty data entry fails"
+            fail "contact case $name ($5): the About asserter rejected the page"
         fi
+    }
+    FP="93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
+    build_contact_case neither "" "" "" incomplete
+    build_contact_case email-only "chief@chiefgyk3d.com" "" "" incomplete
+    build_contact_case key-only "" "$FP" "/chiefgyk3d.asc" incomplete
+    build_contact_case email-and-fingerprint "chief@chiefgyk3d.com" "$FP" "" incomplete
+    build_contact_case email-and-url "chief@chiefgyk3d.com" "" "/chiefgyk3d.asc" incomplete
+    build_contact_case both "chief@chiefgyk3d.com" "$FP" "/chiefgyk3d.asc" complete
+    # The checker bites: an address injected into an incomplete page is rejected.
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Business inquiries go by email"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Business inquiries go by <a href=mailto:chief@chiefgyk3d.com>email</a>", 1))' "$work/contact-public-email-only/about/index.html" "$work/about-mail.html"
+    if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
+        fail "guard: an About page linking an email with an incomplete config passed"
     else
-        cat "$work/emptybuild.log"
-        fail "the empty-contact copy did not build"
+        pass "guard: an About page linking an email with an incomplete config fails"
     fi
 fi
 # Guard: the footer check bites. The footer line removed from About must fail.
