@@ -143,6 +143,21 @@ none).
 
 Footer: Contact (`/about/#contact`), Privacy, RSS, the `rel="me"` identity row, a link to Reach
 Around ("link page"), and the media kit link that points out to Reach Around.
+Update (issue 169, 2026-11-08): the footer also carries the social icon row, icons
+only, one link per live `data/socials.yaml` entry, in its own
+`<nav aria-label="Social profiles">` under the sign-off line and above the
+copyright. An entry with an empty `url` is skipped. Each link has the platform
+name as its accessible name, `rel="noopener"` (plus `me` when `rel_me` is true),
+a 44 px tap target and the site focus ring. On a wide screen the row is two
+balanced rows, centered (7 icons are 4 over 3, 12 are 6 over 6): `baseof.html`
+writes the per-row count (half the live count, rounded up) as a
+`footer-social-list--per-N` class, because the strict CSP forbids inline styles,
+and `assets/css/main.css` caps the list at that many icons so `flex-wrap` breaks
+it evenly. On a phone the cap is the screen width and the icons wrap on their own,
+the short row centered. The icons are the masks already shipped for `/social/`
+(no new files). `scripts/test-social-products.sh` checks the row on every page
+(block present, name and https url per link, none for an empty url, count and
+row class match the data file) and has a guard case for each rule.
 Two-way link with Reach Around (#12): this site links to it from the header of
 the social hub and the footer; Reach Around links back to the blog.
 
@@ -186,6 +201,13 @@ the hub.
 
 One data file, `data/socials.yaml`, with `name`, `icon` (slug), `url`, `handle`,
 `rel_me` (bool), `blurb`. Handles in this file are the public handles only.
+The page and its nav and footer links are called "Socials" (issue 170; the URL stays
+`/social/`). A handle never splits mid-word: `layouts/_partials/handle.html` cuts
+it before the second `@` of a fediverse handle and after the `:` of a Matrix room,
+each part is `white-space: nowrap` and a `<wbr>` sits between them, so the user
+part and the domain take separate lines when the tile is narrow;
+`overflow-wrap: anywhere` stays on the tile only as a last resort. The browser gate
+rule `tile` fails a tile whose content sticks out.
 
 ### Feeds versus links
 

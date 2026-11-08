@@ -342,6 +342,62 @@ main {
   margin: 0;
 }
 
+/* Social icon row (issue 169), between the sign-off line and the credit: a
+ * full-width item of the footer-meta row, so the line sits above it and the
+ * credit below. Centered, two balanced rows on a wide screen: the list is
+ * capped at --per icons (set by the footer-social-list--per-N class that
+ * baseof.html writes, half the live count rounded up), so flex-wrap breaks it
+ * evenly and the shorter row stays centered. The cap never exceeds the
+ * container, so a phone wraps by its own width. Each link is --tap square. */
+.footer-social {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  min-height: var(--tap);
+}
+
+.footer-social-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: min(100%, calc(var(--per, 12) * var(--tap) + (var(--per, 12) - 1) * var(--space-2)));
+}
+
+.footer-social-list--per-1 { --per: 1; }
+.footer-social-list--per-2 { --per: 2; }
+.footer-social-list--per-3 { --per: 3; }
+.footer-social-list--per-4 { --per: 4; }
+.footer-social-list--per-5 { --per: 5; }
+.footer-social-list--per-6 { --per: 6; }
+.footer-social-list--per-7 { --per: 7; }
+.footer-social-list--per-8 { --per: 8; }
+.footer-social-list--per-9 { --per: 9; }
+.footer-social-list--per-10 { --per: 10; }
+.footer-social-list--per-11 { --per: 11; }
+.footer-social-list--per-12 { --per: 12; }
+
+.footer-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+}
+
+.footer-social-link .social-icon {
+  width: var(--space-5);
+  height: var(--space-5);
+}
+
+.footer-social-link:hover .social-icon,
+.footer-social-link:focus-visible .social-icon {
+  background-color: var(--text);
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;

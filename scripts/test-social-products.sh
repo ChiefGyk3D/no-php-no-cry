@@ -8,6 +8,10 @@
 #             classes with a CSS rule and a committed SVG each, Pixelfed is a live
 #             link to its profile, rel="me" on exactly the networks whose rel_me
 #             field in the data says true (the test follows the data), https only;
+#   footer:   the icon row (issue 169) on every page with a footer: one icon link
+#             per live data/socials.yaml entry, an accessible name and https
+#             url each, none for an empty url, between the sign-off line and the
+#             credit, the balanced-row class matching the count;
 #   products: the disclosure copy in a bracket-frame panel before any item, the
 #             groups in the order of data/products.yaml (security first, creator
 #             and social media tools last, the first one open, a count in each
@@ -205,6 +209,69 @@ def check_social(page, root, bad):
     return len(tiles)
 
 
+def load_socials(root):
+    """data/socials.yaml read without a YAML library: one '- name:' per entry, simple scalar keys."""
+    entries = []
+    for line in pathlib.Path(root, "data/socials.yaml").read_text().splitlines():
+        if line.startswith("- name:"):
+            entries.append({"name": line.split(":", 1)[1].strip()})
+        elif entries and re.match(r"  [a-z_]+:", line):
+            k, v = line.strip().split(":", 1)
+            entries[-1][k] = v.strip().strip('"')
+    return entries
+
+
+def check_footer(page, root, bad):
+    """The footer social icon row (issue 169): on every page, one link per live entry of the data file."""
+    doc = load(page)
+    feet = doc.find("footer")
+    if len(feet) != 1:
+        bad.append("page has %d footers" % len(feet))
+        return 0
+    foot = feet[0]
+    navs = [n for n in foot.find("nav") if n.attrs.get("aria-label") == "Social profiles"]
+    live = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://")]
+    if len(navs) != 1:
+        bad.append("footer has %d 'Social profiles' navs" % len(navs))
+        return 0
+    nav = navs[0]
+    # Order: the sign-off line, then the icon row, then the credit.
+    order = list(foot.walk())
+    line = foot.find("p", "footer-line")
+    credit = foot.find("p", "credit")
+    if not line or not credit or not (order.index(line[0]) < order.index(nav) < order.index(credit[0])):
+        bad.append("icon row is not between the sign-off line and the credit")
+    links = nav.find("a")
+    if len(links) != len(live):
+        bad.append("footer has %d icon links, data has %d live entries" % (len(links), len(live)))
+    for e in (e for e in load_socials(root) if e not in live):
+        if any(a.attrs.get("aria-label") == e["name"] for a in links):
+            bad.append("%s has no https url in the data but renders in the footer" % e["name"])
+    for a, e in zip(links, live):
+        name = e["name"]
+        href = a.attrs.get("href") or ""
+        if not href.startswith("https://"):
+            bad.append("%s footer link is not https" % name)
+        if href != e["url"]:
+            bad.append("%s footer href differs from data" % name)
+        if (a.attrs.get("aria-label") or "").strip() != name:
+            bad.append("%s footer link lacks its accessible name" % name)
+        if a.all_text().strip():
+            bad.append("%s footer link shows text (icons only)" % name)
+        rel = (a.attrs.get("rel") or "").split()
+        if "noopener" not in rel or (e.get("rel_me") == "true") != ("me" in rel):
+            bad.append("%s footer rel wrong (%r)" % (name, rel))
+        icon = a.find("span", "social-icon")
+        if not icon or "social-icon--" + e["icon"] not in icon[0].classes() or icon[0].attrs.get("aria-hidden") != "true":
+            bad.append("%s footer icon class or aria-hidden wrong" % name)
+    # Balanced rows: the list carries the per-row cap, half the live count rounded up.
+    ul = nav.find("ul")
+    want = "footer-social-list--per-%d" % ((len(live) + 1) // 2)
+    if not ul or want not in ul[0].classes():
+        bad.append("icon list lacks the balanced-row class %s" % want)
+    return len(links)
+
+
 def load_products(root):
     """data/products.yaml read without a YAML library: groups, then items with simple scalar keys."""
     groups = []
@@ -322,7 +389,7 @@ def check_products(page, root, bad):
 def main(argv):
     kind, page, root = argv[1:4]
     bad = []
-    n = {"social": check_social, "products": check_products}[kind](page, root, bad)
+    n = {"social": check_social, "products": check_products, "footer": check_footer}[kind](page, root, bad)
     for b in sorted(set(bad)):
         print(b)
     print("count=%s" % n)
@@ -360,6 +427,25 @@ for pair in "social:$social" "products:$products"; do
     fi
 done
 
+# The footer icon row is on every full page (a page with a <footer>; alias
+# stubs have none), and the home and 404 pages are among them.
+footer_pages=0
+while IFS= read -r -d '' page; do
+    grep -q '<footer' "$page" || continue
+    footer_pages=$((footer_pages + 1))
+    if ! out="$(run_assert footer "$page")"; then
+        fail "footer icons on ${page#"$public"}: $(tr '\n' ';' <<<"$out")"
+    fi
+done < <(find "$public" -name '*.html' -print0)
+if ((footer_pages < 10)); then
+    fail "footer icon row checked on only $footer_pages pages (expected at least 10)"
+else
+    pass "footer icon row checked on $footer_pages pages"
+fi
+for must in index.html 404.html social/index.html; do
+    grep -q 'Social profiles' "$public/$must" || fail "footer icon row missing on /$must"
+done
+
 # Every icon class used by a tile has a mask rule in the built stylesheet and
 # a CSS-only placeholder exists for the tile without an icon.
 css="$(cat "$public"/css/*.css 2>/dev/null || true)"
@@ -382,6 +468,38 @@ else
         fail "page css writes a color outside tokens.css"
     else
         pass "page css uses tokens only"
+    fi
+fi
+
+# Guard self-test of the footer asserter: a data file with one empty url must
+# fail against the real page (the page still renders that entry), and so must
+# pages with the row broken in each way.
+if [[ -f "$public/index.html" ]]; then
+    fguard() { # label sed-expression
+        local label="$1" expr="$2" copy="$work/fguard.html"
+        sed -E "$expr" "$public/index.html" >"$copy"
+        if cmp -s "$public/index.html" "$copy"; then
+            fail "footer guard '$label' did not change the page (the test is stale)"
+        elif run_assert footer "$copy" >/dev/null; then
+            fail "footer guard '$label': asserter accepted a broken page"
+        else
+            pass "footer guard '$label' fails as it should"
+        fi
+    }
+    fguard "accessible name dropped" 's/aria-label="?Twitch"?//'
+    fguard "link not https" 's#href="?https://twitch.tv/chiefgyk3d"?#href=http://twitch.tv/chiefgyk3d#'
+    fguard "row removed" 's/aria-label="?Social profiles"?/aria-label=Other/'
+    fguard "one icon removed" '/<li><a class="?footer-social-link"? href="?https:\/\/kick\.com/d'
+    fguard "balanced-row class wrong" 's/footer-social-list--per-6/footer-social-list--per-11/'
+    fguard "rel=me dropped" 's/rel="me noopener"/rel=noopener/g'
+    mkdir -p "$work/emptyroot/data"
+    sed -E '/url: https:\/\/kick.com/s#url: .*#url: ""#' "$root/data/socials.yaml" >"$work/emptyroot/data/socials.yaml"
+    if cmp -s "$root/data/socials.yaml" "$work/emptyroot/data/socials.yaml"; then
+        fail "empty-url guard did not change the data (the test is stale)"
+    elif python3 -I "$asserter" footer "$public/index.html" "$work/emptyroot" >/dev/null 2>&1; then
+        fail "empty-url guard: asserter accepted an empty-url platform rendered in the footer"
+    else
+        pass "empty-url guard fails as it should"
     fi
 fi
 
@@ -409,7 +527,7 @@ if [[ -f "$social" && -f "$products" ]]; then
     guard "vendor-label note dropped" products "$products" 's/says whether the link goes to Amazon or straight to the company/says where the link goes/'
     guard "price note restored" products "$products" '0,/<p class="product-line">/s//<p class="product-checked meta">Price checked on May 1, 2026<\/p><p class="product-line">/'
     guard "rel=me added to a network the data does not mark" social "$social" 's/rel="noopener"/rel="me noopener"/g'
-    guard "fediverse handle loses its @" social "$social" 's#(@chiefgyk3d)<span>@</span>(social\.chiefgyk3d\.com)#\1<span></span>\2#'
+    guard "fediverse handle loses its @" social "$social" 's#<span>@</span>(social\.chiefgyk3d\.com)#<span></span>\1#'
     guard "plain http link" products "$products" 's#href="https://amzn.to/#href="http://amzn.to/#'
 fi
 
