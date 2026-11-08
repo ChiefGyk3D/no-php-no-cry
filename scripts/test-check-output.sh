@@ -781,6 +781,12 @@ variant missing-posts-archive template-element drop_archive
 APPEND='<p>@someone@social.example.org</p>' variant email-shaped-handle email-shaped-text append_html
 APPEND='<p>mail me at a.b@example.org</p>' variant email-shaped-address email-shaped-text append_html
 APPEND='<a href="mailto:a@example.org">mail</a>' variant mailto-link email-shaped-text append_html
+# The owner-approved business address is allowed on the About page only (issue 159):
+# a different address there, and the approved one on any other page, are findings.
+ABOUT_MAIL="$(sed -n 's/^  email: "\(.*\)"$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../data/about.yaml" | head -n 1)"
+APPEND='<p>mail me at other@example.org</p>' PAGE=about/index.html variant about-other-address email-shaped-text append_html
+APPEND="<p>mail me at ${ABOUT_MAIL}</p>" variant approved-address-on-home email-shaped-text append_html
+APPEND="<a href=\"mailto:${ABOUT_MAIL}\">mail</a>" variant approved-mailto-on-home email-shaped-text append_html
 # An archived comment (issue 121) is page text like any other: an address or a
 # mailto: link in the comments section is caught, and a clean one passes.
 COMMENT_OPEN='<section class="comments-archive" aria-labelledby="comments-archive-title"><h2 id="comments-archive-title">Comments from the old site</h2><figure class="comment"><blockquote><p>Nice post.</p></blockquote><figcaption><span>Name</span>, <time datetime="2023-01-02">January 2, 2023</time>'

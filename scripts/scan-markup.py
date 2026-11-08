@@ -1,6 +1,6 @@
 """Reads a page, svg or xml file the way a browser reads its tags.
 
-Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] <site-host> <file>
+Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] <site-host> <file>
 
 Prints one rule name per line, never page content. Attributes are read from real
 attributes by a quote-aware parser (a ">" or "=" inside a quoted value is just
@@ -26,6 +26,10 @@ A <script type="application/ld+json"> data block (that one attribute, nothing
 else) is not a script in either mode: a browser never runs it and script-src
 does not apply. Its body is judged by scripts/check-seo.py. In --markup mode
 every script element is still refused.
+--allow-email ADDRESS (HTML mode) exempts that one address, as page text and as a
+mailto: link to exactly that address, from email-shaped-text. The caller passes it
+only for the page that publishes the owner-approved business address (About);
+any other address on that page, or on any other page, is still a finding.
 """
 import re
 import sys
@@ -59,8 +63,9 @@ def judge(url, host):
 
 
 class Scan(HTMLParser):
-    def __init__(self, host, markup, scripts, known=(), allow=""):
+    def __init__(self, host, markup, scripts, known=(), allow="", allow_email=""):
         super().__init__(convert_charrefs=True)
+        self.allow_email = allow_email.lower()
         self.host, self.markup, self.scripts = host, markup, scripts
         self.known, self.allow = set(known), allow
         self.found = set()
@@ -72,6 +77,8 @@ class Scan(HTMLParser):
         self.handle_starttag(tag, attrs)
 
     def handle_data(self, data):
+        if self.allow_email:
+            data = re.sub(re.escape(self.allow_email), "", data, flags=re.I)
         if not self.markup and not self.in_script and not self.in_style and EMAIL.search(data):
             self.found.add("email-shaped-text")
         if self.in_script and data.strip():
@@ -111,7 +118,7 @@ class Scan(HTMLParser):
         for name, value in attrs:
             name = name.lower()
             v = clean(value)
-            if not self.markup and re.match(r"^mailto:", v, re.I):
+            if not self.markup and re.match(r"^mailto:", v, re.I) and not (self.allow_email and v.lower() == "mailto:" + self.allow_email):
                 self.found.add("email-shaped-text")
             if re.match(r"^on[a-z]", name):
                 self.found.add("event-handler")
@@ -136,7 +143,7 @@ class Scan(HTMLParser):
 
 
 def main(argv):
-    markup, scripts, known, allow = False, "", [], ""
+    markup, scripts, known, allow, allow_email = False, "", [], "", ""
     args = list(argv)
     while args and args[0].startswith("--"):
         opt = args.pop(0)
@@ -148,12 +155,14 @@ def main(argv):
             known = [k for k in args.pop(0).split(",") if k]
         elif opt == "--allow" and args:
             allow = args.pop(0)
+        elif opt == "--allow-email" and args:
+            allow_email = args.pop(0)
         else:
             return 2
     if len(args) != 2:
         return 2
     host, path = args[0].lower(), args[1]
-    scan = Scan(host, markup, scripts, known, allow)
+    scan = Scan(host, markup, scripts, known, allow, allow_email)
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             scan.feed(f.read())

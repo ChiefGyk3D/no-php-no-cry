@@ -253,9 +253,16 @@ while IFS= read -r -d '' f; do
         report pre-not-focusable "$rel"
     fi
 
+    # The one owner-approved business address (data/about.yaml) may appear on the
+    # About page only, as text and as a mailto: link to exactly that address.
+    email_opts=()
+    if [[ "$rel" == about/index.html ]]; then
+        about_email="$(sed -n 's/^  email: "\(.*\)"$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../data/about.yaml" | head -n 1)"
+        [[ -n "$about_email" ]] && email_opts=(--allow-email "$about_email")
+    fi
     while IFS= read -r rule; do
         [[ -n "$rule" ]] && report "$rule" "$rel"
-    done < <(decoded_findings "$site_host" "$f")
+    done < <(decoded_findings "$site_host" "$f" ${email_opts[@]+"${email_opts[@]}"})
     jsonld_check "$f" other
 
     # Landmarks and the skip link, on every page except Hugo's alias stubs.
