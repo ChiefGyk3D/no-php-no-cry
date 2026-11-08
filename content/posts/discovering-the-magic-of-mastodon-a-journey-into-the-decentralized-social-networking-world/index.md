@@ -3,7 +3,7 @@ title: "Discovering the Magic of Mastodon: A Journey into the Decentralized Soci
 date: 2023-02-06T15:40:38-05:00
 slug: "discovering-the-magic-of-mastodon-a-journey-into-the-decentralized-social-networking-world"
 description: "What Mastodon and the fediverse are, why I started my own instance, and what I like about a decentralized network."
-archive: "This post is archived from my old WordPress blog. Some details may have changed."
+archive: true
 categories: ["Social Media"]
 tags: ["mastodon", "fediverse", "activitypub"]
 syndicate: false

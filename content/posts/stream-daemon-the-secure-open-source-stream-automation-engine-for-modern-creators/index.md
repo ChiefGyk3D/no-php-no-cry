@@ -3,7 +3,7 @@ title: "Stream Daemon: The Secure, Open-Source Stream Automation Engine for Mode
 date: 2025-11-05T16:51:12-05:00
 slug: "stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators"
 description: "Stream Daemon is a secure, open source engine that watches your live status on streaming platforms and announces it across your social networks."
-archive: "This post is archived from my old WordPress blog. Some details may have changed."
+archive: true
 categories: ["Open Source"]
 tags: ["stream daemon", "streaming", "automation", "open source"]
 syndicate: false

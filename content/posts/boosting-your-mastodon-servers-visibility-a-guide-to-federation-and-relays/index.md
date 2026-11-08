@@ -3,7 +3,7 @@ title: "Boosting Your Mastodon Server's Visibility: A Guide to Federation and Re
 date: 2023-02-08T23:13:50-05:00
 slug: "boosting-your-mastodon-servers-visibility-a-guide-to-federation-and-relays"
 description: "How a new Mastodon server gets noticed: directories, follower scanning tools and relays that improve federation."
-archive: "This post is archived from my old WordPress blog. Some details may have changed."
+archive: true
 categories: ["Social Media"]
 tags: ["mastodon", "fediverse", "relays"]
 syndicate: false

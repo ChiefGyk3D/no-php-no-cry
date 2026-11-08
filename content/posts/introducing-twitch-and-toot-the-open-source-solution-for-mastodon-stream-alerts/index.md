@@ -3,7 +3,7 @@ title: "Introducing Twitch-and-toot: The Open-Source Solution for Mastodon Strea
 date: 2023-02-06T12:22:12-05:00
 slug: "introducing-twitch-and-toot-the-open-source-solution-for-mastodon-stream-alerts"
 description: "Twitch-and-Toot is an open source tool that posts to Mastodon when a streamer goes live on Twitch. This is the story of how I built it."
-archive: "This post is archived from my old WordPress blog. Some details may have changed."
+archive: true
 categories: ["Open Source"]
 tags: ["twitch-and-toot", "mastodon", "streaming", "python"]
 syndicate: false

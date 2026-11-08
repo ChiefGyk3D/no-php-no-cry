@@ -209,7 +209,7 @@ wallet_re='bc1[a-z0-9]{20,}|0x[0-9a-fA-F]{30,}|\b[48][0-9A-Za-z]{94}\b|\b[1-9A-H
 wallet_scan() { # wallet_scan <file>: succeeds when the file holds a wallet-shaped string
     grep -Eq "$wallet_re" "$1"
 }
-note='This post is archived from my old WordPress blog. Some details may have changed.'
+note='This is a record, not a current view.'
 if [[ -d "$work/real/posts" ]]; then
     for entry in \
         "stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators 2025-11-05" \
@@ -232,10 +232,10 @@ if [[ -d "$work/real/posts" ]]; then
         else
             fail "date is not $day: $slug"
         fi
-        if grep -q 'class="archive-banner' "$page" && grep -Fq "$note" "$page"; then
-            pass "archive note renders: $slug"
+        if [[ "$(grep -o 'class="\?archive-banner' "$page" | wc -l)" -eq 1 ]] && grep -Fq "$note" "$page"; then
+            pass "one archive notice renders: $slug"
         else
-            fail "archive note missing: $slug"
+            fail "archive notice missing or repeated: $slug"
         fi
         if grep -Fq "/$slug/ /posts/$slug/ 301" "$work/real/_redirects"; then
             pass "old permalink redirects: $slug"
