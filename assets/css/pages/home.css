@@ -180,6 +180,7 @@
   }
 
   .home-grid .hero-sub {
+    font-size: var(--text-base);
     margin-bottom: var(--space-4);
   }
 
