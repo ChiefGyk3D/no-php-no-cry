@@ -2,7 +2,7 @@
 <article class="post">
   {{- /* Front matter "archive": true, or a short text, marks a dated record. The post's own date is the original date. */}}
   {{- with .Params.archive }}
-  <aside class="archive-banner fx dk" aria-label="Archive notice">
+  <aside class="archive-banner panel" aria-label="Archive notice">
     <p><strong>Archived post.</strong> Originally published <time datetime="{{ $.Date.Format "2006-01-02" }}">{{ $.Date.Format "January 2, 2006" }}</time>. This is a record, not a current view.{{ if ne (printf "%v" .) "true" }} {{ . }}{{ end }}</p>
   </aside>
   {{- end }}
@@ -14,15 +14,16 @@
   {{- if or (strings.HasPrefix . "https://") (strings.HasPrefix . "/") }}{{ $target = . }}{{ end }}
   {{- end }}
   {{- with $target }}
-  <aside class="superseded-note fx dk" aria-label="Newer version">
+  <aside class="superseded-note panel" aria-label="Newer version">
     <p>This post has been superseded. Read <a href="{{ . }}">{{ $label }}</a> instead.</p>
   </aside>
   {{- end }}
   {{- end }}
   {{- /* Headline image above the title (issue 217); nothing when the post has none. */}}
   {{ partial "featured-image.html" (dict "page" . "mode" "hero") }}
-  <div class="title-block">
-    <h1 class="fx pl xl live">{{ .Title }}</h1>
+  <div class="title-block bx l2">
+    {{- partial "frame.html" (dict "level" 2) }}
+    <h1>{{ .Title }}</h1>
   </div>
   <div class="meta">
     <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
@@ -30,7 +31,7 @@
     <span class="reading-time">{{ .ReadingTime }} min read</span>
     {{- with .GetTerms "tags" }}
     <ul class="tag-list" aria-label="Tags">
-      {{- range . }}<li><a class="fx sm chip" href="{{ .RelPermalink }}">#{{ .LinkTitle }}</a></li>{{ end }}
+      {{- range . }}<li><a href="{{ .RelPermalink }}">#{{ .LinkTitle }}</a></li>{{ end }}
     </ul>
     {{- end }}
   </div>
@@ -49,8 +50,8 @@
   </div>
   {{- with or .PrevInSection .NextInSection }}
   <nav class="post-nav" aria-label="{{ cond (eq .Section "journal") "More journal entries" "More posts" }}">
-    {{- with $.NextInSection }}<a class="post-nav-prev fx" href="{{ .RelPermalink }}"><span class="meta">Newer</span><br>{{ .LinkTitle }}</a>{{ end }}
-    {{- with $.PrevInSection }}<a class="post-nav-next fx" href="{{ .RelPermalink }}"><span class="meta">Older</span><br>{{ .LinkTitle }}</a>{{ end }}
+    {{- with $.NextInSection }}<a class="post-nav-prev l1" href="{{ .RelPermalink }}"><span class="meta">Newer</span><br>{{ .LinkTitle }}</a>{{ end }}
+    {{- with $.PrevInSection }}<a class="post-nav-next l1" href="{{ .RelPermalink }}"><span class="meta">Older</span><br>{{ .LinkTitle }}</a>{{ end }}
   </nav>
   {{- end }}
 </article>

@@ -1,116 +1,86 @@
 # Border system
 
-The button frame from the owner's Twitch, Kick and YouTube art, used on every
-control and container of the blog. Stepped graphite corner brackets with a
-mid-edge split and an amber stub, angled end-cap plates top and bottom with a
-window and a dash, long thin amber rules, and a soft amber bloom, drawn as border only on top of
-each box's own fill (charcoal, the translucent amber tint, or amber). The site is dark only.
+One frame, in three amounts. It is the button frame from the Twitch panels:
+stepped corner brackets that split at mid edge, thin amber rules, and (at the
+top level only) angled end-cap plates and a faint glow under the bottom rule.
+The site is dark only, so there is one set of colors. Calm is the goal: one
+frame per region, never a frame inside a framed parent.
 
-## How it is drawn
+Colors come from the tokens in `assets/css/tokens.css` (the frame ones, `frame-edge`, `frame-dark` and `frame-mid`, live in `brand/tokens.json`); the frame files hold no hex color.
 
-No markup per frame: a frame is the class `fx` (one class on the element, which
-is the whole markup cost). `assets/css/borders.css` draws it from three SVG files
-under `static/brand/` (`img-src 'self'`, each listed with its sha256 in
-`brand/approved-assets.txt`):
+Files: `assets/css/borders.css` (all of it), `layouts/_partials/frame.html`
+(the one partial that emits a frame), `scripts/test-borders.sh` (the build
+test), and the `multiple-l3` rule in `scripts/check-output.sh`.
 
-| File | Used for |
-| --- | --- |
-| `frame-corners.svg` | the four brackets (with the amber dash), as a `border-image` nine-slice; slices are in original pixels so they scale with height, not width |
-| `frame-plates-top.svg`, `frame-plates-bottom.svg` | the end-cap plates, a background layer centered on the top and bottom edge |
+## Levels
 
-The rules, the mid-edge stubs, the fill and the glow are CSS (gradients
-and a box shadow). Colors come from the tokens (`frame-edge` in `brand/tokens.json`); the bracket gradient (7C7C7C to B4B4B4 to
-848484, graphite that reads on dark fills) is in `frame-corners.svg`, and
-`frame-corners-dk.svg` (the original near-black art) replaces it on amber fills.
+| Level | Draws | Markup | Used on |
+| --- | --- | --- | --- |
+| L1 whisper | hairline and four 10 by 2 px amber corner ticks | none, pure CSS: the classes `panel`, `tile`, `btn` and `l1` | buttons (including the Menu button and share buttons), tiles, panels, post cards, the previous and next post links, home network chips (hairline only) |
+| L2 classy | the same bracket layout, one chamfer per bracket, a corner dash, two thin amber rules, translucent amber fill, no glow | `class="bx l2"` plus the partial | the page title block: a post title and the archive titles (Posts, Journal, tag pages) |
+| L3 faithful | the full traced button frame: stepped gradient brackets, end-cap plates, dashes, long and short rules, the faint glow under the bottom rule | `class="bx l3"` plus the partial | ONE per page: the Home hero and the first support link on /support/ |
 
-## Scale
-
-`--s` is the scale of the 318 px tall original (the Donate button is 1332 by
-318). The corner bars are 20 px at the original size, so about 6 percent of the
-frame height at every `--s`, never a hairline. `min-height` is 318 times `--s`
-so the two brackets never touch. Steps: `sm` 0.14 (chips, nav, section
-banners), default 0.18 (buttons, tiles, cards), `lg` 0.22 (the hero card and the
-resume head), `xl` 0.28 (page title banners). Scale is chosen by class, never by
-inline style.
-
-## Two kinds, and plates
-
-- `fx`: the faithful frame on the box's own fill (the pre-frame fills: charcoal
-  surface, translucent amber tint on the hero, titles and ghost buttons, amber on
-  primary buttons and on hover; section headings and `h2` banners are open), for
-  things you act on and for headings: buttons, tiles, cards, chips, the search
-  input, the Menu button, title and section banners, the hero card, accordion
-  summaries.
-- `fx dk`: the lighter related frame, the same brackets (same art, never lightened) on the dark
-  surface with normal text colors, for containers that hold running text, code or tables: the
-  About bio and cards, the contact card, the archive notice, the coin cards, the
-  nav list, the footer container, post images and the headline image, and
-  `pre`, `table` and `blockquote` in a post (selected in CSS, no class needed).
-- `pl` adds the glow tiers, and with `lg` or `xl` the end-cap plates and the short
-  outer rules (the hero, the page titles, the resume head). The plates need an
-  element at least 1228 times `--s` wide; below 30rem the large scales step down
-  to 0.18 so they still clear the brackets. At the small scales the plates would
-  be a few mushy pixels, so smaller frames keep the brackets, long rules, stubs,
-  plate and glow.
-
-Inside a frame every descendant takes the frame ink (`--text`, or `--on-accent`
-on amber); links keep their underline and the social icons follow the ink. Hover
-fills with amber, the ink turns dark and the brackets switch to the near-black art.
-No white or cream fill is used anywhere.
-
-## Glow and rule thickness
-
-Rules are 6 px at the original size and never thinner than 3 px at small
-scales. The bloom hugs the rules: a `pl` frame has a blurred copy of its rule layers
-behind the content (a pseudo-element with a blur filter), 5 px of falloff on a
-card or banner and about 20 px with extra brightness on the hero and title
-banners (`lg`, `xl`), as in the camera border. Small controls carry no bloom
-until hover or focus, so a page of chips costs no extra paint time. There is no
-element-wide shadow. The short outer rules above and
-below the plate are drawn only with the plates; a small control has the
-long inner rules only, so nothing floats outside its box.
-
-## Rules
-
-- A frame never contains another frame. A coin card is a frame and its Copy
-  button is a second frame beside it, not inside it. `scripts/test-borders.sh`
-  parses every built page and fails on a frame inside a frame.
-- There is no per-page limit on frames; every page with a `main` element must
-  carry frames, and Home, Support, Social, Products, Search, About and Resume
-  must carry at least five (the test asserts it).
-- No frame on running text, inline links or the footer credit line; the footer
-  container carries the dark kind.
-- No inline svg, no `style` attribute, no script. Hover, focus and scale are
-  CSS. `scripts/check-output.sh` fails a page with an inline frame svg
-  (`inline-frame`).
-- Focus is an outline on the element itself, offset 5 px, outside the frame.
-- Forced colors and print drop the art and the glow and fall back to a plain
-  border (print also drops the fills).
-- Tap targets stay at least 44 px: the smallest scale gives a 44.5 px frame.
-
-## Motion
-
-The static look is the exact ON state (every rule lit, full bloom). An opt-in
-layer, only under `prefers-reduced-motion: no-preference` and only on an
-element with the class `live`, reproduces the owner's camera border: the long
-top bar switches off and on with 0.3 second ramps on a 4 second cycle and
-settles slowly while lit; the bottom rule stays steady. It animates the
-opacity of one pseudo-element, so nothing shifts and LCP and CLS are
-unaffected. `live` is set only on the Home hero card and on the page title
-banner, so at most one frame per page moves; many moving glows at once are too
-much motion and cost paint time. The dash blinks and the side-rule flicker of the
-video are not reproduced.
+Not framed, on purpose: the header and footer (hairline rules only), tag links
+on a post, the footer credit, running text. A frame on every element is the
+failure this system exists to avoid.
 
 ## Adding a frame
 
-1. Put `fx` on the element (plus `dk` for a container with running text, `pl`
-   if it is wide enough, a scale class if the default does not fit).
-2. If the element needs its own padding, set `--py` and `--px` on it, not
-   `padding`, so the brackets keep their room.
-3. Run `scripts/test-borders.sh`.
+1. Pick the level. Default to L1. Use L2 only for the one title that matters on
+   a page, and L3 only if the page has no L3 yet.
+2. L1: give the element the class `l1` (or use `.panel`, `.tile`, `.btn`). Set
+   `--fill` or `--tick` on a state (hover) rather than writing new rules.
+3. L2 or L3: add `bx l2` or `bx l3` to the element and put
+   `{{ partial "frame.html" (dict "level" 2) }}` as its first child. The element
+   needs room for the brackets (the CSS adds padding) and at least about 60 px of
+   height. The scale is the CSS variable `--s` (0.24 is the Twitch panel size;
+   `s18` is 0.18); change it in CSS, never in the markup.
+4. Run `scripts/test-borders.sh`. It fails if a page has two L3 frames.
+
+## Accessibility
+
+- The frame is an `aria-hidden` inline SVG with no focus and no pointer events.
+  Nothing carries meaning by the frame alone; a link or button is still a link
+  or button with a real text label.
+- Text on a frame is `--text` (cream) or `--on-accent` (on an amber fill). Amber
+  lettering is not used: amber text on a light ground is 1.66 to 1 and fails.
+  Amber is a line color here.
+- Hover swaps a control's fill to amber with `--on-accent` text. Focus is an
+  outline drawn on the element itself, outside the frame, so no frame clips it.
+- Tap targets stay at least 44 px (`--tap`); the browser gate measures them.
+- No animation by default. The L3 glow may breathe only on an element with the
+  class `live`, only inside `prefers-reduced-motion: no-preference`. Nothing uses
+  that class yet.
+- Forced colors and print hide the SVG and the rule and glow layers, and fall back to a plain border (print also drops the backgrounds).
 
 ## Weight
 
-No new font and no raster image. The three SVG files are about 2 KB together; the
-CSS is about 4 KB before minifying. The page budget in
-`docs/performance-gates.md` is unchanged (the largest page rose by about 1.5 KB).
+No image, no font. The CSS is about 6 KB before minifying; an L2 frame is about 0.8 KB
+of markup and an L3 frame about 1.8 KB, identical at every use so gzip folds the
+repeats. The page budget in `docs/performance-gates.md` is unchanged.
+
+## Button levels (issue 283)
+
+Only buttons have a level setting; every other element keeps the look it has
+above. The setting lives in one place, `params.frames` in `hugo.toml`:
+
+| Level | Look |
+| --- | --- |
+| `minimal` (default) | the L1 look: a graphite hairline and four amber ticks |
+| `faithful` | the owner's button art, `static/brand/frame-faithful-button.svg` (`-amber` on amber), over the button's fill |
+| `none` | the pre-frame button: an amber border, no ticks |
+
+`level` is the default for every button; `[params.frames.classes]` overrides one
+button class (`btn-primary`, `btn-ghost`, and the specific `nav-toggle`,
+`copy-btn`, `product-btn`), the most specific entry winning. An unknown level
+fails the build. `layouts/_partials/btn-frame.html` turns the setting into a
+`bf-none` or `bf-faithful` class (the default adds no class).
+
+The frame is drawn inside the button's own box. Width, height, padding, margin
+and border width never change with the level, so the three hero buttons stay on
+one line at every level (measured: bounding boxes of every element on six pages
+at 1920, 1280 and 390 wide are identical at all three levels). Fills are the
+existing ones: amber on primary, the translucent amber tint on ghost, amber on
+hover. No cream or white fill anywhere; the primary hover stays amber. The art
+is generated by `scripts/gen-frame-art.py`; `scripts/test-borders.sh` checks it
+is current.

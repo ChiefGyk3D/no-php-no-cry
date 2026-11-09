@@ -210,8 +210,8 @@ a:focus-visible {
  * keeps its height and the document does not grow. */
 .nav-menu ul {
   position: absolute;
-  top: calc(var(--space) * 2 + var(--tap) + var(--rule-width) + var(--space-2));
-  inset-inline: var(--space);
+  top: calc(var(--space) * 2 + var(--tap) + var(--rule-width));
+  inset-inline: 0;
   bottom: auto;
   width: auto;
   height: auto;
@@ -220,9 +220,12 @@ a:focus-visible {
   z-index: 5;
   list-style: none;
   margin: 0;
-  --py: var(--space-3);
-  --px: var(--space-5);
+  padding: 0 var(--space);
+  background: var(--surface);
   color: var(--text);
+  border: 0;
+  border-bottom: var(--rule-width) solid var(--rule);
+  box-shadow: 0 0.75rem 1.5rem var(--shadow);
 }
 
 .nav-menu li + li {
@@ -243,6 +246,7 @@ a:focus-visible {
 
   .nav-menu ul {
     position: static;
+    box-shadow: none;
   }
 }
 
@@ -277,6 +281,8 @@ a:focus-visible {
   .nav-menu ul {
     inset-inline: auto var(--space);
     width: 18rem;
+    border: var(--rule-width) solid var(--rule);
+    border-top: 0;
   }
 }
 
@@ -289,9 +295,11 @@ a:focus-visible {
     position: static;
     display: flex;
     flex-wrap: wrap;
-    gap: 0;
-    --py: 0px;
-    --px: calc(var(--s) * 110px);
+    gap: var(--space-2);
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
   }
 
   .nav-menu li + li {
@@ -339,15 +347,6 @@ main {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-/* The footer container carries the lighter frame; the credit line is plain text. */
-.footer-frame {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  --py: calc(var(--s) * 120px);
-  --px: calc(var(--s) * 160px);
 }
 
 .footer-meta {
@@ -467,6 +466,8 @@ main {
 
 .comments-archive blockquote {
   margin: 0;
+  padding-left: var(--space-4);
+  border-left: var(--rule-accent-width) solid var(--accent);
 }
 
 .comments-archive blockquote p {
@@ -490,7 +491,7 @@ main {
   padding: 0;
 }
 
-.post-list li:not(.fx) {
+.post-list li {
   padding: var(--space) 0;
   border-bottom: var(--rule-width) solid var(--rule);
 }
@@ -515,15 +516,11 @@ code {
   background: var(--surface);
 }
 
-pre {
-  --py: var(--space-5);
-  --px: var(--space-5);
-}
-
 /* Code blocks scroll sideways; long lines never wrap or push the page wider.
  * Hugo renders every <pre> with tabindex="0" (scripts/check-output.sh enforces
  * it), so a keyboard user can focus the block and scroll it with the arrows. */
 pre {
+  padding: var(--space);
   overflow-x: auto;
   max-width: 100%;
   white-space: pre;
@@ -589,8 +586,8 @@ pre:focus-visible {
 /* Panel: the L1 frame (assets/css/borders.css draws the hairline, the corner
  * ticks and the fill); this rule is only its spacing. */
 .panel {
-  --py: var(--space-5);
-  --px: var(--space-5);
+  position: relative;
+  padding: var(--space-5);
 }
 
 /* Buttons: primary is amber with dark text; ghost is an outline. */
@@ -598,15 +595,22 @@ pre:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: var(--tap);
   min-width: var(--tap);
-  --py: 0px;
-  --px: calc(var(--s) * 160px);
+  padding: 0 var(--space-5);
   font: inherit;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
 }
 
+.btn-primary {
+  color: var(--on-accent);
+}
+
+.btn-ghost {
+  color: var(--text);
+}
 
 summary:focus-visible {
   outline: var(--rule-accent-width) solid var(--focus);
@@ -625,8 +629,9 @@ summary:focus-visible {
 
 .tile {
   display: block;
-  --py: var(--space-4);
-  --px: var(--space-5);
+  min-height: var(--tap);
+  padding: var(--space);
+  color: var(--text);
   text-decoration: none;
 }
 
@@ -645,16 +650,21 @@ summary:focus-visible {
 }
 
 /* Accordion: native details/summary, the chevron turns when open. */
+details.accordion {
+  border: var(--rule-width) solid var(--border);
+  background: var(--surface);
+}
+
 details.accordion + details.accordion {
-  margin-top: var(--space);
+  border-top: 0;
 }
 
 details.accordion > summary {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  --py: 0px;
-  --px: calc(var(--s) * 150px);
+  min-height: var(--tap);
+  padding: 0 var(--space);
   cursor: pointer;
   list-style: none;
 }
@@ -678,7 +688,7 @@ details.accordion[open] > summary::before {
 }
 
 details.accordion > :not(summary) {
-  padding: var(--space) var(--space) var(--space-2);
+  padding: 0 var(--space) var(--space);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -726,26 +736,5 @@ details.accordion > :not(summary) {
     background: none;
     border-color: CanvasText;
     box-shadow: none;
-  }
-}
-
-/* Short pages fit 1920x930 (issue 123): the footer frame is compact on wide screens. */
-@media (min-width: 80rem) {
-  .footer-frame {
-    --s: 0.12;
-    --py: var(--space-2);
-    gap: 0;
-  }
-
-  .site-footer {
-    padding: var(--space-2) 0;
-  }
-
-  .site-header {
-    padding: var(--space-2) 0;
-  }
-
-  main {
-    padding: var(--space-4) 0;
   }
 }

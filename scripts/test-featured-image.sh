@@ -59,8 +59,8 @@ def page(path):
 
 def post(path, want_image):
     t, bad = page(path), []
-    hero = re.search(r'<figure class="post-hero[^"]*">\s*<img ([^>]*)>', t)
-    h1 = t.find("<h1")
+    hero = re.search(r'<figure class="post-hero">\s*<img ([^>]*)>', t)
+    h1 = t.find("<h1>")
     if want_image:
         if not hero:
             return ["no hero figure"]

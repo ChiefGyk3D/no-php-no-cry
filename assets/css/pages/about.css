@@ -27,6 +27,8 @@
   width: 8rem;
   height: auto;
   aspect-ratio: 1;
+  border: calc(var(--rule-width) * 2) solid var(--accent-deep);
+  border-radius: var(--radius);
 }
 
 .about-mascot {
@@ -169,12 +171,16 @@
   grid-column: 1 / -1;
 }
 
-
+.project-tiles > .tile-more .tile {
+  border-color: var(--accent-deep);
+}
 
 /* Contact: its own labeled block after the projects. */
-.contact-card {
-  --py: var(--space-5);
-  --px: var(--space-6);
+.about-contact {
+  padding: var(--space-5);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
 }
 
 .about-contact > :last-child,
@@ -225,8 +231,10 @@
 }
 
 .skill-group {
-  --py: var(--space-5);
-  --px: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
 }
 
 .skill-group h3 {
@@ -237,6 +245,9 @@
   margin: 0;
 }
 
+.skill-group:last-child {
+  border-color: var(--accent-deep);
+}
 
 @media (min-width: 40rem) {
   .skill-groups {
@@ -291,8 +302,10 @@
 }
 
 .fact-card {
-  --py: var(--space-5);
-  --px: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
 }
 
 .fact-card dt {
@@ -345,11 +358,4 @@
       row-gap: 0;
     }
   }
-}
-
-/* The portrait is a framed image: the padding keeps the brackets off the face. */
-.about-portrait.fx {
-  --py: calc(var(--s) * 60px);
-  --px: calc(var(--s) * 60px);
-  box-sizing: border-box;
 }

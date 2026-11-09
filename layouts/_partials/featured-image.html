@@ -36,7 +36,7 @@
         {{- $set = $set | append (printf "%s %dw" $r.RelPermalink $r.Width) -}}
       {{- end -}}
     {{- end -}}
-<figure class="post-hero fx dk">
+<figure class="post-hero">
   <img src="{{ $fallback.RelPermalink }}"
     {{- if gt (len $set) 1 }} srcset="{{ delimit $set ", " }}" sizes="(min-width: 42rem) 42rem, 100vw"{{ end }}
     width="{{ $fallback.Width }}" height="{{ $fallback.Height }}"

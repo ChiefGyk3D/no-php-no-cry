@@ -240,7 +240,7 @@ def support(p, errs, repo):
     # Issue 194: inside each coin card the order is QR, address, then Copy (the
     # button under the address, in the same card), named "Copy <coin> address".
     names = {"btc": "Bitcoin", "xmr": "Monero", "eth": "Ethereum", "sol": "Solana"}
-    cards = [c.split("</li>", 1)[0] for c in re.split(r"<li class=[\"']?coin[\"']?>", html)[1:]]
+    cards = [c.split("</li>", 1)[0] for c in re.split(r"<li class=[\"']?coin panel[\"']?>", html)[1:]]
     if len(cards) != len(ADDRESSES):
         errs.append("expected %d coin cards, found %d" % (len(ADDRESSES), len(cards)))
     for coin, addr in ADDRESSES.items():
@@ -901,7 +901,7 @@ else
     fail "the Resume does not link LinkedIn"
 fi
 # Guard: the LinkedIn-leak check bites. A head link, and a Socials tile, put in must be caught.
-for pair in 'head:s#</head>#<link rel=me href=https://www.linkedin.com/in/moshe-g></head>#' 'chip:s#<li><a class="icon-github#<li><a class=icon-linkedin href=https://www.linkedin.com/in/moshe-g>LinkedIn</a></li><li><a class="icon-github#'; do
+for pair in 'head:s#</head>#<link rel=me href=https://www.linkedin.com/in/moshe-g></head>#' 'chip:s#<li><a class=icon-github#<li><a class=icon-linkedin href=https://www.linkedin.com/in/moshe-g>LinkedIn</a></li><li><a class=icon-github#'; do
     sed "${pair#*:}" "$pub/index.html" >"$work/linkedin-leak.html"
     if cmp -s "$pub/index.html" "$work/linkedin-leak.html"; then
         fail "guard: the LinkedIn ${pair%%:*} leak did not change the page (the test is stale)"
@@ -1052,13 +1052,13 @@ for sec in ("posts", "journal"):
             continue
         t = re.search(r"<title>([^<]*) \| ", page)
         href = "/%s/%s/" % (sec, os.path.basename(os.path.dirname(f)))
-        if not re.search(r"<li(?: class=[^>]*)?><a href=%s>" % re.escape(href), html):
+        if not re.search(r"<li><a href=%s>" % re.escape(href), html):
             errs.append("%s is not listed as a <li> link" % href)
         if t:
             titles.append((sec, t.group(1)))
 li = re.findall(r'<section class=search-group[^>]*>(.*?)</section>', html, re.S)
 for grp in li:
-    names = re.findall(r"<li(?: class=[^>]*)?><a href=[^>]*>([^<]*)</a>", grp)
+    names = re.findall(r"<li><a href=[^>]*>([^<]*)</a>", grp)
     if names != sorted(names, key=str.lower):
         errs.append("a group is not A to Z by title: %s" % names)
 if not li:
@@ -1092,7 +1092,7 @@ else
     bite "with an enabled input" 's#(<input[^>]*id=q[^>]*) disabled#\1#'
     bite "without the status region" 's#role=status ##'
     bite "without the label" 's#<label#<span#'
-    bite "without a post entry" 's#<li class="fx card"><a href=/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/>#<li class="fx card"><a href=/posts/other/>#'
+    bite "without a post entry" 's#<li><a href=/posts/stream-daemon-the-secure-open-source-stream-automation-engine-for-modern-creators/>#<li><a href=/posts/other/>#'
 fi
 # Tags (issue 222): the Posts page no longer lists every tag; /search/ carries
 # them in a collapsed native <details> (no script), most used first, counts kept,
@@ -1121,7 +1121,7 @@ else:
         errs.append("the tags <details> needs a <summary> naming tags")
     first = box.split("<details", 2)
     top = first[1] if len(first) > 2 else box
-    pat = r"<a (?:class=(?:\"[^\"]*\"|[^ >]+) )?href=(/tags/[^ >]+)[^>]*>.*?\((\d+)\)</span></a>"
+    pat = r"<a href=(/tags/[^ >]+)[^>]*>.*?\((\d+)\)</span></a>"
     counts = [int(c) for _, c in re.findall(pat, top)]
     if not counts:
         errs.append("no tag links with counts")
@@ -1222,8 +1222,8 @@ fi
 css="$(cat "$pub"/css/*.css 2>/dev/null || true)"
 src_css() { cat "$root"/assets/css/pages/"$1".css; }
 sup="$(src_css support)"
-if grep -Eq 'support-tiles[^}]*grid-template-columns: *repeat\(4, *(1fr|minmax\(0, *1fr\))\)' <<<"$(tr '\n' ' ' <<<"$sup")" &&
-    grep -Eq 'support-tiles[^}]*grid-template-columns: *repeat\(2, *(1fr|minmax\(0, *1fr\))\)' <<<"$(tr '\n' ' ' <<<"$sup")"; then
+if grep -Eq 'support-tiles[^}]*grid-template-columns: *repeat\(4, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")" &&
+    grep -Eq 'support-tiles[^}]*grid-template-columns: *repeat\(2, *1fr\)' <<<"$(tr '\n' ' ' <<<"$sup")"; then
     pass "support tiles: 4 equal columns wide, 2x2 narrow"
 else
     fail "support tiles are not a 4-column grid with a 2-column phone layout"
@@ -1242,8 +1242,8 @@ fi
 # No grid that puts Copy beside the QR, Copy centered, the QR never below 10rem
 # (160 px, a phone camera still reads it).
 flat_sup="$(tr '\n' ' ' <<<"$sup")"
-if ! grep -Eq 'auto minmax\(0, *1fr\)' <<<"$flat_sup" &&
-    grep -Eq '\.coin-body \{[^}]*justify-items: *center' <<<"$flat_sup" &&
+if ! grep -Eq 'coin-body|auto minmax\(0, *1fr\)' <<<"$flat_sup" &&
+    grep -Eq '\.coin \{[^}]*justify-items: *center' <<<"$flat_sup" &&
     grep -Eq '\.coin-actions \{[^}]*justify-content: *center' <<<"$flat_sup"; then
     pass "support coin cards: QR, address and Copy centered in one column"
 else
@@ -1452,7 +1452,7 @@ portrait_bites "a missing width" "$pub/resume/index.html" resume 's# width=320##
 portrait_bites "lazy loading" "$pub/about/index.html" about 's#loading=eager#loading=lazy#'
 portrait_bites "a one-size srcset" "$pub/about/index.html" about 's#/brand/portrait-320.webp 320w, ##'
 portrait_bites "an off-site portrait" "$pub/resume/index.html" resume 's#src=/brand/portrait-320.webp#src=https://example.org/p.webp#'
-portrait_bites "no portrait" "$pub/about/index.html" about 's#<img class="about-portrait[^>]*>##'
+portrait_bites "no portrait" "$pub/about/index.html" about 's#<img class=about-portrait[^>]*>##'
 for n in 640 320; do
     f="$pub/brand/portrait-$n.webp"
     cap=$((n == 640 ? 60 * 1024 : 25 * 1024))

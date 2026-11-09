@@ -1,0 +1,13 @@
+{{- /*
+  Frame level of one button (docs/borders.md). Takes a dict: "kind" (primary or ghost) and optional "ctx" (nav-toggle, copy-btn or product-btn, the button's own class). Returns the extra class for the button with a leading space, or nothing at the default level, so a template writes class="btn btn-ghost{{ partial "btn-frame.html" (dict "kind" "ghost") }}".
+  The level is set in one place, params.frames in hugo.toml: "level" for every button, and "classes" for a per-class override (btn-primary, btn-ghost, nav-toggle, copy-btn, product-btn); the most specific entry wins. Levels: none (the pre-frame button), minimal (the hairline and four ticks, the default), faithful (the owner's button art). The frame is drawn inside the button's own box, so no level changes its size.
+*/ -}}
+{{- $cfg := site.Params.frames | default dict -}}
+{{- $classes := $cfg.classes | default dict -}}
+{{- $level := $cfg.level | default "minimal" -}}
+{{- $own := "" -}}
+{{- with .ctx }}{{ $own = index $classes . | default "" }}{{ end -}}
+{{- $kind := index $classes (printf "btn-%s" .kind) | default "" -}}
+{{- if $own }}{{ $level = $own }}{{ else if $kind }}{{ $level = $kind }}{{ end -}}
+{{- if not (in (slice "none" "minimal" "faithful") $level) }}{{ errorf "params.frames: %q is not a button frame level (none, minimal, faithful)" $level }}{{ end -}}
+{{- if ne $level "minimal" }} bf-{{ $level }}{{ end -}}
