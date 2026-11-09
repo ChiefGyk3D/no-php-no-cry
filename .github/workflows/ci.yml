@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/parallel-ci.yml@13f7a13ee135b2f9c8eb68194f0078592374f8e4 # v1.33.0
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/parallel-ci.yml@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
     permissions:
       contents: read
     with:
@@ -75,7 +75,7 @@ jobs:
         ]
 
   shell:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@13f7a13ee135b2f9c8eb68194f0078592374f8e4 # v1.33.0
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/bash-ci.yml@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
     permissions:
       contents: read
     with:
@@ -84,7 +84,7 @@ jobs:
       timeout-minutes: 20   # ~330 serial cases at ~2 s each; measured 6 to 10 minutes on hosted runners
 
   security:
-    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@13f7a13ee135b2f9c8eb68194f0078592374f8e4 # v1.33.0
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/security.yml@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
     permissions:
       contents: read
       security-events: write

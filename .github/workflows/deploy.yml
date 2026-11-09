@@ -242,7 +242,7 @@ jobs:
         run: scripts/check-site-artifact.sh site static/_headers
 
       - name: Fetch Cloudflare credentials from Doppler
-        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@9d6825dd4e0e4d524fca3733f416437bbd7851e1 # v1.31.0
+        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
         with:
           project: cloudflare
           config: prd
