@@ -454,9 +454,10 @@ def cmd_page(path, permalink, og_image, kind, sameas_file):
             bad.append("post needs exactly one BreadcrumbList, has %d" % len(crumbs))
         else:
             items = crumbs[0].get("itemListElement") or []
+            site_root = permalink[:permalink.index("/", len("https://")) + 1]
             if [i.get("position") for i in items] != [1, 2, 3]:
                 bad.append("BreadcrumbList positions are not 1, 2, 3")
-            elif items[-1].get("item") != permalink or items[0].get("item") != permalink.split("/posts/")[0] + "/":
+            elif items[-1].get("item") != permalink or items[0].get("item") != site_root:
                 bad.append("BreadcrumbList does not run from the home page to the post")
             elif not all(i.get("name") for i in items):
                 bad.append("BreadcrumbList item without a name")
@@ -589,7 +590,7 @@ PY
 run_seo() { python3 -I "$seo_py" "$@"; }
 
 site2="$work/site2"
-mkdir -p "$site2/content/posts/a" "$site2/content/posts/b" "$site2/content/about" "$site2/content/social"
+mkdir -p "$site2/content/posts/a" "$site2/content/posts/b" "$site2/content/journal/j" "$site2/content/about" "$site2/content/social"
 cp -r "$root/layouts" "$root/assets" "$root/static" "$root/data" "$site2/"
 sed 's/^  minifyOutput = true/  minifyOutput = false/' "$root/hugo.toml" >"$site2/hugo.toml"
 host="$(sed -n 's#^baseURL = "https://\([^/"]*\)/".*#\1#p' "$root/hugo.toml")"
@@ -629,6 +630,8 @@ categories: ["alpha"]
 
 Body B.
 MD
+printf -- '---\ntitle: "Journal"\n---\n' >"$site2/content/journal/_index.md"
+printf -- '---\ntitle: "Entry J"\ndate: 2024-07-06T07:08:09-04:00\ndescription: "Journal entry J."\n---\n\nBody J.\n' >"$site2/content/journal/j/index.md"
 (cd "$site2" && hugo --quiet --destination "$site2/public") || {
     echo "FAIL: hugo could not build the SEO test site"
     exit 1
@@ -650,6 +653,7 @@ seo_ok() { # seo_ok <label> <args...>
 }
 seo_ok "home: canonical, card, Person JSON-LD with the public sameAs links" page "$pub/index.html" "https://$host/" "$card" home "$sameas"
 seo_ok "post: canonical, default OG card, Article JSON-LD" page "$pub/posts/a/index.html" "https://$host/posts/a/" "$card" article "$sameas"
+seo_ok "journal entry: canonical, default OG card, Article and BreadcrumbList JSON-LD" page "$pub/journal/j/index.html" "https://$host/journal/j/" "$card" article "$sameas"
 seo_ok "post with an image: its own image and Article JSON-LD" page "$pub/posts/b/index.html" "https://$host/posts/b/" "https://$host/brand/penguin-color.png" article "$sameas"
 seo_ok "about page: no Article, no robots meta" page "$pub/about/index.html" "https://$host/about/" "$card" page "$sameas"
 seo_ok "404 page: noindex, canonical, card" page "$pub/404.html" "https://$host/404.html" "$card" 404 "$sameas"
