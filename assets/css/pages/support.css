@@ -7,7 +7,7 @@
   margin: var(--space-6) 0 var(--space);
 }
 
-/* Ways to chip in: tiles, 2 across on a phone, 4 across from 40rem. */
+/* Ways to chip in: tiles, one column on a small phone, 2 across from 30rem, 4 across from 40rem. */
 .support-tiles {
   grid-template-columns: minmax(0, 1fr);
   margin: var(--space-5) 0 var(--space-2);
@@ -50,7 +50,7 @@
 
 }
 
-/* One panel per cryptocurrency: 1 column on a phone, 2 from 40rem. */
+/* One card per cryptocurrency: 1 column on a phone, 2 from 40rem, 4 from 80rem. */
 .coin-list {
   display: grid;
   grid-template-columns: 1fr;

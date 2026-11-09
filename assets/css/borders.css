@@ -1,6 +1,6 @@
 /* Border system (docs/borders.md): the owner's button frame, everywhere.
  *
- * One frame, drawn by CSS from four small SVG files of the site's own
+ * One frame, drawn by CSS from three small SVG files of the site's own
  * (static/brand/frame-*.svg, img-src 'self'): stepped graphite corner brackets
  * with the amber dash, a split at mid edge with an amber stub, two angled end-cap
  * plates top and bottom with a window and a dash, long thin amber rules, a cream
@@ -15,23 +15,27 @@
  * slices are fixed in original pixels, so they scale with --s and not with the
  * width.
  *
- * Two kinds:
+ * Two kinds (the brackets are the same black-to-graphite art in both, so the
+ * original gradient is never changed; on the dark kind the amber rules and the
+ * bloom outline them):
  *   .fx      the faithful frame: cream plate, ink lettering (--frame-ink), for
  *            things you act on and for headings (buttons, tiles, cards, chips,
  *            inputs, banners, the hero).
  *   .fx.dk   the lighter related frame for containers that hold running text,
- *            code or tables: the same brackets (lighter graphite so they show on
- *            the dark ground), the dark surface, normal text colors.
- * Plates (.pl) are added only where the element is at least 1228 * --s wide
- * (the plates and the brackets then do not touch); a small control has the
- * brackets, rules, stubs and glow without them.
+ *            code or tables: the same brackets, the dark surface, normal text colors.
+ * Plates (.pl together with .lg or .xl) are added only at the large scales and
+ * where the element is at least 1228 * --s wide (the plates and the brackets
+ * then do not touch); a smaller frame has the brackets, rules, stubs, cream
+ * plate and glow without them.
  *
  * Lettering on the cream plate is always --frame-ink (contrast checked against
  * --frame-cream and --accent by scripts/check-contrast.py); amber is a line
  * color only. Colors come from the tokens; the bracket gradient is in the SVG art.
  * A frame never contains another frame (scripts/test-borders.sh asserts it). */
 :root {
-  --frame-glow: rgb(251 176 59 / 0.45);
+  --frame-glow: rgb(251 176 59 / 0.6);
+  --frame-glow-soft: rgb(251 176 59 / 0.4);
+  --frame-glow-wide: rgb(251 176 59 / 0.22);
 }
 
 :is(.fx, .btn, .tile, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote, .search-input) {
@@ -42,6 +46,8 @@
   --pt: none;
   --pb: none;
   --a: linear-gradient(var(--accent), var(--accent));
+  --rh: max(2px, calc(var(--s) * 6px));
+  --oh: 0px;
   box-sizing: border-box;
   min-height: calc(var(--s) * 318px);
   padding: var(--py, calc(var(--s) * 100px)) var(--px, calc(var(--s) * 140px));
@@ -55,10 +61,10 @@
   background-repeat: no-repeat;
   background-origin: border-box;
   background-size:
-    max(0px, calc(100% - var(--s) * 360px)) calc(var(--s) * 6px),
-    max(0px, calc(100% - var(--s) * 360px)) calc(var(--s) * 6px),
-    42.6% calc(var(--s) * 6px),
-    42.6% calc(var(--s) * 6px),
+    max(0px, calc(100% - var(--s) * 360px)) var(--rh),
+    max(0px, calc(100% - var(--s) * 360px)) var(--rh),
+    42.6% var(--oh),
+    42.6% var(--oh),
     calc(var(--s) * 5px) calc(var(--s) * 16px),
     calc(var(--s) * 5px) calc(var(--s) * 16px),
     calc(var(--s) * 1332px) calc(var(--s) * 30px),
@@ -73,11 +79,28 @@
   border: 1px solid transparent;
   border-image: var(--cn) 150 202 / calc(var(--s) * 150px) calc(var(--s) * 202px) stretch;
   border-radius: 0;
-  box-shadow: 0 0 max(12px, calc(var(--s) * 90px)) calc(var(--s) * -6px) var(--frame-glow);
 }
 
-/* Plates: wide elements only. */
+/* The bloom hugs the rules: a tight glow and a wide soft one (20 to 30 px at the
+ * hero and title scale, as in the camera border). Small controls carry none (a
+ * page of chips and cards would cost paint time for no gain); hover and focus
+ * give a control its glow. */
 .fx.pl {
+  box-shadow: 0 0 6px var(--frame-glow), 0 0 max(14px, calc(var(--s) * 90px)) var(--frame-glow-soft);
+}
+
+.fx.lg,
+.fx.xl {
+  box-shadow: 0 0 8px var(--frame-glow), 0 0 calc(var(--s) * 110px) var(--frame-glow-soft), 0 0 calc(var(--s) * 220px) var(--frame-glow-wide);
+}
+
+/* Plates: only at the large scales (hero, titles, resume head), where they are big
+ * enough to read and wide enough (1228 times --s) to clear the brackets. At the
+ * small scales they were a few mushy pixels, so smaller frames keep the
+ * brackets, long rules, stubs, plate and glow. */
+.fx.lg.pl,
+.fx.xl.pl {
+  --oh: var(--rh);
   --pt: url("../brand/frame-plates-top.svg");
   --pb: url("../brand/frame-plates-bottom.svg");
 }
@@ -97,11 +120,19 @@
   --s: 0.28;
 }
 
+/* Narrow screens: the big scales step down so the plates (1228 times --s wide)
+ * never touch the brackets. */
+@media (max-width: 30rem) {
+  .fx.lg,
+  .fx.xl {
+    --s: 0.18;
+  }
+}
+
 /* The lighter kind: containers with running text, code and tables. */
 :is(.fx.dk, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote) {
   --fill: var(--surface);
   --ink: var(--text);
-  --cn: url("../brand/frame-corners-dk.svg");
   --pt: none;
   --pb: none;
 }
@@ -129,7 +160,7 @@ a.fx:hover,
 .fx.card:focus-within,
 summary.fx:hover {
   --fill: var(--accent);
-  box-shadow: 0 0 max(12px, calc(var(--s) * 90px)) calc(var(--s) * -6px) var(--frame-glow);
+  box-shadow: 0 0 6px var(--frame-glow), 0 0 14px var(--frame-glow-soft);
 }
 
 .btn-primary {

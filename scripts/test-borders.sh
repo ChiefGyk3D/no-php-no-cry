@@ -8,12 +8,12 @@
 #     the owner named (home, support, social, products, search, about, resume) each
 #     carry at least five;
 #   - the build holds no style attribute or style element (the CSP forbids both)
-#     and no inline svg frame (the frame art is the four files under static/brand);
-#   - assets/css/borders.css: the only url() are the four frame SVGs, no hex
+#     and no inline svg frame (the frame art is the three files under static/brand);
+#   - assets/css/borders.css: the only url() are the three frame SVGs, no hex
 #     color (colors come from the tokens), no animation outside a
 #     prefers-reduced-motion: no-preference block, no rule that sets an amber
 #     text color, a forced-colors block and a print block that drop the art;
-#   - the four frame SVGs exist, hold no script, no text and no external reference.
+#   - the three frame SVGs exist, hold no script, no text and no external reference.
 # A self-test feeds the nesting checker a page with a frame in a frame and requires
 # it to fail, so a green run cannot come from a checker that sees nothing. There is
 # no per-page limit on frames. Needs the pinned Hugo; a missing Hugo is a failure.
@@ -132,7 +132,7 @@ import re, sys
 css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
 bad = []
 urls = re.findall(r"url\(([^)]*)\)", css)
-allowed = {"../brand/frame-corners.svg", "../brand/frame-corners-dk.svg", "../brand/frame-plates-top.svg", "../brand/frame-plates-bottom.svg"}
+allowed = {"../brand/frame-corners.svg", "../brand/frame-plates-top.svg", "../brand/frame-plates-bottom.svg"}
 for u in urls:
     if u.strip("\"' ") not in allowed:
         bad.append("url(%s)" % u)
@@ -157,12 +157,12 @@ print("; ".join(bad))
 sys.exit(1 if bad else 0)
 PY
 then
-    pass "borders.css: only the four frame SVGs, no hex, no amber text, motion gated, forced-colors and print fall back"
+    pass "borders.css: only the three frame SVGs, no hex, no amber text, motion gated, forced-colors and print fall back"
 else
     fail "borders.css breaks the token, motion, forced-colors or print contract"
 fi
 
-for f in frame-corners frame-corners-dk frame-plates-top frame-plates-bottom; do
+for f in frame-corners frame-plates-top frame-plates-bottom; do
     svg="$root/static/brand/$f.svg"
     if [[ -f "$svg" ]] && ! grep -qiE '<script|<text|href="(https?:|//|data:)|<image|<foreignObject' "$svg"; then
         pass "$f.svg is plain vector art"

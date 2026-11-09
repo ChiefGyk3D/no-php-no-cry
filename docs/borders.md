@@ -9,14 +9,13 @@ a soft amber bloom. The site is dark only.
 ## How it is drawn
 
 No markup per frame: a frame is the class `fx` (one class on the element, which
-is the whole markup cost). `assets/css/borders.css` draws it from four SVG files
+is the whole markup cost). `assets/css/borders.css` draws it from three SVG files
 under `static/brand/` (`img-src 'self'`, each listed with its sha256 in
 `brand/approved-assets.txt`):
 
 | File | Used for |
 | --- | --- |
 | `frame-corners.svg` | the four brackets (with the amber dash), as a `border-image` nine-slice; slices are in original pixels so they scale with height, not width |
-| `frame-corners-dk.svg` | the same brackets in lighter graphite, for the dark kind |
 | `frame-plates-top.svg`, `frame-plates-bottom.svg` | the end-cap plates, a background layer centered on the top and bottom edge |
 
 The rules, the mid-edge stubs, the cream plate and the glow are CSS (gradients
@@ -40,18 +39,31 @@ inline style.
   things you act on and for headings: buttons, tiles, cards, chips, the search
   input, the Menu button, title and section banners, the hero card, accordion
   summaries.
-- `fx dk`: the lighter related frame, the same brackets on the dark surface with
-  normal text colors, for containers that hold running text, code or tables: the
+- `fx dk`: the lighter related frame, the same brackets (same art, never lightened) on the dark
+  surface with normal text colors, for containers that hold running text, code or tables: the
   About bio and cards, the contact card, the archive notice, the coin cards, the
   nav list, the footer container, post images and the headline image, and
   `pre`, `table` and `blockquote` in a post (selected in CSS, no class needed).
-- `pl` adds the end-cap plates. Use it only where the element is at least 1228
-  times `--s` wide (about 220 px at the default scale); a small control keeps the
-  brackets, rules, stubs and glow without the plates.
+- `pl` adds the glow tiers, and with `lg` or `xl` the end-cap plates and the short
+  outer rules (the hero, the page titles, the resume head). The plates need an
+  element at least 1228 times `--s` wide; below 30rem the large scales step down
+  to 0.18 so they still clear the brackets. At the small scales the plates would
+  be a few mushy pixels, so smaller frames keep the brackets, long rules, stubs,
+  plate and glow.
 
 Inside a cream plate every descendant is ink (a muted or amber text color would
 fail contrast on cream); links keep their underline and the social icons turn
 ink. Hover fills the plate with amber, the ink stays.
+
+## Glow and rule thickness
+
+Rules are 6 px at the original size and never thinner than 2 px at small
+scales. The bloom hugs the rules: wide elements (`pl`) carry a tight and a soft
+glow, the hero and title banners (`lg`, `xl`) add a wide 20 to 30 px falloff as in
+the camera border. Small controls carry no glow until hover or focus, so a page
+of chips and cards costs no extra paint time. The short outer rules above and
+below the plate are drawn only with the plates; a small control has the
+long inner rules only, so nothing floats outside its box.
 
 ## Rules
 
@@ -95,6 +107,6 @@ stays steady as in the video.
 
 ## Weight
 
-No new font and no raster image. The four SVG files are about 3 KB together; the
+No new font and no raster image. The three SVG files are about 2 KB together; the
 CSS is about 4 KB before minifying. The page budget in
 `docs/performance-gates.md` is unchanged (the largest page rose by about 1.5 KB).
