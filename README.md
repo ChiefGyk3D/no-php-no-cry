@@ -143,6 +143,9 @@ them and is the single required check. Deploys run from `main` only, after
   never committed, secret scanning runs in CI, and the converter stops on private
   data shapes. Security reports go through private vulnerability reporting, see
   [CONTRIBUTING.md](CONTRIBUTING.md).
+- **A threat model you can open.** The publishing path, the reader path and the secrets are
+  modeled in OWASP Threat Dragon, with a plain-language summary. See
+  [docs/threat-model/README.md](docs/threat-model/README.md).
 
 ## Learn from this site
 
