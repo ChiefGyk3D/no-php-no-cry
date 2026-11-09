@@ -186,6 +186,7 @@ if build_legacy "$legacy" "$legacy_uploads"; then
 /old-x /posts/x/ 301
 /old-x/ /posts/x/ 301
 /wp-content/uploads/2023/05/pic-300x200.jpg /posts/y/pic.png 301
+/wp-sitemap.xml /sitemap.xml 301
 /category/* /posts/ 301
 /page/* /posts/ 301
 RULES
@@ -194,6 +195,12 @@ RULES
         pass "legacy rules: the exact expected _redirects lines, static before dynamic"
     else
         fail "legacy rules differ from the expected lines: $(cat "$work/legacy.diff")"
+    fi
+    # The WordPress sitemap address is a file, so one line (no slash variant).
+    if grep -qx '/wp-sitemap.xml /sitemap.xml 301' "$legacy/public/_redirects"; then
+        pass "wp-sitemap: /wp-sitemap.xml goes to /sitemap.xml with a 301"
+    else
+        fail "wp-sitemap: no /wp-sitemap.xml /sitemap.xml 301 rule"
     fi
     if out="$(check_lines "$legacy/public/_redirects" 2>&1)"; then
         pass "legacy rules: every line is well formed"
@@ -344,13 +351,10 @@ reject_upload "backslash in source" '[{"from": "/wp-content/uploads/a\\b.jpg", "
 tagged="$work/tagged"
 if TAGS=1 build_legacy "$tagged" "$legacy_uploads"; then
     {
-        grep -v '^/wp-content/' "$work/legacy.want" | grep -v '^/category/\*\|^/page/\*'
+        grep -v '\*' "$work/legacy.want"
         printf '%s\n' '/tag/foo-bar /tags/foo-bar/ 301' '/tag/foo-bar/ /tags/foo-bar/ 301' '/tag/zeta /tags/zeta/ 301' '/tag/zeta/ /tags/zeta/ 301'
     } | LC_ALL=C sort >"$work/tagged.want"
-    {
-        grep '^/wp-content/' "$work/legacy.want"
-        grep '\*' "$work/legacy.want"
-    } >>"$work/tagged.want"
+    grep '\*' "$work/legacy.want" >>"$work/tagged.want"
     if diff -u "$work/tagged.want" <(grep -v '^#' "$tagged/public/_redirects") >"$work/tagged.diff"; then
         pass "tag rules: /tag/<slug>/ goes to /tags/<slug>/ for used tags, none for a draft-only tag"
     else
@@ -399,10 +403,10 @@ fi
 # Cloudflare Pages allows 2000 static rules and 100 dynamic ones, and
 # scripts/check-site-artifact.sh allows 2000 lines in all. The file always adds
 # a header line and two dynamic rules, so 1997 static rules is the most that
-# fits. A bare site holds 8 static rules (6 feed, 2 uncategorized); the rest
+# fits. A bare site holds 9 static rules (6 feed, 2 uncategorized, 1 sitemap); the rest
 # are one-line .html aliases on one page.
 build_count() { # build_count <dir> <static-rule-total> [<tags>]
-    local site="$1" n="$2" ntags="${3:-0}" i base=8
+    local site="$1" n="$2" ntags="${3:-0}" i base=9
     mkdir -p "$site/content/posts"
     cp -r "$root/layouts" "$root/assets" "$root/static" "$site/"
     cp "$root/hugo.toml" "$site/hugo.toml"
@@ -416,7 +420,7 @@ build_count() { # build_count <dir> <static-rule-total> [<tags>]
             for ((i = 1; i <= ntags; i++)); do printf '  - tag%d\n' "$i"; done
             printf -- '---\n\nBody.\n'
         } >"$site/content/posts/t/index.md"
-        base=$((8 + 4 + 2 * ntags))
+        base=$((9 + 4 + 2 * ntags))
     fi
     {
         printf -- '---\ntitle: "Home"\naliases:\n'
