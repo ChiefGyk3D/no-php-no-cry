@@ -16,3 +16,6 @@ Refs #
 - [ ] Images have real alt text and sit beside the post's `index.md`.
 - [ ] Affiliate links, if any, carry the disclosure.
 - [ ] I never use the short form of cryptocurrency.
+- [ ] If this change alters the architecture, a data flow, a secret, or a third party the
+      site depends on, I updated the threat model in `docs/threat-model/` (or this change
+      does none of those).
