@@ -1,5 +1,5 @@
 ---
-title: "No PHP No Cry"
+title: "I Rebuilt My Site Without PHP"
 date: 2026-11-09
 draft: true
 slug: "new-site-no-php"
