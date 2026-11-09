@@ -68,16 +68,11 @@ Medium and low severity:
 
 ## Items the owner should decide
 
-1. Secrets policy conflict: `.github/workflows/deploy.yml` still reads the Cloudflare values from GitHub
-   secrets when Doppler gives none, `docs/deploy.md` describes a short-lived emergency token secret, and
-   `docs/cutover.md` step N5 allows Actions secrets for syndication credentials. The policy is Doppler only.
-   Choices: remove the fallbacks and fix the text (recommended), or keep the emergency path with a
-   documented expiry.
-2. Branch protection: main requires the CI green check and blocks force pushes (read 2026-11-09), but
+1. Branch protection: main requires the CI green check and blocks force pushes (read 2026-11-09), but
    requires zero approving reviews and does not enforce rules for administrators. This is normal for a
    one-person project. Decide whether to keep it.
-3. Commit signing: not required. Decide whether to ask for it.
-4. After the token and domain checks above, record the dates here and move those threats to Mitigated.
+2. Commit signing: not required. Decide whether to ask for it.
+3. After the token and domain checks above, record the dates here and move those threats to Mitigated.
 
 ## Review log
 

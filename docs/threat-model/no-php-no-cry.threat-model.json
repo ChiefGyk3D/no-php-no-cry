@@ -727,7 +727,7 @@
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "The four platform credentials leak through logs, artifacts or a workflow edit.",
-                  "mitigation": "Open until the job exists. Policy: the tokens live in Doppler only, never in GitHub secrets (docs/deploy.md describes the Doppler pattern). docs/cutover.md step N5 still allows Actions secrets as an option; that wording conflicts with the policy and is listed in RISKS.md as an item to fix.",
+                  "mitigation": "Open until the job exists. Policy: the tokens live in Doppler only, never in GitHub secrets (docs/deploy.md describes the Doppler pattern). docs/cutover.md step N5 now says Doppler entries only, and scripts/check-workflow-secrets.py blocks any repository secret read in a workflow.",
                   "number": 16
                 }
               ],
@@ -3092,16 +3092,16 @@
                 {
                   "id": "6f4a59d1-e8b0-5b4e-8c24-3782837f8895",
                   "title": "Secret placed in GitHub because a fallback exists",
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
-                  "description": "The deploy step still reads the same names from GitHub secrets when Doppler gives none, and docs/deploy.md describes a short-lived emergency token secret. Either one puts a long-lived credential in GitHub, against the policy.",
-                  "mitigation": "Open. .github/workflows/deploy.yml shows the fallback expressions and docs/deploy.md names the emergency path. Fix proposal for the owner: remove the GitHub secret fallback and the emergency token path, or fence them with an expiry check. Listed in docs/threat-model/RISKS.md.",
+                  "description": "A deploy fallback or a document could put a long-lived credential in GitHub secrets, against the policy that credentials live in Doppler only.",
+                  "mitigation": "The fallback expressions and the Doppler service token input were removed from .github/workflows/deploy.yml; docs/deploy.md, docs/cutover.md and docs/wiki/Deploy-overview.md say credentials come from Doppler only. scripts/check-workflow-secrets.py fails CI on any repository secret read other than the per-run GITHUB_TOKEN (and on the whole context, wildcards and inherit), run in the content checks job of .github/workflows/ci.yml and covered by scripts/test-check-workflow-secrets.sh. The owner still deletes any leftover repository secrets by hand.",
                   "number": 50
                 }
               ],
-              "hasOpenThreats": true
+              "hasOpenThreats": false
             }
           },
           {

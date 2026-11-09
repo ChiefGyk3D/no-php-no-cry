@@ -60,15 +60,16 @@ Repository variables (Settings, Secrets and variables, Actions, Variables):
 | `CLOUDFLARE_PAGES_PROJECT` | `no-php-no-cry` | Pages project name |
 | `DEPLOY_ENABLED` | unset (deploy skipped) | Set to `true` once credentials and the Pages project exist; until then pushes build but do not deploy |
 | `SITE_URL` | `https://test-blog.chiefgyk3d.com` | URL the smoke test checks |
-| `DOPPLER_CLOUDFLARE_IDENTITY_ID` | none | Doppler OIDC identity UUID for the Cloudflare project (Doppler path only). Separate from `DOPPLER_IDENTITY_ID`, which the CI callers use |
+| `DOPPLER_CLOUDFLARE_IDENTITY_ID` | none | Doppler OIDC identity UUID for the Cloudflare project (not a secret). Separate from `DOPPLER_IDENTITY_ID`, which the CI callers use |
 
 The deploy job needs two values: `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`. It takes them from Doppler when that is configured,
-otherwise from GitHub Actions secrets of the same names. If neither supplies
-both, the job fails with a message naming what is missing. Once
+`CLOUDFLARE_ACCOUNT_ID`. It takes them from Doppler only, over OIDC. No
+workflow reads a GitHub repository secret, and no document asks you to create
+one: credentials live in the secret manager and nowhere else. If Doppler does
+not supply both, the job fails with a message naming what is missing. Once
 `DEPLOY_ENABLED` is `true` it never skips silently.
 
-## Cloudflare setup (both paths)
+## Cloudflare setup
 
 The Pages project is created by CI, not by hand. The deploy job runs
 `scripts/ensure-pages-project.sh` before publishing: it looks the project up by
@@ -119,7 +120,7 @@ What that permission means, plainly:
   token can reach nothing else. That is an owner decision; until then, treat
   the token as account-wide.
 
-## Path A: Doppler (preferred)
+## Doppler setup
 
 Doppler holds the Cloudflare values; the workflow reads them over OIDC, so no
 long-lived Doppler credential sits in GitHub.
@@ -159,26 +160,20 @@ Doppler service account, the identity, or any token.
    and never one that matches `:pull_request`.
 4. Copy the identity UUID (not a secret) into the repository variable
    `DOPPLER_CLOUDFLARE_IDENTITY_ID`.
-5. Leave the `DOPPLER_CLOUDFLARE_TOKEN` secret unset. A read-only Doppler
-   service token for `cloudflare/prd` is an EMERGENCY-ONLY fallback, for when
-   OIDC is broken: give it a short expiry (hours, not days), set it only for the
-   incident, and revoke it and remove the secret the moment OIDC works again.
-   It is a long-lived bearer credential sitting in GitHub while it exists. The
-   OIDC identity wins when both exist.
+5. There is no token fallback. The workflow does not read a Doppler service
+   token or any other GitHub secret. If OIDC is broken, fix the identity (the
+   subject and the variable above) rather than storing a long-lived credential
+   in GitHub. A repository secret left over from an earlier setup (a Cloudflare
+   value or `DOPPLER_CLOUDFLARE_TOKEN`) is unused and should be deleted.
 6. Run the workflow by hand from `main` (Actions, Deploy, Run workflow).
 
 The Doppler action fetches only on the default branch, a tag, or a schedule.
 
-## Path B: GitHub Actions secrets (no Doppler)
+## Forks
 
-For a fork or anyone without Doppler:
-
-1. Leave `DOPPLER_CLOUDFLARE_IDENTITY_ID` unset.
-2. Settings, Secrets and variables, Actions, Secrets: add `CLOUDFLARE_API_TOKEN`
-   and `CLOUDFLARE_ACCOUNT_ID` with the values from the Cloudflare setup above.
-3. Run the workflow by hand from the default branch.
-
-If you fork under another name, change the OIDC subject and `SITE_URL` to match.
+A fork needs its own secret-manager project and OIDC identity, set up as above.
+There is no GitHub secret alternative. If you fork under another name, change
+the OIDC subject and `SITE_URL` to match.
 
 ## Checking and rolling back
 
