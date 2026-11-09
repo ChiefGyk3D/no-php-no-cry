@@ -162,8 +162,13 @@ the sentence `scripts/test-pages.sh` asserts. Additions this design needs on top
 - Clicks: "when you follow an outbound link, I count the click once, by the name of the
   destination's site only, never the full address, and nothing about you." No country on the raw click
   row; country appears only inside an aggregate counter.
-- Source label: if a `?s=` label is on the address and is on the closed list, it is
-  counted; any other value is counted as "other" and discarded.
+- Source label (VERIFIED against `clickSource` in Reach-Around `worker/src/click.ts`,
+  read 2026-11-09): exactly one `s` value that is syntactically valid and on the site's
+  list is counted as itself; exactly one that is syntactically valid but not on the list
+  is counted as `other` and its text is dropped; a missing, repeated or malformed `s` is
+  ignored and the visit stays in the no-source (`direct`) case. A site with no `sources`
+  list never reads `s`. The blog's own click route must implement exactly these cases and
+  have one test per case.
 - Cloudflare Web Analytics: CONFIRMED to stay on (Q3, 2026-11-09). The page names both
   counters and says they are separate (section 5.4). Issues 241 and 405, which tracked
   turning it off, no longer apply to the blog.
@@ -180,7 +185,7 @@ What is and is not collected (the page states both):
 | Referrer host only (or a listed `s` label) | Full referrer URL, query string, fragments |
 | Time rounded to the hour | Minute or second precision |
 | Country, region, city (views); country only in aggregate counters (clicks) | Coordinates, postal code, ASN number, organization |
-| Yes or no: hosting or VPN network class | Per-visitor network detail |
+| Network class, one closed value per view: `hosting-datacenter`, `vpn-proxy`, `tor` or `unknown` (VERIFIED: `netClass` in `analytics/collect.mjs`; `tor` comes from the Tor pseudo-country, whose presence in `cf.country` is UNVERIFIED) | Per-visitor network detail, the ASN number, the network owner name |
 | Yes or no: likely bot | User-agent string, TLS or HTTP fingerprint |
 | Click on a listed destination | Cookie, localStorage, sessionStorage, IndexedDB value used to recognize a visitor |
 | | Any cross-visit, cross-site or third-party identifier; any join to an email, account, handle, donation |
@@ -273,9 +278,25 @@ Required:
 - Complementary suppression: if exactly one cell in a group is withheld, the next smallest
   is withheld too, so a subtraction from a printed total cannot recover it (small-cell
   test from issue 408).
-- City stays in a marginal table by itself (place by day by page group). It is never
-  joined to network class, device, source or clicks; no city-with-click pair.
-- City aggregates share the 90 day ceiling; raw rows keep 7 days.
+- City stays in a marginal table by itself. It is never joined to network class, device,
+  source or clicks; no city-with-click pair.
+- What the code does today (VERIFIED, `analytics/migrations/0001_page_views.sql` and
+  `analytics/maintenance.sql`, read 2026-11-09): the daily rollup copies country, region
+  and city from the raw rows into `view_geo_daily` (key: day, country, region, city, bot
+  class), kept 90 days. The reader view `report_view_geo_daily` applies one floor of 5:
+  a cell under 5 is dropped from the listing and the dropped cells of that day and class
+  are summed into one `other` row, shown only if that sum is at least 5. So city in the
+  aggregate already exists, which matches decision Q2 C, but there is no roll-up of a
+  withheld city into its region or country, and the stored table still holds sub-floor
+  cities (readable with the D1 token, not through the report view).
+- What must change (plan item 4): new report views with a per-level floor (city cells
+  under 5 summed into their region, region cells under 5 into their country, country
+  cells under 5 into `other`, each level shown only if its sum is at least 5), the
+  complementary-suppression rule, and a small-cell test that enumerates datasets per
+  level. The migration is a new view (and a stored-fold option if the owner wants
+  sub-floor cities never stored); the rollup SQL needs no change for the view-only
+  version. The earlier statement that city exists only in 7-day raw rows is withdrawn.
+- City aggregates share the 90 day ceiling (as the current retention SQL does); raw rows keep 7 days.
 - Residual risk, stated plainly here and on the privacy page: on a small audience a town
   with a few readers can still be inferred by someone who knows who reads the blog. The
   floor reduces this, it does not remove it.
@@ -385,9 +406,9 @@ readers of released reports. The owner is a trusted operator on his own machine
 | Path flood grows storage | Any client | Count only origin-confirmed 200 HTML; path shape rule; page cap with an `other` fold | Random-path and cap tests |
 | Click and source forgery | HTTP client | Destination checked against the built-site domain list; `s` closed list; `Ping-From` is a noise filter only; per-site budgets | Forged-header and forged-domain tests |
 | Destination domain flood (open vocabulary, Q4) | Any client sending pings | Public suffix check, build-time membership, 150 per day cap with reserved cells and an hourly slice, one overflow row | Flood, suffix and cap tests |
-| Edge amplification burns the daily free quota | Flood of real pages | Background write with timeout; budget check before the database; kill switch; fail open | Load test with budget spent |
+| Edge amplification burns the daily free quota | Flood of real pages | Existing: background write bounded by a timer, kill switch (`ANALYTICS_OFF`), fail open (VERIFIED: `analytics/middleware.mjs`). GAP: no per-site per-hour admission budget; every accepted HTML response schedules a D1 insert until the daily quota is spent (then counts are lost, pages are not). Planned: plan item 17 | Load test with the budget spent (after item 17) |
 | Small-place re-identification (city in aggregates, Q2) | Reader of a report or D1 | Per-granularity floor, roll up to region then country, complementary suppression, city in its own marginal table | Small-cell test per granularity |
-| Profile built from the hosting or VPN flag | D1 read access | Class lives only in its own marginal table | Schema guard |
+| Profile built from the network class (hosting, VPN or proxy, Tor) | D1 read access | Class lives only in its own marginal table | Schema guard |
 | Report leaks a suppressed value by subtraction | Reader of released reports | Marginal pairs only; remainder row; joint suppression with totals; applies to unique counts too | Matrix test (issue 408) |
 | Daily code linked across days or to a person (Q6) | Read access to `visitor_seen`, or the secret | Per-day, per-site key from a Doppler secret; no shared column with views; purge at end of UTC day; never in any report or export; scheduled secret rotation | Code differs per day and per site; purge test; export scan |
 | Hash key leak | Repo, log or argument exposure | Doppler only, name in docs only; no logging in the handler; sentinel test | Secret scan; sentinel test |
@@ -422,11 +443,13 @@ the board before work starts (this PR files nothing).
 | 12 | 3 Docs | Counter reconciliation note and report footer wording (Q3) | #1 | Task | XS |
 | 13 | 4 Converge | Extract the shared rules (path, referrer, bot, derivation, closed vocabularies) into one module used by both sites (Q1) | R#325 | Feature | M |
 | 14 | 4 Converge | Edge ingest entry in the shared Worker plus service binding, only if the owner later wants a cross-site report | R#325 | Feature | L |
-| 15 | 5 Report | Blog report views and a funnel section for site `blog` in the owner report, floors applied | R#245 | Feature | M |
+| 15 | 5 Report | Blog report views and a funnel section for site `blog` in the owner report, floors applied. Needs item 18 first | R#245 | Feature | M |
+| 17 | 2 Views live | Per-site per-hour admission budget in the Function (sample or skip before the D1 insert once spent, flagged in a counter), and the load test (closes the gap in the threat table) | #1 | Feature | M |
+| 18 | 5 Report | Report input for the blog database: how the owner report reads the blog's separate D1. Options: read the `report_*` views through a scoped read-only token from the owner's machine (no public endpoint), or a periodic export of the aggregate views only (never raw rows); a service binding does not help because the owner report runs locally. Decide, then build | R#245 | Feature | M |
 | 16 | 6 Reuse | Public how-to: add this to your own Hugo site (config, snippet, privacy template, checklist), with the less private choices flagged as options | #1 | Docs | S |
 
-Dependencies: 1 before everything; 2 before 3; 3 before 4, 5, 7 and 8; 10 ships with the
-first deploy that turns counting on; 13 can start after 3 and does not block 7; 15 needs 7.
+Dependencies: 15 needs 7 and 18; 18 needs 3 (the database must exist); if plan item 14 is ever built and the blog moves to the shared database, 18 is replaced by the shared read path. 1 before everything; 2 before 3; 3 before 4, 5, 7 and 8; 10 ships with the
+first deploy that turns counting on; 13 can start after 3 and does not block 7; 17 can ship with 3.
 Cutover (no-php-no-cry#67) waits on phase 2, per the maintainer ruling of 2026-11-04. A
 waiver for the go-live gate is recorded in no-php-no-cry#207.
 
@@ -452,7 +475,7 @@ UNVERIFIED; dashboard paths can change, so re-read before use.
 
 1. Replace the "collects nothing" and "no analytics" sentences; update `scripts/test-pages.sh`.
 2. Name both counters, keeping the dated Cloudflare quote.
-3. Views: hour, path, referrer host, country, region and city (rough, can be wrong), hosting or VPN yes or no, bot yes or no.
+3. Views: hour, path, referrer host, country, region and city (rough, can be wrong), a network class (hosting provider, VPN or proxy, Tor, or unknown; a rough guess from a list of network numbers), a bot class.
 4. Places under 5 visits are merged into the larger area.
 5. Daily code: how made, lifetime until the end of the UTC day, not reversible, different per site, no deletion on request.
 6. Clicks: outbound links counted by destination site name only; a floor, not a total; optional `s` label.
