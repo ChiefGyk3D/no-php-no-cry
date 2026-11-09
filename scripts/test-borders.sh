@@ -158,6 +158,22 @@ else
     fail "borders.css or frame.html breaks the token, text-color or print contract"
 fi
 
+# Forced colors: the framed elements' background layers are reset, so the plain
+# CanvasText border is all that shows (not the L1 ticks or the L2/L3 gradients).
+if python3 -I - "$css" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+blocks = re.findall(r"@media \(forced-colors: active\) \{(.*?)\n\}\n", css, flags=re.S)
+ok = False
+for b in blocks:
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", b):
+        names = {x.strip() for x in sel.split(",")}
+        if {".bx.l2", ".bx.l3", ".l1", ".panel", ".tile", ".btn"} <= names and "background: none" in body and "CanvasText" in body:
+            ok = True
+sys.exit(0 if ok else 1)
+PY
+then pass "forced colors resets the framed elements' backgrounds"; else fail "the forced-colors block leaves the frame backgrounds in place"; fi
+
 if ((failures > 0)); then
     echo "test-borders: ${failures} failure(s)"
     exit 1

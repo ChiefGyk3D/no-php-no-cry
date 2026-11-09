@@ -62,7 +62,10 @@ repeats. The page budget in `docs/performance-gates.md` is unchanged.
 ## Button levels (issue 283)
 
 Only buttons have a level setting; every other element keeps the look it has
-above. The setting lives in one place, `params.frames` in `hugo.toml`:
+above. That includes panels (`.panel`) and tiles (`.tile`), which keep last night's
+light L1 frame (hairline and four ticks) on purpose: the owner decided on
+2026-11-09 to keep every non-button element exactly as it was on Nov 8. Stripping
+them is a possible later pass. The setting lives in one place, `params.frames` in `hugo.toml`:
 
 | Level | Look |
 | --- | --- |

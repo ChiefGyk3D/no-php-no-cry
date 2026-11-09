@@ -8,6 +8,11 @@
  * L2 classy:  .bx.l2 + the frame partial: split corner brackets, two amber rules.
  * L3 faithful: .bx.l3 + the partial: the full button frame. ONE per page.
  *
+ * Panels (.panel) and tiles (.tile) keep this light L1 frame on purpose: the owner
+ * decided on 2026-11-09 to keep every non-button element exactly as it was on
+ * Nov 8 (issue 283). Stripping them is a possible later pass, not a defect here.
+ * Only buttons have a level setting (see "Button levels" at the end).
+ *
  * Real text is always --text or --on-accent. Amber is a line color here, never a
  * label on a light ground; amber lettering is not used. */
 :root {
@@ -237,6 +242,7 @@ a.bx:hover {
   .panel,
   .tile,
   .btn {
+    background: none;
     border: 1px solid CanvasText;
     forced-color-adjust: auto;
   }
