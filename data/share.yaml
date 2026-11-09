@@ -7,10 +7,13 @@
 #   label       the visible name, also what the accessible name says
 #   kind        intent    a plain anchor built from `template`
 #               mailto    the same, a mailto: link
-#               mastodon  button; /share.js asks for the server once, keeps it in
-#                         localStorage and opens https://SERVER/share?text=...
-#               copy      button; /share.js copies the post link (no known share
-#                         URL for this target, or none wanted)
+#               picker    button; /share.js opens the inline instance picker (a plain
+#                         host name, validated), optionally keeps it in this
+#                         browser's localStorage (key <id>Server) and opens
+#                         mastodon: https://HOST/share?text=TITLE PERMALINK
+#                         lemmy:    https://HOST/create_post?title=TITLE&url=PERMALINK
+#               copy      button; /share.js copies the post link and says Link
+#                         copied in the live region (Copy link only)
 #   template    intent and mailto only. Placeholders: {title} (page title),
 #               {url} (the permalink), {text} (title, a space, permalink; the
 #               title is cut to 200 characters), {image} (the front matter
@@ -42,11 +45,11 @@
   read: 2026-11-08
 - id: mastodon
   label: Mastodon
-  kind: mastodon
+  kind: picker
   template: ""
   source: inferred
-  source_url: https://github.com/mastodon/mastodon (the /share route; the text parameter is not documented)
-  read: 2026-11-08
+  source_url: https://github.com/mastodon/mastodon (config/routes.rb "resource :share"; app/helpers/application_helper.rb render_initial_state reads params[:text]; not on docs.joinmastodon.org)
+  read: 2026-11-09
 - id: twitter
   label: Twitter
   kind: intent
@@ -54,27 +57,13 @@
   source: vendor
   source_url: https://docs.x.com/x-for-websites/post-button/guides/web-intent.md (documents the x.com/intent/tweet host; twitter.com/intent/tweet redirects to x.com)
   read: 2026-11-08
-- id: discord
-  label: Discord
-  kind: copy
-  template: ""
-  source: none
-  source_url: no documented share URL; copies the post link to paste
-  read: 2026-11-08
-- id: matrix
-  label: Matrix
-  kind: copy
-  template: ""
-  source: none
-  source_url: the Matrix spec limits matrix.to links to room, user and event ids; copies the post link to paste
-  read: 2026-11-08
 - id: lemmy
   label: Lemmy
-  kind: copy
+  kind: picker
   template: ""
-  source: none
-  source_url: no per-instance submit URL confirmed yet; copies the post link to paste
-  read: 2026-11-08
+  source: inferred
+  source_url: https://github.com/LemmyNet/lemmy-ui (src/shared/components/post/create-post.tsx getCreatePostQueryParams reads title and url from the query; not on join-lemmy.org docs)
+  read: 2026-11-09
 - id: reddit
   label: Reddit
   kind: intent

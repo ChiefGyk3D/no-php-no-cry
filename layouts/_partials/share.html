@@ -1,5 +1,5 @@
 {{- /*
-  Share links (issue 220), from data/share.yaml. Static anchors built from this page's permalink and title; every value is percent-encoded (spaces as %20). No third-party script, no embed. The one script, /share.js (docs/pinned-script.md), only un-hides the buttons: copy a link, and share to Mastodon, whose server is per user. With JavaScript off the buttons stay hidden and the permalink line above is the fallback (a link to select and copy). Pinterest, whose endpoint wants an image, is left out of a post with no front matter "image". See docs/share-links.md.
+  Share links (issue 220), from data/share.yaml. Static anchors built from this page's permalink and title; every value is percent-encoded (spaces as %20). No third-party script, no embed. The one script, /share.js (docs/pinned-script.md), un-hides the buttons: copy a link, and share to Mastodon or Lemmy, whose instance is per user, through the inline picker below the icons. With JavaScript off the buttons stay hidden and the permalink line above is the fallback (a link to select and copy). Pinterest, whose endpoint wants an image, is left out of a post with no front matter "image". See docs/share-links.md.
 */ -}}
 {{- $url := .Permalink -}}
 {{- $title := .Title | plainify -}}
@@ -23,14 +23,20 @@
       {{- $t = replace $t "{image}" (replace (urlquery $image) "+" "%20") }}
     <li>{{ if eq .kind "mailto" }}{{ "<!--email_off-->" | safeHTML }}{{ end }}<a class="icon-{{ .id }} share-link" href="{{ $t }}" rel="noopener noreferrer" target="_blank" aria-label="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}" title="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}">{{ .label }}</a>{{ if eq .kind "mailto" }}{{ "<!--/email_off-->" | safeHTML }}{{ end }}</li>
       {{- end }}
-    {{- else if eq .kind "mastodon" }}
-    <li><button type="button" class="icon-{{ .id }} share-link" data-share="mastodon" data-text="{{ $text }}" aria-label="Share on {{ .label }}" title="Share on {{ .label }}" hidden>{{ .label }}</button></li>
-    <li><button type="button" class="share-link share-change" data-share="server" aria-label="Change {{ .label }} server" title="Change {{ .label }} server" hidden>Change server</button></li>
+    {{- else if eq .kind "picker" }}
+    <li><button type="button" class="icon-{{ .id }} share-link" data-share="{{ .id }}" data-name="{{ .label }}" data-text="{{ $text }}" data-title="{{ $title | truncate 200 }}" data-url="{{ $url }}" aria-label="Share on {{ .label }}" title="Share on {{ .label }}" hidden>{{ .label }}</button></li>
     {{- else if eq .kind "copy" }}
     <li><button type="button" class="icon-{{ .id }} share-link{{ if eq .id "copy" }} share-copy{{ end }}" data-share="copy" data-url="{{ $url }}" aria-label="{{ if eq .id "copy" }}Copy link{{ else }}Copy link to share on {{ .label }}{{ end }}" title="{{ if eq .id "copy" }}Copy link{{ else }}Copy link to share on {{ .label }}{{ end }}" hidden>{{ .label }}</button></li>
     {{- end }}
     {{- end }}
   </ul>
+  <div class="share-picker" role="group" aria-labelledby="share-host-label" hidden>
+    <label id="share-host-label" for="share-host">Your <span class="share-name">Mastodon</span> instance, for example example.social</label>
+    <input class="share-host" id="share-host" type="text" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="253" placeholder="example.social">
+    <label class="share-remember"><input class="share-rem" type="checkbox"> Remember it in this browser</label>
+    <div class="share-actions"><button type="button" class="share-link share-go" data-share="go">Share</button><button type="button" class="share-link share-cancel" data-share="x">Cancel</button></div>
+  </div>
+  <input class="share-url" type="text" readonly value="{{ $url }}" aria-label="Post link, selected for copying" hidden>
   <p class="share-status meta" role="status" aria-live="polite"></p>
   <script src="{{ "share.js" | relURL }}"></script>
 </div>

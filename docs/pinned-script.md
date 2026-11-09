@@ -15,13 +15,15 @@ The site ships exactly three scripts:
 | --- | --- | --- |
 | `/copy.js` | `/support/` (`layouts/support/single.html`) | Reveals the Copy buttons (hidden without script), copies the address text with `navigator.clipboard` or a textarea fallback, and writes "Copied" into a `role=status` region. The address stays visible, selectable text either way. |
 | `/search.js` | `/search/` (`layouts/search/list.html`) | Enables the search box (its input is disabled without script) and filters the page's own list in place. See "Search" below. |
-| `/share.js` | Every post and journal entry (`layouts/_partials/share.html`; `posts/*/index.html` and `journal/*/index.html`, one path segment for `*`) | Un-hides the share buttons that need script (copy a link; Mastodon, whose server is per user), copies with `navigator.clipboard`, and for Mastodon asks for the server once and keeps it in `localStorage`. See `docs/share-links.md`. |
+| `/share.js` | Every post and journal entry (`layouts/_partials/share.html`; `posts/*/index.html` and `journal/*/index.html`, one path segment for `*`) | Un-hides the share buttons that need script (copy a link; Mastodon and Lemmy, whose instance is per user), copies with `navigator.clipboard` (saying Link copied in the live region), and for Mastodon and Lemmy runs the inline instance picker, keeping the host in `localStorage` only if Remember is ticked. See `docs/share-links.md`. |
 
 `/copy.js` and `/search.js` make no network request, store nothing, set no
 cookie and read nothing beyond their own page. `/share.js` makes no request
 either and sets no cookie; its one exception to "stores nothing" is the
-Mastodon server name the visitor types, kept in `localStorage` under
-`mastodonServer` on this site only and never sent anywhere by this site. The
+Mastodon or Lemmy instance name the visitor types, kept in `localStorage`
+under `mastodonServer` or `lemmyServer` on this site only, and only if the
+visitor ticks Remember (unticking removes it); this site never sends it
+anywhere (pressing Share opens the named instance in a new tab). The
 allowlist, script -> its allowed page(s), is `PINNED_SCRIPTS` in
 `scripts/artifact-rules.sh`; the build checks read it, so a fourth script, or
 any script on another page, fails the build.
