@@ -88,8 +88,8 @@ if build_site "$work/plain" "$conv/drafts"; then
     else
         fail "a draft-all page was built"
     fi
-    # What remains is the fixed set of legacy WordPress rules (feed, uncategorized
-    # category, paging): no alias, date archive or category line of a draft.
+    # What remains is the fixed set of legacy WordPress rules (feed, sitemap,
+    # uncategorized category, paging): no alias, date archive or category line of a draft.
     cat >"$work/legacy-baseline" <<'RULES'
 /category/uncategorized /posts/ 301
 /category/uncategorized/ /posts/ 301
@@ -99,6 +99,7 @@ if build_site "$work/plain" "$conv/drafts"; then
 /feed/ /feed/index.xml 301
 /feed/atom /feed/index.xml 301
 /feed/atom/ /feed/index.xml 301
+/wp-sitemap.xml /sitemap.xml 301
 /category/* /posts/ 301
 /page/* /posts/ 301
 RULES
@@ -125,8 +126,8 @@ if build_site "$work/drafts" "$conv/drafts" --buildDrafts; then
         fi
     done
     # Alias rules are every line that is not a legacy WordPress rule (feeds,
-    # categories, tags, paging, date archives).
-    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/category/|/tag/|/page/)' "$r" || true)"
+    # sitemap, categories, tags, paging, date archives).
+    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/wp-sitemap\.xml |/category/|/tag/|/page/)' "$r" || true)"
     if [[ "$(grep -c '' <<<"$aliases_only")" == "3" ]] && out="$(check_lines "$r" 2>&1)"; then
         pass "exactly three alias rules for the two aliased posts, all well formed"
     else

@@ -18,6 +18,7 @@
      accept. The comments feed is gone with the comments. (A 200 rewrite of
      /feed/ and a Content-Type rule would need a second _headers block and a
      200 line, which scripts/check-site-artifact.sh forbids on purpose.)
+     /wp-sitemap.xml goes to /sitemap.xml (301): a file, so one line.
   3. /category/<slug>/ goes to the matching category page when one exists;
      /category/uncategorized/ always goes to /posts/, even if a post uses that
      category and Hugo makes a term page for it.
@@ -58,6 +59,7 @@
 {{- end -}}
 {{- /* 2. feeds */ -}}
 {{- $static = $static | append "/feed /feed/index.xml 301" "/feed/ /feed/index.xml 301" "/feed/atom /feed/index.xml 301" "/feed/atom/ /feed/index.xml 301" "/comments/feed /feed/index.xml 301" "/comments/feed/ /feed/index.xml 301" -}}
+{{- $static = $static | append "/wp-sitemap.xml /sitemap.xml 301" -}}
 {{- /* 3. categories */ -}}
 {{- range site.Taxonomies.categories -}}
   {{- $slug := path.Base (strings.TrimSuffix "/" .Page.RelPermalink) -}}
