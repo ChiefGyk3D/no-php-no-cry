@@ -57,11 +57,13 @@ ink. Hover fills the plate with amber, the ink stays.
 
 ## Glow and rule thickness
 
-Rules are 6 px at the original size and never thinner than 2 px at small
-scales. The bloom hugs the rules: wide elements (`pl`) carry a tight and a soft
-glow, the hero and title banners (`lg`, `xl`) add a wide 20 to 30 px falloff as in
-the camera border. Small controls carry no glow until hover or focus, so a page
-of chips and cards costs no extra paint time. The short outer rules above and
+Rules are 6 px at the original size and never thinner than 3 px at small
+scales. The bloom hugs the rules: a `pl` frame has a blurred copy of its rule layers
+behind the content (a pseudo-element with a blur filter), 5 px of falloff on a
+card or banner and about 20 px with extra brightness on the hero and title
+banners (`lg`, `xl`), as in the camera border. Small controls carry no bloom
+until hover or focus, so a page of chips costs no extra paint time. There is no
+element-wide shadow. The short outer rules above and
 below the plate are drawn only with the plates; a small control has the
 long inner rules only, so nothing floats outside its box.
 
@@ -89,13 +91,12 @@ The static look is the exact ON state (every rule lit, full bloom). An opt-in
 layer, only under `prefers-reduced-motion: no-preference` and only on an
 element with the class `live`, reproduces the owner's camera border: the long
 top bar switches off and on with 0.3 second ramps on a 4 second cycle and
-settles slowly while lit, and the top-left dash blinks slowly. It animates the
-opacity of two pseudo-elements, so nothing shifts and LCP and CLS are
+settles slowly while lit; the bottom rule stays steady. It animates the
+opacity of one pseudo-element, so nothing shifts and LCP and CLS are
 unaffected. `live` is set only on the Home hero card and on the page title
 banner, so at most one frame per page moves; many moving glows at once are too
-much motion and cost paint time. The right dash and the side-rule flicker of the
-video are not reproduced (the two pseudo-elements are used up); the bottom rule
-stays steady as in the video.
+much motion and cost paint time. The dash blinks and the side-rule flicker of the
+video are not reproduced.
 
 ## Adding a frame
 
