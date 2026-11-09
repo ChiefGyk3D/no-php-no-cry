@@ -1,3 +1,4 @@
+// Same behavior as before; this line only changes the file bytes so the edge refetches it under the current _headers (issue 272).
 (function () {
   var d = document, q = d.getElementById("q"),
     st = d.getElementById("search-status"), m = /[?&]q=([^&#]*)/.exec(location.search),

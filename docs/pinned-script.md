@@ -31,8 +31,9 @@ these reviewed files instead of an inspection of their code:
 
 - Each script has a committed hash file at the repository root, one line, the
   sha256 of the script in `sha256sum` format: `copy.js.sha256` holds
-  `<64 lowercase hex>  copy.js` and `search.js.sha256` holds
-  `<64 lowercase hex>  search.js`.
+  `<64 lowercase hex>  copy.js`, `search.js.sha256` holds
+  `<64 lowercase hex>  search.js` and `share.js.sha256` holds
+  `<64 lowercase hex>  share.js`.
 - `scripts/check-output.sh`, `scripts/check-site-artifact.sh` and the post-deploy
   `scripts/smoke-site.sh` accept a script only if its sha256 equals the line in
   its own hash file. The smoke check also hashes the bytes the live site serves.
@@ -83,7 +84,7 @@ that.
 ## Changing a script
 
 1. Edit `static/copy.js`, `static/search.js` or `static/share.js`.
-2. Run `scripts/pin-script.sh` (both scripts) or `scripts/pin-script.sh
+2. Run `scripts/pin-script.sh` (all three scripts: `copy.js`, `search.js`, `share.js`) or `scripts/pin-script.sh
    static/search.js` (one). It refuses a script of 1 KB gzip or more and writes
    `<name>.sha256`. (`scripts/pin-script.sh --check` verifies them.)
 3. Commit the script and its hash file in the same pull request. The hash change
@@ -99,3 +100,21 @@ allowlist and fails if it is missing), fixtures in `scripts/test-check-output.sh
 `scripts/test-check-site-artifact.sh` and `scripts/test-smoke-site.sh`, and this
 page. A page field with `*` or a comma list is a set of patterns; `*` is exactly
 one path segment (`pinned_script_on_page` in `scripts/artifact-rules.sh`).
+
+## A header change needs new script bytes (issues 216, 272)
+
+The pinned scripts have unhashed names, so Cloudflare's edge keeps them cached
+(`Cache-Control: public, max-age=14400, must-revalidate`). When the bytes are
+unchanged, the edge revalidates with the same ETag and keeps serving the
+headers stored at the first fill: after `_headers` gained
+`require-trusted-types-for 'script'` and COOP (PR 265), the HTML pages carried
+the new policy while `/copy.js`, `/search.js` and `/share.js` still answered
+with the old CSP and no COOP, and the Deploy smoke test failed with
+`wrong-csp: /copy.js ...` (run 42534466709). A cache-busting query string
+returned the new headers, which isolates the cause to the edge cache. The smoke
+test is not loosened and not retried around this. The fix is to change each
+script's bytes once (a comment line, behavior unchanged), re-pin with
+`scripts/pin-script.sh`, so the new ETag forces a fresh fill. Any later change
+to `static/_headers` that the smoke test compares must be paired with the same
+one-line byte change in the three scripts, or an owner cache purge for the
+three URLs.
