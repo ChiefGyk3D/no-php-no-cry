@@ -100,7 +100,7 @@ what Cloudflare itself adds to a response (see "Verified and inferred").
    old WordPress addresses. It must exit 0 before the cutover.
 7. On the cutover commit: `scripts/check-wording.sh` and the full gate pass, and
    the production build passes `EXPECT_ENV=production scripts/check-output.sh`.
-8. Rehearse the verifier on staging (command above) and keep the output.
+8. Rehearse `scripts/verify-live.sh` on staging, with the command in the section "Checking a deployed host: scripts/verify-live.sh" above (`--env staging`), and keep the output. (The launch SEO check in step 6 is a different tool; it runs on a built directory, not on a host.)
 
 ## WordPress freeze
 

@@ -61,6 +61,14 @@ expect good 0 - ':'
 expect noindex 1 noindex "sed -i 's#</head>#<meta name=robots content=\"noindex, follow\"></head>#' about/index.html"
 expect robots-disallow-all 1 robots-disallow-all "printf 'User-agent: *\nDisallow: /\n' >robots.txt"
 expect robots-no-sitemap 1 robots-no-sitemap "printf 'User-agent: *\nAllow: /\n' >robots.txt"
+# RFC 9309: a group is one or more User-agent lines followed by rules; a blank line inside it
+# does not end it, so this is still a wildcard disallow-all (fail closed).
+expect robots-blank-line-in-group 1 robots-disallow-all "printf 'User-agent: *\nAllow: /\n\nDisallow: /\nSitemap: https://example.test/sitemap.xml\n' >robots.txt"
+# Several User-agent lines share the rules that follow them.
+expect robots-shared-group 1 robots-disallow-all "printf 'User-agent: Bingbot\nUser-agent: *\nDisallow: /\nSitemap: https://example.test/sitemap.xml\n' >robots.txt"
+# A rule before any User-agent line belongs to no group; a new User-agent starts a new group.
+expect robots-orphan-rule 0 - "printf 'Disallow: /\n\nUser-agent: *\nAllow: /\nSitemap: https://example.test/sitemap.xml\n' >robots.txt"
+expect robots-other-agent-only 0 - "printf 'User-agent: *\nAllow: /\n\nUser-agent: BadBot\nDisallow: /\nSitemap: https://example.test/sitemap.xml\n' >robots.txt"
 expect robots-missing 1 robots-missing "rm robots.txt"
 expect robots-host 1 robots-host "sed -i 's#example.test#staging.example.test#' robots.txt"
 expect sitemap-host 1 sitemap-host "sed -i 's#https://example.test/posts#https://staging.example.test/posts#' sitemap.xml"
