@@ -25,7 +25,7 @@ checks on pull requests that change the site, and what no script can prove.
 - **Visible focus** on every control, in the accent color.
 - **Frames are decoration.** Corner brackets and rules are CSS backgrounds and
   border images from four small SVG files, drawn outside the focus ring, with
-  real text on every control, ink lettering on the cream plate (checked at 4.5:1
+  real text on every control, light lettering on the dark fills and dark lettering on amber (checked at 4.5:1
   by `scripts/check-contrast.py`) and no amber lettering. See `docs/borders.md`.
 - **Large targets.** Controls are at least 44 by 44 CSS pixels, with the WCAG
   inline-text-link exception.

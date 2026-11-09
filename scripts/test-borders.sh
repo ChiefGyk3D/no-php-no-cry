@@ -132,7 +132,7 @@ import re, sys
 css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
 bad = []
 urls = re.findall(r"url\(([^)]*)\)", css)
-allowed = {"../brand/frame-corners.svg", "../brand/frame-plates-top.svg", "../brand/frame-plates-bottom.svg"}
+allowed = {"../brand/frame-corners.svg", "../brand/frame-corners-dk.svg", "../brand/frame-plates-top.svg", "../brand/frame-plates-bottom.svg"}
 for u in urls:
     if u.strip("\"' ") not in allowed:
         bad.append("url(%s)" % u)
@@ -162,7 +162,7 @@ else
     fail "borders.css breaks the token, motion, forced-colors or print contract"
 fi
 
-for f in frame-corners frame-plates-top frame-plates-bottom; do
+for f in frame-corners frame-corners-dk frame-plates-top frame-plates-bottom; do
     svg="$root/static/brand/$f.svg"
     if [[ -f "$svg" ]] && ! grep -qiE '<script|<text|href="(https?:|//|data:)|<image|<foreignObject' "$svg"; then
         pass "$f.svg is plain vector art"

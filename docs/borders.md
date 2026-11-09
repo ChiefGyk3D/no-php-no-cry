@@ -3,8 +3,8 @@
 The button frame from the owner's Twitch, Kick and YouTube art, used on every
 control and container of the blog. Stepped graphite corner brackets with a
 mid-edge split and an amber stub, angled end-cap plates top and bottom with a
-window and a dash, long thin amber rules, a cream plate with ink lettering, and
-a soft amber bloom. The site is dark only.
+window and a dash, long thin amber rules, and a soft amber bloom, drawn as border only on top of
+each box's own fill (charcoal, the translucent amber tint, or amber). The site is dark only.
 
 ## How it is drawn
 
@@ -18,10 +18,10 @@ under `static/brand/` (`img-src 'self'`, each listed with its sha256 in
 | `frame-corners.svg` | the four brackets (with the amber dash), as a `border-image` nine-slice; slices are in original pixels so they scale with height, not width |
 | `frame-plates-top.svg`, `frame-plates-bottom.svg` | the end-cap plates, a background layer centered on the top and bottom edge |
 
-The rules, the mid-edge stubs, the cream plate and the glow are CSS (gradients
-and a box shadow). Colors come from the tokens (`frame-cream`, `frame-ink`,
-`frame-edge` in `brand/tokens.json`); the bracket gradient (010101 to 4B4B4B to
-2B2B2B) is in the SVG art.
+The rules, the mid-edge stubs, the fill and the glow are CSS (gradients
+and a box shadow). Colors come from the tokens (`frame-edge` in `brand/tokens.json`); the bracket gradient (7C7C7C to B4B4B4 to
+848484, graphite that reads on dark fills) is in `frame-corners.svg`, and
+`frame-corners-dk.svg` (the original near-black art) replaces it on amber fills.
 
 ## Scale
 
@@ -35,7 +35,9 @@ inline style.
 
 ## Two kinds, and plates
 
-- `fx`: the faithful frame, a cream plate with ink lettering (`--frame-ink`), for
+- `fx`: the faithful frame on the box's own fill (the pre-frame fills: charcoal
+  surface, translucent amber tint on the hero, titles and ghost buttons, amber on
+  primary buttons and on hover; section headings and `h2` banners are open), for
   things you act on and for headings: buttons, tiles, cards, chips, the search
   input, the Menu button, title and section banners, the hero card, accordion
   summaries.
@@ -51,9 +53,10 @@ inline style.
   be a few mushy pixels, so smaller frames keep the brackets, long rules, stubs,
   plate and glow.
 
-Inside a cream plate every descendant is ink (a muted or amber text color would
-fail contrast on cream); links keep their underline and the social icons turn
-ink. Hover fills the plate with amber, the ink stays.
+Inside a frame every descendant takes the frame ink (`--text`, or `--on-accent`
+on amber); links keep their underline and the social icons follow the ink. Hover
+fills with amber, the ink turns dark and the brackets switch to the near-black art.
+No white or cream fill is used anywhere.
 
 ## Glow and rule thickness
 
