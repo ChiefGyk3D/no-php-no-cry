@@ -88,6 +88,79 @@ YML
 expect pass "word secrets in plain text is fine" <<'YML'
 name: no secrets here
 YML
+expect fail "upper case context" <<'YML'
+env:
+  T: ${{ SECRETS.FOO }}
+YML
+expect fail "mixed case context and name" <<'YML'
+env:
+  T: ${{ Secrets.Foo }}
+YML
+expect pass "GITHUB_TOKEN in any case" <<'YML'
+env:
+  T: ${{ Secrets.github_token }}
+YML
+expect fail "upper case secrets inherit" <<'YML'
+jobs:
+  a:
+    SECRETS: INHERIT
+YML
+expect fail "name on the second line" <<'YML'
+env:
+  T: ${{
+    secrets.FOO
+    }}
+YML
+expect fail "bracket form across lines" <<'YML'
+env:
+  T: ${{ secrets[
+    'FOO'
+    ] }}
+YML
+expect fail "bare context across lines" <<'YML'
+env:
+  T: ${{ toJSON(
+    secrets
+    ) }}
+YML
+expect fail "object filter" <<'YML'
+env:
+  T: ${{ toJSON(secrets.*) }}
+YML
+expect fail "star in brackets" <<'YML'
+env:
+  T: ${{ secrets['*'] }}
+YML
+expect fail "if condition with expression" <<'YML'
+jobs:
+  a:
+    if: ${{ secrets.FOO != '' }}
+YML
+expect fail "if condition without braces" <<'YML'
+jobs:
+  a:
+    steps:
+      - if: secrets.FOO != ''
+        run: echo hi
+YML
+expect fail "run string" <<'YML'
+jobs:
+  a:
+    steps:
+      - run: echo "${{ secrets.FOO }}"
+YML
+expect fail "reusable call input" <<'YML'
+jobs:
+  a:
+    uses: o/r/.github/workflows/x.yml@main
+    with:
+      t: ${{ secrets.FOO }}
+YML
+expect pass "secrets inside a comment spanning an expression line" <<'YML'
+env:
+  T: ${{ vars.A }}
+  # ${{ secrets.FOO }}
+YML
 expect fail "trailing comment does not hide it" <<'YML'
 env:
   T: ${{ secrets.OTHER }} # ok
