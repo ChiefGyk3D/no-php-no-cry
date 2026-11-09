@@ -70,7 +70,7 @@ them is a possible later pass. The setting lives in one place, `params.frames` i
 | Level | Look |
 | --- | --- |
 | `minimal` (default on every button except the primary) | the L1 look: a graphite hairline and four amber ticks |
-| `faithful` | the owner's button art, `static/brand/frame-faithful-button.svg` (`-amber` on amber), over the button's fill |
+| `faithful` | the owner's button art, `static/brand/frame-faithful-button.svg` (`-amber` on amber). The fill (tint, or solid amber) is drawn inside the art, clipped to the brackets' inner outline, and the button's own background is transparent: a plain rectangle would show past the chamfered frame (issue 285; `scripts/test-borders.sh` checks the art and the CSS) |
 | `none` | the pre-frame button: an amber border, no ticks |
 
 The shipped default is `level = "minimal"` with `btn-primary = "faithful"`: the primary buttons (Read the latest, Start over) wear the faithful art and every other button the minimal frame. `level` is the default for every button; `[params.frames.classes]` overrides one

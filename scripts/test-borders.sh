@@ -95,6 +95,48 @@ for f in frame-faithful-button.svg frame-faithful-button-amber.svg; do
 done
 if python3 -I "$root/scripts/gen-frame-art.py" --check; then pass "the button art matches scripts/gen-frame-art.py"; else fail "the button art is stale: run scripts/gen-frame-art.py"; fi
 
+# The fill never extends past the art (issue 285). The faithful frame is chamfered, so a
+# plain background-color rectangle shows past it (amber at the mid-edge stubs and the top
+# and bottom centre). The fill is therefore a path INSIDE each art file, and the box's own
+# background-color is transparent. Check both halves, and self-test the check.
+fill_check() { # fill_check <svg>: the fill path stays strictly inside the viewBox
+python3 -I - "$1" <<'PY'
+import re, sys
+svg = open(sys.argv[1]).read()
+W, H = (float(v) for v in re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups())
+paths = re.findall(r'<path d="([^"]+)" fill="#[0-9A-Fa-f]{6}" fill-opacity="[^"]+"/>', svg)
+if len(paths) != 1:
+    sys.exit("expected exactly one fill path, found %d" % len(paths))
+pts = [(float(x), float(y)) for x, y in re.findall(r"(-?[\d.]+) (-?[\d.]+)", paths[0])]
+if len(pts) < 8:
+    sys.exit("the fill is not a chamfered outline")
+mx, my = 0.01 * W, 0.01 * H   # at least 1% clear of every edge
+if min(x for x, _ in pts) < mx or max(x for x, _ in pts) > W - mx or min(y for _, y in pts) < my or max(y for _, y in pts) > H - my:
+    sys.exit("the fill reaches the edge of the art box")
+PY
+}
+printf '<svg viewBox="0 0 100 40"><path d="M0 0 L100 0 L100 40 L0 40 L0 20 L5 20 L5 10 L8 8Z" fill="#FBB03B" fill-opacity="1"/></svg>' >"$work/bleed.svg"
+printf '<svg viewBox="0 0 100 40"><path d="M5 5 L95 5 L95 35 L5 35 L5 20 L8 20 L8 10 L10 8Z" fill="#FBB03B" fill-opacity="1"/></svg>' >"$work/inset.svg"
+if ! fill_check "$work/bleed.svg" >/dev/null 2>&1 && fill_check "$work/inset.svg" >/dev/null 2>&1; then
+    pass "the fill-bleed check fails a full-box fill and accepts an inset one"
+else
+    fail "the fill-bleed check is blind: it must reject a fill that reaches the art edge"
+fi
+for f in frame-faithful-button.svg frame-faithful-button-amber.svg frame-faithful-tile.svg frame-faithful-tile-amber.svg; do
+    if msg="$(fill_check "$root/static/brand/$f" 2>&1)"; then pass "$f: the fill is clipped inside the art box"; else fail "$f: $msg"; fi
+done
+if python3 -I - "$css" "$root/assets/css/pages/support.css" <<'PY'
+import re, sys
+def block(css, sel):
+    # every rule of exactly this selector (a media block repeats it without the background)
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    return [m.group(1) for m in re.finditer(r"(?<![\w-])" + re.escape(sel) + r"\s*\{([^}]*)\}", css)]
+bf = open(sys.argv[1]).read(); sup = open(sys.argv[2]).read()
+ok = lambda bodies: any("background-color: transparent" in b for b in bodies) and not any(re.search(r"background(-color)?:\s*(?!transparent|none)[^;]*(var\(--fill\)|var\(--accent\)|#)", b) for b in bodies)
+sys.exit(0 if ok(block(bf, ".btn.bf-faithful")) and ok(block(sup, ".support-tile")) else 1)
+PY
+then pass "faithful buttons and support tiles keep a transparent box background (no fill rectangle past the art)"; else fail "a faithful box sets a background color: it would show past the chamfered frame"; fi
+
 # No cream or white fill: the primary button hover is amber, never --text.
 if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi
 
