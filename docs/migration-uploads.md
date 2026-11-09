@@ -1,6 +1,6 @@
 # Old upload redirects per post
 
-`data/legacy_uploads.json` ships empty (`[]`). The posts are drafts, and a draft's page bundle is not built in production, so a 301 to its image would land on a 404. This file lists the redirects that belong to each post. When the owner flips a post to `draft: false`, add that post's entries to `data/legacy_uploads.json` in the same pull request (a JSON list of `{"from", "to"}` objects), then run `scripts/test-redirects.sh`. This file is documentation only: the build does not read it.
+`data/legacy_uploads.json` holds 23 redirects, for the two published posts whose old images are listed below (3 for the community-automation post, 20 for the headphone post). The other four migrated posts published in issue 322 have no old upload entries. A draft's page bundle is not built in production, so a 301 to its image would land on a 404: when a post is flipped to `draft: false`, add that post's entries to `data/legacy_uploads.json` in the same pull request (a JSON list of `{"from", "to"}` objects), then run `scripts/test-redirects.sh`. This file is documentation only: the build does not read it.
 
 The Twitch-and-Toot post points at the Stream Daemon post with `supersededBy`; see the note in `docs/cutover.md`.
 

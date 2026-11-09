@@ -25,6 +25,7 @@ content) and exits 1 on any finding.
 | `scripts/gen-support-qr.sh --check --decode` | `data/support.yaml` | QR files that differ from a fresh encoding, or that do not decode to the address |
 | `python3 -I scripts/check-content.py` | the Markdown and images a change touches under `content/` | front matter, alt text, tags, unsafe links, TODO markers and image rules. See [Writing a post](Writing-a-post.md) |
 | `python3 -I scripts/check-wiki.py` | `README.md` and `docs/wiki/` | a link or repository path that does not exist, an em dash, a private path, a plain-HTTP URL, a missing wiki page |
+| `python3 -I scripts/check-launch-seo.py <dir> <host>` | a built production-mode output (run by hand before the apex cutover; `scripts/test-check-launch-seo.sh` tests it in CI) | a noindex page, a `robots.txt` that disallows all or has no `Sitemap:` line, a sitemap or canonical on another host, a missing or repeated title or description, a page with no canonical, a missing `_redirects` map |
 
 ## What `check-output.sh` fails on
 

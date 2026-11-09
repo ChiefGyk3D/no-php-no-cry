@@ -195,6 +195,18 @@
   user-select: all;
 }
 
+/* The optional email image (params.emailAsImage, issue 329): sits on the text line, link tap height kept. */
+.email-image-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+.email-image {
+  max-width: 100%;
+  height: auto;
+}
+
 .pgp-key-link a {
   display: inline-flex;
   align-items: center;
