@@ -1,6 +1,7 @@
 {{ define "main" }}
 <div class="home-grid">
-<section class="hero">
+<section class="hero bx l3">
+{{- partial "frame.html" (dict "level" 3) }}
   <img class="hero-mascot" src="{{ "/brand/mascot-256.webp" | relURL }}" srcset="{{ "/brand/mascot-256.webp" | relURL }} 256w, {{ "/brand/mascot-512.webp" | relURL }} 512w" sizes="(min-width: 40rem) 12rem, 10rem" width="256" height="256" alt="Renegade Tux, the penguin mascot">
   <div class="hero-text">
     <h1>Cybersecurity, Linux, and whatever I'm building next.</h1>

@@ -30,8 +30,10 @@ import re
 import sys
 from html.parser import HTMLParser
 
-HEADINGS = ["Summary", "Skills", "Open-Source Projects", "Certifications",
-            "Education", "Speaking and community", "Outside work", "Contact"]
+HEADINGS = ["Summary", "Background", "Skills", "Tools and platforms", "This site is the proof", "Selected accomplishments", "Open-Source Projects",
+            "Homelab and engineering practice", "Certifications",
+            "Education", "Speaking and community", "Creator and teaching work",
+            "Outside work", "Contact"]
 GONE_HEADINGS = ["Core Skills", "Technical Knowledge"]
 REQUIRED = [
     "ChiefGyk3D", "CISSP", "Security+", "Network+", "A+", "February 2026",
@@ -46,7 +48,21 @@ REQUIRED = [
     "How to reach me, on the About page",
     "Speaker: BSides Dayton and COISSA, 2026.",
     "Member of DEFCON 614. With the Call Center Village, where I volunteer.",
+    # Issue 262: owner text reused from data/about.yaml and the profile README.
+    "I’m primarily self-taught.",
+    "I’m more than ready for a security architecture role",
+    "I care about end-to-end encryption, zero trust, owning my infrastructure",
+    "I share cybersecurity knowledge with more than 500K followers across platforms",
+    "You’re not dead until you stop learning. Happy hacking.",
+    "Everything I build is open source.",
+    "Educational content focused on giving aspiring tech and cybersecurity professionals",
+    "Cybersecurity investigations and real-world threat and news breakdowns",
+    "I built this site on Cloudflare Pages, and the security headers include a strict CSP with hashed scripts pinned by SHA-256.",
+    "Identity and access", "Where I'm headed", "Network and security",
+    "Radio, SDR, and time", "Cloud extension", "Cares about",
 ]
+EXP_NAMES = ["Zero trust infrastructure", "Identity event visibility", "SIEM operations",
+             "Cloudflare site security", "Shared CI and release workflows", "Open security education"]
 PROJECTS = ["Clouds Against Humanity", "SIEM Docker Stack",
             "pfSense SIEM Stack", "git-your-ship-together", "Skid Finder",
             "Stream Daemon", "Reach Around", "Hammunition", "Penguin Overlord",
@@ -244,8 +260,8 @@ def check(html):
     sk = re.search(r"Skills</h2>(.*?)(?:<h2|$)", html, re.S)
     groups = re.findall(r"<dt>(.*?)</dt>", sk.group(1) if sk else "")
     dds = [htmlmod.unescape(x) for x in re.findall(r"<dd>(.*?)</dd>", sk.group(1) if sk else "", re.S)]
-    if len(SKILLS) != 6 or sum(len(i) for _, i in SKILLS) != 25:
-        out.append("yaml skills: want 6 groups and 25 items, got %d and %d"
+    if len(SKILLS) != 7 or sum(len(i) for _, i in SKILLS) != 37:
+        out.append("yaml skills: want 7 groups and 37 items, got %d and %d"
                    % (len(SKILLS), sum(len(i) for _, i in SKILLS)))
     if groups != [g for g, _ in SKILLS]:
         out.append("skill groups: want %r, got %r" % ([g for g, _ in SKILLS], groups))
@@ -257,6 +273,27 @@ def check(html):
                 for x in re.findall(r"<li>(.*?)</li>", cm.group(1) if cm else "", re.S)]
     if cm_items != COMMUNITY or len(COMMUNITY) != 5:
         out.append("community list differs from data/resume.yaml: want %r, got %r" % (COMMUNITY, cm_items))
+    # Issue 262: the section order, and the homelab repo links come from data/about.yaml.
+    if [h for h in p.h2 if h in HEADINGS] != HEADINGS:
+        out.append("section order: want %r, got %r" % (HEADINGS, p.h2))
+    for u in ("https://github.com/ChiefGyk3D/siem-docker-stack", "https://github.com/ChiefGyk3D/FrankenLLM",
+              "https://github.com/Renegade-Penguin/hammunition-hill", "https://github.com/ChiefGyk3D/mother-ticker"):
+        if u not in p.links:
+            out.append("missing homelab link: " + u)
+    # Issue 262: Selected accomplishments is exactly the six owner-approved outcome statements
+    # from data/resume.yaml `experience`, in order, with no dash, digit or employer-name guard word.
+    ex = re.search(r"Selected accomplishments</h2>(.*?)(?:<h2|$)", html, re.S)
+    exs = ex.group(1) if ex else ""
+    exn = [htmlmod.unescape(x) for x in re.findall(r"<dt>(.*?)</dt>", exs)]
+    ext = [htmlmod.unescape(x) for x in re.findall(r"<dd>(.*?)</dd>", exs, re.S)]
+    if exn != EXP_NAMES or len(ext) != 6:
+        out.append("accomplishments: want %r, got %d entries %r" % (EXP_NAMES, len(ext), exn))
+    for t_ in ext:
+        # N8N is a product name, the one allowed digit.
+        if re.search(r"\d", t_.replace("N8N", "")) or "—" in t_ or "–" in t_ or re.search(r"ITIL|LPI|Western Governors", t_):
+            out.append("accomplishment has a digit, dash or guard word: " + t_[:40])
+    if "Where I'm headed" not in text:
+        out.append("missing Where I'm headed")
     if not re.search(r'class="?resume-subtitle', html):
         out.append("missing discipline subtitle line")
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S)
@@ -274,7 +311,8 @@ def check(html):
             out.append("forbidden: " + pat)
     if "—" in text or "–" in text:
         out.append("em or en dash in text")
-    if re.search(CALLSIGN, text):
+    # N8N (the workflow tool) is shaped like a callsign; it is the one named exception (issue 262).
+    if re.search(CALLSIGN, text.replace("N8N", "")):
         out.append("callsign-shaped text")
     if re.search(GRID, text):
         out.append("grid-square-shaped text")
@@ -480,7 +518,7 @@ for it in items:
         print("removal not flagged: " + it, file=sys.stderr)
         bad += 1
 print(len(items), bad)
-sys.exit(1 if bad or len(items) != 25 else 0)
+sys.exit(1 if bad or len(items) != 37 else 0)
 PY
     )" && pass "guard: removing any single skill item is rejected ($n)" || fail "guard: a removed skill item was not flagged"
 fi
