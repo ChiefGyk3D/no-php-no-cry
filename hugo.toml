@@ -103,11 +103,13 @@ timeZone = "America/New_York"
   # art). Only buttons are set here; every other element keeps its look.
   # "level" is the default for all buttons; "classes" overrides one button class
   # (btn-primary, btn-ghost, nav-toggle, copy-btn, product-btn), the most specific
-  # entry winning. The frame is drawn inside the button's own box, so a level
-  # never changes a button's size. Example: [params.frames.classes] btn-primary = "faithful"
+  # entry winning. The default: minimal on every button, faithful on the primary
+  # button (Read the latest, Start over). The frame is drawn inside the button's
+  # own box, so a level never changes a button's size.
   [params.frames]
     level = "minimal"
     [params.frames.classes]
+      btn-primary = "faithful"
 
   [params.author]
     name = "ChiefGyk3D"

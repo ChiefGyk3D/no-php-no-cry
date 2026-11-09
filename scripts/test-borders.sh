@@ -97,10 +97,11 @@ if python3 -I "$root/scripts/gen-frame-art.py" --check; then pass "the button ar
 # No cream or white fill: the primary button hover is amber, never --text.
 if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi
 
-# Button levels (params.frames): the default adds no class; a level or a per-class
+# Button levels (params.frames): the default marks only the primary button; a level or a per-class
 # override adds bf-none or bf-faithful to the buttons it names; a bad level fails.
-default_bf="$(grep -rlE 'class="[^"]*\bbf-' "$out" --include='*.html' || true)"
-[[ -z "$default_bf" ]] && pass "the default level (minimal) adds no bf- class" || fail "bf- class at the default level in: $default_bf"
+default_bf="$(grep -rhoE 'bf-[a-z]+' "$out" --include='*.html' | sort -u | tr '\n' ' ')"
+[[ "$default_bf" == "bf-faithful " ]] && pass "the default is faithful on the primary button and minimal elsewhere" || fail "unexpected bf- classes at the default level: $default_bf"
+if grep -rqE 'btn-ghost[^"]* bf-' "$out" --include='*.html'; then fail "a ghost button is marked at the default level"; else pass "ghost buttons carry no bf- class at the default level"; fi
 build_with() { # build_with <name> <toml body>: prints the destination
     printf '[params.frames]\n%s\n' "$2" >"$work/$1.toml"
     (cd "$root" && hugo --minify --config hugo.toml,"$work/$1.toml" --destination "$work/pub-$1" >"$work/$1.log" 2>&1) && echo "$work/pub-$1"
