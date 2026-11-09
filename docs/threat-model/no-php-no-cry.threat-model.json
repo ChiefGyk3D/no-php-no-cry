@@ -1914,7 +1914,7 @@
                 {
                   "id": "bc25203c-fef4-4d14-9cc7-d596d5fabbef",
                   "title": "Path prefix lets the host serve any script under the beacon path",
-                  "status": "Mitigated",
+                  "status": "Accepted",
                   "severity": "Low",
                   "type": "Tampering",
                   "modelType": "STRIDE",

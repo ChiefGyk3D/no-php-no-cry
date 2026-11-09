@@ -471,6 +471,22 @@ else
     failures=$((failures + 1))
 fi
 
+for fault in "default-src 'none'|x-default-src 'none'" "manifest-src 'self'|x-manifest-src 'self'" "default-src 'none'|default-src 'none' https:" "manifest-src 'self'|manifest-src 'self' https:"; do
+    from="${fault%%|*}" to="${fault#*|}"
+    make_good
+    sed -i "s/$from/$to/" "$site/_headers"
+    sed "s/$from/$to/" "$root/static/_headers" >"$work/base-headers"
+    rc=0
+    out="$("$checker" "$site" "$work/base-headers" 2>&1)" || rc=$?
+    if [[ $rc -eq 1 && "$out" == *"[headers-csp-base]"* ]]; then
+        echo "ok: expected headers with '$to' rejected"
+    else
+        echo "FAIL: expected headers with '$to' (rc=$rc)"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+done
+
 make_good
 sed -i "s/script-src 'self'/script-src 'self' https:/" "$site/_headers"
 sed "s/script-src 'self'/script-src 'self' https:/" "$root/static/_headers" >"$work/https-headers"

@@ -19,7 +19,7 @@ stop_server() {
 }
 trap 'stop_server; rm -rf "$work"' EXIT
 
-csp="default-src 'none'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; connect-src 'self'"
+csp="default-src 'none'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; connect-src 'self'"
 pub="$work/public"
 mkdir -p "$pub"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n' "$csp" >"$pub/_headers"
@@ -332,6 +332,13 @@ for src in "'none'" "'self' https:" "'unsafe-inline'" "*" "'self' data:" "'self'
     cp "$pub/_redirects" "$d/"
     printf '/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "$src" >"$d/_headers"
     expect "expected-script-src-$src" input good "$d"
+done
+for bad in "x-default-src 'none'; manifest-src 'self'" "default-src 'none' https:; manifest-src 'self'" "default-src 'none'; x-manifest-src 'self'" "default-src 'none'" "manifest-src 'self'" "default-src 'none'; manifest-src 'self' https:"; do
+    d="$work/csp-base-$(printf '%s' "$bad" | tr -c '[:alnum:]' '_')"
+    mkdir -p "$d"
+    cp "$pub/_redirects" "$d/"
+    printf '/*\n  Content-Security-Policy: %s; script-src %s; connect-src %s\n' "$bad" "'self' https://static.cloudflareinsights.com/beacon.min.js/" "'self'" >"$d/_headers"
+    expect "expected-base-$bad" input good "$d"
 done
 d="$work/csp-no-script-src"
 mkdir -p "$d"

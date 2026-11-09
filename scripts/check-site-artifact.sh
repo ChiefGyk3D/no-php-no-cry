@@ -119,6 +119,24 @@ if ! awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js/" '
     report headers-script-src "expected headers: script-src must be exactly 'self' plus the Cloudflare beacon URL, once, and connect-src exactly 'self'"
 fi
 
+# The base directives, parsed as real directive names: default-src exactly
+# 'none' and manifest-src exactly 'self', each once (x-default-src is not one).
+if ! awk '
+    /^[[:space:]]*Content-Security-Policy:/ {
+        sub(/^[^:]*:/, ""); n = split($0, d, ";"); df = 0; ms = 0
+        for (i = 1; i <= n; i++) {
+            gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+            name = tolower(d[i]); sub(/[ \t].*/, "", name)
+            if (name == "default-src") { df++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'none'"'"'") bad = 1 }
+            if (name == "manifest-src") { ms++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+        }
+        if (df != 1 || ms != 1) bad = 1
+        seen = 1
+    }
+    END { exit (bad || !seen) }' "$expected_headers"; then
+    report headers-csp-base "expected headers: default-src must be exactly 'none' and manifest-src exactly 'self', once each"
+fi
+
 for f in "$expected_headers" "$dir/_headers"; do
     if [[ -f "$f" && ! -L "$f" ]] && ! headers_policy_ok "$f"; then
         report headers-structure "${f#"$dir"/} must be one /* rule block with no removal directive"

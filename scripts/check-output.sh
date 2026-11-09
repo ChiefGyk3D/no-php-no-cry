@@ -152,6 +152,23 @@ csp_scripts_ok() {
         END { exit (bad || !seen) }'
 }
 
+# csp_base_ok: reads Content-Security-Policy header lines on stdin. Succeeds
+# when every policy has default-src exactly 'none' and manifest-src exactly
+# 'self', each once, as real directive names (a misspelling such as
+# x-default-src is a different directive and does not count).
+csp_base_ok() {
+    awk '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); df = 0; ms = 0
+          for (i = 1; i <= n; i++) {
+              gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+              name = tolower(d[i]); sub(/[ \t].*/, "", name)
+              if (name == "default-src") { df++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'none'"'"'") bad = 1 }
+              if (name == "manifest-src") { ms++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+          }
+          if (df != 1 || ms != 1) bad = 1; seen = 1 }
+        END { exit (bad || !seen) }'
+}
+
 # tt_required_ok: reads Content-Security-Policy header lines on stdin. Succeeds
 # when every policy has require-trusted-types-for 'script' exactly once and no
 # trusted-types directive (a policy would mean a script builds markup or script
@@ -556,15 +573,13 @@ if [[ ! -s "$dir/_headers" ]]; then
     report missing-headers "_headers"
 else
     csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
-    if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
+    if [[ -z "$csp" ]] || ! csp_base_ok <<<"$csp" ||
         grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js\//}"; then
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
         report weak-csp "_headers (script-src must be exactly 'self' plus the Cloudflare beacon URL, once, connect-src exactly 'self', no script-src-elem or script-src-attr)"
     elif ! tt_required_ok <<<"$csp"; then
         report weak-csp "_headers (require-trusted-types-for 'script' is required exactly once; no trusted-types directive: no pinned script may need a policy, issue 259)"
-    elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
-        report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi
 fi
 

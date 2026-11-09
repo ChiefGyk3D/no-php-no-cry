@@ -205,8 +205,11 @@ Observed in headless Chrome, 2026-11-09, with `default-src 'none'`, `connect-src
 | `.../beacon.min.js/` (the new entry) | `/beacon.min.js`, `/beacon.min.jsx`, `/other.js`, `/evil.js` | `/beacon.min.js/v<token>`, `/beacon.min.js/vABC/extra.js` |
 | the host `https://static.cloudflareinsights.com` (not used) | nothing | everything |
 
-So the narrow entry allows the versioned path and nothing outside `/beacon.min.js/` on that
-host. It no longer allows the bare `/beacon.min.js`; the injected tag does not use it.
+So the narrow entry allows the versioned path, and a request whose URL is outside `/beacon.min.js/` on that
+host is blocked. That holds for the URL of the first request only: CSP3 compares a path
+against the original URL and ignores it after a redirect, so a redirect from inside the prefix can
+lead to a script elsewhere. The control for that is subresource integrity (the browser checks the
+hash on the bytes it fetches), not the path. It no longer allows the bare `/beacon.min.js`; the injected tag does not use it.
 
 Subresource integrity: the injected tag carries `integrity="sha512-..."` and
 `crossorigin="anonymous"` (observed in the staging HTML, 2026-11-09). The policy and the hash are

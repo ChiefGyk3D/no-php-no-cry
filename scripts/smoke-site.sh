@@ -93,6 +93,22 @@ if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com
     exit 2
 fi
 
+# Likewise default-src exactly 'none' and manifest-src exactly 'self', once
+# each, as real directive names (x-default-src is not default-src).
+if ! awk -v csp="$csp_expected" 'BEGIN {
+        n = split(csp, d, ";")
+        for (i = 1; i <= n; i++) {
+            gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+            name = tolower(d[i]); sub(/[ \t].*/, "", name)
+            if (name == "default-src") { df++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'none'"'"'") bad = 1 }
+            if (name == "manifest-src") { ms++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+        }
+        exit (bad || df != 1 || ms != 1)
+    }'; then
+    echo "input: the Content-Security-Policy in ${dir}/_headers must have default-src exactly 'none' and manifest-src exactly 'self', once each"
+    exit 2
+fi
+
 if ! headers_policy_ok "$dir/_headers"; then
     echo "input: ${dir}/_headers must be one /* rule block with no removal directive"
     exit 2

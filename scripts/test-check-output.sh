@@ -618,6 +618,16 @@ csp_beacon_twice() { sed -i "s#script-src 'self' \(https://static.cloudflareinsi
 variant csp-beacon-twice weak-csp csp_beacon_twice
 csp_beacon_bare() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#static.cloudflareinsights.com/beacon.min.js#" "$1/_headers"; }
 variant csp-beacon-bare-path weak-csp csp_beacon_bare
+csp_x_default() { sed -i "s#default-src 'none'#x-default-src 'none'#" "$1/_headers"; }
+variant csp-misspelled-default-src weak-csp csp_x_default
+csp_x_manifest() { sed -i "s#manifest-src 'self'#x-manifest-src 'self'#" "$1/_headers"; }
+variant csp-misspelled-manifest-src weak-csp csp_x_manifest
+csp_default_wide() { sed -i "s#default-src 'none'#default-src 'none' https:#" "$1/_headers"; }
+variant csp-default-src-not-exact weak-csp csp_default_wide
+csp_manifest_wide() { sed -i "s#manifest-src 'self'#manifest-src 'self' https:#" "$1/_headers"; }
+variant csp-manifest-src-not-exact weak-csp csp_manifest_wide
+csp_default_twice() { sed -i "s#default-src 'none'#default-src 'none'; default-src 'none'#" "$1/_headers"; }
+variant csp-default-src-twice weak-csp csp_default_twice
 csp_beacon_deeper() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#static.cloudflareinsights.com/beacon.min.js/v1/#" "$1/_headers"; }
 variant csp-beacon-deeper-path weak-csp csp_beacon_deeper
 csp_beacon_otherhost() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#example.net/beacon.min.js/#" "$1/_headers"; }
