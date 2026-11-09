@@ -60,6 +60,7 @@ step test-check-site-artifact "" 'scripts/test-check-site-artifact.sh'
 step test-deploy-sparse "" 'scripts/test-deploy-sparse.sh'
 step test-pages "" 'scripts/test-pages.sh'
 step test-social-identity "" 'scripts/test-social-identity.sh'
+step test-about-email "" 'scripts/test-about-email.sh'
 step test-comments "" 'scripts/test-comments.sh'
 step test-redirects "" 'scripts/test-redirects.sh'
 step gen-support-qr "" 'scripts/gen-support-qr.sh --check --decode'
@@ -114,7 +115,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
     build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume test-layout
-    test-pages test-social-identity test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-threat-model test-check-threat-model check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
+    test-pages test-about-email test-social-identity test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-threat-model test-check-threat-model check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
