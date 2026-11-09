@@ -86,9 +86,21 @@ what Cloudflare itself adds to a response (see "Verified and inferred").
    ones that do not).
 5. If anything was published on WordPress after the 2026-10-25 export, the
    owner makes a fresh read-only export and the difference is imported.
-6. On the cutover commit: `scripts/check-wording.sh` and the full gate pass, and
+6. Launch SEO check. Build the site for the apex in production mode and run the
+   check on that output:
+
+   ```
+   HUGO_PARAMS_ENVIRONMENT=production hugo --minify --gc --baseURL https://chiefgyk3d.com/ --destination out
+   python3 -I scripts/check-launch-seo.py out chiefgyk3d.com
+   ```
+
+   It fails on a page that is noindex, a `robots.txt` that disallows everything or has no
+   `Sitemap:` line, a sitemap or canonical URL on another host, a missing or repeated
+   title or description, a page with no canonical, and a missing `_redirects` map for the
+   old WordPress addresses. It must exit 0 before the cutover.
+7. On the cutover commit: `scripts/check-wording.sh` and the full gate pass, and
    the production build passes `EXPECT_ENV=production scripts/check-output.sh`.
-7. Rehearse the verifier on staging (command above) and keep the output.
+8. Rehearse `scripts/verify-live.sh` on staging, with the command in the section "Checking a deployed host: scripts/verify-live.sh" above (`--env staging`), and keep the output. (The launch SEO check in step 6 is a different tool; it runs on a built directory, not on a host.)
 
 ## WordPress freeze
 
@@ -241,8 +253,8 @@ after the first deploy to the staging host, run
 ### Old image addresses
 
 `data/legacy_uploads.json` is a list of `{"from": "/wp-content/uploads/...",
-"to": "/posts/<slug>/<file>"}` entries and ships empty (`[]`) because the
-migrated posts are private drafts until published. The converter writes the real
+"to": "/posts/<slug>/<file>"}` entries. It holds 23 entries now that six migrated
+posts are published (issue 322); a post still in draft contributes none. The converter writes the real
 list, only for images the migrated posts show, as `legacy-uploads.json` beside
 its page bundles in the (private) output directory. Steps, after the WebP step
 so the targets carry the final names:
@@ -254,12 +266,15 @@ so the targets carry the final names:
    bundles it points at, in the same pull request. The file holds public URL
    paths only, no private text.
 
-The ten migrated posts are drafts, so `data/legacy_uploads.json` stays `[]`
-until they are published: a draft's page bundle is not built in production, and
-a redirect to it would land on a 404. `docs/migration-uploads.md` lists, per
-post, the entries to add back (the file is documentation, the build ignores it).
-Flip a post to `draft: false` and add that post's entries in the same pull
-request, then run `scripts/test-redirects.sh`.
+Six migrated posts were published in issue 322, so `data/legacy_uploads.json`
+now holds 23 entries (the posts' old upload addresses, 3 for the
+community-automation post and 20 for the headphone post; the other four have
+none). A draft's page bundle is not built in production and a redirect to it
+would land on a 404, so a post still in draft contributes no entries.
+`docs/migration-uploads.md` lists, per post, the entries to add (the file is
+documentation, the build ignores it). Flip a post to `draft: false` and add
+that post's entries in the same pull request, then run
+`scripts/test-redirects.sh`.
 
 **Flip these two posts together.** The Twitch-and-Toot post carries
 `supersededBy` pointing to the Stream Daemon post. If Twitch-and-Toot goes live
