@@ -13,8 +13,9 @@
 #     against the page, not that a remote site answers;
 #   - a template that uses {image} is left out of an entry with no image, and
 #     an entry with an empty template is not rendered;
-#   - the mastodon and copy entries are hidden buttons carrying the permalink
-#     (or the post text) as data, and the page's one script is /share.js;
+#   - the picker (Mastodon, Lemmy) and copy entries are hidden buttons carrying
+#     the permalink, title or post text as data, and the page's one script is
+#     /share.js; Discord and Matrix are gone from the data file and the page;
 #   - the syndicated front matter renders no "Discuss on" link, and a draft
 #     builds with the block;
 #   - the block is on posts and journal entries and no other page loads
@@ -177,7 +178,7 @@ def check_page(root, path, title, url, image, bad):
                 bad.append("%s: target must be _blank" % e["id"])
             if e["label"] not in (a.attrs.get("aria-label") or "") or a.text() != e["label"]:
                 bad.append("%s: accessible name must hold the visible label %r" % (e["id"], e["label"]))
-        elif e["kind"] in ("copy", "mastodon"):
+        elif e["kind"] in ("copy", "picker"):
             hits = [b for b in buttons if b.text() == e["label"]]
             if len(hits) != 1:
                 bad.append("%s: %d buttons, wanted 1" % (e["id"], len(hits)))
@@ -190,10 +191,25 @@ def check_page(root, path, title, url, image, bad):
                 bad.append("%s: accessible name must hold the visible label" % e["id"])
             if e["kind"] == "copy" and b.attrs.get("data-url") != url:
                 bad.append("%s: data-url must be the permalink" % e["id"])
-            if e["kind"] == "mastodon":
+            if e["kind"] == "picker":
                 if b.attrs.get("data-text") != title + " " + url:
-                    bad.append("mastodon: data-text must be title, a space, the permalink")
-    extra = [n for n in anchors + buttons if id(n) not in seen and n.attrs.get("data-share") != "server"]
+                    bad.append("%s: data-text must be title, a space, the permalink" % e["id"])
+                if b.attrs.get("data-title") != title or b.attrs.get("data-url") != url:
+                    bad.append("%s: data-title and data-url must be the title and the permalink" % e["id"])
+                if b.attrs.get("data-share") != e["id"]:
+                    bad.append("%s: data-share must be the id" % e["id"])
+    for n in g.walk():
+        if n.tag == "input" and "share-url" in (n.attrs.get("class") or "").split() and "hidden" not in n.attrs:
+            bad.append("the copy fallback input must start hidden")
+    if any(w in (e["id"] for e in ents) for w in ("discord", "matrix")) or any(("icon-discord" in (n.attrs.get("class") or "") or "icon-matrix" in (n.attrs.get("class") or "")) for n in g.walk()):
+        bad.append("Discord or Matrix is back in the share panel")
+    pk = [n for n in g.walk() if "share-picker" in (n.attrs.get("class") or "").split()]
+    if len(pk) != 1 or "hidden" not in pk[0].attrs:
+        bad.append("the picker must exist once and start hidden")
+    ls = [n for n in g.walk() if n.tag == "label"]
+    if not ls or not any(l.attrs.get("for") == "share-host" for l in ls):
+        bad.append("the host field has no label")
+    extra = [n for n in anchors + buttons if id(n) not in seen and n.attrs.get("data-share") not in ("go", "x")]
     if extra:
         bad.append("share block holds %d element(s) the data file does not list" % len(extra))
     for n in doc.walk():
@@ -373,85 +389,141 @@ else
     fail "no page to run the guard self-tests on"
 fi
 
-# /share.js behavior (Node, a fake page): the Mastodon server is validated at the
-# sink. A stored value is used only if it is a plain lowercase ASCII hostname;
-# anything else (userinfo, path, query, fragment, whitespace, uppercase, a port,
-# a lookalike or non-ASCII name, an IP address) is deleted and the prompt asks
-# again, and the opened URL is built only from a valid hostname.
+# /share.js behavior (Node, a fake page): host validation at the sink, built
+# URLs, the picker (Remember, Escape, focus), and the copy feedback.
 harness="$work/share-harness.js"
 cat >"$harness" <<'JS'
 const fs = require("fs"), vm = require("vm");
 const src = fs.readFileSync(process.argv[2], "utf8");
 const bad = [];
-function run(stored, answers) {
-  const store = new Map(), opened = [], prompts = [];
-  if (stored !== null) store.set("mastodonServer", stored);
-  const btn = { getAttribute: (n) => ({ "data-share": "mastodon", "data-text": "Title https://site.example/p/" })[n] };
-  const status = { textContent: "" }, change = { hidden: true };
-  let click;
-  const root = {
-    querySelector: (q) => (q === ".share-status" ? status : change),
-    querySelectorAll: () => [],
-    addEventListener: (t, f) => { if (t === "click") click = f; },
-  };
+const TITLE = "Fish & Chips: 100% /x?y=1", URLP = "https://site.example/p/";
+function mk(stored, o) {
+  o = o || {};
+  const store = new Map(), opened = [], timers = [];
+  if (stored) for (const k in stored) store.set(k, stored[k]);
+  const el = (extra) => Object.assign({ hidden: false, value: "", checked: false, textContent: "", focused: 0, selected: 0, focus() { this.focused++; focused.push(this); }, select() { this.selected++; } }, extra);
+  const focused = [];
+  const status = el(), picker = el({ hidden: true }), host = el(), rem = el(), url = el({ hidden: true }), name = el(), hid = el({ hidden: true });
+  const mkbtn = (id, attrs) => el({ id, hidden: true, getAttribute: (n) => attrs[n] });
+  const mast = mkbtn("mastodon", { "data-share": "mastodon", "data-name": "Mastodon", "data-text": TITLE + " " + URLP, "data-title": TITLE, "data-url": URLP });
+  const lem = mkbtn("lemmy", { "data-share": "lemmy", "data-name": "Lemmy", "data-text": TITLE + " " + URLP, "data-title": TITLE, "data-url": URLP });
+  const cp = mkbtn("copy", { "data-share": "copy", "data-url": URLP });
+  const go = el({ getAttribute: () => "go" }), x = el({ getAttribute: () => "x" });
+  const sel = { ".share-status": status, ".share-picker": picker, ".share-host": host, ".share-rem": rem, ".share-url": url, ".share-name": name };
+  const L = {};
+  const root = { querySelector: (q) => sel[q], querySelectorAll: () => [mast, lem, cp], addEventListener: (t, f) => { L[t] = f; } };
+  rem.addEventListener = (t, f) => { L["rem-" + t] = f; };
   const ctx = {
     document: { querySelector: () => root },
-    localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) },
-    prompt: (m, d) => { prompts.push(d); return answers.length ? answers.shift() : null; },
-    window: { open: (u) => opened.push(u), isSecureContext: true },
-    navigator: {},
-    encodeURIComponent, URL,
+    localStorage: o.blocked ? { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); }, removeItem() { throw new Error("blocked"); } }
+      : { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) },
+    window: { open: (u, t, f) => opened.push([u, t, f]), isSecureContext: o.secure !== false },
+    navigator: o.noclip ? {} : { clipboard: { writeText: (t) => (o.clipfail ? Promise.reject(new Error("no")) : (ctx.copied = t, Promise.resolve())) } },
+    URL, encodeURIComponent, setTimeout: (f, n) => { timers.push(n); return 1; }, clearTimeout() {},
   };
   vm.runInNewContext(src, ctx);
-  click({ target: { closest: () => btn } });
-  return { opened, prompts, store, status };
+  const click = (b) => L.click({ target: { closest: () => b } });
+  return { ctx, store, opened, status, picker, host, rem, url, name, mast, lem, cp, go, x, click, fire: (n) => L[n](), key: (k, t) => L.keydown({ key: k, target: t || host, preventDefault() {} }), focused, timers };
 }
-const text = encodeURIComponent("Title https://site.example/p/");
-const valid = ["mastodon.social", "social.example.org", "a-b.example.co", "xn--e1afmkfd.example"];
-for (const v of valid) {
-  const r = run(v, []);
-  if (r.opened.length !== 1 || r.opened[0] !== "https://" + v + "/share?text=" + text || r.prompts.length) bad.push("valid stored " + JSON.stringify(v) + " was not used as is: " + JSON.stringify(r.opened));
+const text = encodeURIComponent(TITLE + " " + URLP);
+function submit(svc, v, remember) {
+  const t = mk();
+  t.click(svc === "lemmy" ? t.lem : t.mast);
+  t.host.value = v; t.rem.checked = !!remember; t.click(t.go);
+  return t;
 }
-const hostile = ["good.example@evil.example", "evil.example/path", "evil.example?x=1", "evil.example#f", "evil.example:8443", "user:pw@evil.example",
-  " evil.example", "evil.example ", "evil.example\n", "Evil.Example", "https://evil.example", "evil.example.", ".evil.example", "-a.example", "a..example",
-  "exаmple.com", "ехample.org", "ｅｖｉｌ.example", "mаstodon.social", "127.0.0.1", "localhost", "1.2.3.4", "evil.example\\@good.example", "evil.example%2f", "", "a.b"];
-for (const v of hostile) {
-  // The prompt answer is valid: the opened URL must be built from it, never from the stored value.
-  const r = run(v, ["good.example"]);
-  const want = "https://good.example/share?text=" + text;
-  if (v === "") continue;
-  if (r.opened.length !== 1 || r.opened[0] !== want) bad.push("hostile stored " + JSON.stringify(v) + " opened " + JSON.stringify(r.opened));
-  if (!r.prompts.length) bad.push("hostile stored " + JSON.stringify(v) + " did not re-open the prompt");
-  if (r.store.get("mastodonServer") !== "good.example") bad.push("hostile stored " + JSON.stringify(v) + " was not replaced");
-  // The prompt is dismissed: nothing opens and the bad value is gone.
-  const r2 = run(v, []);
-  if (r2.opened.length || r2.store.has("mastodonServer")) bad.push("hostile stored " + JSON.stringify(v) + " survived a dismissed prompt: " + JSON.stringify([r2.opened, [...r2.store]]));
+// Host validation: accepted (after trim and lowercase), rejected, and what is built.
+for (const [v, h] of [["example.social", "example.social"], ["Example.Social", "example.social"], ["  mastodon.social ", "mastodon.social"], ["xn--e1afmkfd.example", "xn--e1afmkfd.example"], ["lemmy.ml", "lemmy.ml"]]) {
+  const t = submit("mastodon", v);
+  if (t.opened.length !== 1 || t.opened[0][0] !== "https://" + h + "/share?text=" + text) bad.push("accept " + JSON.stringify(v) + " got " + JSON.stringify(t.opened));
 }
-// A hostile prompt answer is refused too (port, userinfo, lookalike), and a pasted URL is reduced to its host.
-for (const a of ["good.example:8443", "good.example@evil.example", "exаmple.com", "good.example?x=1", "127.0.0.1"]) {
-  const r = run(null, [a]);
-  if (r.opened.length || r.store.has("mastodonServer")) bad.push("hostile prompt answer " + JSON.stringify(a) + " was accepted: " + JSON.stringify(r.opened));
+for (const v of ["javascript:alert(1)", "evil.com/path", "user@host.example", "host.example:8443", "", "   ", "a b.example", "good.example evil.example", "https://good.example", "good.example?x=1", "good.example#f",
+  "good.example.", ".good.example", "-a.example", "a..example", "exаmple.com", "ｅｖｉｌ.example", "127.0.0.1", "localhost", "evil.example\\@good.example", "evil.example%2f", "a.b"]) {
+  const t = submit("mastodon", v, true);
+  if (t.opened.length || t.store.size) bad.push("reject " + JSON.stringify(v) + " opened " + JSON.stringify(t.opened) + " stored " + JSON.stringify([...t.store]));
+  if (!t.status.textContent || t.picker.hidden) bad.push("reject " + JSON.stringify(v) + " gave no message or closed the picker");
 }
-const r3 = run(null, ["  HTTPS://Good.Example/path/x "]);
-if (r3.opened[0] !== "https://good.example/share?text=" + text) bad.push("a pasted URL was not reduced to its host: " + JSON.stringify(r3.opened));
-bad.forEach((b) => console.log(b));
-process.exit(bad.length ? 1 : 0);
+// Built URLs encode the title and the permalink; new tab, no opener, no referrer.
+const lm = submit("lemmy", "lemmy.ml");
+const want = "https://lemmy.ml/create_post?title=" + encodeURIComponent(TITLE) + "&url=" + encodeURIComponent(URLP);
+if (lm.opened[0][0] !== want) bad.push("lemmy url " + lm.opened[0][0]);
+if (lm.opened[0][1] !== "_blank" || lm.opened[0][2] !== "noopener,noreferrer") bad.push("window.open must be _blank with noopener,noreferrer");
+if (/[ &?=]/.test(encodeURIComponent(TITLE))) bad.push("title not fully encoded");
+// Remember: stored only when ticked, per service, and prefilled next time; unticked removes it.
+let r = submit("mastodon", "mastodon.social", true);
+if (r.store.get("mastodonServer") !== "mastodon.social" || r.store.has("lemmyServer")) bad.push("remember did not store only the mastodon host: " + JSON.stringify([...r.store]));
+if (submit("mastodon", "mastodon.social", false).store.size) bad.push("stored without Remember");
+r = mk({ mastodonServer: "kept.example", lemmyServer: "Evil.Example/x" });
+r.click(r.mast);
+if (r.host.value !== "kept.example" || !r.rem.checked) bad.push("remembered host not prefilled");
+r.click(r.x); r.click(r.lem);
+if (r.host.value !== "" || r.rem.checked) bad.push("a hostile stored value was prefilled");
+// Unticking Remember removes the stored host at once, even if the visitor then cancels (review of PR 304).
+r = mk({ mastodonServer: "kept.example" });
+r.click(r.mast);
+if (!r.rem.checked) bad.push("setup: remembered host should tick Remember");
+r.rem.checked = false; r.fire("rem-change"); r.click(r.x);
+if (r.store.has("mastodonServer")) bad.push("unticking Remember then Cancel left the stored host");
+r.click(r.mast);
+if (r.host.value !== "") bad.push("the unticked host was prefilled again");
+// Picker behavior: label text, focus into the field, Escape closes and returns focus, Enter submits, Cancel closes.
+r = mk(); r.click(r.lem);
+if (r.name.textContent !== "Lemmy" || r.picker.hidden || r.focused[r.focused.length - 1] !== r.host) bad.push("picker did not open on the host field");
+r.key("Escape");
+if (!r.picker.hidden || r.focused[r.focused.length - 1] !== r.lem) bad.push("Escape did not close the picker and return focus");
+r.click(r.mast); r.host.value = "good.example"; r.key("Enter");
+if (r.opened.length !== 1 || !r.picker.hidden || r.focused[r.focused.length - 1] !== r.mast) bad.push("Enter did not submit and return focus");
+r.click(r.mast); r.click(r.x);
+if (!r.picker.hidden) bad.push("Cancel did not close the picker");
+if (mk({}, { blocked: true }).click === undefined) bad.push("blocked storage");
+const bl = mk(null, { blocked: true }); bl.click(bl.mast); bl.host.value = "good.example"; bl.rem.checked = true; bl.click(bl.go);
+if (bl.opened.length !== 1) bad.push("blocked storage must not stop the share");
+// Copy: the live region says Link copied (cleared by a timer); a failure says Copy failed and selects the URL.
+r = mk(); r.click(r.cp);
+Promise.resolve().then(() => Promise.resolve()).then(() => {
+  if (r.status.textContent !== "Link copied" || r.ctx.copied !== URLP) bad.push("copy success text: " + JSON.stringify(r.status.textContent));
+  if (!r.timers.length) bad.push("the confirmation is never cleared");
+  const f = mk(null, { clipfail: true }); f.click(f.cp);
+  return Promise.resolve().then(() => Promise.resolve()).then(() => f);
+}).then((f) => {
+  if (!/^Copy failed/.test(f.status.textContent) || f.url.hidden || !f.url.selected) bad.push("copy failure fallback: " + JSON.stringify(f.status.textContent));
+  const n = mk(null, { noclip: true }); n.click(n.cp);
+  if (!/^Copy failed/.test(n.status.textContent) || n.url.hidden || !n.url.selected) bad.push("no clipboard fallback");
+  bad.forEach((b) => console.log(b));
+  process.exit(bad.length ? 1 : 0);
+});
 JS
 if ! command -v node >/dev/null 2>&1; then
     fail "node is not on PATH (needed for the /share.js behavior test)"
 elif node "$harness" "$root/static/share.js" >"$work/harness.out" 2>&1; then
-    pass "/share.js: stored and typed Mastodon servers are validated at the sink"
+    pass "/share.js: host validation, built URLs, picker, Remember and copy feedback"
 else
-    fail "/share.js server validation: $(head -n 6 "$work/harness.out" | tr '\n' ';')"
+    fail "/share.js behavior: $(head -n 8 "$work/harness.out" | tr '\n' ';')"
 fi
-# Guard: the harness must fail on a script that trusts the stored value.
+# Guards: the harness must fail on scripts that trust the host, skip the copy message or ignore Escape.
 if command -v node >/dev/null 2>&1; then
-    sed -E 's#^  function good\(v\) \{.*#  function good(v) { return !!v; }#' "$root/static/share.js" >"$work/share-trusting.js"
-    if node "$harness" "$work/share-trusting.js" >/dev/null 2>&1; then
-        fail "guard: the harness accepted a script that trusts stored values"
-    else
-        pass "guard: the harness fails on a script that trusts stored values"
-    fi
+    gg() { # gg <name> <sed expression>
+        sed -E "$2" "$root/static/share.js" >"$work/share-$1.js"
+        if cmp -s "$root/static/share.js" "$work/share-$1.js"; then
+            fail "guard $1 did not change the script (the test is stale)"
+        elif node "$harness" "$work/share-$1.js" >/dev/null 2>&1; then
+            fail "guard $1: the harness accepted a broken script"
+        else
+            pass "guard $1 fails as it should"
+        fi
+    }
+    gg trusting 's#^  function good\(v\) \{.*#  function good(v) { return !!v; }#'
+    gg no-copied 's#"Link copied"#""#'
+    gg no-escape 's#e\.key == "Escape" && ##'
+    gg no-untick-remove 's#^  m\.addEventListener.*##'
+    gg always-store 's#m\.checked \? localStorage#true ? localStorage#'
+fi
+
+# The privacy page still tells the truth about the stored instance name.
+if grep -q "optional instance name" "$root/content/privacy/index.md" && grep -q "Remember" "$root/content/privacy/index.md"; then
+    pass "the privacy page mentions the optional instance name kept in the browser"
+else
+    fail "the privacy page does not mention the optional instance name"
 fi
 
 if ((failures > 0)); then

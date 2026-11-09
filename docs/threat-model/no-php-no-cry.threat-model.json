@@ -1,0 +1,3870 @@
+{
+  "version": "2.6.2",
+  "summary": {
+    "title": "No PHP No Cry threat model",
+    "owner": "ChiefGyk3D",
+    "description": "Generic threat model for the No PHP No Cry static blog: the publishing path, the reader path and the data stores and secrets. The adversary is a public visitor or a reader of released reports; the owner is a trusted operator, and accidents are in scope. A threat is Mitigated only when a control is visible in this repository; anything that lives in a provider account stays Open until someone reads it and records the date. Planned parts are marked.",
+    "id": 0
+  },
+  "detail": {
+    "contributors": [
+      {
+        "name": "ChiefGyk3D"
+      }
+    ],
+    "diagrams": [
+      {
+        "version": "2.6.2",
+        "title": "1 Publishing path",
+        "diagramType": "STRIDE",
+        "id": 0,
+        "description": "From the owner or a contributor to the live site and the social platforms: authoring, pull request, CI build, credentialed deploy to Cloudflare Pages, and the planned syndication job.",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 20
+            },
+            "size": {
+              "width": 540,
+              "height": 230
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB1 Owner machine and accounts (trusted operator)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -51,
+            "id": "0fab92ea-7b9c-5ed4-9f69-b770eb66ddf3",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB1 Owner machine and accounts (trusted operator)",
+              "description": "The owner is the trusted operator. Accidents here are in scope; a deliberate act by the owner is not.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 580,
+              "y": 20
+            },
+            "size": {
+              "width": 900,
+              "height": 640
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB2 GitHub (public repository, untrusted input)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -52,
+            "id": "d3d9489e-59ca-5da4-ba23-f0a516fb8f0b",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB2 GitHub (public repository, untrusted input)",
+              "description": "Anyone can read the repository and open a pull request. Only the owner can merge.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 1150,
+              "y": 230
+            },
+            "size": {
+              "width": 300,
+              "height": 190
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB3 Deploy job (the only credential holder)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -53,
+            "id": "defb6cd8-4cfd-5e71-a9a2-80b28310d202",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB3 Deploy job (the only credential holder)",
+              "description": "The one job that gets the Cloudflare credential. Runs only on main after CI green.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 1150,
+              "y": 690
+            },
+            "size": {
+              "width": 300,
+              "height": 190
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB4 Cloudflare (third-party operated)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -54,
+            "id": "9ceced1e-f885-5aa0-9e06-30b906cf6224",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB4 Cloudflare (third-party operated)",
+              "description": "The host serves the published folder. Its own platform security is outside this repository.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 870,
+              "y": 690
+            },
+            "size": {
+              "width": 260,
+              "height": 190
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB5 Social platforms (third-party operated)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -55,
+            "id": "2d430fa7-3bf0-593b-9319-9579075822c8",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB5 Social platforms (third-party operated)",
+              "description": "Platform accounts and their tokens are the owner's; the platforms themselves are out of scope.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 70
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Owner (trusted operator)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 6,
+            "id": "2597a52a-233c-5b75-b1b8-e1dda967da68",
+            "data": {
+              "name": "Owner (trusted operator)",
+              "description": "Writes posts and merges pull requests. Trusted by decision; accidents are in scope.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "8c9b796d-2b50-5fb1-b7eb-60b6a22ee0d4",
+                  "title": "Owner account or session taken over",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "An attacker who gets the owner's GitHub session, token or laptop can publish as the owner. Treated as the authoring path compromise.",
+                  "mitigation": "Open. Partial controls: every change still passes CI (.github/workflows/ci.yml) and the secret scan (.gitleaks.toml); the credential for deploy is not in the repository (docs/deploy.md). Account sign-in strength (hardware key, session lifetime) is a GitHub account setting that cannot be read from the repository, so it is not claimed here. See docs/threat-model/RISKS.md.",
+                  "number": 1
+                }
+              ],
+              "hasOpenThreats": true,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 330
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Contributor via pull request"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 7,
+            "id": "8b6557f2-7bca-5d7d-ba13-86bd76d31877",
+            "data": {
+              "name": "Contributor via pull request",
+              "description": "Any GitHub user who forks the repository and opens a pull request.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "48a686d9-6f21-58e7-9d66-7525020f1a9b",
+                  "title": "Contributor impersonates a trusted author",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "A pull request or commit claims to come from someone else to gain trust in review.",
+                  "mitigation": "Merge is by the owner only after the required CI green check (branch protection read 2026-11-09 requires it). CONTRIBUTING.md and .github/PULL_REQUEST_TEMPLATE.md tie every change to an issue and a checklist. Required approving reviews are set to zero because the owner is the sole reviewer; see RISKS.md.",
+                  "number": 2
+                }
+              ],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 570
+            },
+            "size": {
+              "width": 160,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Supply chain (actions, dependencies, Hugo, fonts)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 8,
+            "id": "e8bac22d-38c3-5d9e-a975-aa7525b6d36f",
+            "data": {
+              "name": "Supply chain (actions, dependencies, Hugo, fonts)",
+              "description": "Third-party code and files that enter the build: reusable workflows and actions, the Wrangler package, the Hugo binary, vendored fonts and the vendored accessibility engine.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 330,
+              "y": 70
+            },
+            "size": {
+              "width": 170,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Local editor and author helper"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 9,
+            "id": "6aa8ef76-3ec1-5f28-93c2-396d986164bf",
+            "data": {
+              "name": "Local editor and author helper",
+              "description": "The owner's editor, git, and scripts/author.py, which starts posts with safe defaults.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "03851e24-8ca6-5e53-8238-926756d84de2",
+                  "title": "Compromised editor, extension or helper script alters content",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "Malware or a rogue editor extension on the owner's machine edits a post or a script before it is pushed.",
+                  "mitigation": "Open. Review of the pull request diff and the CI checks (scripts/check-content.py, scripts/check-output.sh) catch many content changes, not a subtle one. scripts/author.py is standard-library only and writes only new folders. Endpoint hardening of the owner's machine is out of this repository's reach.",
+                  "number": 3
+                },
+                {
+                  "id": "b56e7642-d642-5744-bda3-b7347082738a",
+                  "title": "Draft or private detail published by accident",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A draft, a real callsign, a machine name or a private note is committed to a public repository.",
+                  "mitigation": "archetypes/posts/index.md starts every post as a draft. scripts/check-content.py and the scrub term list (docs/scrub-terms.md) stop private terms in new content; .gitleaks.toml and scripts/test-gitleaks-config.sh cover secrets; the PR checklist in .github/PULL_REQUEST_TEMPLATE.md asks for no private data.",
+                  "number": 4
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 620,
+              "y": 70
+            },
+            "size": {
+              "width": 170,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "GitHub web editor"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 10,
+            "id": "111cfe6e-02c9-5df6-9b9b-1762d2bd3674",
+            "data": {
+              "name": "GitHub web editor",
+              "description": "Editing files in the browser on GitHub, then opening a pull request.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "ff5e2a80-d4f7-5a4a-a6e9-2c4a4ceaf492",
+                  "title": "Web edit skips local checks",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A change made in the browser never runs the local gate before it is pushed.",
+                  "mitigation": "The same checks run in CI on every pull request: the content checks job in .github/workflows/ci.yml (scripts/check-wording.sh, scripts/check-content.py), and merge needs CI green.",
+                  "number": 5
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 620,
+              "y": 250
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Repository and pull request review"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 11,
+            "id": "fc40f1a9-c1c5-5d8c-bd73-3713414ccbd6",
+            "data": {
+              "name": "Repository and pull request review",
+              "description": "GitHub repository, branch protection and review. main requires the CI green check.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "b2313e8c-fb5b-5110-8fbe-9fb9cb68afb7",
+                  "title": "Pull request changes a workflow to reach a credential",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "A contributor edits CI or deploy files so that a run exposes a secret or deploys unreviewed code.",
+                  "mitigation": ".github/workflows/deploy.yml never runs on pull_request, only on push to main or by hand. The credentialed job checks out only two scripts (scripts/check-deploy-sparse.py enforces the list) and the Doppler OIDC identity is limited to refs/heads/main (docs/deploy.md). Workflow permissions are contents: read by default in .github/workflows/ci.yml.",
+                  "number": 6
+                },
+                {
+                  "id": "6fd51659-0dcb-5c27-babe-ed3be15e120e",
+                  "title": "Who changed what cannot be shown",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Repudiation",
+                  "modelType": "STRIDE",
+                  "description": "A change cannot be tied to a person, a review or an issue after the fact.",
+                  "mitigation": "Git history and pull requests are the record; CONTRIBUTING.md and .github/PULL_REQUEST_TEMPLATE.md require an issue link. Commit signing is not required (see RISKS.md).",
+                  "number": 7
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 620,
+              "y": 450
+            },
+            "size": {
+              "width": 170,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Git history and content"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 12,
+            "id": "4ed1b095-699e-5fd9-8645-a20eba62c759",
+            "data": {
+              "name": "Git history and content",
+              "description": "Posts, templates, scripts and workflows in the public repository. Everything here is public by design.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "7d829b09-353b-5034-b3f8-c7ba87878de5",
+                  "title": "History rewritten or main altered without review",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "Someone force-pushes or merges to main without the CI green check.",
+                  "mitigation": "Branch protection on main requires the CI green check and blocks force pushes (read 2026-11-09). Enforcement for administrators is off, which RISKS.md records as accepted for a one-person project.",
+                  "number": 8
+                },
+                {
+                  "id": "fe932167-00e1-5c3c-bd45-ce15a3ff5c54",
+                  "title": "Repository wiped or locked out",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "Loss of the repository or the owner's access.",
+                  "mitigation": "The content is a public Git repository with clones on every contributor machine and the owner's machines; README.md documents how to rebuild from a clone with the Hugo version in .hugo-version.",
+                  "number": 9
+                }
+              ],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 900,
+              "y": 250
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "CI build and checks (no credentials)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 13,
+            "id": "05dd8aeb-0936-5322-ad3a-46d0be338953",
+            "data": {
+              "name": "CI build and checks (no credentials)",
+              "description": "Reusable workflows build the site twice (production and staging variant) and run every check.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "0220acf0-d1aa-5b3a-91c0-12a31615e7c9",
+                  "title": "Build step reaches out and leaks source or tokens",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A compromised step sends repository contents or a token to an outside host.",
+                  "mitigation": "Open. Partly handled: the credentialed deploy job and the security and shell jobs set the runner egress policy to block (.github/workflows/deploy.yml, .github/workflows/ci.yml), and CI build jobs hold no cloud credential and have read-only permissions. The build and check jobs run with egress-policy-secretless set to audit (.github/workflows/ci.yml, documented in docs/ci-parallel.md), so a compromised build step can still send source over the network. Source is public, so the loss is limited, but the claim stays Open until that policy is flipped to block.",
+                  "number": 10
+                },
+                {
+                  "id": "7b22a66d-cc89-59d2-b2b1-6b22965f0335",
+                  "title": "Pull request floods CI",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "Many pull requests burn runner minutes or block the owner's own runs.",
+                  "mitigation": "Jobs set timeout-minutes in .github/workflows/ci.yml and .github/workflows/deploy.yml; fork pull requests need approval before workflows run (a GitHub setting, not read here).",
+                  "number": 11
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 1180,
+              "y": 270
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Deploy job (credentialed)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 14,
+            "id": "acfb65a8-23cc-5b17-b0bf-d6cf3790125c",
+            "data": {
+              "name": "Deploy job (credentialed)",
+              "description": "Downloads the prebuilt folder, loads the Cloudflare credential from Doppler and publishes with a pinned Wrangler.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "9264ee67-4089-57aa-ba78-7f25d448c7cd",
+                  "title": "Deploy runs for a commit that did not pass CI",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "A push to main starts a deploy before, or without, a green CI run on that exact commit.",
+                  "mitigation": "The gate job in .github/workflows/deploy.yml runs scripts/wait-for-ci-green.sh, which pins the head commit and requires the CI green check run; the deploy job needs the gate. scripts/test-wait-for-ci-green.sh tests the watcher.",
+                  "number": 12
+                },
+                {
+                  "id": "d4a1136d-aefa-5606-8cad-c26bfaa98220",
+                  "title": "Token over-scoped for what deploy needs",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "The Cloudflare API token can do more than publish a Pages project, so a leak reaches DNS, other projects or the database.",
+                  "mitigation": "Open. docs/deploy.md documents the narrow scope (Pages edit; DNS write is named only for a one-time manual domain fix) and CI never touches DNS. The live token permissions exist only at Cloudflare and have not been read for this model; record the review date in docs/threat-model/RISKS.md.",
+                  "number": 13
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 900,
+              "y": 450
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Syndication job (planned, issue 11)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 15,
+            "id": "9488b162-23c7-5ad3-b751-0e018893cee1",
+            "data": {
+              "name": "Syndication job (planned, issue 11)",
+              "description": "A deploy-time job that announces each new post once to four platforms. Not present in the workflows yet.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "7e9c6da6-5956-539a-a03d-015d780e3306",
+                  "title": "A merged pull request makes the job post attacker-chosen text",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A contributor sets the syndicate front matter flag, or crafts a title, so the owner's accounts post text or links the owner did not mean to send.",
+                  "mitigation": "Open until the job exists. Planned controls: syndicate defaults to false (archetypes/posts/index.md), the owner reviews every merged diff, and the job posts only title and permalink from a fixed template. Tests with faked clients are an acceptance item of issue 11 (docs/cutover.md).",
+                  "number": 14
+                },
+                {
+                  "id": "b3873b31-ed5c-54c2-b779-31352bd3770b",
+                  "title": "Duplicate or runaway announcements",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "A rerun or a loop posts the same announcement many times and gets the accounts limited.",
+                  "mitigation": "Open until the job exists. Acceptance in docs/cutover.md calls for durable dedupe and per-platform failure isolation, with a first run that posts once and a rerun that posts nothing.",
+                  "number": 15
+                },
+                {
+                  "id": "eed1444c-bc45-5009-bc67-3b0df99d6075",
+                  "title": "Platform tokens exposed through the job",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "The four platform credentials leak through logs, artifacts or a workflow edit.",
+                  "mitigation": "Open until the job exists. Policy: the tokens live in Doppler only, never in GitHub secrets (docs/deploy.md describes the Doppler pattern). docs/cutover.md step N5 now says Doppler entries only, and scripts/check-workflow-secrets.py blocks any repository secret read in a workflow.",
+                  "number": 16
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 900,
+              "y": 730
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Social platforms (Bluesky, Mastodon, Discord, Matrix)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 16,
+            "id": "1844ad4e-3aaf-546d-8e9b-d05fbfa34a1c",
+            "data": {
+              "name": "Social platforms (Bluesky, Mastodon, Discord, Matrix)",
+              "description": "Third-party services that receive announcements.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": true,
+              "reasonOutOfScope": "Operated by third parties. Only what this project sends and which credentials it holds are modeled.",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 1180,
+              "y": 730
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Cloudflare Pages (published site)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 17,
+            "id": "c58c67d1-1f40-512a-be97-5564a17af48a",
+            "data": {
+              "name": "Cloudflare Pages (published site)",
+              "description": "Serves the prebuilt static folder and runs the optional Function. Detail is in the reader path diagram.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "ce590d0b-2a60-5929-838c-48558f76d613",
+                  "title": "Credential used to publish something other than the reviewed build",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "The token publishes a folder that differs from the one CI built.",
+                  "mitigation": "scripts/check-site-artifact.sh runs on the downloaded folder before the credential loads and rejects Pages control files, unexpected _headers and _redirects; scripts/smoke-site.sh checks the live site and the hashes of the pinned scripts after deploy.",
+                  "number": 17
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 118,
+            "connector": "smooth",
+            "id": "87acaa9b-7968-5f7c-a93f-3dc8e15e717c",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Author files"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "2597a52a-233c-5b75-b1b8-e1dda967da68"
+            },
+            "target": {
+              "cell": "6aa8ef76-3ec1-5f28-93c2-396d986164bf"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Author files",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "local",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 119,
+            "connector": "smooth",
+            "id": "7802cd4d-5204-5b6e-9e5e-6412502b0d3f",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Edit in browser"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "2597a52a-233c-5b75-b1b8-e1dda967da68"
+            },
+            "target": {
+              "cell": "111cfe6e-02c9-5df6-9b9b-1762d2bd3674"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Edit in browser",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 120,
+            "connector": "smooth",
+            "id": "530eb79e-a412-5d5d-a865-e174d1bd60fb",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "git push, pull request"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "6aa8ef76-3ec1-5f28-93c2-396d986164bf"
+            },
+            "target": {
+              "cell": "fc40f1a9-c1c5-5d8c-bd73-3713414ccbd6"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "git push, pull request",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "e869d145-74f9-5586-8126-f0dce8ddb653",
+                  "title": "Content changed in transit to GitHub",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A push or web request is modified on the network.",
+                  "mitigation": "TLS to GitHub; git object hashes. Nothing is signed by the owner (RISKS.md).",
+                  "number": 18
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 121,
+            "connector": "smooth",
+            "id": "c07dd32b-733a-52a9-81ec-84e6c0c1ffc3",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Commit from web editor"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "111cfe6e-02c9-5df6-9b9b-1762d2bd3674"
+            },
+            "target": {
+              "cell": "fc40f1a9-c1c5-5d8c-bd73-3713414ccbd6"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Commit from web editor",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 122,
+            "connector": "smooth",
+            "id": "9e335c95-9767-58a8-a53b-2c5f9e097a96",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Pull request from a fork"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "8b6557f2-7bca-5d7d-ba13-86bd76d31877"
+            },
+            "target": {
+              "cell": "fc40f1a9-c1c5-5d8c-bd73-3713414ccbd6"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Pull request from a fork",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "957fb914-7763-5d42-8ee1-23b35a886960",
+                  "title": "Hostile content or script in a pull request",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A pull request adds a script, a tracking pixel, a redirect or a link-hijacking trick to a post.",
+                  "mitigation": "scripts/check-output.sh and scripts/artifact-rules.sh fail the build on any script not on the pinned list (docs/pinned-script.md), on external assets and on unsafe markup (scripts/scan-markup.py); the owner reads the diff before merging.",
+                  "number": 19
+                },
+                {
+                  "id": "b017492d-8eeb-566b-97a1-80a3b4263c69",
+                  "title": "Pull request floods the owner with review work",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "Spam pull requests waste review time.",
+                  "mitigation": "CONTRIBUTING.md requires an issue first; GitHub moderation and CODE_OF_CONDUCT.md apply.",
+                  "number": 20
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 123,
+            "connector": "smooth",
+            "id": "712b3d08-c2ed-52b2-b6ee-5437c3f2a2f1",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Merge to main"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "fc40f1a9-c1c5-5d8c-bd73-3713414ccbd6"
+            },
+            "target": {
+              "cell": "4ed1b095-699e-5fd9-8645-a20eba62c759"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Merge to main",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "git",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 124,
+            "connector": "smooth",
+            "id": "6b01450a-cc9d-5a55-bf0a-20090166d4a3",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Run checks"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "fc40f1a9-c1c5-5d8c-bd73-3713414ccbd6"
+            },
+            "target": {
+              "cell": "05dd8aeb-0936-5322-ad3a-46d0be338953"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Run checks",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 125,
+            "connector": "smooth",
+            "id": "f756db4a-5392-555d-a5c3-ad975bbe9cfd",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Actions, packages, Hugo, fonts"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "e8bac22d-38c3-5d9e-a975-aa7525b6d36f"
+            },
+            "target": {
+              "cell": "05dd8aeb-0936-5322-ad3a-46d0be338953"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Actions, packages, Hugo, fonts",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "55aa4ce5-f90a-5e79-92ce-f5edf2163009",
+                  "title": "Malicious or compromised upstream component",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A reusable workflow, an action, the Wrangler package, the Hugo binary or a font is replaced with hostile code.",
+                  "mitigation": "Actions and reusable workflows are pinned by commit with a version comment (.github/workflows/ci.yml, .github/workflows/deploy.yml); .github/dependabot.yml proposes bumps with a cooldown; the shared security workflow runs dependency review, secret scanning and workflow linting; the Wrangler version is locked in deploy/package-lock.json; Hugo is pinned in .hugo-version and checked by scripts/check-hugo-version.sh; fonts are committed under static/fonts and the accessibility engine under tools/axe is checksum-pinned. A pinned commit that was already malicious is not detectable here.",
+                  "number": 21
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 126,
+            "connector": "smooth",
+            "id": "5b065cf9-2d28-5858-9358-140e7a0da054",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Build artifact after CI green"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "05dd8aeb-0936-5322-ad3a-46d0be338953"
+            },
+            "target": {
+              "cell": "acfb65a8-23cc-5b17-b0bf-d6cf3790125c"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Build artifact after CI green",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "24bbddd9-b87d-576d-b308-c1a6e7699c57",
+                  "title": "Artifact swapped between build and deploy",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "The folder that is published is not the folder that was built and checked.",
+                  "mitigation": "The build job uploads one artifact and the deploy job downloads that artifact (.github/workflows/deploy.yml), then re-runs scripts/check-site-artifact.sh on it; scripts/smoke-site.sh verifies the live bytes of the pinned scripts against their committed hash files.",
+                  "number": 22
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 127,
+            "connector": "smooth",
+            "id": "f0172c07-6b2a-5931-aff5-f2d846f28508",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Publish folder with API token"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "acfb65a8-23cc-5b17-b0bf-d6cf3790125c"
+            },
+            "target": {
+              "cell": "c58c67d1-1f40-512a-be97-5564a17af48a"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Publish folder with API token",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 128,
+            "connector": "smooth",
+            "id": "9f873440-3555-5fd4-91b3-99b58e4d82a7",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "New post with syndicate true"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "4ed1b095-699e-5fd9-8645-a20eba62c759"
+            },
+            "target": {
+              "cell": "9488b162-23c7-5ad3-b751-0e018893cee1"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "New post with syndicate true",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "internal",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 129,
+            "connector": "smooth",
+            "id": "a7717c47-8287-590f-a68a-e6ec45b07300",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Announce once"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "9488b162-23c7-5ad3-b751-0e018893cee1"
+            },
+            "target": {
+              "cell": "1844ad4e-3aaf-546d-8e9b-d05fbfa34a1c"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Announce once",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      },
+      {
+        "version": "2.6.2",
+        "title": "2 Reader path",
+        "diagramType": "STRIDE",
+        "id": 1,
+        "description": "A visitor loads a page through Cloudflare, follows links and shares. The optional analytics Function and its database (planned, see docs/analytics-from-reach-around.md) feed reports for readers.",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 120
+            },
+            "size": {
+              "width": 330,
+              "height": 430
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB6 Visitor browser (untrusted input)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -51,
+            "id": "2f32ab17-baff-5537-a551-46e386c6f291",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB6 Visitor browser (untrusted input)",
+              "description": "Everything a visitor types or clicks. The site has no accounts and no forms.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 380,
+              "y": 120
+            },
+            "size": {
+              "width": 640,
+              "height": 700
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB7 Cloudflare edge and Pages (third-party operated)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -52,
+            "id": "40e9a583-439f-5153-9bde-76b77bc0d613",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB7 Cloudflare edge and Pages (third-party operated)",
+              "description": "Static assets, response headers, the optional Function and the database are served by Cloudflare.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 1050,
+              "y": 120
+            },
+            "size": {
+              "width": 330,
+              "height": 430
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB8 Other people's sites"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -53,
+            "id": "ca1f3f96-81c0-5656-9cf8-216844dcc2b0",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB8 Other people's sites",
+              "description": "Link targets, share targets and a visitor's own Mastodon server. Not under this project's control.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 380,
+              "y": 850
+            },
+            "size": {
+              "width": 640,
+              "height": 180
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB9 Release of reports (owner to readers)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -54,
+            "id": "a952b7b1-97e5-50e3-ae96-bbfe4eab0204",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB9 Release of reports (owner to readers)",
+              "description": "Only aggregate report output crosses here, never raw rows.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 170
+            },
+            "size": {
+              "width": 170,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Public visitor"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 5,
+            "id": "e90cc910-7ee1-5885-8f1f-048f5d13df16",
+            "data": {
+              "name": "Public visitor",
+              "description": "Anyone on the internet with a browser. The main adversary for this site.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "fc3109c5-0924-5316-8c62-73229a654118",
+                  "title": "Visitor fed a look-alike site",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "A copy of the site or a typo domain tricks readers. The project cannot stop a copy from existing.",
+                  "mitigation": "Open (generic). HSTS in static/_headers and the canonical link in layouts/baseof.html help readers and search engines; takedown of a copy is a manual step.",
+                  "number": 23
+                }
+              ],
+              "hasOpenThreats": true,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 330
+            },
+            "size": {
+              "width": 170,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Share panel and instance picker (/share.js)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 6,
+            "id": "008fb336-5ea1-5d61-a5df-998ec5c83451",
+            "data": {
+              "name": "Share panel and instance picker (/share.js)",
+              "description": "A pinned script that reveals buttons, copies the link and asks once for the visitor's own Mastodon server.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "a735a9c6-3481-555d-954c-cb28778b0527",
+                  "title": "Instance picker input steers the share link",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "The visitor (or a pasted value, or a poisoned local storage value) supplies a server name that is not a plain host name, such as a path, credentials, a script scheme or a look-alike.",
+                  "mitigation": "static/share.js accepts only a lowercase host name made of labels and a top-level domain and checks that the parsed URL host equals the input; scheme and path are stripped; the share URL is always https plus the host plus a fixed path. The value stays in the visitor's own local storage and is never sent to this site. static/share.js is held by the hash in share.js.sha256 and scripts/test-share.sh tests the link shapes (docs/share-links.md).",
+                  "number": 24
+                },
+                {
+                  "id": "f29c0c0c-6f88-534f-bb9f-7deb207d203f",
+                  "title": "Share intent leaks page details to the target",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "Opening a share link tells the target the post title and address.",
+                  "mitigation": "By design and only after the visitor clicks. Links use rel noopener noreferrer in layouts/_partials/share.html; no third-party script or embed loads on the page (docs/share-links.md).",
+                  "number": 25
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 430,
+              "y": 170
+            },
+            "size": {
+              "width": 190,
+              "height": 110
+            },
+            "attrs": {
+              "text": {
+                "text": "Cloudflare edge and Pages static assets"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 7,
+            "id": "7a148a10-40d7-5c63-9de0-3f414330f33d",
+            "data": {
+              "name": "Cloudflare edge and Pages static assets",
+              "description": "Serves the prebuilt HTML, the stylesheet, fonts and the three pinned scripts with the response headers from static/_headers (strict CSP, HSTS, no framing).",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "9f589113-1b0e-5f6f-81a6-8ab4db06427e",
+                  "title": "Script injection or CSP bypass through content",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "Markdown, a front matter value or a third-party snippet puts script into a page, or a header is dropped.",
+                  "mitigation": "static/_headers sets default-src none with only same-origin images, styles, fonts and a script-src of self plus one named beacon URL, no framing, base-uri none and trusted types. The build fails on any inline or unlisted script, any external asset or any header drift (scripts/check-output.sh, scripts/artifact-rules.sh, scripts/check-site-artifact.sh, tests in scripts/test-check-output.sh); docs/pinned-script.md lists the three scripts. Residual: script-src self allows any same-origin script file, which is why the hash files are required.",
+                  "number": 26
+                },
+                {
+                  "id": "63c27a0f-2f30-57cf-baaa-7920a402720f",
+                  "title": "Hostname or domain taken over",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "A dangling DNS record, a lapsed registration or a deleted Pages project lets someone else answer for the site name (generic subdomain takeover).",
+                  "mitigation": "Open (generic). The repository never changes DNS (docs/deploy.md) and scripts/smoke-site.sh checks the live site after each deploy. Registrar lock, DNS signing and account protection are provider settings not readable here; the owner checks them and records the date in RISKS.md.",
+                  "number": 27
+                },
+                {
+                  "id": "c07ee602-959a-5ed4-a4e6-b89cae542b84",
+                  "title": "Redirect rules abused to send readers elsewhere",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "An alias or redirect line in a post sends readers to a hostile address (open redirect).",
+                  "mitigation": "layouts/home.redirects builds only internal 301 lines and rejects aliases outside a narrow character set; scripts/test-redirects.sh asserts every line has the exact shape and internal targets, with a self-test that feeds bad lines.",
+                  "number": 28
+                },
+                {
+                  "id": "ab88efdb-2a10-5328-a360-bf65b64932ad",
+                  "title": "Traffic spike takes the site down",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "A flood or a viral post exhausts the host.",
+                  "mitigation": "Static assets are served from Cloudflare's network, and static/_routes.json keeps assets away from the Function so a flood of asset requests cannot spend the Function allowance.",
+                  "number": 29
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 430,
+              "y": 430
+            },
+            "size": {
+              "width": 190,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Analytics Pages Function (planned)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 8,
+            "id": "07a2cdc6-2d91-5259-9ed5-95f493382d3a",
+            "data": {
+              "name": "Analytics Pages Function (planned)",
+              "description": "functions/_middleware.js calls analytics/middleware.mjs: counts one row for an HTML 200 response after the page is on its way. Built and tested, not deployed.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "074bcdb2-9b2c-55e4-8415-a6ec5d6a01d4",
+                  "title": "Flood against the Function burns the free daily allowance",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "Many real page requests each schedule a database write until the daily allowance is spent; counts are then lost, pages are not.",
+                  "mitigation": "Open. Present: a timer bound on the write, a kill switch and fail-open behavior (analytics/middleware.mjs, tests in analytics/test/middleware.test.mjs). Gap: no per-hour admission budget; docs/analytics-from-reach-around.md names it and plans item 17.",
+                  "number": 30
+                },
+                {
+                  "id": "c96bb6cd-8a47-5a04-89c0-8e1858587021",
+                  "title": "Handler logs or stores a visitor's address or user agent",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A bug writes an address, a user agent or a fingerprint to a table or a log.",
+                  "mitigation": "analytics/source-guard.mjs forbids address headers, cookie and storage use, outbound calls, logging and precise location in the bundle sources; analytics/collect.mjs honors Do Not Track and Global Privacy Control; scripts/test-analytics.sh and analytics/test run in CI. docs/privacy-with-analytics.md holds the draft privacy text that must ship with go-live.",
+                  "number": 31
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 700,
+              "y": 300
+            },
+            "size": {
+              "width": 190,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Cloudflare Web Analytics beacon"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 9,
+            "id": "186a6034-1b5e-5df0-a225-cc1ffbb19670",
+            "data": {
+              "name": "Cloudflare Web Analytics beacon",
+              "description": "Cloudflare injects its own beacon at the edge. The CSP allows exactly its script URL and same-origin reporting.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "e78ad721-9184-5b22-a47d-3302e1aeaea0",
+                  "title": "Third-party script runs on every page",
+                  "status": "Accepted",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "The injected beacon is code this project does not control, allowed by the script-src entry.",
+                  "mitigation": "Accepted by the owner (docs/analytics-from-reach-around.md, decision Q3, 2026-11-09). Limited to one URL in static/_headers; every other script is still blocked and the beacon is not in the built HTML, so scripts/check-output.sh still rejects any script element that is not a pinned file.",
+                  "number": 32
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 700,
+              "y": 440
+            },
+            "size": {
+              "width": 190,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Analytics database (planned)"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 10,
+            "id": "ce40aea1-5323-5a03-9411-4276622413d4",
+            "data": {
+              "name": "Analytics database (planned)",
+              "description": "D1 tables of hourly counts: page path, referrer host, region and city, network class, bot class. Raw rows 7 days, aggregates 90 days.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "af6e2fb1-637c-5bd8-9fc8-39aa8ee97305",
+                  "title": "Small-town re-identification from place counts",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "On a small audience, a rare city plus a page can point at one reader. The owner accepted city in the aggregates (decision Q2).",
+                  "mitigation": "Open: the per-level floor, roll-up and complementary suppression are plan item 4 in docs/analytics-from-reach-around.md and are not built. Today a single floor of 5 applies in the report views (analytics/migrations, analytics/maintenance.sql). Residual risk is accepted and stated on the privacy page when it ships.",
+                  "number": 33
+                },
+                {
+                  "id": "0b570f61-5463-5881-bfb4-c396d178cefd",
+                  "title": "Daily visitor code linked across days or to a person",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "The daily keyed hash (decision Q6) could be linked if the key leaks or rows are kept past the day.",
+                  "mitigation": "Open (not built). Design in docs/analytics-from-reach-around.md section 5.3: key from a Doppler secret, per-day and per-site derivation, purge at the end of the UTC day, never in a report.",
+                  "number": 34
+                },
+                {
+                  "id": "6632d91b-71bf-5126-b81f-528836761bba",
+                  "title": "Counts inflated or poisoned by any client",
+                  "status": "Accepted",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "Anyone can request pages and move the numbers.",
+                  "mitigation": "Accepted: the counter is a floor and an estimate, and a bot class is stored. Only an HTML 200 is counted (analytics/middleware.mjs). Numbers are never used for a security decision.",
+                  "number": 35
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 430,
+              "y": 880
+            },
+            "size": {
+              "width": 190,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Report job (owner runs, aggregates only)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 11,
+            "id": "571785be-a4ee-5fc4-b2b4-ae6cf4518f2a",
+            "data": {
+              "name": "Report job (owner runs, aggregates only)",
+              "description": "Reads the report views with a read-only credential from the owner's machine and releases aggregates.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "05ea24b8-6af3-5111-acde-d80407721665",
+                  "title": "Report reveals a suppressed value by subtraction",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "Totals and remainder rows let a reader work out a withheld cell.",
+                  "mitigation": "Open (not built). Plan items 4, 9 and 15 in docs/analytics-from-reach-around.md: marginal tables only, complementary suppression and a small-cell test. The report views exist in analytics/migrations with a floor of 5.",
+                  "number": 36
+                },
+                {
+                  "id": "3ffd8a22-3457-5a8b-960f-6187579d0bb7",
+                  "title": "Destination domain flood grows the click table",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "description": "With every external link counted by domain, a flood of forged pings fills the table (decision Q4).",
+                  "mitigation": "Open (not built). Plan item 7: build-time domain list, Public Suffix List check, 150 per day cap with an other bucket. Outbound-link counting is not in the code today.",
+                  "number": 37
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 700,
+              "y": 900
+            },
+            "size": {
+              "width": 170,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Reader of released reports"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 12,
+            "id": "2fa07081-4f7e-5436-838f-12d42ffc0a10",
+            "data": {
+              "name": "Reader of released reports",
+              "description": "Anyone who sees a report the owner publishes. In scope as an adversary for re-identification.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "8d2ac2b8-07b9-50f7-ac9b-6e4855017e88",
+                  "title": "Report attributed to the wrong period or source",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Repudiation",
+                  "modelType": "STRIDE",
+                  "description": "Two counters (Cloudflare Web Analytics and this one) disagree and are read as a leak or a bug.",
+                  "mitigation": "Open. A reconciliation note and report footer are plan item 12 in docs/analytics-from-reach-around.md.",
+                  "number": 38
+                }
+              ],
+              "hasOpenThreats": true,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 1080,
+              "y": 170
+            },
+            "size": {
+              "width": 190,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "Other sites (link targets, share targets, a Mastodon server)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 13,
+            "id": "e9ecb9d7-fd1f-5150-9176-affa1df8f7dc",
+            "data": {
+              "name": "Other sites (link targets, share targets, a Mastodon server)",
+              "description": "Sites the visitor chooses to leave for. They see the visitor's request.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "cee762c6-2e52-5fe3-870e-8b9499d5b07d",
+                  "title": "Link target tracks or phishes the reader",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "An external link in a post points to a hostile or changed page.",
+                  "mitigation": "Share links carry rel noopener noreferrer (layouts/_partials/share.html) and static/_headers sets Cross-Origin-Opener-Policy same-origin and Referrer-Policy strict-origin-when-cross-origin); scripts/scan-markup.py rejects plain http and javascript: targets. Link rot or a target that changes later cannot be fully controlled.",
+                  "number": 39
+                }
+              ],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 1080,
+              "y": 330
+            },
+            "size": {
+              "width": 190,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Third-party embeds (none shipped)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 14,
+            "id": "8cd36068-b714-5d14-9b92-bf450eaed8a4",
+            "data": {
+              "name": "Third-party embeds (none shipped)",
+              "description": "A future video or widget embed would load a third-party frame or script.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "28bd1834-b4f4-5bbc-9315-451c80aae4a6",
+                  "title": "Embed adds third-party script, cookies or tracking",
+                  "status": "NotApplicable",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "A video or widget embed would run code from another origin on the page.",
+                  "mitigation": "Not applicable today: no embed ships. default-src none in static/_headers blocks any frame until a reviewed, cookie-free embed adds a provider-specific frame-src entry, and scripts/check-output.sh rejects unlisted scripts and external assets. Revisit when the first embed is proposed.",
+                  "number": 40
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 115,
+            "connector": "smooth",
+            "id": "91543bb5-450f-5e2c-bf65-9e12905085b5",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "HTTPS GET page"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "e90cc910-7ee1-5885-8f1f-048f5d13df16"
+            },
+            "target": {
+              "cell": "7a148a10-40d7-5c63-9de0-3f414330f33d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "HTTPS GET page",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "35624842-5039-5e6f-a30d-07a95b5f13b8",
+                  "title": "Eavesdropping or downgrade on the way to the site",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A network observer reads or alters the reader's traffic.",
+                  "mitigation": "Strict-Transport-Security in static/_headers; Cloudflare terminates TLS. Browsers that have never visited can still be downgraded on the first request (HSTS preload is not claimed).",
+                  "number": 41
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 116,
+            "connector": "smooth",
+            "id": "1259dfb4-1747-5b0b-9ece-fdd03fabab04",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "HTML, CSS, pinned scripts"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "7a148a10-40d7-5c63-9de0-3f414330f33d"
+            },
+            "target": {
+              "cell": "e90cc910-7ee1-5885-8f1f-048f5d13df16"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "HTML, CSS, pinned scripts",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "3a76cf51-1775-5bc1-b8ed-8ba0afadaccb",
+                  "title": "Poisoned cache serves altered pages",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A shared cache returns a different page or script than the one published.",
+                  "mitigation": "Static assets are immutable per deploy; only the content-hashed stylesheet gets a long cache lifetime and nothing else is marked immutable (static/_headers, scripts/check-output.sh rules missing-immutable and immutable-unhashed). scripts/smoke-site.sh hashes the live scripts. Cache poisoning inside the provider network is out of this repository's reach.",
+                  "number": 42
+                },
+                {
+                  "id": "96cf5876-4be8-5499-a9e2-743d5ac53dc5",
+                  "title": "Feed item identifiers change and readers see duplicates or gaps",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A renamed slug or a changed permalink gives a post a new feed identifier, so feed readers show it twice and any syndication keyed on it could repeat.",
+                  "mitigation": "Open. The feed identifier is the permalink (layouts/_partials/feed.xml) and front matter aliases become 301 lines (layouts/home.redirects, scripts/test-redirects.sh). No test pins the identifier of an existing post across a slug change; add one before syndication ships.",
+                  "number": 43
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 117,
+            "connector": "smooth",
+            "id": "58ad4ce8-bbf6-5289-9074-d90e80b8ee1d",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Follow an external link"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "e90cc910-7ee1-5885-8f1f-048f5d13df16"
+            },
+            "target": {
+              "cell": "e9ecb9d7-fd1f-5150-9176-affa1df8f7dc"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Follow an external link",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "634bf3be-f9f0-5df2-9a31-055efff4d2f7",
+                  "title": "Link text hides a different destination",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "A post shows a trusted label that points to another address, or an affiliate link without a disclosure.",
+                  "mitigation": "scripts/scan-markup.py inspects built markup for unsafe or external references; the PR checklist in .github/PULL_REQUEST_TEMPLATE.md asks for the affiliate disclosure; the owner reads the diff.",
+                  "number": 44
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 118,
+            "connector": "smooth",
+            "id": "3a13ef3d-6df7-56ff-85b7-4d647b5031f6",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Click a share button"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "e90cc910-7ee1-5885-8f1f-048f5d13df16"
+            },
+            "target": {
+              "cell": "008fb336-5ea1-5d61-a5df-998ec5c83451"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Click a share button",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "browser",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 119,
+            "connector": "smooth",
+            "id": "8d0651d5-a4e8-550e-86d3-9faf1b06a38c",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Open share URL in a new window"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "008fb336-5ea1-5d61-a5df-998ec5c83451"
+            },
+            "target": {
+              "cell": "e9ecb9d7-fd1f-5150-9176-affa1df8f7dc"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Open share URL in a new window",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 120,
+            "connector": "smooth",
+            "id": "a7d894d7-e0ee-58ad-a685-d87142d4cb18",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Invoke on HTML routes"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "7a148a10-40d7-5c63-9de0-3f414330f33d"
+            },
+            "target": {
+              "cell": "07a2cdc6-2d91-5259-9ed5-95f493382d3a"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Invoke on HTML routes",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "internal",
+              "isEncrypted": true,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "b43388f1-9767-5f58-ae14-aef52e4f4972",
+                  "title": "Function runs on routes that should stay static",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "Pages control files add routes or a Worker that was not reviewed.",
+                  "mitigation": "static/_routes.json keeps static asset paths away from the Function; scripts/check-site-artifact.sh rejects unexpected control files in the published folder; functions/ must hold only _middleware.js and package.json (analytics/test/middleware.test.mjs).",
+                  "number": 45
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 121,
+            "connector": "smooth",
+            "id": "f0ed037b-92f7-509e-8cf2-e1018e787117",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Insert one row, bounded by a timer"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "07a2cdc6-2d91-5259-9ed5-95f493382d3a"
+            },
+            "target": {
+              "cell": "ce40aea1-5323-5a03-9411-4276622413d4"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Insert one row, bounded by a timer",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "D1 binding",
+              "isEncrypted": true,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 122,
+            "connector": "smooth",
+            "id": "c83a304d-2aa8-53c0-b2cc-b288ce6d4df8",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Beacon reports to the site"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "186a6034-1b5e-5df0-a225-cc1ffbb19670"
+            },
+            "target": {
+              "cell": "7a148a10-40d7-5c63-9de0-3f414330f33d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Beacon reports to the site",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 123,
+            "connector": "smooth",
+            "id": "e0202b97-b359-58b9-8337-cf86671f6797",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Read report views"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "ce40aea1-5323-5a03-9411-4276622413d4"
+            },
+            "target": {
+              "cell": "571785be-a4ee-5fc4-b2b4-ae6cf4518f2a"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Read report views",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "D1 API",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 124,
+            "connector": "smooth",
+            "id": "2dddda9d-518a-5e91-b88a-32e95e6aeab5",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Released aggregate report"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "571785be-a4ee-5fc4-b2b4-ae6cf4518f2a"
+            },
+            "target": {
+              "cell": "2fa07081-4f7e-5436-838f-12d42ffc0a10"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Released aggregate report",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "file",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      },
+      {
+        "version": "2.6.2",
+        "title": "3 Data stores and secrets",
+        "diagramType": "STRIDE",
+        "id": 2,
+        "description": "Where credentials live and who can reach them: Doppler as the only secret store, the OIDC identity, the Cloudflare token, the planned analytics hash secret, and the GitHub secrets policy.",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 20
+            },
+            "size": {
+              "width": 560,
+              "height": 560
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB10 Doppler (secret store)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -51,
+            "id": "e17d8aa9-7369-5b69-b372-04041b92afaf",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB10 Doppler (secret store)",
+              "description": "The only place a secret lives. Read through OIDC from main, never stored in the repository.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 620,
+              "y": 20
+            },
+            "size": {
+              "width": 560,
+              "height": 560
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB11 GitHub Actions (build and deploy)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -52,
+            "id": "896d732f-c720-5c71-8bd0-10b79ca7ddff",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB11 GitHub Actions (build and deploy)",
+              "description": "Runs project code. A fork pull request gets no secrets.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 1220,
+              "y": 20
+            },
+            "size": {
+              "width": 330,
+              "height": 560
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#b45309",
+                "strokeWidth": 3,
+                "strokeDasharray": "10 5",
+                "fill": "transparent",
+                "fillOpacity": 0,
+                "rx": 10,
+                "ry": 10
+              },
+              "label": {
+                "text": "TB12 Cloudflare account"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": -53,
+            "id": "6155e1d4-9681-5343-a8d9-38b13482880c",
+            "data": {
+              "type": "tm.BoundaryBox",
+              "name": "TB12 Cloudflare account",
+              "description": "Holds the Pages project and the database; its own sign-in is the owner's account.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 640
+            },
+            "size": {
+              "width": 170,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Owner (sets and rotates secrets)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 4,
+            "id": "40e7aadf-315b-55b7-a33f-b27e6264ad3b",
+            "data": {
+              "name": "Owner (sets and rotates secrets)",
+              "description": "Creates the Doppler identity and rotates values. An agent never creates tokens.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 640,
+              "y": 640
+            },
+            "size": {
+              "width": 170,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Contributor via fork pull request"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 5,
+            "id": "1c8a39fd-c992-5252-bbc5-e8567809f9d8",
+            "data": {
+              "name": "Contributor via fork pull request",
+              "description": "Runs in the fork's context with no secrets.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "d8ffcce5-886e-5298-bfef-8b387bd32c44",
+                  "title": "Fork run reads a secret",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "A pull request workflow tries to read a secret or the OIDC token.",
+                  "mitigation": ".github/workflows/deploy.yml runs only on main; the credentialed job alone holds id-token write; the Doppler identity subject is limited to refs/heads/main with no wildcard and never pull_request (docs/deploy.md). Actual identity settings live at Doppler and are the owner's to confirm.",
+                  "number": 46
+                }
+              ],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 90
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Doppler (cloudflare project, prd config)"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 6,
+            "id": "7e95b890-72da-55bb-ac7a-efdb9465abdc",
+            "data": {
+              "name": "Doppler (cloudflare project, prd config)",
+              "description": "Holds CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, nothing else. A later project holds the analytics hash secret.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "01f79c9e-bf50-52ac-a77b-23c5cc642a08",
+                  "title": "Secret store account taken over",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "Control of the Doppler account or the service account exposes every value in it.",
+                  "mitigation": "Open. docs/deploy.md limits the service account to Viewer on one config, one OIDC identity, no wildcard subject, and keeps the Cloudflare values apart from other projects. Sign-in strength at Doppler is a provider setting not readable here.",
+                  "number": 47
+                },
+                {
+                  "id": "fba1c2b4-1a80-522f-b256-3b5f420617f6",
+                  "title": "Whole config visible to every later step",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "The Doppler action exports every secret in the config to the job environment.",
+                  "mitigation": "docs/deploy.md keeps exactly two values in the config and the credentialed job runs only the pinned Wrangler plus two reviewed scripts. The shared scoped mode is tracked in the GYST repository (issue 207 in docs/deploy.md).",
+                  "number": 48
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 300,
+              "y": 90
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Doppler OIDC identity (main only)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 7,
+            "id": "e889ccc2-fb9f-58f5-a0b0-89faca02df0d",
+            "data": {
+              "name": "Doppler OIDC identity (main only)",
+              "description": "Exchanges the GitHub OIDC token for the two values. Subject: this repository, ref main.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "f649432b-eb77-524e-992d-a675b6aaefd9",
+                  "title": "Identity subject too broad",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "A wildcard or a pull_request subject lets a fork or a branch fetch the token.",
+                  "mitigation": "docs/deploy.md requires one subject form (the immutable one this repository uses), limited to refs/heads/main, no wildcard. In .github/workflows/deploy.yml only the deploy job requests id-token.",
+                  "number": 49
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 640,
+              "y": 90
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "GitHub Actions secrets and variables"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 8,
+            "id": "58432014-9aa4-5426-b1d3-4f81d36b5a84",
+            "data": {
+              "name": "GitHub Actions secrets and variables",
+              "description": "Policy: secrets live in Doppler only; the secret slots stay empty. Only identifiers and switches are variables.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "6f4a59d1-e8b0-5b4e-8c24-3782837f8895",
+                  "title": "Secret placed in GitHub because a fallback exists",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A deploy fallback or a document could put a long-lived credential in GitHub secrets, against the policy that credentials live in Doppler only.",
+                  "mitigation": "The fallback expressions and the Doppler service token input were removed from .github/workflows/deploy.yml; docs/deploy.md, docs/cutover.md and docs/wiki/Deploy-overview.md say credentials come from Doppler only. scripts/check-workflow-secrets.py fails CI on any repository secret read other than the per-run GITHUB_TOKEN (and on the whole context, wildcards and inherit), run in the content checks job of .github/workflows/ci.yml and covered by scripts/test-check-workflow-secrets.sh. The owner still deletes any leftover repository secrets by hand.",
+                  "number": 50
+                }
+              ],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 900,
+              "y": 90
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Deploy job"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 9,
+            "id": "5e8c0ce1-a029-58e3-ac66-ba3c300b600d",
+            "data": {
+              "name": "Deploy job",
+              "description": "Only job with the OIDC permission; runs scripts/ensure-pages-project.sh and a pinned Wrangler.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "1eed75fa-4b95-56ae-b818-51b70b928265",
+                  "title": "Token printed or passed on a command line",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "The Cloudflare token appears in a log, a process list or an artifact.",
+                  "mitigation": "scripts/ensure-pages-project.sh validates the token characters and hands curl only a header line on stdin; scripts/test-ensure-pages-project.sh covers it; the secret scan (.gitleaks.toml, scripts/test-gitleaks-config.sh) runs in CI; the runner egress policy is block (.github/workflows/deploy.yml).",
+                  "number": 51
+                }
+              ],
+              "hasOpenThreats": false,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 1240,
+              "y": 90
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Cloudflare API token and account id"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 10,
+            "id": "4fe84394-4656-50aa-8dcf-865e96062294",
+            "data": {
+              "name": "Cloudflare API token and account id",
+              "description": "Scoped token used only by the deploy job. Account id is not secret on its own but is kept out of the repository.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "0c67fbd1-d955-5d43-a5b9-d594135c9673",
+                  "title": "Token scope wider than the job needs",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "Same concern as in the publishing diagram, seen from the store: the permissions on the live token.",
+                  "mitigation": "Open. Documented least scope in docs/deploy.md; the live token permissions were not read for this model. Re-read at Cloudflare, record the date in docs/threat-model/RISKS.md, and drop any extra scope after the analytics database work (docs/analytics-from-reach-around.md, owner-only steps).",
+                  "number": 52
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 1240,
+              "y": 270
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Cloudflare account (Pages, database)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 11,
+            "id": "7fdedf05-a5e6-5c88-9fa1-e3bb388f089c",
+            "data": {
+              "name": "Cloudflare account (Pages, database)",
+              "description": "Holds the Pages project, the custom domain and, later, the analytics database.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "ee6088ba-b433-5b10-8f56-315a72bde968",
+                  "title": "Account compromise publishes arbitrary content",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "Control of the Cloudflare account bypasses every repository check.",
+                  "mitigation": "Open. Out of the repository's control; the owner's account sign-in, recovery and audit settings decide. scripts/smoke-site.sh detects changed pinned scripts after the next deploy but not a silent edit.",
+                  "number": 53
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "position": {
+              "x": 300,
+              "y": 270
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Analytics hash secret (planned)"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 12,
+            "id": "4fd66311-d399-5400-8551-216eea17113f",
+            "data": {
+              "name": "Analytics hash secret (planned)",
+              "description": "VIEW_HASH_SECRET: key for the daily visitor code. Name only here; the value lives in Doppler.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
+                  "title": "Hash key exposed",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A leaked key lets someone test guesses against the daily codes.",
+                  "mitigation": "Open (not built). docs/analytics-from-reach-around.md section 5.3 requires Doppler only, no logging in the handler (analytics/source-guard.mjs) and scheduled rotation; commands that set it must discard output.",
+                  "number": 54
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 640,
+              "y": 270
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Public repository"
+              },
+              "topLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 13,
+            "id": "d437081c-8468-58e2-8285-3e2d582cfc90",
+            "data": {
+              "name": "Public repository",
+              "description": "Everything committed is public. No secret, token or personal identifier belongs here.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "1a03e65d-919a-5f2c-8e50-caa24fb9ae27",
+                  "title": "Secret or personal data committed",
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A token, an account id, a hostname or a personal identifier lands in a commit.",
+                  "mitigation": ".gitleaks.toml with scripts/test-gitleaks-config.sh; the shared security workflow in .github/workflows/ci.yml; the content scrub list (docs/scrub-terms.md, scripts/check-content.py); the PR checklist in .github/PULL_REQUEST_TEMPLATE.md. A secret found in history must be rotated, not just removed.",
+                  "number": 55
+                }
+              ],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "position": {
+              "x": 900,
+              "y": 270
+            },
+            "size": {
+              "width": 200,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Analytics database maintenance job (planned)"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 14,
+            "id": "48f06a9c-79ca-5df7-9300-c6f1fb55b73b",
+            "data": {
+              "name": "Analytics database maintenance job (planned)",
+              "description": "Applies migrations and the daily roll-up and purge with a database edit scope.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "eff23fdc-5cb1-5967-aadf-fae00d2111b3",
+                  "title": "Maintenance credential kept after the work",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "A database edit scope outlives the one-time setup.",
+                  "mitigation": "Open (not built). The access table in docs/analytics-deploy.md lists the scope; the plan is to drop write scopes after the work and card the removal.",
+                  "number": 56
+                }
+              ],
+              "hasOpenThreats": true,
+              "privilegeLevel": ""
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 115,
+            "connector": "smooth",
+            "id": "d8f918e7-15f9-5d6d-bb41-e6cc5d4a00b2",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "GitHub OIDC token"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "5e8c0ce1-a029-58e3-ac66-ba3c300b600d"
+            },
+            "target": {
+              "cell": "e889ccc2-fb9f-58f5-a0b0-89faca02df0d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "GitHub OIDC token",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 116,
+            "connector": "smooth",
+            "id": "c8e86bd4-1755-5d88-bbe1-08d5c7855a8f",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Two Cloudflare values"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "e889ccc2-fb9f-58f5-a0b0-89faca02df0d"
+            },
+            "target": {
+              "cell": "5e8c0ce1-a029-58e3-ac66-ba3c300b600d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Two Cloudflare values",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [
+                {
+                  "id": "aeb16eba-6473-5227-9525-f5fa8943ea3d",
+                  "title": "Values intercepted between Doppler and the runner",
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "The credential is read in transit.",
+                  "mitigation": "HTTPS to Doppler; the egress policy blocks other hosts (.github/workflows/deploy.yml).",
+                  "number": 57
+                }
+              ],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 117,
+            "connector": "smooth",
+            "id": "d5c240fa-187e-5732-9bff-472a78a5bacb",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Identity lookup"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "7e95b890-72da-55bb-ac7a-efdb9465abdc"
+            },
+            "target": {
+              "cell": "e889ccc2-fb9f-58f5-a0b0-89faca02df0d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Identity lookup",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "internal",
+              "isEncrypted": true,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 118,
+            "connector": "smooth",
+            "id": "faee5e9b-9681-5388-a93a-069a7673e5da",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Publish with token"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "5e8c0ce1-a029-58e3-ac66-ba3c300b600d"
+            },
+            "target": {
+              "cell": "7fdedf05-a5e6-5c88-9fa1-e3bb388f089c"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Publish with token",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 119,
+            "connector": "smooth",
+            "id": "2911e3ad-103e-52da-b1e6-8c2fc34738cb",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Fallback read (policy: empty)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "58432014-9aa4-5426-b1d3-4f81d36b5a84"
+            },
+            "target": {
+              "cell": "5e8c0ce1-a029-58e3-ac66-ba3c300b600d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Fallback read (policy: empty)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "internal",
+              "isEncrypted": true,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 120,
+            "connector": "smooth",
+            "id": "7a2ac543-a726-598e-8e75-b2d7d3469c3b",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Token value"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "4fe84394-4656-50aa-8dcf-865e96062294"
+            },
+            "target": {
+              "cell": "5e8c0ce1-a029-58e3-ac66-ba3c300b600d"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Token value",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "internal",
+              "isEncrypted": true,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 121,
+            "connector": "smooth",
+            "id": "919530fe-9fc0-58f2-9f95-4defd00e0b4f",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Pull request (no secrets)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "1c8a39fd-c992-5252-bbc5-e8567809f9d8"
+            },
+            "target": {
+              "cell": "d437081c-8468-58e2-8285-3e2d582cfc90"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Pull request (no secrets)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 122,
+            "connector": "smooth",
+            "id": "25b122d1-36d3-5ddb-ab6e-75a8fdbd7767",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Set and rotate (owner only)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "40e7aadf-315b-55b7-a33f-b27e6264ad3b"
+            },
+            "target": {
+              "cell": "7e95b890-72da-55bb-ac7a-efdb9465abdc"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Set and rotate (owner only)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTPS",
+              "isEncrypted": true,
+              "isPublicNetwork": true,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "sourceMarker": "",
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 123,
+            "connector": "smooth",
+            "id": "62140dc9-c253-5e6e-a33a-e2ba224cab18",
+            "visible": true,
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Key for the daily code"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "4fd66311-d399-5400-8551-216eea17113f"
+            },
+            "target": {
+              "cell": "48f06a9c-79ca-5df7-9300-c6f1fb55b73b"
+            },
+            "data": {
+              "type": "tm.Flow",
+              "name": "Key for the daily code",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "internal",
+              "isEncrypted": true,
+              "isPublicNetwork": false,
+              "isBidirectional": false,
+              "threats": [],
+              "isTrustBoundary": false,
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      }
+    ],
+    "diagramTop": 3,
+    "reviewer": "ChiefGyk3D",
+    "threatTop": 57
+  }
+}

@@ -36,18 +36,9 @@
   display: none;
 }
 
-/* Copy link and Change server keep their words and take a full row. */
-.share-list li:has(> .share-copy),
-.share-list li:has(> .share-change) {
-  grid-column: 1 / -1;
-}
-
-/* Both full-width rows sit below the icons, Change server above Copy link. */
-.share-list li:has(> .share-change) {
-  order: 98;
-}
-
+/* Copy link keeps its words and takes a full row below the icons. */
 .share-list li:has(> .share-copy) {
+  grid-column: 1 / -1;
   order: 99;
 }
 
@@ -87,7 +78,8 @@
 }
 
 .share-copy,
-.share-change {
+.share-go,
+.share-cancel {
   gap: var(--space-2);
   padding: 0 var(--space-3);
   font-size: var(--text-sm);
@@ -97,8 +89,80 @@
   border-color: var(--accent);
 }
 
-.share-change {
+.share-go {
+  border-color: var(--accent);
+}
+
+.share-cancel {
   border-color: var(--border);
+}
+
+/* The inline instance picker (issue 289): under the icons, no third-party resource. */
+.share-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: var(--rule-width) solid var(--border);
+  background: var(--bg);
+}
+
+.share-picker[hidden],
+.share-url[hidden] {
+  display: none;
+}
+
+.share-picker label {
+  font-size: var(--text-sm);
+}
+
+.share-host,
+.share-url {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  color: var(--text);
+  border: var(--rule-accent-width) solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+.share-url {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+
+.share-host:focus-visible,
+.share-url:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 3px;
+  border-color: var(--accent);
+}
+
+.share-remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+}
+
+.share-rem {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+.share-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.share-actions .share-link {
+  width: auto;
+  flex: 1 1 0;
 }
 
 .share .share-copy[class^="icon-"]::before {

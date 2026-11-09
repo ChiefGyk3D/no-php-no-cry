@@ -51,6 +51,7 @@ teaches. Paths are relative to the repository root.
 | 13 | `tools/wxr2hugo/` | Migrate from WordPress with a scrub pass that stops on private data. |
 | 14 | `scripts/gate.sh`, `scripts/test-gate.sh` | One local command that runs what CI runs, and a test of that command. |
 | 15 | `analytics/`, `functions/`, `docs/analytics-deploy.md` | A privacy-first page-view counter that is built and tested but not deployed, and why. |
+| 16 | `docs/threat-model/`, `scripts/check-threat-model.py` | A threat model that opens in a free tool, and a check that keeps it honest: every control it names must exist. |
 
 If you only have an hour, read steps 4, 6, 7 and 8: they show the whole idea
 (rules in the build, with tests that prove the rules bite).
