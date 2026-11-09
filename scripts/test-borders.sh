@@ -100,7 +100,7 @@ if python3 -I "$root/scripts/gen-frame-art.py" --check; then pass "the button ar
 # and bottom centre). The fill is therefore a path INSIDE each art file, and the box's own
 # background-color is transparent. Check both halves, and self-test the check.
 fill_check() { # fill_check <svg>: the fill path stays strictly inside the viewBox
-python3 -I - "$1" <<'PY'
+    python3 -I - "$1" <<'PY'
 import re, sys
 svg = open(sys.argv[1]).read()
 W, H = (float(v) for v in re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups())
@@ -122,7 +122,7 @@ if ! fill_check "$work/bleed.svg" >/dev/null 2>&1 && fill_check "$work/inset.svg
 else
     fail "the fill-bleed check is blind: it must reject a fill that reaches the art edge"
 fi
-for f in frame-faithful-button.svg frame-faithful-button-amber.svg frame-faithful-tile.svg frame-faithful-tile-amber.svg; do
+for f in frame-faithful-button.svg frame-faithful-button-amber.svg frame-faithful-tile.svg frame-faithful-tile-hover.svg; do
     if msg="$(fill_check "$root/static/brand/$f" 2>&1)"; then pass "$f: the fill is clipped inside the art box"; else fail "$f: $msg"; fi
 done
 if python3 -I - "$css" "$root/assets/css/pages/support.css" <<'PY'
@@ -137,20 +137,101 @@ sys.exit(0 if ok(block(bf, ".btn.bf-faithful")) and ok(block(sup, ".support-tile
 PY
 then pass "faithful buttons and support tiles keep a transparent box background (no fill rectangle past the art)"; else fail "a faithful box sets a background color: it would show past the chamfered frame"; fi
 
-# The L3 hero tint is clipped to the brackets' inner outline (issue 285): the box background
-# is none, and the ::after layer carries the tint under a clip-path polygon (no glow shadow).
-if python3 -I - "$css" <<'PY'
+# The L3 hero tint is clipped to the brackets' inner outline (issue 285): the box background is none and
+# the ::after layer carries the tint under a clip-path polygon (no glow shadow). The polygon is parsed:
+# the vertex count and every vertex must equal scripts/gen-frame-art.py hero_clip(), every vertex lies
+# inside the box, and no two edges cross. A self-test feeds it a typo and a self-intersecting polygon.
+hero_clip_check() { # hero_clip_check <css> [geometry]: "geometry" skips the generator comparison (self-test of the crossing check)
+    python3 -I - "$1" "$root/scripts/gen-frame-art.py" "${2:-}" <<'PY'
+import importlib.util, re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+spec = importlib.util.spec_from_file_location("gen", sys.argv[2]); gen = importlib.util.module_from_spec(spec); spec.loader.exec_module(gen)
+rules = {m.group(1).strip(): m.group(2) for m in re.finditer(r"([^{}]+)\{([^}]*)\}", css)}
+box, aft = rules.get(".bx.l3", ""), rules.get(".bx.l3::after", "")
+if not re.search(r"background:\s*none", box): sys.exit("the L3 box background is not none")
+if "box-shadow" in aft: sys.exit("the L3 ::after carries a shadow (glow)")
+m = re.search(r"clip-path:\s*polygon\((.*?)\);", aft, flags=re.S)
+if not m: sys.exit("no clip-path polygon on .bx.l3::after")
+def coord(t):
+    t = t.strip()
+    k = re.fullmatch(r"calc\(var\(--s\) \* ([\d.]+)px\)", t)
+    if k: return (0, float(k.group(1)))
+    k = re.fullmatch(r"calc\(100% - var\(--s\) \* ([\d.]+)px\)", t)
+    if k: return (1, float(k.group(1)))
+    sys.exit("unparsable vertex coordinate: " + t)
+verts = []
+for line in re.split(r",\s*", m.group(1).strip()):
+    xy = re.fullmatch(r"(calc\(.*?\)) (calc\(.*?\))", line.strip())
+    if not xy: sys.exit("unparsable vertex: " + line)
+    verts.append((coord(xy.group(1)), coord(xy.group(2))))
+want = gen.hero_clip()
+if len(verts) != len(want): sys.exit("expected %d vertices, found %d" % (len(want), len(verts)))
+for i, (v, w) in enumerate(zip(verts, want)):
+    if sys.argv[3] != "geometry" and v != (w[0], w[1]): sys.exit("vertex %d is %s, the generator says %s" % (i, v, w))
+# geometry at a sample box (scale 0.15, 676 x 433 as on Home at 1920 and 358 x 905 as on a phone)
+def pt(v, W, H, s): return ((W if v[0][0] else 0) + (-1 if v[0][0] else 1) * s * v[0][1], (H if v[1][0] else 0) + (-1 if v[1][0] else 1) * s * v[1][1])
+def cross(a, b, c): return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0])
+def inter(p1, p2, p3, p4):
+    d1, d2, d3, d4 = cross(p3, p4, p1), cross(p3, p4, p2), cross(p1, p2, p3), cross(p1, p2, p4)
+    return d1 * d2 < 0 and d3 * d4 < 0
+for W, H, s in ((676, 433, .15), (532, 561, .24), (358, 905, .24)):
+    pts = [pt(v, W, H, s) for v in verts]
+    if any(not (0 < x < W and 0 < y < H) for x, y in pts): sys.exit("a vertex lies outside the box at %dx%d" % (W, H))
+    n = len(pts)
+    for i in range(n):
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1: continue
+            if inter(pts[i], pts[(i+1) % n], pts[j], pts[(j+1) % n]): sys.exit("edges %d and %d cross at %dx%d" % (i, j, W, H))
+PY
+}
+hero_css() { # hero_css <polygon body>: a minimal stylesheet around it, for the self-test
+    printf '.bx.l3 { background: none; }\n.bx.l3::after { inset: 0; clip-path: polygon(%s); }\n' "$1"
+}
+good_poly="$(
+    python3 -I - "$css" <<'PY'
 import re, sys
 css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
-rules = {m.group(1).strip(): m.group(2) for m in re.finditer(r"([^{}]+)\{([^}]*)\}", css)}
-box = rules.get(".bx.l3", "")
-aft = rules.get(".bx.l3::after", "")
-ok = re.search(r"background:\s*none", box) and "clip-path: polygon(" in aft and "box-shadow" not in aft and aft.count("calc(") >= 40
+print(re.search(r"clip-path:\s*polygon\((.*?)\);", css, flags=re.S).group(1))
+PY
+)"
+typo_poly="${good_poly/var(--s) * 147px/var(--s) * 174px}"
+cross_poly="$(
+    python3 -I - "$good_poly" <<'PY'
+import re, sys
+parts = re.split(r",\s*", sys.argv[1].strip())
+parts[0], parts[5] = parts[5], parts[0]   # swap two vertices: the outline crosses itself
+print(",\n".join(parts))
+PY
+)"
+hero_css "$typo_poly" >"$work/hero-typo.css"
+hero_css "$cross_poly" >"$work/hero-cross.css"
+if hero_clip_check "$css" 2>"$work/hero-clip.err" && ! hero_clip_check "$work/hero-typo.css" >/dev/null 2>&1 && ! hero_clip_check "$work/hero-cross.css" geometry >/dev/null 2>"$work/hero-cross.err" && grep -q "cross" "$work/hero-cross.err"; then
+    pass "the L3 tint is clipped to the generator's frame outline (polygon parsed; a typo and a self-crossing polygon are rejected)"
+else
+    cat "$work/hero-clip.err" 2>/dev/null
+    fail "the L3 clip polygon is wrong, or its check is blind to a typo or a self-crossing polygon"
+fi
+grep -qE 'btn-primary bf-none' "$out/index.html" && [[ "$(grep -oE 'btn-ghost bf-none' "$out/index.html" | wc -l)" -ge 2 ]] &&
+    pass "the three Home hero buttons are plain (none level)" || fail "the Home hero buttons are not all at the none level"
+
+# The tile art carries the site tints (--frame-fill and --frame-fill-hover in borders.css) as its fill
+# opacity, so the dark amber tile and its brighter hover cannot drift from the tokens the contrast
+# check measures (scripts/check-contrast.py), and neither is solid amber (issue 285).
+if python3 -I - "$css" "$root/static/brand" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+def alpha(name):
+    m = re.search(r"--" + name + r":\s*rgb\(\s*251 176 59\s*/\s*([0-9.]+)\s*\)", css)
+    return float(m.group(1)) if m else None
+def art(f):
+    m = re.search(r'fill="#FBB03B" fill-opacity="([0-9.]+)"/>', open(sys.argv[2] + "/" + f).read())
+    return float(m.group(1)) if m else None
+ok = alpha("frame-fill") is not None and alpha("frame-fill-hover") is not None
+ok = ok and art("frame-faithful-tile.svg") == alpha("frame-fill") and art("frame-faithful-tile-hover.svg") == alpha("frame-fill-hover")
+ok = ok and alpha("frame-fill") < alpha("frame-fill-hover") < 0.5
 sys.exit(0 if ok else 1)
 PY
-then pass "the L3 tint is clipped to the frame outline (box background none, no glow)"; else fail "the L3 tint is not clipped to the frame, or a glow is back"; fi
-grep -qE 'btn-primary bf-none' "$out/index.html" && [[ "$(grep -oE 'btn-ghost bf-none' "$out/index.html" | wc -l)" -ge 2 ]] \
-    && pass "the three Home hero buttons are plain (none level)" || fail "the Home hero buttons are not all at the none level"
+then pass "the support tile art uses the frame-fill tints (resting and one step brighter), never solid amber"; else fail "the support tile art does not match --frame-fill and --frame-fill-hover, or is solid amber"; fi
 
 # No cream or white fill: the primary button hover is amber, never --text.
 if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi

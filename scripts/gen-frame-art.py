@@ -161,16 +161,36 @@ def fill_poly(out,fx,fy,W,H,fill):
     color,op=fill
     return f'<path d="{d}" fill="{color}" fill-opacity="{op}"/>'
 
-FILLS={"button":(AMBER,".16"),"tile":("#202020","1")}   # tile: the --surface the hover state shows
+# The fills are the site tints (--frame-fill .16 and --frame-fill-hover .26 in borders.css; scripts/test-borders.sh keeps them equal).
+# The Home hero (L3) tint is clipped by a CSS polygon in assets/css/borders.css (.bx.l3::after): the
+# inner outline of the four brackets, the vertices of the inline art in layouts/_partials/frame.html
+# (top-left corner, from the top edge down to the left edge), mirrored to the other three corners.
+# scripts/test-borders.sh compares the stylesheet with hero_clip() below (issue 285).
+HERO_CLIP=[(147,50.5),(133,51.5),(97,52.5),(82,69.5),(62,70.5),(54,71.5),(54,97.5),(41,110.5),(39,114),(39,150)]
+
+def hero_clip():
+    """The polygon as (x, y) pairs of (fraction of the box, multiple of --s): x = a + b*s*px form.
+    Each vertex is ((mirror_x, px), (mirror_y, py)); mirrored values are measured from the far edge."""
+    out=[]
+    for mx,my,rev in ((0,0,1),(1,0,0),(1,1,1),(0,1,0)):
+        c=[((mx,x),(my,y)) for x,y in HERO_CLIP]
+        out+=c[::-1] if rev else c
+    return out
+
+FILLS={"button":(AMBER,".16"),"tile":(AMBER,".16")}
+TILE_HOVER=(AMBER,".26")
 SIZES=[("button",140,44,None),("tile",330,79,None)]
 
 
 def files():
     for name,W,H,hs in SIZES:
         for lv in ("faithful",):
-            # the fill is inside the art: a tint (the ghost button, the hover of a tile is the surface) or solid amber
+            # the fill is inside the art: a tint (a ghost button, a support tile and its brighter hover) or solid amber (the primary button)
             yield f"frame-{lv}-{name}.svg", svg(W,H,lv,hs=hs,fill=FILLS[name])
-            yield f"frame-{lv}-{name}-amber.svg", svg(W,H,lv,"#2D200B",hs,fill=(AMBER,"1"))
+            if name=="tile":
+                yield f"frame-{lv}-{name}-hover.svg", svg(W,H,lv,hs=hs,fill=TILE_HOVER)   # one tint step brighter
+            else:
+                yield f"frame-{lv}-{name}-amber.svg", svg(W,H,lv,"#2D200B",hs,fill=(AMBER,"1"))
 
 
 if __name__=="__main__":

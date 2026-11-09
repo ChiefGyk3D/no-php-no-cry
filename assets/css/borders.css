@@ -17,6 +17,7 @@
  * label on a light ground; amber lettering is not used. */
 :root {
   --frame-fill: rgb(251 176 59 / 0.16);
+  --frame-fill-hover: rgb(251 176 59 / 0.26);
 }
 
 /* L1: one hairline plus four 10x2 amber ticks, drawn as background layers of the

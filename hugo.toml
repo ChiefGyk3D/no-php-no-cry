@@ -111,7 +111,8 @@ timeZone = "America/New_York"
     [params.frames.classes]
       btn-primary = "faithful"
       # The three Home hero buttons are plain (issue 285): the hero box wears the
-      # frame, so its buttons are the none level (amber outline, no art, no ticks).
+      # frame, so its buttons are the none level, no art and no ticks. Read the latest
+      # (the primary) is solid amber with dark ink; the two ghost buttons are amber outlines.
       hero-btn = "none"
 
   [params.author]

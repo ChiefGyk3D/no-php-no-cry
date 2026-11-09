@@ -100,10 +100,15 @@ def ratio(fg, bg):
 # Text on the translucent amber tint (--frame-fill in borders.css, an rgb() with
 # an alpha over the page ground). The tint is composited over --bg and the result
 # is checked like any other surface. Pairs: (text token, minimum ratio).
-TINT_TEXT = [("text", 4.5), ("muted", 4.5), ("link", 4.5)]
-TINT_RE = re.compile(
-    r"--frame-fill\s*:\s*rgb\(\s*(\d+)\s+(\d+)\s+(\d+)\s*/\s*([0-9.]+)\s*\)\s*;"
-)
+TINT_TEXT = [("text", 4.5), ("muted", 4.5), ("link", 4.5), ("accent", 4.5)]   # accent: the gold support tile titles
+# --frame-fill-hover is the one step brighter tint of the support tiles on hover and focus.
+TINT_TOKENS = ("frame-fill", "frame-fill-hover")
+
+
+def tint_re(name):
+    return re.compile(
+        r"--" + name + r"\s*:\s*rgb\(\s*(\d+)\s+(\d+)\s+(\d+)\s*/\s*([0-9.]+)\s*\)\s*;"
+    )
 
 
 def composite(rgb, alpha, ground_hex):
@@ -118,23 +123,26 @@ def check_tint(path, tokens):
     if not os.path.exists(borders):
         return False
     with open(borders, encoding="utf-8") as handle:
-        match = TINT_RE.search(strip_comments(handle.read()))
-    if not match:
-        print("FAIL borders.css: --frame-fill rgb(R G B / alpha) not found")
-        return True
-    rgb = [int(match.group(i)) for i in (1, 2, 3)]
-    tint = composite(rgb, float(match.group(4)), tokens["bg"])
+        css = strip_comments(handle.read())
     failed = False
-    for fg, need in TINT_TEXT:
-        if fg not in tokens:
-            continue
-        got = ratio(tokens[fg], tint)
-        if got < need:
+    for name in TINT_TOKENS:
+        match = tint_re(name).search(css)
+        if not match:
+            print("FAIL borders.css: --%s rgb(R G B / alpha) not found" % name)
             failed = True
-        print(
-            "%s dark: %s on frame-fill tint %s on %s = %.2f:1 (need %.1f)"
-            % ("ok  " if got >= need else "FAIL", fg, tokens[fg], tint, got, need)
-        )
+            continue
+        rgb = [int(match.group(i)) for i in (1, 2, 3)]
+        tint = composite(rgb, float(match.group(4)), tokens["bg"])
+        for fg, need in TINT_TEXT:
+            if fg not in tokens:
+                continue
+            got = ratio(tokens[fg], tint)
+            if got < need:
+                failed = True
+            print(
+                "%s dark: %s on %s tint %s on %s = %.2f:1 (need %.1f)"
+                % ("ok  " if got >= need else "FAIL", fg, name, tokens[fg], tint, got, need)
+            )
     return failed
 
 
