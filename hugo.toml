@@ -85,6 +85,12 @@ timeZone = "America/New_York"
   # docs/cutover.md has the steps for the apex.
   environment = "production"
 
+  # The About page shows the business email as text. true shows it as an image
+  # instead (assets/contact/email-address.png; the link's accessible name is a
+  # fixed alt text, never the address). One build: HUGO_PARAMS_EMAILASIMAGE=true
+  # hugo ... Issue 329; scripts/check-about-email.sh --mode image checks it.
+  emailAsImage = false
+
   # Default Open Graph image, a path under static/. Use only a file listed in
   # brand/approved-assets.txt (star-free).
   ogImage = "brand/og-card.png"
