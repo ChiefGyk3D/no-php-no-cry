@@ -13,6 +13,9 @@
   --page-max: var(--measure);
   --page-gutter: var(--space);
   --prose-max: 75ch;
+  /* Text inside a bordered box (issue 308): wider than the page prose so a wide box is not
+   * left with a dead right side; about 100 to 115 characters of Jost per line at most. */
+  --box-prose-max: 100ch;
 }
 
 @media (min-width: 60rem) {
@@ -65,6 +68,14 @@ body {
 /* Running text keeps a readable line length however wide the container is. */
 main p {
   max-width: var(--prose-max);
+}
+
+/* Inside a bordered box the text uses the box width (issue 308). */
+.panel p,
+.skill-group p,
+.about-contact p,
+.fact-card dd {
+  max-width: var(--box-prose-max);
 }
 
 /* Display face (Orbitron, via --font-display) on the page headings only; body

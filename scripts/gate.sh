@@ -55,6 +55,7 @@ step test-social-products "" 'scripts/test-social-products.sh'
 step test-share "" 'scripts/test-share.sh'
 step test-borders "" 'scripts/test-borders.sh'
 step test-resume "" 'scripts/test-resume.sh'
+step test-layout "" 'scripts/test-layout.sh'
 step test-check-site-artifact "" 'scripts/test-check-site-artifact.sh'
 step test-deploy-sparse "" 'scripts/test-deploy-sparse.sh'
 step test-pages "" 'scripts/test-pages.sh'
@@ -110,7 +111,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume
+    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume test-layout
     test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-threat-model test-check-threat-model check-wiki test-check-wiki test-publish-wiki
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
