@@ -11,7 +11,7 @@ by the owner is out of scope. A mistake by the owner or a contributor is in scop
 
 ## Counts
 
-57 threats in three diagrams: 32 Mitigated, 22 Open, 2 Accepted, 1 N/A.
+57 threats in three diagrams: 33 Mitigated, 21 Open, 2 Accepted, 1 N/A.
 
 A threat counts as Mitigated only when a control is in this repository and the model names it by path.
 `scripts/check-threat-model.py` fails the build when a named path does not exist.
@@ -79,3 +79,4 @@ Medium and low severity:
 | Date | Change |
 | --- | --- |
 | 2026-11-09 | First version (issue 290). Provider-side settings not read. |
+| 2026-11-09 | Counts corrected to 33 Mitigated and 21 Open after the GitHub secret fallbacks were removed (PR 307); numbers read from the model with `scripts/check-threat-model.py`. |
