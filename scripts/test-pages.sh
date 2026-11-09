@@ -600,8 +600,13 @@ def about(p, errs, repo):
             errs.append("the fingerprint line must be 'PGP fingerprint: <code>...</code>'")
         if not re.search(r"<p[^>]*>\s*Email, for business inquiries only: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
             errs.append("the email line must be 'Email, for business inquiries only: <a mailto>...</a>'")
-        if "keys.openpgp.org" in repo["html"]:
-            errs.append("the About page must not point at keys.openpgp.org (issue 224)")
+        # Issues 224 and 329: the keyserver held a different (older) key for this address on
+        # 2026-11-09, so a keyserver link is allowed only as the by-fingerprint URL of THIS
+        # fingerprint (data/about.yaml pgp_keyserver_url), never by address or key id.
+        ks_urls = re.findall(r"https://keys\.openpgp\.org/[^\"'\s<>]*", repo["html"])
+        ks_ok = "https://keys.openpgp.org/vks/v1/by-fingerprint/" + re.sub(r"\s+", "", cd["pgp_fingerprint"]).upper()
+        if any(u != ks_ok for u in ks_urls):
+            errs.append("a keys.openpgp.org link on About must be the by-fingerprint URL of the published fingerprint (issues 224, 329); found %r" % ks_urls)
         if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "").endswith(cd["pgp_url"])]:
             errs.append("the PGP key link text must be 'PGP public key'")
         if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
@@ -817,7 +822,7 @@ if [[ -f "$pub/about/index.html" ]]; then
     python3 -I - "$work/about-merged.html" "$pub/about/index.html" <<'PYEOF'
 import re, sys
 t = open(sys.argv[2], encoding="utf-8").read()
-t = re.sub(r"</p>\s*<p[^>]*>(?=PGP fingerprint:)", ". ", t, count=1)
+t = re.sub(r"</p>\s*(?:<!--/email_off-->)?\s*<p[^>]*>(?=PGP fingerprint:)", ". ", t, count=1)
 open(sys.argv[1], "w", encoding="utf-8").write(t)
 PYEOF
     if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-merged.html" >/dev/null 2>&1; then

@@ -108,9 +108,20 @@
     {{- $complete := partial "contact-complete.html" . }}
     <p>There's no contact form. If you want to chat as part of the community, use the Matrix room or the Discord server. The two are bridged.{{ if not $complete }} Business inquiries go by email, and the address will be listed here soon.{{ end }}</p>
     {{- if $complete }}
-    <p>Email, for business inquiries only: <a href="mailto:{{ $c.email }}">{{ $c.email }}</a></p>
+    {{- /* Issue 329: the address sits between email_off markers so the host's Email Address Obfuscation (Cloudflare, on by default) leaves it alone. Without them the edge rewrites it to "[email protected]" and needs JavaScript to show it. Docs: developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/ ("Prevent Cloudflare from obfuscating email"). The markers are HTML comments written with safeHTML so the minifier keeps them. scripts/check-about-email.sh pins both. params.emailAsImage swaps the text for an image (assets/contact/email-address.png, scripts/gen-email-image.py): the link's accessible name is the fixed alt text, never the address. */}}
+    {{ "<!--email_off-->" | safeHTML }}<p>Email, for business inquiries only: {{ if site.Params.emailAsImage -}}
+    {{- $img := resources.Get "contact/email-address.png" | fingerprint -}}
+    <a class="email-image-link" href="mailto:{{ $c.email }}"><img class="email-image" src="{{ $img.RelPermalink }}" width="{{ div $img.Width 2 }}" height="{{ div $img.Height 2 }}" alt="email address image, open your mail client to write to me"></a>
+    {{- else -}}
+    <a href="mailto:{{ $c.email }}">{{ $c.email }}</a>
+    {{- end }}</p>{{ "<!--/email_off-->" | safeHTML }}
     <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
     <p class="pgp-key-link"><a href="{{ $c.pgp_url | relURL }}">PGP public key</a></p>
+    {{- /* Issue 329: the keyserver copy, linked by FINGERPRINT so it can only ever be this key. Rendered only while data/about.yaml sets pgp_keyserver_url (https://keys.openpgp.org/ only); set it once the key is uploaded and verified there. */}}
+    {{- with $c.pgp_keyserver_url }}
+    {{- if not (strings.HasPrefix . "https://keys.openpgp.org/") }}{{ errorf "about contact pgp_keyserver_url is not on https://keys.openpgp.org/" }}{{ end }}
+    <p class="pgp-keyserver-link"><a href="{{ . }}" target="_blank" rel="noopener">PGP key on keys.openpgp.org<span class="visually-hidden"> (opens in a new tab)</span></a></p>
+    {{- end }}
     {{- end }}
     <ul class="contact-links">
       <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>
