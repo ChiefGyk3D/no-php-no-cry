@@ -1,6 +1,0 @@
-{{- /* Headings in a post body. A level 2 heading is a section banner (docs/borders.md): the frame classes are added to any class the author gave it. Other levels stay plain. Same id and text Hugo makes by default; other author attributes are kept. */ -}}
-{{- $class := "" -}}
-{{- if eq .Level 2 }}{{ $class = "fx pl sm" }}{{ end -}}
-{{- $author := "" -}}
-{{- with .Attributes.class }}{{ $author = . }}{{ end -}}
-<h{{ .Level }} id="{{ .Anchor }}"{{ with trim (printf "%s %s" $class $author) " " }} class="{{ . }}"{{ end }}{{ range $k, $v := .Attributes }}{{ if not (in (slice "id" "class") $k) }} {{ $k }}="{{ $v }}"{{ end }}{{ end }}>{{ .Text | safeHTML }}</h{{ .Level }}>

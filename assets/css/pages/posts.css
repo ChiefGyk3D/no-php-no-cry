@@ -34,6 +34,7 @@
 .archive-banner,
 .superseded-note {
   margin: var(--space-5) 0;
+  padding: var(--space);
 }
 
 .archive-banner p,
@@ -62,10 +63,26 @@
 
 .post-nav a {
   display: block;
+  min-height: var(--tap);
   max-width: 100%;
-  --py: var(--space-3);
-  --px: var(--space-6);
+  padding: var(--space-2) var(--space);
+  color: var(--text);
   text-decoration: none;
+}
+
+.post-nav a:hover {
+  --fill: var(--accent);
+  --tick: var(--on-accent);
+  color: var(--on-accent);
+}
+
+.post-nav a:hover .meta {
+  color: var(--on-accent);
+}
+
+.post-nav a:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 4px;
 }
 
 /* The L2 title block: the page title, one thing that matters. The frame brings its
@@ -147,7 +164,7 @@
 
   .archive-group .post-list li.card {
     margin: 0;
-    --py: var(--space-5);
+    padding: var(--space-5);
   }
 
   .archive-group .post-list a {
@@ -173,9 +190,10 @@
  * first screen; contain, never crop, since some are logos. The card thumbnail
  * (list and home) is a small image left of the title, date and summary. */
 .post-hero {
-  --py: calc(var(--s) * 70px);
-  --px: calc(var(--s) * 70px);
   margin: 0 0 var(--space-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .post-hero img {
@@ -188,9 +206,14 @@
 /* Post cards (the L1 frame, class "l1 card"): a card is a bordered box; the
  * plain row rule and bottom border of a bare list item do not apply. */
 .post-list li.card {
-  margin: 0 0 var(--space-4);
-  --py: var(--space-4);
-  --px: var(--space-5);
+  margin: 0 0 var(--space-3);
+  padding: var(--space) var(--space-4);
+  border: var(--rule-width) solid var(--frame-edge);
+}
+
+.post-list li.card:hover,
+.post-list li.card:focus-within {
+  --fill: var(--frame-fill);
 }
 
 .post-list li.has-thumb {

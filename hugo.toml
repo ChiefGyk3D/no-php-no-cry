@@ -97,6 +97,20 @@ timeZone = "America/New_York"
   # The site owner as structured data (JSON-LD Person on the home page, author
   # of every Article). The display name only: nothing else about the person goes
   # in the head. sameAs links come from data/socials.yaml.
+  # Button frames (docs/borders.md): the level of every button, in this one place.
+  # Levels: none (the pre-frame button), minimal (a hairline and four corner ticks,
+  # the default and what the site shipped on Nov 8), faithful (the owner's button
+  # art). Only buttons are set here; every other element keeps its look.
+  # "level" is the default for all buttons; "classes" overrides one button class
+  # (btn-primary, btn-ghost, nav-toggle, copy-btn, product-btn), the most specific
+  # entry winning. The default: minimal on every button, faithful on the primary
+  # button (Read the latest, Start over). The frame is drawn inside the button's
+  # own box, so a level never changes a button's size.
+  [params.frames]
+    level = "minimal"
+    [params.frames.classes]
+      btn-primary = "faithful"
+
   [params.author]
     name = "ChiefGyk3D"
 

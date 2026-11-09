@@ -2,21 +2,18 @@
 # Test the border system (docs/borders.md).
 #
 # Builds the site into the repository's gitignored tmp/ (never /tmp) and asserts:
-#   - a frame never contains another frame: no element with class fx, btn or tile
-#     (or a pre, table, blockquote or input) has one of those as a descendant;
-#   - every page carries frames (its title is an "fx" banner), and the page types
-#     the owner named (home, support, social, products, search, about, resume) each
-#     carry at least five;
-#   - the build holds no style attribute or style element (the CSP forbids both)
-#     and no inline svg frame (the frame art is the three files under static/brand);
-#   - assets/css/borders.css: the only url() are the three frame SVGs, no hex
-#     color (colors come from the tokens), no animation outside a
-#     prefers-reduced-motion: no-preference block, no rule that sets an amber
-#     text color, a forced-colors block and a print block that drop the art;
-#   - the three frame SVGs exist, hold no script, no text and no external reference.
-# A self-test feeds the nesting checker a page with a frame in a frame and requires
-# it to fail, so a green run cannot come from a checker that sees nothing. There is
-# no per-page limit on frames. Needs the pinned Hugo; a missing Hugo is a failure.
+#   - no page carries more than ONE level 3 frame (svg class "fr fr-l3"), and the
+#     two pages that own one (Home, Support) carry exactly one;
+#   - every frame (svg class "fr") is aria-hidden and the build holds no style
+#     attribute or style element (the CSP forbids both);
+#   - assets/css/borders.css has no url(), no hex color (colors come from the
+#     tokens in assets/css/tokens.css; the partial has none either), no animation
+#     outside a prefers-reduced-motion: no-preference block, no rule that sets an
+#     amber text color (color: var(--accent)), the support L3 label override, and
+#     a print block that resets frame backgrounds and borders.
+# A self-test feeds the counter a page with two L3 frames and requires it to fail,
+# so a green run cannot come from a counter that counts nothing. Needs the pinned
+# Hugo; a missing Hugo is a failure, not a skip.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,57 +33,16 @@ fail() {
     failures=$((failures + 1))
 }
 
-# The nesting checker: prints "frames N" and one line per frame inside a frame.
-checker="$work/nest.py"
-cat >"$checker" <<'PY'
-import sys
-from html.parser import HTMLParser
+# l3_count <file>: number of level 3 frames in a page.
+l3_count() { { grep -oE 'class="?fr fr-l3[" >]' "$1" || true; } | wc -l; }
 
-CLASSES = {"fx", "btn", "tile"}
-TAGS = {"pre", "table", "blockquote"}
-VOID = {"img", "input", "br", "hr", "meta", "link", "source", "wbr", "col", "area", "base", "embed", "param", "track"}
-
-class P(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.stack = []  # (tag, is_frame)
-        self.frames = 0
-        self.bad = []
-
-    def is_frame(self, tag, attrs):
-        cls = set((dict(attrs).get("class") or "").split())
-        return bool(cls & CLASSES) or tag in TAGS or (tag == "input" and "search-input" in cls)
-
-    def handle_starttag(self, tag, attrs):
-        f = self.is_frame(tag, attrs)
-        if f:
-            self.frames += 1
-            if any(x[1] for x in self.stack):
-                self.bad.append("%s.%s inside a frame" % (tag, dict(attrs).get("class", "")))
-        if tag not in VOID:
-            self.stack.append((tag, f))
-
-    def handle_endtag(self, tag):
-        for i in range(len(self.stack) - 1, -1, -1):
-            if self.stack[i][0] == tag:
-                del self.stack[i:]
-                break
-
-p = P()
-p.feed(open(sys.argv[1], encoding="utf-8").read())
-print("frames", p.frames)
-for b in p.bad:
-    print("nested", b)
-sys.exit(1 if p.bad else 0)
-PY
-
-# Self-test: a frame in a frame must be reported, a sibling pair must not.
-printf '<div class="fx"><a class="btn" href="#">x</a></div>\n' >"$work/nested.html"
-printf '<div class="fx"><p>x</p></div><a class="btn" href="#">y</a>\n' >"$work/flat.html"
-if ! python3 -I "$checker" "$work/nested.html" >/dev/null && python3 -I "$checker" "$work/flat.html" >/dev/null; then
-    pass "the nesting checker flags a frame in a frame and accepts siblings"
+# Self-test: the counter must see two frames in a fixture, and one in another.
+printf '<svg class="fr fr-l3"></svg><svg class="fr fr-l3"></svg>\n' >"$work/two.html"
+printf '<svg class="fr fr-l3"></svg><svg class="fr fr-l2"></svg>\n' >"$work/one.html"
+if [[ "$(l3_count "$work/two.html")" -eq 2 && "$(l3_count "$work/one.html")" -eq 1 ]]; then
+    pass "the L3 counter counts a fixture correctly"
 else
-    fail "the nesting checker is blind: it must fail on a nested fixture and pass on a flat one"
+    fail "the L3 counter is blind: it must count 2 and 1 on the fixtures"
 fi
 
 out="$work/public"
@@ -96,80 +52,127 @@ out="$work/public"
     exit 1
 }
 
-nested=0
-bare=0
+total=0
+over=0
 while IFS= read -r -d '' page; do
-    rel="${page#"$out"/}"
-    res="$(python3 -I "$checker" "$page" || true)"
-    if grep -q '^nested' <<<"$res"; then
-        nested=$((nested + 1))
-        fail "$rel: $(grep '^nested' <<<"$res" | head -3 | tr '\n' ';')"
-    fi
-    n="$(grep '^frames' <<<"$res" | cut -d' ' -f2)"
-    # The Cloudflare redirect stubs for old addresses carry no template.
-    if [[ "${n:-0}" -eq 0 ]] && grep -q '<main' "$page"; then
-        bare=$((bare + 1))
-        fail "$rel has a main element and no frame"
+    n="$(l3_count "$page")"
+    total=$((total + n))
+    if [[ "$n" -gt 1 ]]; then
+        over=$((over + 1))
+        fail "${page#"$out"/} has $n level 3 frames, the limit is 1"
     fi
 done < <(find "$out" -name '*.html' -print0)
-[[ "$nested" -eq 0 ]] && pass "no frame contains another frame on any page"
-[[ "$bare" -eq 0 ]] && pass "every page with a main element carries frames"
+[[ "$over" -eq 0 ]] && pass "no page has more than one L3 frame"
 
-for p in index.html support/index.html social/index.html products/index.html search/index.html about/index.html resume/index.html; do
-    n="$(python3 -I "$checker" "$out/$p" | grep '^frames' | cut -d' ' -f2)"
-    [[ "$n" -ge 5 ]] && pass "$p carries $n frames" || fail "$p carries $n frames, wanted at least 5"
+for p in index.html support/index.html; do
+    n="$(l3_count "$out/$p")"
+    [[ "$n" -eq 1 ]] && pass "$p has exactly one L3 frame" || fail "$p has $n L3 frames, wanted 1"
 done
+
+bad="$(for f in $(grep -rlE "class=.?fr fr-l[23]" "$out" --include="*.html"); do grep -qE "class=.?fr fr-l[23].? aria-hidden=" "$f" || echo "$f"; done)"
+[[ -z "$bad" ]] && pass "every frame is aria-hidden" || fail "a frame is not aria-hidden: $bad"
 
 styled="$(grep -rlE '(<style[ >]|[[:space:]]style=)' "$out" --include='*.html' || true)"
 [[ -z "$styled" ]] && pass "no style element or style attribute in any page" || fail "inline style in: $styled"
 
-inline="$(grep -rlE '<svg[^>]*class="?fr[ "]' "$out" --include='*.html' || true)"
-[[ -z "$inline" ]] && pass "no inline frame svg in any page" || fail "inline frame svg in: $inline"
-
 css="$root/assets/css/borders.css"
+# The only url() in borders.css are the two faithful button art files.
 if python3 -I - "$css" <<'PY'
 import re, sys
 css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+urls = set(re.findall(r"url\(\"?([^)\"]*)\"?\)", css))
+ok = {"../brand/frame-faithful-button.svg", "../brand/frame-faithful-button-amber.svg"}
+sys.exit(0 if urls == ok else 1)
+PY
+then pass "borders.css names only the two faithful button art files"; else fail "borders.css has an unexpected url()"; fi
+for f in frame-faithful-button.svg frame-faithful-button-amber.svg; do
+    if [[ -s "$root/static/brand/$f" ]] && ! grep -qiE '<script|<text|href=|<image' "$root/static/brand/$f"; then
+        pass "$f exists with no script, text or reference"
+    else
+        fail "$f is missing or holds a script, text or reference"
+    fi
+done
+if python3 -I "$root/scripts/gen-frame-art.py" --check; then pass "the button art matches scripts/gen-frame-art.py"; else fail "the button art is stale: run scripts/gen-frame-art.py"; fi
+
+# No cream or white fill: the primary button hover is amber, never --text.
+if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi
+
+# Button levels (params.frames): the default marks only the primary button; a level or a per-class
+# override adds bf-none or bf-faithful to the buttons it names; a bad level fails.
+default_bf="$(grep -rhoE 'bf-[a-z]+' "$out" --include='*.html' | sort -u | tr '\n' ' ')"
+[[ "$default_bf" == "bf-faithful " ]] && pass "the default is faithful on the primary button and minimal elsewhere" || fail "unexpected bf- classes at the default level: $default_bf"
+if grep -rqE 'btn-ghost[^"]* bf-' "$out" --include='*.html'; then fail "a ghost button is marked at the default level"; else pass "ghost buttons carry no bf- class at the default level"; fi
+build_with() { # build_with <name> <toml body>: prints the destination
+    printf '[params.frames]\n%s\n' "$2" >"$work/$1.toml"
+    (cd "$root" && hugo --minify --config hugo.toml,"$work/$1.toml" --destination "$work/pub-$1" >"$work/$1.log" 2>&1) && echo "$work/pub-$1"
+}
+if dest="$(build_with none '  level = "none"')" && grep -rqE 'class="[^"]*\bbf-none' "$dest" --include='*.html'; then
+    pass "level none puts bf-none on the buttons"
+else
+    fail "level none did not build or did not mark the buttons"
+fi
+faith_body='  level = "minimal"
+  [params.frames.classes]
+  btn-primary = "faithful"'
+if dest="$(build_with faith "$faith_body")" &&
+    grep -qE 'btn-primary bf-faithful' "$dest/index.html" && ! grep -qE 'btn-ghost[^"]* bf-' "$dest/index.html"; then
+    pass "a per-class override marks only the primary buttons"
+else
+    fail "the per-class override did not build or marked the wrong buttons"
+fi
+if build_with bad '  level = "glowing"' >/dev/null; then fail "an unknown frame level built"; else pass "an unknown frame level fails the build"; fi
+if python3 -I - "$css" <<'PY'
+import re, sys
+css = open(sys.argv[1]).read()
+css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+# remove the one allowed block, then no animation may remain
+allowed = re.search(r"@media \(prefers-reduced-motion: no-preference\) \{.*?\n\}\n", css, flags=re.S)
+rest = css.replace(allowed.group(0), "") if allowed else css
+sys.exit(1 if re.search(r"animation\s*:", rest) or not allowed else 0)
+PY
+then pass "animation only under prefers-reduced-motion: no-preference"; else fail "borders.css animates outside no-preference"; fi
+
+# Colors come from tokens.css (brand rule), and no frame rule sets amber text.
+if python3 -I - "$css" "$root/layouts/_partials/frame.html" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+part = re.sub(r"\{\{-?\s*/\*.*?\*/\s*-?\}\}", "", open(sys.argv[2]).read(), flags=re.S)
 bad = []
-urls = re.findall(r"url\(([^)]*)\)", css)
-allowed = {"../brand/frame-corners.svg", "../brand/frame-corners-dk.svg", "../brand/frame-plates-top.svg", "../brand/frame-plates-bottom.svg"}
-for u in urls:
-    if u.strip("\"' ") not in allowed:
-        bad.append("url(%s)" % u)
 if re.search(r"#[0-9A-Fa-f]{3,8}\b", css):
-    bad.append("hex color")
+    bad.append("hex color in borders.css")
+if re.search(r"(stop-color|fill)=\"#", part):
+    bad.append("hex color in frame.html")
 if re.search(r"(^|[;{\s])color\s*:\s*var\(--accent\)", css):
-    bad.append("amber text color")
-allowed_motion = re.search(r"@media \(prefers-reduced-motion: no-preference\) \{.*?\n\}\n", css, flags=re.S)
-rest = css.replace(allowed_motion.group(0), "") if allowed_motion else css
-if re.search(r"(animation|transition)\s*:", rest):
-    bad.append("motion outside prefers-reduced-motion: no-preference")
-for need in ("@media (forced-colors: active)", "@media print"):
-    if need not in css:
-        bad.append("missing " + need)
+    bad.append("amber text color in borders.css")
+if not re.search(r"\.tile\.bx \.support-tile-name\s*\{\s*color:\s*var\(--text\)", css):
+    bad.append("support L3 label override missing")
 m = re.search(r"@media print \{(.*)\}\s*$", css, flags=re.S)
-if not m or "border-image: none" not in m.group(1) or "background: none" not in m.group(1):
-    bad.append("print block does not drop the art")
-m = re.search(r"@media \(forced-colors: active\) \{(.*?)\n\}\n", css, flags=re.S)
-if not m or "border-image: none" not in m.group(1):
-    bad.append("forced-colors block does not drop the art")
+if not m or "background: none" not in m.group(1) or "border: 1px solid CanvasText" not in m.group(1) or "::before" not in m.group(1):
+    bad.append("print block does not reset frames")
 print("; ".join(bad))
 sys.exit(1 if bad else 0)
 PY
 then
-    pass "borders.css: only the three frame SVGs, no hex, no amber text, motion gated, forced-colors and print fall back"
+    pass "colors come from tokens, no amber frame text, print falls back to a border"
 else
-    fail "borders.css breaks the token, motion, forced-colors or print contract"
+    fail "borders.css or frame.html breaks the token, text-color or print contract"
 fi
 
-for f in frame-corners frame-corners-dk frame-plates-top frame-plates-bottom; do
-    svg="$root/static/brand/$f.svg"
-    if [[ -f "$svg" ]] && ! grep -qiE '<script|<text|href="(https?:|//|data:)|<image|<foreignObject' "$svg"; then
-        pass "$f.svg is plain vector art"
-    else
-        fail "$f.svg is missing or carries script, text, an image or an external reference"
-    fi
-done
+# Forced colors: the framed elements' background layers are reset, so the plain
+# CanvasText border is all that shows (not the L1 ticks or the L2/L3 gradients).
+if python3 -I - "$css" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+blocks = re.findall(r"@media \(forced-colors: active\) \{(.*?)\n\}\n", css, flags=re.S)
+ok = False
+for b in blocks:
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", b):
+        names = {x.strip() for x in sel.split(",")}
+        if {".bx.l2", ".bx.l3", ".l1", ".panel", ".tile", ".btn"} <= names and "background: none" in body and "CanvasText" in body:
+            ok = True
+sys.exit(0 if ok else 1)
+PY
+then pass "forced colors resets the framed elements' backgrounds"; else fail "the forced-colors block leaves the frame backgrounds in place"; fi
 
 if ((failures > 0)); then
     echo "test-borders: ${failures} failure(s)"

@@ -1,28 +1,27 @@
 {{ define "main" }}
 <div class="home-grid">
-<section class="hero">
-<div class="hero-card fx pl lg live">
+<section class="hero bx l3">
+{{- partial "frame.html" (dict "level" 3) }}
   <img class="hero-mascot" src="{{ "/brand/mascot-256.webp" | relURL }}" srcset="{{ "/brand/mascot-256.webp" | relURL }} 256w, {{ "/brand/mascot-512.webp" | relURL }} 512w" sizes="(min-width: 40rem) 12rem, 10rem" width="256" height="256" alt="Renegade Tux, the penguin mascot">
   <div class="hero-text">
     <h1>Cybersecurity, Linux, and whatever I'm building next.</h1>
     <p class="hero-sub">I'm a Senior Cybersecurity Engineer, Linux nerd, ham radio operator, and open-source builder. I write about what I'm working on, how it works, and what I learned figuring it out. That could be cybersecurity, self-hosting, radio, hardware, or whatever else has my attention.</p>
+    <p class="hero-actions">
+      <a class="btn btn-primary{{ partial "btn-frame.html" (dict "kind" "primary") }}" href="{{ "/posts/" | relURL }}">Read the latest</a>
+      <a class="btn btn-ghost{{ partial "btn-frame.html" (dict "kind" "ghost") }}" href="{{ "/about/#projects" | relURL }}">See my projects</a>
+      <a class="btn btn-ghost{{ partial "btn-frame.html" (dict "kind" "ghost") }}" href="{{ "/support/" | relURL }}">Support my work</a>
+    </p>
   </div>
-</div>
-  <p class="hero-actions">
-    <a class="btn btn-primary" href="{{ "/posts/" | relURL }}">Read the latest</a>
-    <a class="btn btn-ghost" href="{{ "/about/#projects" | relURL }}">See my projects</a>
-    <a class="btn btn-ghost" href="{{ "/support/" | relURL }}">Support my work</a>
-  </p>
 </section>
 {{ .Content }}
-<section class="home-panel home-latest" aria-labelledby="latest-posts">
-  <h2 id="latest-posts" class="fx pl sm">Latest posts</h2>
+<section class="panel home-panel home-latest" aria-labelledby="latest-posts">
+  <h2 id="latest-posts" class="hud-heading">Latest posts</h2>
   {{ with where site.RegularPages "Section" "posts" }}
-  <ul class="post-list cards">
+  <ul class="post-list">
     {{- /* At most two entries (issue 180): Home must stay one screen at 1920x930 however many posts are published; the rest are one click away under All posts. scripts/test-social-products.sh builds ten posts and counts. */}}
     {{- range first 2 . }}
     {{- $thumb := partial "featured-image.html" (dict "page" . "mode" "thumb") }}
-    <li class="fx card{{ if $thumb }} has-thumb{{ end }}">
+    <li{{ if $thumb }} class="has-thumb"{{ end }}>
       {{- with $thumb }}
       {{ . }}
       {{- end }}
@@ -39,14 +38,14 @@
 </section>
 {{- /* footer_only entries (LinkedIn, issue 195) are footer icons and are not chips. */}}
 {{- with where (site.Data.socials | default slice) "footer_only" "ne" true }}
-<section class="home-panel home-find" aria-labelledby="find-me">
-  <h2 id="find-me" class="fx pl sm">Find me online</h2>
+<section class="panel home-panel home-find" aria-labelledby="find-me">
+  <h2 id="find-me" class="hud-heading">Find me online</h2>
   {{- /* Balanced rows (issue 123): the chips are equal-width columns; the per-row count at desktop is half the live count rounded up (12 chips are 6 + 6), written as a class because the strict CSP forbids inline styles. Tablet is 4 across, phone 2; a short last row is centered. */}}
   {{- $live := slice }}
   {{- range . }}{{ if strings.HasPrefix .url "https://" }}{{ $live = $live | append . }}{{ end }}{{ end }}
   <ul class="home-social home-social--per-{{ math.Min 12 (math.Ceil (div (float (len $live)) 2)) | int }}">
     {{- range $s := . }}{{ if strings.HasPrefix $s.url "https://" }}
-    <li><a class="icon-{{ $s.icon }} fx sm chip" href="{{ $s.url }}">{{ $s.name }}</a></li>
+    <li><a class="icon-{{ $s.icon }}" href="{{ $s.url }}">{{ $s.name }}</a></li>
     {{- end }}{{ end }}
   </ul>
 </section>

@@ -3,16 +3,16 @@
 {{- $all := . }}
 {{- $top := 12 }}
 <details class="accordion search-tags-box">
-  <summary class="fx pl sm">Browse by tag ({{ len $all }})</summary>
+  <summary>Browse by tag ({{ len $all }})</summary>
   <nav aria-label="Browse by tag">
     <ul class="tag-list">
-      {{- range first $top $all }}<li><a class="fx sm chip" href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
+      {{- range first $top $all }}<li><a href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
     </ul>
     {{- with after $top $all }}
     <details class="tags-more">
-      <summary class="fx sm">Show {{ len . }} more</summary>
+      <summary>Show {{ len . }} more</summary>
       <ul class="tag-list">
-        {{- range sort . "Page.LinkTitle" }}<li><a class="fx sm chip" href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
+        {{- range sort . "Page.LinkTitle" }}<li><a href="{{ .Page.RelPermalink }}"><span>#{{ .Page.LinkTitle }}</span> <span class="meta tag-count">({{ .Count }})</span></a></li>{{ end }}
       </ul>
     </details>
     {{- end }}
