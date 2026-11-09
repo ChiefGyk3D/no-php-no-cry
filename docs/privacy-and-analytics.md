@@ -32,7 +32,9 @@ project, so the page says so and quotes Cloudflare's own description of what it
 collects (developers.cloudflare.com/web-analytics/about, data-origin-and-collection
 and dimensions, read 2026-11-07). The owner then decided to allow the beacon:
 `static/_headers` now carries `script-src 'self'
-https://static.cloudflareinsights.com/beacon.min.js` and `connect-src 'self'`,
+https://static.cloudflareinsights.com/beacon.min.js/` (with a trailing slash since issue 318: the injected
+tag loads `/beacon.min.js/v<token>`, which the entry without the slash did not match, so the beacon was blocked until then)
+and `connect-src 'self'`,
 the two entries Cloudflare's FAQ (web-analytics/faq, "What do I need to add to
 my Content Security Policy", last updated Jul 14, 2026) names for automatic
 injection. Pages adds the beacon at the edge on the next deployment after the
