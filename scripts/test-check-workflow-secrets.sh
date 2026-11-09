@@ -77,6 +77,17 @@ env:
   A: ${{ secrets.GITHUB_TOKEN }}
   B: ${{ secrets.OTHER }}
 YML
+expect fail "bare whole context" <<'YML'
+env:
+  T: ${{ secrets }}
+YML
+expect fail "bare whole context in a function" <<'YML'
+env:
+  T: ${{ format('{0}', secrets) }}
+YML
+expect pass "word secrets in plain text is fine" <<'YML'
+name: no secrets here
+YML
 expect fail "trailing comment does not hide it" <<'YML'
 env:
   T: ${{ secrets.OTHER }} # ok

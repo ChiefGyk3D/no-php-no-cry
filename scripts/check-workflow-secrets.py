@@ -20,6 +20,9 @@ ALLOWED = {"GITHUB_TOKEN"}
 NAMED = re.compile(r"""(?<![\w./-])secrets\s*(?:\.\s*([A-Za-z_][A-Za-z0-9_-]*)|\[\s*['"]([^'"]*)['"]\s*\])""")
 # The whole context passed on or serialized, or indexed dynamically.
 WHOLE = re.compile(r"""\(\s*secrets\s*[,)]|(?<![\w./-])secrets\s*\[\s*[^'"\s]""")
+# A bare `secrets` token inside ${{ ... }}, not followed by `.` or `[`.
+EXPR = re.compile(r"\$\{\{(.*?)\}\}")
+BARE = re.compile(r"(?<![\w./-])secrets(?![\w-])(?!\s*[.\[])")
 INHERIT = re.compile(r"^\s*secrets\s*:\s*inherit\b")
 
 
@@ -33,7 +36,7 @@ def scan(path):
             name = m.group(1) or m.group(2)
             if name not in ALLOWED:
                 problems.append((n, "secrets.%s is not allowed" % name))
-        if WHOLE.search(line):
+        if WHOLE.search(line) or any(BARE.search(m.group(1)) for m in EXPR.finditer(line)):
             problems.append((n, "the whole secrets context is not allowed"))
         if INHERIT.match(line):
             problems.append((n, "secrets: inherit is not allowed"))
