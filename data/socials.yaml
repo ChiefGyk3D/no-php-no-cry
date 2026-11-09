@@ -8,6 +8,10 @@
 #   handle  public handle or room name
 #   rel_me  true renders rel="me" (identity verification: Mastodon and GitHub
 #           read it). Leave false where the network has no such mechanism.
+#   fediverse_creator  optional, "@user@host": rendered as <meta name="fediverse:creator">
+#           on posts and journal entries only (Mastodon author attribution, link
+#           preview credit). The author also lists this site's domain under
+#           Preferences > Public profile > Verification > Author attribution.
 #   blurb   the short role line
 #   footer_only  true (issue 195) means the entry is a footer icon only: it is
 #           skipped by the /social/ tiles, the Home "Find me online" chips, the
@@ -40,12 +44,13 @@
   url: https://social.chiefgyk3d.com/@chiefgyk3d
   handle: "@chiefgyk3d@social.chiefgyk3d.com"
   rel_me: true
+  fediverse_creator: "@chiefgyk3d@social.chiefgyk3d.com"
   blurb: Short posts, from my own server
 - name: Bluesky
   icon: bluesky
   url: https://bsky.app/profile/chiefgyk3d.com
   handle: "@chiefgyk3d.com"
-  rel_me: false
+  rel_me: true
   blurb: Short posts
 - name: TikTok
   icon: tiktok
@@ -72,7 +77,7 @@
   icon: threads
   url: https://www.threads.com/@chiefgyk3d
   handle: "@chiefgyk3d"
-  rel_me: false
+  rel_me: true
   blurb: Short posts
 - name: Discord
   icon: discord
