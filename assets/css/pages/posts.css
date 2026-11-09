@@ -135,8 +135,10 @@
     align-self: start;
   }
 
+  /* The side column starts level with the top of the title plate, the first item
+   * after any archive notice (issue 310). */
   .post > .meta {
-    margin-top: var(--space-4);
+    margin-top: 0;
   }
 
   .post > .syndication {
@@ -185,8 +187,8 @@
   gap: var(--space-2);
 }
 
-/* Headline image (issue 217). The post hero sits above the title at its natural
- * proportions, capped in height so a tall image never pushes the title off the
+/* Headline image (issue 217). The post hero sits below the title plate at its natural
+ * proportions, capped in height so a tall image never pushes the body off the
  * first screen; contain, never crop, since some are logos. The card thumbnail
  * (list and home) is a small image left of the title, date and summary. */
 .post-hero {

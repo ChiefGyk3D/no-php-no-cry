@@ -39,7 +39,7 @@ It aims to be fast, light, capable, better designed, and more secure. Open sourc
 - **Images that cannot ship without alt text.** An image render hook makes
   responsive markup (`srcset`, dimensions, lazy loading) and fails the build on missing alt text, a remote image
   or an unsupported format. See [Images and alt text](docs/wiki/Images-and-alt-text.md).
-- **Headline images.** An optional featured image shows above the title, as a
+- **Headline images.** An optional featured image shows below the title plate, as a
   small card thumbnail and as the social card. See
   [Headline images](docs/wiki/Headline-images.md).
 - **Search that works without JavaScript.** `/search/` is a full A to Z index

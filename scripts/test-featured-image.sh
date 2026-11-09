@@ -3,7 +3,7 @@
 #
 # Builds throwaway sites (this repository's layouts, assets, static files and data,
 # plus pages written here) under the repository's gitignored tmp/, never /tmp, and
-# asserts: a post with image + imageAlt shows a hero above the title (not lazy, with
+# asserts: a post with image + imageAlt shows a hero below the title (not lazy, with
 # width, height and alt), a thumbnail on the list page, and its own social card; a
 # post with no image shows no hero, no thumbnail and the default card; and the build
 # FAILS for a missing imageAlt, a placeholder imageAlt, and an image that is not a
@@ -49,7 +49,7 @@ make_site() {
     cp "$png" "$dir/content/posts/with/extra.png"
 }
 
-# The asserter: hero before h1, attributes, thumb, card.
+# The asserter: h1 before hero (issue 310), attributes, thumb, card.
 asserter="$work/assert.py"
 cat >"$asserter" <<'PY'
 import re, sys
@@ -65,8 +65,8 @@ def post(path, want_image):
         if not hero:
             return ["no hero figure"]
         a = hero.group(1)
-        if hero.start() > h1:
-            bad.append("hero is not above the title")
+        if hero.start() < h1:
+            bad.append("hero is not below the title")
         if "loading=" in a:
             bad.append("hero must not set loading (it is above the fold)")
         for need in ('fetchpriority="high"', 'alt="A real description of the picture"', "width=", "height="):
