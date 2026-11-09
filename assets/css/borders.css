@@ -1,270 +1,329 @@
-/* Border system (docs/borders.md): ONE frame, the Twitch panel button, in three
- * amounts. Dark only, like the rest of the site. Tokens come from tokens.css;
- * the frame-specific values below are site-local. No url() here: the frame is
- * inline SVG from layouts/_partials/frame.html, so scripts/check-budget.py has
- * nothing to count.
+/* Border system (docs/borders.md): the owner's button frame, everywhere.
  *
- * L1 whisper: hairline and four corner ticks (pure CSS, no markup). Default.
- * L2 classy:  .bx.l2 + the frame partial: split corner brackets, two amber rules.
- * L3 faithful: .bx.l3 + the partial: the full button frame. ONE per page.
+ * One frame, drawn by CSS from three small SVG files of the site's own
+ * (static/brand/frame-*.svg, img-src 'self'): stepped graphite corner brackets
+ * with the amber dash, a split at mid edge with an amber stub, two angled end-cap
+ * plates top and bottom with a window and a dash, long thin amber rules, a cream
+ * plate, and a faint amber glow under the bottom rule. Nothing is inline: no
+ * markup is added per frame (a frame is the class "fx"), no style attribute, no
+ * script.
  *
- * Real text is always --text or --on-accent. Amber is a line color here, never a
- * label on a light ground; amber lettering is not used. */
+ * It scales by HEIGHT: --s is the scale of the 318 px tall original (the Donate
+ * button is 1332 by 318), so the bracket bars are about 6 percent of the frame
+ * height at every size, never a hairline; min-height is 318 * --s so the two
+ * brackets never collide. The corners are a border-image (nine-slice) whose
+ * slices are fixed in original pixels, so they scale with --s and not with the
+ * width.
+ *
+ * Two kinds (the brackets are the same black-to-graphite art in both, so the
+ * original gradient is never changed; on the dark kind the amber rules and the
+ * bloom outline them):
+ *   .fx      the faithful frame: cream plate, ink lettering (--frame-ink), for
+ *            things you act on and for headings (buttons, tiles, cards, chips,
+ *            inputs, banners, the hero).
+ *   .fx.dk   the lighter related frame for containers that hold running text,
+ *            code or tables: the same brackets, the dark surface, normal text colors.
+ * Plates (.pl together with .lg or .xl) are added only at the large scales and
+ * where the element is at least 1228 * --s wide (the plates and the brackets
+ * then do not touch); a smaller frame has the brackets, rules, stubs, cream
+ * plate and glow without them.
+ *
+ * Lettering on the cream plate is always --frame-ink (contrast checked against
+ * --frame-cream and --accent by scripts/check-contrast.py); amber is a line
+ * color only. Colors come from the tokens; the bracket gradient is in the SVG art.
+ * A frame never contains another frame (scripts/test-borders.sh asserts it). */
 :root {
-  --frame-fill: rgb(251 176 59 / 0.16);
-  --frame-glow: rgb(251 176 59 / 0.45);
+  --frame-glow: rgb(251 176 59 / 0.6);
+  --frame-glow-soft: rgb(251 176 59 / 0.4);
 }
 
-/* L1: one hairline plus four 10x2 amber ticks, drawn as background layers of the
- * element itself, so there is no pseudo-element and nothing to clip. --fill is
- * the panel fill, --tick the tick color; a hover or a modifier changes the
- * variables, not the rules. */
-.panel,
-.tile,
-.btn,
-.l1 {
-  --fill: var(--surface);
-  --tick: var(--accent);
-  --a: linear-gradient(var(--tick), var(--tick));
-  background-color: var(--fill);
-  background-image: var(--a), var(--a), var(--a), var(--a), var(--a), var(--a), var(--a), var(--a);
+:is(.fx, .btn, .tile, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote, .search-input) {
+  --s: 0.18;
+  --fill: var(--frame-cream);
+  --ink: var(--frame-ink);
+  --cn: url("../brand/frame-corners.svg");
+  --pt: none;
+  --pb: none;
+  --a: linear-gradient(var(--accent), var(--accent));
+  --rh: max(3px, calc(var(--s) * 6px));
+  --oh: 0px;
+  box-sizing: border-box;
+  min-height: calc(var(--s) * 318px);
+  padding: var(--py, calc(var(--s) * 100px)) var(--px, calc(var(--s) * 140px));
+  color: var(--ink);
+  background-color: transparent;
+  background-image:
+    var(--a), var(--a), var(--a), var(--a),
+    var(--a), var(--a),
+    var(--pt), var(--pb),
+    linear-gradient(var(--fill), var(--fill));
   background-repeat: no-repeat;
   background-origin: border-box;
   background-size:
-    10px 2px, 2px 10px, 10px 2px, 2px 10px,
-    10px 2px, 2px 10px, 10px 2px, 2px 10px;
+    max(0px, calc(100% - var(--s) * 360px)) var(--rh),
+    max(0px, calc(100% - var(--s) * 360px)) var(--rh),
+    42.6% var(--oh),
+    42.6% var(--oh),
+    calc(var(--s) * 5px) calc(var(--s) * 16px),
+    calc(var(--s) * 5px) calc(var(--s) * 16px),
+    calc(var(--s) * 1332px) calc(var(--s) * 30px),
+    calc(var(--s) * 1332px) calc(var(--s) * 40px),
+    calc(100% - var(--s) * 28px) calc(100% - var(--s) * 34px);
   background-position:
-    left top, left top, right top, right top,
-    left bottom, left bottom, right bottom, right bottom;
-  border: var(--rule-width) solid var(--frame-edge);
+    center calc(var(--s) * 17px), center calc(100% - var(--s) * 17px),
+    center top, center bottom,
+    left calc(var(--s) * 14px) top 50%, right calc(var(--s) * 14px) top 50%,
+    center top, center bottom,
+    center;
+  border: 1px solid transparent;
+  border-image: var(--cn) 150 202 / calc(var(--s) * 150px) calc(var(--s) * 202px) stretch;
   border-radius: 0;
 }
 
-/* Cards and buttons carry the translucent amber fill; containers and tiles stay neutral. */
-.btn-ghost {
-  --fill: var(--frame-fill);
+/* The bloom hugs the rules: a blurred, twice as thick copy of the rule
+ * layers (the four rule gradients, same centers) in a pseudo-element behind the content,
+ * so the light sits on the rules and falls off about 20 px at the hero and title
+ * scale, 5 px on a card or banner (the camera border blooms the same way, bright
+ * on the rule, soft away from it). Nothing is drawn at the element-wide edge.
+ * Small controls carry none (cost); hover and focus give a control a plain
+ * glow. The pseudo-element is not clipped (no ancestor sets overflow). Summaries
+ * and anything that already uses ::before are not pl. */
+.fx.pl:not(summary) {
+  position: relative;
+  isolation: isolate;
 }
 
-.btn-ghost {
-  color: var(--text);
+.fx.pl:not(summary)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--a), var(--a), var(--a), var(--a);
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-size:
+    max(0px, calc(100% - var(--s) * 360px)) calc(var(--rh) * 2),
+    max(0px, calc(100% - var(--s) * 360px)) calc(var(--rh) * 2),
+    42.6% calc(var(--oh) * 2),
+    42.6% calc(var(--oh) * 2);
+  background-position:
+    center top calc(var(--s) * 17px - var(--rh) / 2), center bottom calc(var(--s) * 17px - var(--rh) / 2),
+    center top calc(0px - var(--oh) / 2), center bottom calc(0px - var(--oh) / 2);
+  filter: blur(4px);
+}
+
+.fx.lg.pl:not(summary)::before,
+.fx.xl.pl:not(summary)::before {
+  filter: blur(9px);
+}
+
+/* Plates: only at the large scales (hero, titles, resume head), where they are big
+ * enough to read and wide enough (1228 times --s) to clear the brackets. At the
+ * small scales they were a few mushy pixels, so smaller frames keep the
+ * brackets, long rules, stubs, plate and glow. */
+.fx.lg.pl,
+.fx.xl.pl {
+  --oh: var(--rh);
+  --pt: url("../brand/frame-plates-top.svg");
+  --pb: url("../brand/frame-plates-bottom.svg");
+}
+
+/* Scale steps. Default 0.18 (a 57 px tall control); small for chips and rows
+ * that must stay compact, large for page titles and the hero. */
+.fx.sm,
+.btn.sm {
+  --s: 0.14;
+}
+
+.fx.lg {
+  --s: 0.22;
+}
+
+.fx.xl {
+  --s: 0.28;
+}
+
+/* Narrow screens: the big scales step down so the plates (1228 times --s wide)
+ * never touch the brackets. */
+@media (max-width: 30rem) {
+  .fx.lg,
+  .fx.xl {
+    --s: 0.18;
+  }
+}
+
+/* The lighter kind: containers with running text, code and tables. */
+:is(.fx.dk, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote) {
+  --fill: var(--surface);
+  --ink: var(--text);
+  --pt: none;
+  --pb: none;
+}
+
+/* Cream plate: every descendant letters in ink (a muted or amber link color
+ * would fail contrast on cream), links keep their underline, icons follow. */
+:is(.fx, .btn, .tile):not(.dk) * {
+  color: inherit;
+}
+
+:is(.fx, .btn, .tile):not(.dk) .social-icon {
+  background-color: var(--ink);
+}
+
+:is(.fx, .btn, .tile):not(.dk) summary::before,
+summary.fx::before {
+  border-color: var(--ink);
+}
+
+/* Controls: hover fills the plate with amber, the lettering stays ink. */
+a.fx:hover,
+.btn:hover,
+.tile:hover,
+.fx.card:hover,
+.fx.card:focus-within,
+summary.fx:hover {
+  --fill: var(--accent);
+  box-shadow: 0 0 6px var(--frame-glow), 0 0 14px var(--frame-glow-soft);
 }
 
 .btn-primary {
   --fill: var(--accent);
-  --tick: var(--on-accent);
-  border-color: var(--accent);
-}
-
-.btn:hover,
-.tile:hover,
-.l1.card:hover {
-  --fill: var(--accent);
-  --tick: var(--on-accent);
-  color: var(--on-accent);
-  box-shadow: none;
 }
 
 .btn-primary:hover {
-  --fill: var(--text);
+  --fill: var(--frame-cream);
 }
 
-.tile:hover .support-tile-name,
-.tile:hover .support-tile-blurb,
-.tile:hover .meta {
-  color: var(--on-accent);
+.btn,
+.tile {
+  text-decoration: none;
 }
 
-.panel {
-  /* a container, not a control: no hover, and it keeps its own text colors */
-  color: var(--text);
+.dk a.fx:hover,
+.dk.tile:hover {
+  --fill: var(--surface);
 }
 
-/* Focus: the outline is drawn on the element itself, outside every frame. */
-.btn:focus-visible,
-.tile:focus-visible {
+/* Focus: an outline on the element itself, outside the frame; nothing clips it. */
+:is(.fx, .btn, .tile, .search-input, .post-body pre):focus-visible {
   outline: var(--rule-accent-width) solid var(--focus);
-  outline-offset: 4px;
+  outline-offset: 5px;
 }
 
-/* L2 and L3: the frame is an absolutely positioned inline SVG behind the content
- * (z-index -1 inside the element's own stacking context); the rules and the
- * glow are background layers of two pseudo-elements. --s is the scale of the
- * traced 1332 px wide original (0.24 is the Twitch panel size). */
-.bx {
-  --s: 0.24;
-  --a: linear-gradient(var(--accent), var(--accent));
-  --f: linear-gradient(var(--frame-fill), var(--frame-fill));
-  position: relative;
-  isolation: isolate;
-  color: var(--text);
-}
-
-.bx.s18 {
-  --s: 0.18;
-}
-
-.bx::before,
-.bx::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.fr {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.fr .fb {
-  fill: var(--frame-edge);
-}
-
-.fr .fd {
-  fill: var(--accent);
-}
-
-.fr .g0 {
-  stop-color: var(--frame-dark);
-}
-
-.fr .g1 {
-  stop-color: var(--frame-edge);
-}
-
-.fr .g2 {
-  stop-color: var(--frame-mid);
-}
-
-/* The geometry is drawn at the original size; the scale and the mirroring are CSS. */
-.fr .c-tl,
-.fr .p-t,
-.fr .st-l,
-.fr .st-r {
-  transform: scale(var(--s));
-}
-
-.fr .c-tr,
-.fr .p-t.r {
-  transform: scale(calc(var(--s) * -1), var(--s));
-}
-
-.fr .c-bl,
-.fr .p-b {
-  transform: scale(var(--s), calc(var(--s) * -1));
-}
-
-.fr .c-br,
-.fr .p-b.r {
-  transform: scale(calc(var(--s) * -1), calc(var(--s) * -1));
-}
-
-.bx.l2,
-.bx.l3 {
-  background: var(--f) center / calc(100% - var(--s) * 28px) calc(100% - var(--s) * 34px) no-repeat;
-  padding: calc(var(--s) * 90px) calc(var(--s) * 130px);
-}
-
-.bx.l2::before,
-.bx.l3::before {
-  inset: 0;
-  background:
-    var(--a) left 50% top calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
-    var(--a) left 50% bottom calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat;
-}
-
-/* L3 adds the short outer rules and the faint glow under the bottom rule only. */
-.bx.l3::before {
-  background:
-    var(--a) left 50% top calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
-    var(--a) left 50% bottom calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
-    var(--a) left 50% top 0 / 42.6% calc(var(--s) * 6px) no-repeat,
-    var(--a) left 50% bottom 0 / 42.6% calc(var(--s) * 6px) no-repeat;
-}
-
-.bx.l3::after {
-  left: 28.7%;
-  width: 42.6%;
-  bottom: 0;
-  height: calc(var(--s) * 6px);
-  box-shadow: 0 calc(var(--s) * 16px) calc(var(--s) * 16px) var(--frame-glow);
-}
-
-/* Text inside a frame is --text, or --on-accent on an amber fill: the support
- * tile label would otherwise keep its amber page color on the amber-tinted fill. */
-.tile.bx .support-tile-name {
-  color: var(--text);
-}
-
-.tile.bx:hover .support-tile-name {
-  color: var(--on-accent);
-}
-
-/* An element that is itself a control: hover swaps the fill, the focus ring sits outside. */
-a.bx:hover {
-  --f: linear-gradient(var(--accent), var(--accent));
-  color: var(--on-accent);
-}
-
-.bx:focus-visible {
-  outline: var(--rule-accent-width) solid var(--focus);
-  outline-offset: 6px;
-}
-
-/* Only the L3 glow may move, only when the visitor allows it, and only if the
- * element opts in with .live. Nothing animates by default. */
+/* The static look above is the exact ON state: every rule lit, the full bloom. The
+ * opt-in layer below reproduces the owner's camera border (measured from the
+ * WebM, 359 frames): the long top bar switches off and on with 0.3 s ramps on a
+ * 4 s cycle and settles slowly while lit, the bottom rule stays steady (the dash blink and the side-rule flicker of the
+ * video are not reproduced). Only under prefers-reduced-motion: no-preference,
+ * and only on an element with the class "live": the home hero and the page title
+ * banner, so at most one frame per page moves (many moving glows at once are too
+ * much motion and cost paint time). It animates opacity of two pseudo-elements
+ * that are absolutely positioned over the static rules, so nothing shifts and
+ * the layout, LCP and CLS are untouched. */
 @media (prefers-reduced-motion: no-preference) {
-  .bx.l3.live::after {
-    animation: frame-breathe 4s ease-in-out infinite;
+  .fx.live {
+    position: relative;
   }
 
-  @keyframes frame-breathe {
-    50% {
-      opacity: 0.45;
+  .fx.live::after {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 28.7%;
+    width: 42.6%;
+    height: var(--rh);
+    background: var(--accent);
+    box-shadow: 0 0 14px 2px var(--frame-glow);
+    pointer-events: none;
+    animation: frame-bar 4s ease-in-out infinite;
+  }
+
+  @keyframes frame-bar {
+    0% {
+      opacity: 0.57;
+    }
+
+    7.5% {
+      opacity: 1;
+    }
+
+    45%,
+    92.5% {
+      opacity: 0.92;
+    }
+
+    100% {
+      opacity: 0.57;
     }
   }
 }
 
+/* Forced colors and print: no art, one plain border. */
 @media (forced-colors: active) {
-  .bx.l2,
-  .bx.l3,
-  .l1,
-  .panel,
-  .tile,
-  .btn {
-    border: 1px solid CanvasText;
-    forced-color-adjust: auto;
+  .fx.pl::before,
+  .fx.live::after {
+    display: none;
   }
 
-  .fr,
-  .bx::before,
-  .bx::after {
-    display: none;
+  :is(.fx, .btn, .tile, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote, .search-input) {
+    border: 1px solid CanvasText;
+    border-image: none;
+    background-image: none;
+    box-shadow: none;
+    forced-color-adjust: auto;
   }
 }
 
-/* Print: no frame art. Every framed element falls back to a plain border. */
 @media print {
-  .fr,
-  .bx::before,
-  .bx::after {
+  .fx.pl::before,
+  .fx.live::after {
     display: none;
   }
 
-  .bx.l2,
-  .bx.l3,
-  .l1,
-  .panel,
-  .tile,
-  .btn {
+  :is(.fx, .btn, .tile, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote, .search-input) {
     background: none;
     border: 1px solid CanvasText;
+    border-image: none;
+    box-shadow: none;
     color: CanvasText;
+    min-height: 0;
     padding: var(--space-2) var(--space);
   }
+}
+
+/* Banners: headings in the display face, ink on the cream plate. */
+h1.fx,
+h2.fx,
+summary.fx h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+h2.fx,
+summary.fx h2 {
+  font-size: var(--text-lg);
+}
+
+h2.fx {
+  margin: var(--space-5) 0 var(--space);
+}
+
+/* Images in a frame sit inside its padding, so the brackets never cover them. */
+img.fx {
+  --py: calc(var(--s) * 60px);
+  --px: calc(var(--s) * 60px);
+  display: block;
+  height: auto;
+}
+
+.fx > :first-child {
+  margin-top: 0;
+}
+
+.fx > :last-child {
+  margin-bottom: 0;
 }

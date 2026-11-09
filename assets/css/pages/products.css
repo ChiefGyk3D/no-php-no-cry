@@ -2,8 +2,6 @@
  * (one plain note, lightly ruled). Tokens only. */
 .disclosure {
   margin: var(--space-6) 0 0;
-  padding-top: var(--space);
-  border-top: var(--rule-width) solid var(--rule);
 }
 
 .disclosure p {
@@ -21,8 +19,6 @@
 /* The h2 lives inside the summary: keep it one line of heading size beside the count. */
 .product-group > details > summary {
   justify-content: space-between;
-  min-height: var(--tap);
-  padding-block: var(--space-2);
 }
 
 .product-group > details > summary h2 {
@@ -35,6 +31,11 @@
 .product-count {
   flex: none;
   white-space: nowrap;
+}
+
+.disclosure.fx {
+  --py: var(--space-5);
+  --px: var(--space-6);
 }
 
 /* Rows, not cards in a grid: text on the left, the button on the right. */
@@ -94,7 +95,6 @@
 
 .product .btn {
   flex: none;
-  padding: 0 var(--space);
 }
 
 @media (max-width: 40rem) {

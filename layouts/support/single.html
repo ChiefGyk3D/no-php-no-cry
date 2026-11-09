@@ -19,15 +19,14 @@
 */ -}}
 {{ define "main" }}
 <article class="page-support">
-  <h1>{{ .Title }}</h1>
+  <div class="title-block"><h1 class="fx pl xl live">{{ .Title }}</h1></div>
   <p class="lede">If you want to support the streams, videos, and projects, these are the ways to do it. It is optional.</p>
   <ul class="tile-grid support-tiles">
     {{- /* The first link is the page's one L3 frame (docs/borders.md): the support button. */}}
     {{- $first := true }}
     {{- range site.Data.support }}{{ if and .button (strings.HasPrefix .url "https://") }}
-    <li class="tile-item{{ if $first }} tile-hero{{ end }}">
-      <a class="tile support-tile{{ if $first }} bx l3 s18{{ end }}" href="{{ .url }}" target="_blank" rel="noopener">
-        {{- if $first }}{{ partial "frame.html" (dict "level" 3) }}{{ end }}
+    <li class="tile-item">
+      <a class="tile fx pl support-tile" href="{{ .url }}" target="_blank" rel="noopener">
         <span class="support-tile-name">{{ .button }}</span>
         {{- with .blurb }}
         <span class="support-tile-blurb">{{ . }}</span>
@@ -40,11 +39,12 @@
   </ul>
 
   <section class="support-coins" aria-labelledby="coins-h">
-    <h2 id="coins-h" class="hud-heading">Cryptocurrency tips</h2>
+    <h2 id="coins-h" class="fx pl sm">Cryptocurrency tips</h2>
     <p>Scan a code with your wallet app, or copy the address. Before you send, verify the full address and make sure you are using the correct network.</p>
     <ul class="coin-list">
       {{- range site.Data.support }}{{ if eq .kind "cryptocurrency" }}
-      <li class="coin panel">
+      <li class="coin">
+        <div class="coin-body fx dk">
         <div class="coin-head">
           <img class="coin-mark" src="{{ printf "support/coin-%s.svg" .coin | relURL }}" width="40" height="40" alt="">
           <h3 class="coin-name">{{ .name }}</h3>
@@ -53,6 +53,7 @@
         {{- /* One centered column in every card: QR, the address, then Copy below it. */}}
         <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
         <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+        </div>
         <div class="coin-actions">
           <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
           <span class="copy-status" role="status"></span>

@@ -9,11 +9,11 @@
 */ -}}
 {{ define "main" }}
 <article class="page-search">
-  <h1>{{ .Title }}</h1>
+  <div class="title-block"><h1 class="fx pl xl live">{{ .Title }}</h1></div>
   {{ .Content }}
   <div id="search" class="search-box" role="search">
     <label class="search-label" for="q">Search posts and journal</label>
-    <input class="search-input" id="q" type="search" autocomplete="off" spellcheck="false" disabled aria-describedby="search-note search-status">
+    <input class="search-input fx" id="q" type="search" autocomplete="off" spellcheck="false" disabled aria-describedby="search-note search-status">
     <noscript><p id="search-note" class="meta search-note">Filtering needs JavaScript. The full list is below.</p></noscript>
     <p id="search-status" class="search-status" role="status" aria-live="polite"></p>
   </div>
@@ -21,10 +21,10 @@
   {{- range $name := slice "posts" "journal" }}
   {{- with site.GetPage (printf "/%s" $name) }}{{ with .RegularPages.ByLinkTitle }}
   <section class="search-group" aria-labelledby="search-{{ $name }}">
-    <h2 id="search-{{ $name }}" class="hud-heading">{{ $name | title }}</h2>
+    <h2 id="search-{{ $name }}" class="fx pl sm">{{ $name | title }}</h2>
     <ul class="post-list search-list">
       {{- range . }}
-      <li>
+      <li class="fx card">
         <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
         <span class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time></span>
         {{- with partial "description.html" . }}{{ if ne . site.Params.description }}

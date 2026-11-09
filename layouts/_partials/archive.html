@@ -1,8 +1,7 @@
 {{- /* Archive body shared by /posts/, /journal/ and the tag and category term pages. Takes a dict: "page" (the list page) and an optional "note" (plain text under the title). Entries are grouped by year, newest first. */ -}}
 {{- $p := .page -}}
-<div class="title-block bx l2">
-  {{- partial "frame.html" (dict "level" 2) }}
-  <h1>{{ $p.Title }}</h1>
+<div class="title-block">
+  <h1 class="fx pl xl live">{{ $p.Title }}</h1>
 </div>
 {{ $p.Content }}
 {{- with .note }}
@@ -15,11 +14,11 @@
 </p>
 {{- range $p.Pages.GroupByDate "2006" "desc" }}
 <section class="archive-group">
-  <h2 class="archive-year hud-heading">{{ .Key }}</h2>
+  <h2 class="archive-year fx pl sm">{{ .Key }}</h2>
   <ul class="post-list cards">
     {{- range .Pages }}
     {{- $thumb := partial "featured-image.html" (dict "page" . "mode" "thumb") }}
-    <li class="l1 card{{ if $thumb }} has-thumb{{ end }}">
+    <li class="fx card{{ if $thumb }} has-thumb{{ end }}">
       {{- with $thumb }}
       {{ . }}
       {{- end }}
