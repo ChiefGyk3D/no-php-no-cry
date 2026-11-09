@@ -86,6 +86,7 @@ step test-archetype "" 'scripts/test-archetype.sh'
 step test-analytics "" 'scripts/test-analytics.sh'
 step gen-tokens "" 'python3 -I scripts/gen-tokens.py --check'
 step check-contrast "" 'python3 -I scripts/check-contrast.py assets/css/tokens.css'
+step test-check-contrast "" 'scripts/test-check-contrast.sh'
 step check-brand-assets "" 'scripts/check-brand-assets.sh'
 step test-brand "" 'scripts/test-brand.sh'
 step test-check-reach-around-drift "" 'scripts/test-check-reach-around-drift.sh'
@@ -110,7 +111,7 @@ content_steps=(check-hugo-version build-production check-output-production check
     build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume
     test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-wiki test-check-wiki test-publish-wiki
     check-content test-check-content test-author)
-layout_steps=("${content_steps[@]}" gen-tokens check-contrast check-brand-assets test-brand check-budget
+layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
 docs_steps=(check-wording test-check-wording check-license test-check-license check-wiki test-check-wiki test-publish-wiki check-content test-check-content test-author)
 

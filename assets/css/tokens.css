@@ -52,9 +52,7 @@
   --border: #3A3530;
   --gray: #808080;
 
-  /* Border system (docs/borders.md), from the owner's frame art: the cream plate, the dark ink for lettering on it, and a graphite edge for hairlines. Ink on cream and on amber is text and is contrast-checked; the bracket gradient itself lives in the SVG art under static/brand/. */
-  --frame-cream: #FEF1DC;
-  --frame-ink: #2D200B;
+  /* Border system (docs/borders.md), from the owner's frame art: a graphite edge for hairlines. Boxes keep their own fills (surface, amber tint, amber); the bracket gradient lives in the SVG art under static/brand/. */
   --frame-edge: #606060;
 
   /* Redesign surfaces: carbon and plate (dark only). --accent-deep: decoration, never text. */

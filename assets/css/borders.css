@@ -3,8 +3,8 @@
  * One frame, drawn by CSS from three small SVG files of the site's own
  * (static/brand/frame-*.svg, img-src 'self'): stepped graphite corner brackets
  * with the amber dash, a split at mid edge with an amber stub, two angled end-cap
- * plates top and bottom with a window and a dash, long thin amber rules, a cream
- * plate, and a faint amber glow under the bottom rule. Nothing is inline: no
+ * plates top and bottom with a window and a dash, long thin amber rules, a plain
+ * fill, and a faint amber glow under the bottom rule. Nothing is inline: no
  * markup is added per frame (a frame is the class "fx"), no style attribute, no
  * script.
  *
@@ -18,29 +18,29 @@
  * Two kinds (the brackets are the same black-to-graphite art in both, so the
  * original gradient is never changed; on the dark kind the amber rules and the
  * bloom outline them):
- *   .fx      the faithful frame: cream plate, ink lettering (--frame-ink), for
- *            things you act on and for headings (buttons, tiles, cards, chips,
- *            inputs, banners, the hero).
+ *   .fx      the faithful frame on the box's own fill (charcoal surface, the
+ *            translucent amber tint on the hero, titles and ghost buttons, amber
+ *            on primary buttons and on hover); the frame is border only.
  *   .fx.dk   the lighter related frame for containers that hold running text,
  *            code or tables: the same brackets, the dark surface, normal text colors.
  * Plates (.pl together with .lg or .xl) are added only at the large scales and
  * where the element is at least 1228 * --s wide (the plates and the brackets
- * then do not touch); a smaller frame has the brackets, rules, stubs, cream
- * plate and glow without them.
+ * then do not touch); a smaller frame has the brackets, rules, stubs, fill
+ * and glow without them.
  *
- * Lettering on the cream plate is always --frame-ink (contrast checked against
- * --frame-cream and --accent by scripts/check-contrast.py); amber is a line
- * color only. Colors come from the tokens; the bracket gradient is in the SVG art.
+ * Lettering is --text (or --on-accent on amber), contrast checked by
+ * scripts/check-contrast.py; amber is a line color only. Colors come from the tokens; the bracket gradient is in the SVG art.
  * A frame never contains another frame (scripts/test-borders.sh asserts it). */
 :root {
+  --frame-fill: rgb(251 176 59 / 0.16);
   --frame-glow: rgb(251 176 59 / 0.6);
   --frame-glow-soft: rgb(251 176 59 / 0.4);
 }
 
 :is(.fx, .btn, .tile, .post-body pre, .post-body table, .post-body blockquote, .comments-archive blockquote, .search-input) {
   --s: 0.18;
-  --fill: var(--frame-cream);
-  --ink: var(--frame-ink);
+  --fill: var(--surface);
+  --ink: var(--text);
   --cn: url("../brand/frame-corners.svg");
   --pt: none;
   --pb: none;
@@ -161,8 +161,25 @@
   --pb: none;
 }
 
-/* Cream plate: every descendant letters in ink (a muted or amber link color
- * would fail contrast on cream), links keep their underline, icons follow. */
+/* Fills are the ones the boxes had before the frame work (#275): hero, page
+ * titles, the resume head and ghost buttons carry the translucent amber tint,
+ * section headings are open (no fill), inputs sit on the ground, and everything
+ * else is the charcoal surface. The frame is border only. */
+:is(.hero-card, h1.fx, .resume-head, .btn-ghost) {
+  --fill: var(--frame-fill);
+}
+
+h2.fx,
+summary.fx {
+  --fill: transparent;
+}
+
+.fx.search-input {
+  --fill: var(--bg);
+}
+
+/* Every descendant letters in the frame ink (--text, or --on-accent on an amber
+ * fill), links keep their underline, icons follow. */
 :is(.fx, .btn, .tile):not(.dk) * {
   color: inherit;
 }
@@ -176,7 +193,8 @@ summary.fx::before {
   border-color: var(--ink);
 }
 
-/* Controls: hover fills the plate with amber, the lettering stays ink. */
+/* Controls: hover fills with amber, ink goes dark, and the brackets switch to
+ * the original near-black art so they stay visible on amber. */
 a.fx:hover,
 .btn:hover,
 .tile:hover,
@@ -184,15 +202,19 @@ a.fx:hover,
 .fx.card:focus-within,
 summary.fx:hover {
   --fill: var(--accent);
+  --ink: var(--on-accent);
+  --cn: url("../brand/frame-corners-dk.svg");
   box-shadow: 0 0 6px var(--frame-glow), 0 0 14px var(--frame-glow-soft);
 }
 
-.btn-primary {
+.btn.btn-primary {
   --fill: var(--accent);
+  --ink: var(--on-accent);
+  --cn: url("../brand/frame-corners-dk.svg");
 }
 
-.btn-primary:hover {
-  --fill: var(--frame-cream);
+.btn.btn-primary:hover {
+  --fill: var(--accent);
 }
 
 .btn,
@@ -203,6 +225,8 @@ summary.fx:hover {
 .dk a.fx:hover,
 .dk.tile:hover {
   --fill: var(--surface);
+  --ink: var(--text);
+  --cn: url("../brand/frame-corners.svg");
 }
 
 /* Focus: an outline on the element itself, outside the frame; nothing clips it. */
@@ -292,7 +316,7 @@ summary.fx:hover {
   }
 }
 
-/* Banners: headings in the display face, ink on the cream plate. */
+/* Banners: headings in the display face, lettering in the frame ink. */
 h1.fx,
 h2.fx,
 summary.fx h2 {
