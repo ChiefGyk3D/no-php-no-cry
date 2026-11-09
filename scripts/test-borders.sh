@@ -100,7 +100,7 @@ if python3 -I "$root/scripts/gen-frame-art.py" --check; then pass "the button ar
 # and bottom centre). The fill is therefore a path INSIDE each art file, and the box's own
 # background-color is transparent. Check both halves, and self-test the check.
 fill_check() { # fill_check <svg>: the fill path stays strictly inside the viewBox
-python3 -I - "$1" <<'PY'
+    python3 -I - "$1" <<'PY'
 import re, sys
 svg = open(sys.argv[1]).read()
 W, H = (float(v) for v in re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups())
