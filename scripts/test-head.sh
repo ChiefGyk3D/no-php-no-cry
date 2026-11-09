@@ -45,6 +45,7 @@ EXPECTED = {
     ("property", "og:image:width"), ("property", "og:image:height"),
     ("property", "og:locale"), ("name", "twitter:title"), ("name", "twitter:description"),
     ("property", "og:image:alt"), ("name", "twitter:image:alt"),
+    ("name", "fediverse:creator"),
 }
 
 
@@ -321,6 +322,7 @@ fi
 seo_py="$work/assert_seo.py"
 cat >"$seo_py" <<'PY'
 import json
+import os
 import sys
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
@@ -413,6 +415,14 @@ def cmd_page(path, permalink, og_image, kind, sameas_file):
         bad.append("twitter:title is not og:title")
     if meta(p, "name", "twitter:description") != meta(p, "property", "og:description"):
         bad.append("twitter:description is not og:description")
+    # Issue 329: the Mastodon author attribution tag, from data/socials.yaml fediverse_creator,
+    # on posts and journal entries only (kind "article"); never on any other page type. X is
+    # not one of the owner's networks, so no twitter:site or twitter:creator anywhere.
+    want_creator = [os.environ["FEDI_WANT"]] if kind == "article" and os.environ.get("FEDI_WANT") else []
+    if meta(p, "name", "fediverse:creator") != want_creator:
+        bad.append("fediverse:creator is %r, want %r on a %s page" % (meta(p, "name", "fediverse:creator"), want_creator, kind))
+    if meta(p, "name", "twitter:site") or meta(p, "name", "twitter:creator"):
+        bad.append("twitter:site or twitter:creator is present")
     robots = meta(p, "name", "robots")
     if kind == "404":
         if len(robots) != 1 or "noindex" not in robots[0]:
@@ -640,6 +650,8 @@ printf -- '---\ntitle: "Entry J"\ndate: 2024-07-06T07:08:09-04:00\ndescription: 
 pub="$site2/public"
 sameas="$work/sameas.txt"
 # footer_only entries (LinkedIn, issue 195) are in the footer icon row only: not in sameAs.
+FEDI_WANT="$(sed -n 's/^  fediverse_creator: "\(.*\)"$/\1/p' "$root/data/socials.yaml" | head -n 1)"
+export FEDI_WANT
 awk '/^- name:/ { if (url != "" && fo != "true") print url; url = ""; fo = "" } $1 == "url:" && $2 ~ /^https:\/\// { url = $2 } $1 == "footer_only:" { fo = $2 } END { if (url != "" && fo != "true") print url }' "$root/data/socials.yaml" >"$sameas"
 [[ -s "$sameas" ]] || {
     echo "FAIL: data/socials.yaml has no https url"

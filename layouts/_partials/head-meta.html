@@ -19,6 +19,10 @@
 {{- $name := site.Params.author.name | default "ChiefGyk3D" -}}
 {{- $home := "/" | absURL -}}
 {{- $personID := printf "%s#person" $home -}}
+{{- /* Issue 329: validate every fediverse_creator in data/socials.yaml on every page render (head-meta runs for the home page of any site), not only where an article is rendered, so a malformed value fails the build even when no article is published. The tag itself is emitted below, on articles only. */ -}}
+{{- range site.Data.socials | default slice }}{{ with .fediverse_creator }}
+{{- if not (findRE `^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$` .) }}{{ errorf "data/socials.yaml fediverse_creator %q is not @user@host" . }}{{ end }}
+{{- end }}{{ end }}
 <meta name="description" content="{{ $desc }}">
 <meta property="og:site_name" content="{{ site.Title }}">
 {{- $loc := split (site.Language.Locale | default "en-us") "-" }}
@@ -51,6 +55,10 @@
 {{- if .Lastmod.After .Date }}
 <meta property="article:modified_time" content="{{ .Lastmod.Format "2006-01-02T15:04:05Z07:00" }}">
 {{- end }}
+{{- /* Issue 329: Mastodon author attribution. Format from docs.joinmastodon.org/user/profile/ (read 2026-11-09): <meta name="fediverse:creator" content="@username@social.example.com">. One tag per data/socials.yaml entry with fediverse_creator; a value that is not @user@host fails the build. No twitter:site: X is not one of the owner's networks. */ -}}
+{{- range where (site.Data.socials | default slice) "footer_only" "ne" true }}{{ with .fediverse_creator }}
+<meta name="fediverse:creator" content="{{ . }}">
+{{- end }}{{ end }}
 {{- end }}
 <link rel="icon" href="{{ "brand/penguin-glyph.svg" | relURL }}" type="image/svg+xml">
 <link rel="icon" href="{{ "brand/favicon-32.png" | relURL }}" type="image/png" sizes="32x32">
