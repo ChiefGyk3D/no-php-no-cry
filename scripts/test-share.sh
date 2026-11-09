@@ -217,8 +217,6 @@ def main():
     elif kind == "css":
         css = pathlib.Path(sys.argv[3]).read_text()
         for e in entries(root):
-            if e["id"] == "lemmy":  # no clearly licensed glyph yet: a text-only button (brand/approved-assets.txt)
-                continue
             m = re.search(r"\.icon-%s\s*\{[^}]*url\(\"?([^\")]+)\"?\)" % re.escape(e["id"]), css)
             if not m:
                 bad.append("no icon rule for icon-%s" % e["id"])

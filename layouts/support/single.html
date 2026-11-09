@@ -5,6 +5,8 @@
   cryptocurrency): coin mark, QR code with the coin mark in its middle, the
   address as selectable text, and a Copy button below it (issue 194).
 
+  The Copy button is the solid amber primary button with the minimal tick frame; it is not routed through btn-frame.html, so it stays minimal whatever params.frames says.
+
   Copy buttons are progressive enhancement. The address is always visible text
   (selectable with one click). The button carries the hidden attribute and
   /copy.js, one of the two pinned scripts (docs/pinned-script.md), reveals it; with no
@@ -22,12 +24,10 @@
   <h1>{{ .Title }}</h1>
   <p class="lede">If you want to support the streams, videos, and projects, these are the ways to do it. It is optional.</p>
   <ul class="tile-grid support-tiles">
-    {{- /* The first link is the page's one L3 frame (docs/borders.md): the support button. */}}
-    {{- $first := true }}
+    {{- /* All four tiles are the dark amber tint with the faithful button art at tile size (issue 285); none is an L3 frame, so the page carries no L3 (docs/borders.md). */}}
     {{- range site.Data.support }}{{ if and .button (strings.HasPrefix .url "https://") }}
-    <li class="tile-item{{ if $first }} tile-hero{{ end }}">
-      <a class="tile support-tile{{ if $first }} bx l3 s18{{ end }}" href="{{ .url }}" target="_blank" rel="noopener">
-        {{- if $first }}{{ partial "frame.html" (dict "level" 3) }}{{ end }}
+    <li class="tile-item">
+      <a class="tile support-tile" href="{{ .url }}" target="_blank" rel="noopener">
         <span class="support-tile-name">{{ .button }}</span>
         {{- with .blurb }}
         <span class="support-tile-blurb">{{ . }}</span>
@@ -35,7 +35,6 @@
         <span class="visually-hidden"> (opens in a new tab)</span>
       </a>
     </li>
-    {{- $first = false }}
     {{- end }}{{ end }}
   </ul>
 
@@ -52,9 +51,15 @@
         </div>
         {{- /* One centered column in every card: QR, the address, then Copy below it. */}}
         <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
-        <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+        {{- /* Collapsed by default (issue 285): the first 8 and last 8 characters, a one-line note, and a native details toggle. The full address stays in the page as one <code> (screen readers read it, the Copy button always copies it); CSS only hides it visually while the toggle is closed, and shows it always where :has() is missing or in print. */}}
+        {{- $addr := .address }}
+        <div class="addr-box">
+          <details class="addr-more"><summary><span class="addr-short" aria-hidden="true">{{ slicestr $addr 0 8 }}&hellip;{{ slicestr $addr (sub (len $addr) 8) }}</span><span class="addr-show">Show full<span class="visually-hidden"> address</span></span><span class="addr-hide">Hide full<span class="visually-hidden"> address</span></span></summary></details>
+          <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+          <p class="addr-note">Verify the full address before sending.</p>
+        </div>
         <div class="coin-actions">
-          <button type="button" class="btn btn-ghost copy-btn{{ partial "btn-frame.html" (dict "kind" "ghost" "ctx" "copy-btn") }}" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
+          <button type="button" class="btn btn-primary copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
           <span class="copy-status" role="status"></span>
         </div>
       </li>

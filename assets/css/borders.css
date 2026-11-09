@@ -17,6 +17,7 @@
  * label on a light ground; amber lettering is not used. */
 :root {
   --frame-fill: rgb(251 176 59 / 0.16);
+  --frame-fill-hover: rgb(251 176 59 / 0.26);
   --frame-glow: rgb(251 176 59 / 0.45);
 }
 
@@ -304,13 +305,16 @@ a.bx:hover {
 }
 
 /* faithful: the owner's button art (static/brand/frame-faithful-button*.svg, one
- * file for the size, applied at 100% by 100%) over the box's fill: the translucent
- * amber tint on a ghost button, solid amber on a primary one and on hover. The
- * "-amber" art carries its rules in ink so it shows on amber. */
+ * file for the size, applied at 100% by 100%). The fill is drawn INSIDE the art,
+ * clipped to the brackets' inner outline: the translucent amber tint on a ghost
+ * button, solid amber on a primary one and on hover. The box's own background
+ * color stays transparent, because a plain rectangle would show past the chamfered
+ * frame (issue 285; scripts/test-borders.sh checks both). The "-amber" art carries
+ * its inner rules in ink so they show on the amber fill. */
 .btn.bf-faithful {
   --art: url("../brand/frame-faithful-button.svg");
   border-color: transparent;
-  background-color: var(--fill);
+  background-color: transparent;
   background-image: var(--art);
   background-size: 100% 100%;
   background-position: 0 0;

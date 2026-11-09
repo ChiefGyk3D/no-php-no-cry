@@ -3,7 +3,7 @@
 #
 # Builds the site into the repository's gitignored tmp/ (never /tmp) and asserts:
 #   - no page carries more than ONE level 3 frame (svg class "fr fr-l3"), and the
-#     two pages that own one (Home, Support) carry exactly one;
+#     page that owns one (Home) carries exactly one, and Support carries none;
 #   - every frame (svg class "fr") is aria-hidden and the build holds no style
 #     attribute or style element (the CSP forbids both);
 #   - assets/css/borders.css has no url(), no hex color (colors come from the
@@ -64,10 +64,11 @@ while IFS= read -r -d '' page; do
 done < <(find "$out" -name '*.html' -print0)
 [[ "$over" -eq 0 ]] && pass "no page has more than one L3 frame"
 
-for p in index.html support/index.html; do
-    n="$(l3_count "$out/$p")"
-    [[ "$n" -eq 1 ]] && pass "$p has exactly one L3 frame" || fail "$p has $n L3 frames, wanted 1"
-done
+n="$(l3_count "$out/index.html")"
+[[ "$n" -eq 1 ]] && pass "index.html has exactly one L3 frame" || fail "index.html has $n L3 frames, wanted 1"
+# The Support tiles use the faithful button art (issue 285), not the L3 machinery: no L3 there.
+n="$(l3_count "$out/support/index.html")"
+[[ "$n" -eq 0 ]] && pass "support/index.html has no L3 frame (its tiles use the button art)" || fail "support/index.html has $n L3 frames, wanted 0"
 
 bad="$(for f in $(grep -rlE "class=.?fr fr-l[23]" "$out" --include="*.html"); do grep -qE "class=.?fr fr-l[23].? aria-hidden=" "$f" || echo "$f"; done)"
 [[ -z "$bad" ]] && pass "every frame is aria-hidden" || fail "a frame is not aria-hidden: $bad"
@@ -76,7 +77,7 @@ styled="$(grep -rlE '(<style[ >]|[[:space:]]style=)' "$out" --include='*.html' |
 [[ -z "$styled" ]] && pass "no style element or style attribute in any page" || fail "inline style in: $styled"
 
 css="$root/assets/css/borders.css"
-# The only url() in borders.css are the two faithful button art files.
+# The only url() in borders.css are the two faithful button art files (the tile art is named in pages/support.css).
 if python3 -I - "$css" <<'PY'
 import re, sys
 css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
@@ -93,6 +94,67 @@ for f in frame-faithful-button.svg frame-faithful-button-amber.svg; do
     fi
 done
 if python3 -I "$root/scripts/gen-frame-art.py" --check; then pass "the button art matches scripts/gen-frame-art.py"; else fail "the button art is stale: run scripts/gen-frame-art.py"; fi
+
+# The fill never extends past the art (issue 285). The faithful frame is chamfered, so a
+# plain background-color rectangle shows past it (amber at the mid-edge stubs and the top
+# and bottom centre). The fill is therefore a path INSIDE each art file, and the box's own
+# background-color is transparent. Check both halves, and self-test the check.
+fill_check() { # fill_check <svg>: the fill path stays strictly inside the viewBox
+    python3 -I - "$1" <<'PY'
+import re, sys
+svg = open(sys.argv[1]).read()
+W, H = (float(v) for v in re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg).groups())
+paths = re.findall(r'<path d="([^"]+)" fill="#[0-9A-Fa-f]{6}" fill-opacity="[^"]+"/>', svg)
+if len(paths) != 1:
+    sys.exit("expected exactly one fill path, found %d" % len(paths))
+pts = [(float(x), float(y)) for x, y in re.findall(r"(-?[\d.]+) (-?[\d.]+)", paths[0])]
+if len(pts) < 8:
+    sys.exit("the fill is not a chamfered outline")
+mx, my = 0.01 * W, 0.01 * H   # at least 1% clear of every edge
+if min(x for x, _ in pts) < mx or max(x for x, _ in pts) > W - mx or min(y for _, y in pts) < my or max(y for _, y in pts) > H - my:
+    sys.exit("the fill reaches the edge of the art box")
+PY
+}
+printf '<svg viewBox="0 0 100 40"><path d="M0 0 L100 0 L100 40 L0 40 L0 20 L5 20 L5 10 L8 8Z" fill="#FBB03B" fill-opacity="1"/></svg>' >"$work/bleed.svg"
+printf '<svg viewBox="0 0 100 40"><path d="M5 5 L95 5 L95 35 L5 35 L5 20 L8 20 L8 10 L10 8Z" fill="#FBB03B" fill-opacity="1"/></svg>' >"$work/inset.svg"
+if ! fill_check "$work/bleed.svg" >/dev/null 2>&1 && fill_check "$work/inset.svg" >/dev/null 2>&1; then
+    pass "the fill-bleed check fails a full-box fill and accepts an inset one"
+else
+    fail "the fill-bleed check is blind: it must reject a fill that reaches the art edge"
+fi
+for f in frame-faithful-button.svg frame-faithful-button-amber.svg frame-faithful-tile.svg frame-faithful-tile-hover.svg; do
+    if msg="$(fill_check "$root/static/brand/$f" 2>&1)"; then pass "$f: the fill is clipped inside the art box"; else fail "$f: $msg"; fi
+done
+if python3 -I - "$css" "$root/assets/css/pages/support.css" <<'PY'
+import re, sys
+def block(css, sel):
+    # every rule of exactly this selector (a media block repeats it without the background)
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    return [m.group(1) for m in re.finditer(r"(?<![\w-])" + re.escape(sel) + r"\s*\{([^}]*)\}", css)]
+bf = open(sys.argv[1]).read(); sup = open(sys.argv[2]).read()
+ok = lambda bodies: any("background-color: transparent" in b for b in bodies) and not any(re.search(r"background(-color)?:\s*(?!transparent|none)[^;]*(var\(--fill\)|var\(--accent\)|#)", b) for b in bodies)
+sys.exit(0 if ok(block(bf, ".btn.bf-faithful")) and ok(block(sup, ".support-tile")) else 1)
+PY
+then pass "faithful buttons and support tiles keep a transparent box background (no fill rectangle past the art)"; else fail "a faithful box sets a background color: it would show past the chamfered frame"; fi
+
+# The tile art carries the site tints (--frame-fill and --frame-fill-hover in borders.css) as its fill
+# opacity, so the dark amber tile and its brighter hover cannot drift from the tokens the contrast
+# check measures (scripts/check-contrast.py), and neither is solid amber (issue 285).
+if python3 -I - "$css" "$root/static/brand" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+def alpha(name):
+    m = re.search(r"--" + name + r":\s*rgb\(\s*251 176 59\s*/\s*([0-9.]+)\s*\)", css)
+    return float(m.group(1)) if m else None
+def art(f):
+    m = re.search(r'fill="#FBB03B" fill-opacity="([0-9.]+)"/>', open(sys.argv[2] + "/" + f).read())
+    return float(m.group(1)) if m else None
+ok = alpha("frame-fill") is not None and alpha("frame-fill-hover") is not None
+ok = ok and art("frame-faithful-tile.svg") == alpha("frame-fill") and art("frame-faithful-tile-hover.svg") == alpha("frame-fill-hover")
+ok = ok and alpha("frame-fill") < alpha("frame-fill-hover") < 0.5
+sys.exit(0 if ok else 1)
+PY
+then pass "the support tile art uses the frame-fill tints (resting and one step brighter), never solid amber"; else fail "the support tile art does not match --frame-fill and --frame-fill-hover, or is solid amber"; fi
 
 # No cream or white fill: the primary button hover is amber, never --text.
 if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi

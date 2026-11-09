@@ -51,11 +51,6 @@ for how a pinned script is held to its pages.
   third-party and can change without notice. `scripts/test-share.sh` checks the
   shape of each URL, not the remote site.
 
-## Known gap
-
-Lemmy has no icon (no clearly licensed glyph was available), so its button is
-text only.
-
 ## Changing the list
 
 Edit `data/share.yaml` (a template change needs its source and date), then run

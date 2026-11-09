@@ -18,6 +18,7 @@ def path(polys, fx, fy):
     return "M"+"M".join(" ".join(f"{f(fx(x))},{f(fy(y))}" for x,y in p).replace(" ","L",0) for p in polys) if False else \
       " ".join("M"+" L".join(f"{f(fx(x))} {f(fy(y))}" for x,y in p)+"Z" for p in polys)
 RULE=[AMBER]
+FILL=[None]   # (color, opacity) of the fill drawn inside the art, or None
 def rrect(x,y,w,h,fill=None):
     fill=fill or RULE[0]
     return f'<rect x="{f(x)}" y="{f(y)}" width="{f(w)}" height="{f(h)}" rx="{f(min(h,w)/2)}" fill="{fill}"/>'
@@ -34,8 +35,9 @@ def reduced_bracket(a,b,t):
 def clean_bracket(a,b,t):
     return [[(0,0),(a,0),(a,t),(t,t),(t,b),(0,b)]]
 
-def svg(W,H,level,rule=AMBER,hs=None):
+def svg(W,H,level,rule=AMBER,hs=None,fill=None):
     RULE[0]=rule
+    FILL[0]=fill
     if level=="none":
         return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" preserveAspectRatio="none"/>'
     h0=hs or H   # the height the frame is scaled to; a tall box keeps the bracket size of a shorter one
@@ -81,8 +83,9 @@ def svg(W,H,level,rule=AMBER,hs=None):
     if small: lx1,lx2=22,W-22
     sx1=max(.287*W,px(379)+4); sx2=W-sx1
     o.append(rrect(lx1,yl_top,lx2-lx1,rt)); o.append(rrect(lx1,yl_bot,lx2-lx1,rt))
-    o.append(rrect(sx1,ys_top,sx2-sx1,rt)); 
-    if not small: o.append(rrect(sx1,ys_bot,sx2-sx1,rt))
+    # the short rules sit on the outer edge, outside the fill: always amber, so they show on the dark ground
+    o.append(rrect(sx1,ys_top,sx2-sx1,rt,AMBER)); 
+    if not small: o.append(rrect(sx1,ys_bot,sx2-sx1,rt,AMBER))
     # brackets
     if small:
         t=4.2; a=max(26,min(H*1.0,W*.24)); b=H/2-1.2
@@ -91,6 +94,11 @@ def svg(W,H,level,rule=AMBER,hs=None):
         br=[TL_OUT,TL_HOLE]
     bfx=(lambda x:x) if small else (lambda x:x*s)
     bfy=(lambda y:y) if small else (lambda y:y*s)
+    if FILL[0]:
+        # The fill is part of the art, clipped to the brackets' inner outline, so a box's own
+        # background never shows past the chamfered frame (issue 285). It is drawn first, under
+        # every rule and plate, and stays strictly inside the viewBox on all four sides.
+        o.insert(1, fill_poly(br[0],bfx,bfy,W,H,FILL[0]))
     for mx in (0,1):
         for my in (0,1):
             o.append(shape(br,bfx,bfy,mx,my,W,H,ew))
@@ -107,7 +115,7 @@ def svg(W,H,level,rule=AMBER,hs=None):
     if not small:
         for mx in (0,1):
             x=13*s; w=max(1.5,5*s); xx=W-x-w if mx else x
-            o.append(f'<rect x="{f(xx)}" y="{f(151*s)}" width="{f(w)}" height="{f(H-302*s)}" fill="{RULE[0]}"/>')
+            o.append(f'<rect x="{f(xx)}" y="{f(151*s)}" width="{f(w)}" height="{f(H-302*s)}" fill="{AMBER}"/>')   # the mid-edge stub is outside the fill: amber
         for mx in (0,1):
             for my in (0,1):
                 x=212*s; w=42*s; xx=W-x-w if mx else x
@@ -140,14 +148,34 @@ def svg(W,H,level,rule=AMBER,hs=None):
             o.append(rrect(min(dx0,dx1),Yb(290),abs(dx1-dx0),max(1.6,6*spy),AMBER))
     o.append('</svg>'); return "".join(o)
 
-SIZES=[("button",140,44,None)]
+def fill_poly(out,fx,fy,W,H,fill):
+    """Inner vertices of the four corner brackets, clockwise: the outline the fill follows."""
+    pts=[(fx(x),fy(y)) for x,y in out]
+    y0=min(y for _,y in pts)
+    chains=[]
+    for mx,my,rev in ((0,0,1),(1,0,0),(1,1,1),(0,1,0)):
+        c=[(W-x if mx else x, H-y if my else y) for x,y in pts if x>0 and y>y0]
+        chains.append(c[::-1] if rev else c)
+    allp=[p for c in chains for p in c]
+    d="M"+" L".join(f"{f(x)} {f(y)}" for x,y in allp)+"Z"
+    color,op=fill
+    return f'<path d="{d}" fill="{color}" fill-opacity="{op}"/>'
+
+# The fills are the site tints (--frame-fill .16 and --frame-fill-hover .26 in borders.css; scripts/test-borders.sh keeps them equal).
+FILLS={"button":(AMBER,".16"),"tile":(AMBER,".16")}
+TILE_HOVER=(AMBER,".26")
+SIZES=[("button",140,44,None),("tile",330,79,None)]
 
 
 def files():
     for name,W,H,hs in SIZES:
         for lv in ("faithful",):
-            yield f"frame-{lv}-{name}.svg", svg(W,H,lv,hs=hs)
-            yield f"frame-{lv}-{name}-amber.svg", svg(W,H,lv,"#2D200B",hs)
+            # the fill is inside the art: a tint (a ghost button, a support tile and its brighter hover) or solid amber (the primary button)
+            yield f"frame-{lv}-{name}.svg", svg(W,H,lv,hs=hs,fill=FILLS[name])
+            if name=="tile":
+                yield f"frame-{lv}-{name}-hover.svg", svg(W,H,lv,hs=hs,fill=TILE_HOVER)   # one tint step brighter
+            else:
+                yield f"frame-{lv}-{name}-amber.svg", svg(W,H,lv,"#2D200B",hs,fill=(AMBER,"1"))
 
 
 if __name__=="__main__":
