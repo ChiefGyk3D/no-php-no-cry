@@ -161,16 +161,21 @@ def fill_poly(out,fx,fy,W,H,fill):
     color,op=fill
     return f'<path d="{d}" fill="{color}" fill-opacity="{op}"/>'
 
-FILLS={"button":(AMBER,".16"),"tile":("#202020","1")}   # tile: the --surface the hover state shows
+# The fills are the site tints (--frame-fill .16 and --frame-fill-hover .26 in borders.css; scripts/test-borders.sh keeps them equal).
+FILLS={"button":(AMBER,".16"),"tile":(AMBER,".16")}
+TILE_HOVER=(AMBER,".26")
 SIZES=[("button",140,44,None),("tile",330,79,None)]
 
 
 def files():
     for name,W,H,hs in SIZES:
         for lv in ("faithful",):
-            # the fill is inside the art: a tint (the ghost button, the hover of a tile is the surface) or solid amber
+            # the fill is inside the art: a tint (a ghost button, a support tile and its brighter hover) or solid amber (the primary button)
             yield f"frame-{lv}-{name}.svg", svg(W,H,lv,hs=hs,fill=FILLS[name])
-            yield f"frame-{lv}-{name}-amber.svg", svg(W,H,lv,"#2D200B",hs,fill=(AMBER,"1"))
+            if name=="tile":
+                yield f"frame-{lv}-{name}-hover.svg", svg(W,H,lv,hs=hs,fill=TILE_HOVER)   # one tint step brighter
+            else:
+                yield f"frame-{lv}-{name}-amber.svg", svg(W,H,lv,"#2D200B",hs,fill=(AMBER,"1"))
 
 
 if __name__=="__main__":

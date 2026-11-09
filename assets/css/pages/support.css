@@ -45,26 +45,29 @@
   }
 }
 
-/* The four tiles (issue 285): solid amber with the faithful button art at tile
- * size (static/brand/frame-faithful-tile*.svg, applied at 100% by 100%, the same
- * mechanism as .btn.bf-faithful in borders.css), ink text. Hover and keyboard
- * focus swap to the dark surface (in the art) with the amber-rule art and light text; the
- * focus ring (borders.css) sits outside. No glow, no animation, dark only. */
+/* The four tiles (issue 285): the dark amber tint with the faithful button art at
+ * tile size (static/brand/frame-faithful-tile*.svg, applied at 100% by 100%, the
+ * same mechanism as .btn.bf-faithful in borders.css). The tint is drawn inside the
+ * art, clipped to the frame, so nothing shows past the chamfers (the box background
+ * stays transparent). Gold title, muted sub text. Hover and keyboard focus brighten
+ * the tint one step (art "-hover", --frame-fill-hover) and the text goes to --text;
+ * the focus ring (borders.css) sits outside. No glow, no animation, dark only. */
 .support-tile {
-  --art: url("../brand/frame-faithful-tile-amber.svg");
+  --art: url("../brand/frame-faithful-tile.svg");
   min-height: 5.25rem;
   border-color: transparent;
-  /* The fill is inside the art (clipped to the frame); a plain background color
-   * would show past the chamfered corners. */
   background-color: transparent;
   background-image: var(--art);
   background-size: 100% 100%;
   background-position: 0 0;
 }
 
-a.support-tile .support-tile-name,
+a.support-tile .support-tile-name {
+  color: var(--accent);
+}
+
 a.support-tile .support-tile-blurb {
-  color: var(--on-accent);
+  color: var(--muted);
 }
 
 a.support-tile,
@@ -75,7 +78,7 @@ a.support-tile:focus-visible {
 
 a.support-tile:hover,
 a.support-tile:focus-visible {
-  --art: url("../brand/frame-faithful-tile.svg");
+  --art: url("../brand/frame-faithful-tile-hover.svg");
 }
 
 a.support-tile:hover .support-tile-name,
@@ -85,7 +88,7 @@ a.support-tile:focus-visible .support-tile-name {
 
 a.support-tile:hover .support-tile-blurb,
 a.support-tile:focus-visible .support-tile-blurb {
-  color: var(--muted);
+  color: var(--text);
 }
 
 @media (forced-colors: active) {
@@ -346,20 +349,14 @@ a.support-tile:focus-visible .support-tile-blurb {
   }
 }
 
-/* The Copy button is a plain amber outline: no art, no ticks (the card already
- * wears the frame). Hover fills amber with ink; the focus ring sits outside. */
-.coin .copy-btn {
-  border-color: var(--accent);
-  background-color: transparent;
-  background-image: none;
-  box-shadow: inset 0 0 0 calc(var(--rule-accent-width) - var(--rule-width)) var(--accent);
-  border-radius: var(--radius);
-  color: var(--text);
-}
-
+/* The Copy button is the solid amber primary button with the minimal tick frame
+ * (not the faithful art, and not routed through btn-frame.html). Hover inverts it
+ * to the dark ground with amber text and ticks (no cream or white); the focus ring
+ * sits outside. */
 .coin .copy-btn:hover {
-  background-color: var(--accent);
-  color: var(--on-accent);
+  --fill: var(--bg);
+  --tick: var(--accent);
+  color: var(--accent);
 }
 
 .coin .copy-btn:focus-visible {

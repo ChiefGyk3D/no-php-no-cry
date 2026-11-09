@@ -17,6 +17,7 @@
  * label on a light ground; amber lettering is not used. */
 :root {
   --frame-fill: rgb(251 176 59 / 0.16);
+  --frame-fill-hover: rgb(251 176 59 / 0.26);
   --frame-glow: rgb(251 176 59 / 0.45);
 }
 

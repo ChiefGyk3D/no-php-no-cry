@@ -5,7 +5,7 @@
   cryptocurrency): coin mark, QR code with the coin mark in its middle, the
   address as selectable text, and a Copy button below it (issue 194).
 
-  The Copy button is a plain amber-outline button (no frame art or ticks) so it does not read as a frame inside the card's own frame; it is not routed through btn-frame.html.
+  The Copy button is the solid amber primary button with the minimal tick frame; it is not routed through btn-frame.html, so it stays minimal whatever params.frames says.
 
   Copy buttons are progressive enhancement. The address is always visible text
   (selectable with one click). The button carries the hidden attribute and
@@ -24,7 +24,7 @@
   <h1>{{ .Title }}</h1>
   <p class="lede">If you want to support the streams, videos, and projects, these are the ways to do it. It is optional.</p>
   <ul class="tile-grid support-tiles">
-    {{- /* All four tiles are solid amber with the faithful button art at tile size (issue 285); none is an L3 frame, so the page carries no L3 (docs/borders.md). */}}
+    {{- /* All four tiles are the dark amber tint with the faithful button art at tile size (issue 285); none is an L3 frame, so the page carries no L3 (docs/borders.md). */}}
     {{- range site.Data.support }}{{ if and .button (strings.HasPrefix .url "https://") }}
     <li class="tile-item">
       <a class="tile support-tile" href="{{ .url }}" target="_blank" rel="noopener">
@@ -59,7 +59,7 @@
           <p class="addr-note">Verify the full address before sending.</p>
         </div>
         <div class="coin-actions">
-          <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
+          <button type="button" class="btn btn-primary copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
           <span class="copy-status" role="status"></span>
         </div>
       </li>

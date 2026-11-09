@@ -39,5 +39,17 @@ mk dim
 sed -i 's|--text: #F0F0F0|--text: #404040|' "$work/dim/tokens.css"
 if run "$work/dim"; then bad "dim text passed"; else ok "dim text fails"; fi
 
+mk hover
+sed -i 's|--frame-fill-hover: rgb([0-9 ]*/ *[0-9.]*)|--frame-fill-hover: rgb(251 176 59 / 0.9)|' "$work/hover/borders.css"
+if run "$work/hover"; then bad "a 0.9 alpha hover tint passed"; else ok "a hover tint that breaks 4.5:1 fails"; fi
+
+mk nohover
+sed -i 's|--frame-fill-hover:.*|--frame-fill-hover: red;|' "$work/nohover/borders.css"
+if run "$work/nohover"; then bad "a missing hover tint token passed"; else ok "a missing --frame-fill-hover fails"; fi
+
+mk gold
+sed -i 's|--accent: #FBB03B|--accent: #6B4A12|' "$work/gold/tokens.css"
+if run "$work/gold"; then bad "a dim gold title passed on the tint"; else ok "gold titles that break 4.5:1 on the tint fail"; fi
+
 ((fail == 0)) && echo "test-check-contrast: all passed"
 exit "$fail"

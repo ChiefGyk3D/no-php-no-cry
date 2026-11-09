@@ -122,7 +122,7 @@ if ! fill_check "$work/bleed.svg" >/dev/null 2>&1 && fill_check "$work/inset.svg
 else
     fail "the fill-bleed check is blind: it must reject a fill that reaches the art edge"
 fi
-for f in frame-faithful-button.svg frame-faithful-button-amber.svg frame-faithful-tile.svg frame-faithful-tile-amber.svg; do
+for f in frame-faithful-button.svg frame-faithful-button-amber.svg frame-faithful-tile.svg frame-faithful-tile-hover.svg; do
     if msg="$(fill_check "$root/static/brand/$f" 2>&1)"; then pass "$f: the fill is clipped inside the art box"; else fail "$f: $msg"; fi
 done
 if python3 -I - "$css" "$root/assets/css/pages/support.css" <<'PY'
@@ -136,6 +136,25 @@ ok = lambda bodies: any("background-color: transparent" in b for b in bodies) an
 sys.exit(0 if ok(block(bf, ".btn.bf-faithful")) and ok(block(sup, ".support-tile")) else 1)
 PY
 then pass "faithful buttons and support tiles keep a transparent box background (no fill rectangle past the art)"; else fail "a faithful box sets a background color: it would show past the chamfered frame"; fi
+
+# The tile art carries the site tints (--frame-fill and --frame-fill-hover in borders.css) as its fill
+# opacity, so the dark amber tile and its brighter hover cannot drift from the tokens the contrast
+# check measures (scripts/check-contrast.py), and neither is solid amber (issue 285).
+if python3 -I - "$css" "$root/static/brand" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+def alpha(name):
+    m = re.search(r"--" + name + r":\s*rgb\(\s*251 176 59\s*/\s*([0-9.]+)\s*\)", css)
+    return float(m.group(1)) if m else None
+def art(f):
+    m = re.search(r'fill="#FBB03B" fill-opacity="([0-9.]+)"/>', open(sys.argv[2] + "/" + f).read())
+    return float(m.group(1)) if m else None
+ok = alpha("frame-fill") is not None and alpha("frame-fill-hover") is not None
+ok = ok and art("frame-faithful-tile.svg") == alpha("frame-fill") and art("frame-faithful-tile-hover.svg") == alpha("frame-fill-hover")
+ok = ok and alpha("frame-fill") < alpha("frame-fill-hover") < 0.5
+sys.exit(0 if ok else 1)
+PY
+then pass "the support tile art uses the frame-fill tints (resting and one step brighter), never solid amber"; else fail "the support tile art does not match --frame-fill and --frame-fill-hover, or is solid amber"; fi
 
 # No cream or white fill: the primary button hover is amber, never --text.
 if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi
