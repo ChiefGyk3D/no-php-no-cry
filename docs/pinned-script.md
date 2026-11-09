@@ -20,8 +20,10 @@ The site ships exactly three scripts:
 `/copy.js` and `/search.js` make no network request, store nothing, set no
 cookie and read nothing beyond their own page. `/share.js` makes no request
 either and sets no cookie; its one exception to "stores nothing" is the
-Mastodon server name the visitor types, kept in `localStorage` under
-`mastodonServer` on this site only and never sent anywhere by this site. The
+Mastodon or Lemmy instance name the visitor types, kept in `localStorage`
+under `mastodonServer` or `lemmyServer` on this site only, and only if the
+visitor ticks Remember (unticking removes it); this site never sends it
+anywhere (pressing Share opens the named instance in a new tab). The
 allowlist, script -> its allowed page(s), is `PINNED_SCRIPTS` in
 `scripts/artifact-rules.sh`; the build checks read it, so a fourth script, or
 any script on another page, fails the build.

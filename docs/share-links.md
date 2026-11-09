@@ -70,7 +70,8 @@ Mastodon and Lemmy are per instance, so there is no single URL. The icon opens a
 inline picker under the icons (a labelled field, a Remember checkbox, Share and
 Cancel); no browser prompt. Focus moves into the field, Escape or Cancel closes
 it and returns focus to the icon, Enter shares. It loads nothing from another
-site, and the host typed is never sent to this site or anyone else. Share opens
+site, and no request is made while the host is typed or before Share is pressed.
+Pressing Share opens the named instance, which of course receives that request. It opens
 in a new tab with `noopener,noreferrer`:
 
 - Mastodon: `https://HOST/share?text=TITLE PERMALINK`
@@ -82,7 +83,7 @@ parsed host must equal the value. A scheme, path, query, fragment, userinfo,
 port, space, IP address or non-ASCII lookalike is refused with a message in the
 live region (an international name is typed in its `xn--` form). The host is kept
 in `localStorage` (`mastodonServer`, `lemmyServer`, this site only) only if
-Remember is ticked, and unticking it removes the stored value. A remembered host
+Remember is ticked; unticking it removes the stored value at once (a change handler), even if the visitor then cancels. A remembered host
 prefills the field (checked) and a stored value that fails the rule is ignored.
 If storage is blocked the share still works.
 

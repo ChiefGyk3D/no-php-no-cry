@@ -412,6 +412,7 @@ function mk(stored, o) {
   const sel = { ".share-status": status, ".share-picker": picker, ".share-host": host, ".share-rem": rem, ".share-url": url, ".share-name": name };
   const L = {};
   const root = { querySelector: (q) => sel[q], querySelectorAll: () => [mast, lem, cp], addEventListener: (t, f) => { L[t] = f; } };
+  rem.addEventListener = (t, f) => { L["rem-" + t] = f; };
   const ctx = {
     document: { querySelector: () => root },
     localStorage: o.blocked ? { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); }, removeItem() { throw new Error("blocked"); } }
@@ -422,7 +423,7 @@ function mk(stored, o) {
   };
   vm.runInNewContext(src, ctx);
   const click = (b) => L.click({ target: { closest: () => b } });
-  return { ctx, store, opened, status, picker, host, rem, url, name, mast, lem, cp, go, x, click, key: (k, t) => L.keydown({ key: k, target: t || host, preventDefault() {} }), focused, timers };
+  return { ctx, store, opened, status, picker, host, rem, url, name, mast, lem, cp, go, x, click, fire: (n) => L[n](), key: (k, t) => L.keydown({ key: k, target: t || host, preventDefault() {} }), focused, timers };
 }
 const text = encodeURIComponent(TITLE + " " + URLP);
 function submit(svc, v, remember) {
@@ -457,6 +458,14 @@ r.click(r.mast);
 if (r.host.value !== "kept.example" || !r.rem.checked) bad.push("remembered host not prefilled");
 r.click(r.x); r.click(r.lem);
 if (r.host.value !== "" || r.rem.checked) bad.push("a hostile stored value was prefilled");
+// Unticking Remember removes the stored host at once, even if the visitor then cancels (review of PR 304).
+r = mk({ mastodonServer: "kept.example" });
+r.click(r.mast);
+if (!r.rem.checked) bad.push("setup: remembered host should tick Remember");
+r.rem.checked = false; r.fire("rem-change"); r.click(r.x);
+if (r.store.has("mastodonServer")) bad.push("unticking Remember then Cancel left the stored host");
+r.click(r.mast);
+if (r.host.value !== "") bad.push("the unticked host was prefilled again");
 // Picker behavior: label text, focus into the field, Escape closes and returns focus, Enter submits, Cancel closes.
 r = mk(); r.click(r.lem);
 if (r.name.textContent !== "Lemmy" || r.picker.hidden || r.focused[r.focused.length - 1] !== r.host) bad.push("picker did not open on the host field");
@@ -506,6 +515,7 @@ if command -v node >/dev/null 2>&1; then
     gg trusting 's#^  function good\(v\) \{.*#  function good(v) { return !!v; }#'
     gg no-copied 's#"Link copied"#""#'
     gg no-escape 's#e\.key == "Escape" && ##'
+    gg no-untick-remove 's#^  m\.addEventListener.*##'
     gg always-store 's#m\.checked \? localStorage#true ? localStorage#'
 fi
 

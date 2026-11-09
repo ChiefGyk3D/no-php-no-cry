@@ -18,6 +18,7 @@
     else no();
   }
   [].forEach.call(r.querySelectorAll("button[hidden]"), function (b) { b.hidden = false; });
+  m.addEventListener("change", function () { try { m.checked || localStorage.removeItem(a("data-share") + "Server"); } catch (x) {} });
   r.addEventListener("click", function (e) {
     var b = e.target.closest("button"), s = b && b.getAttribute("data-share"), v = "";
     if (s == "copy") copy(b); else if (s == "go") go(); else if (s == "x") shut();
