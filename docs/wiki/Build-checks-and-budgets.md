@@ -23,6 +23,7 @@ content) and exits 1 on any finding.
 | `python3 -I scripts/gen-tokens.py --check` | `brand/tokens.json` | `assets/css/tokens.css` that differs from a fresh generation |
 | `python3 -I scripts/check-contrast.py assets/css/tokens.css` | the tokens | a text pair under 4.5:1 or a focus ring under 3:1 |
 | `scripts/gen-support-qr.sh --check --decode` | `data/support.yaml` | QR files that differ from a fresh encoding, or that do not decode to the address |
+| `python3 -I scripts/check-content.py` | the Markdown and images a change touches under `content/` | front matter, alt text, tags, unsafe links, TODO markers and image rules. See [Writing a post](Writing-a-post.md) |
 | `python3 -I scripts/check-wiki.py` | `README.md` and `docs/wiki/` | a link or repository path that does not exist, an em dash, a private path, a plain-HTTP URL, a missing wiki page |
 
 ## What `check-output.sh` fails on
@@ -95,6 +96,8 @@ Every `scripts/test-*.sh` pairs with a check or a feature. The ones to read:
   `scripts/test-browser-gate.sh`: the same idea for the artifact, budget and
   browser checks (the browser gate test uses fixture sites from
   `scripts/fixture-site.py`).
+- `scripts/test-check-content.sh`: a fixture for each post and image rule, passing and
+  failing, plus hostile front matter, a huge file and non-UTF-8 input.
 - `scripts/test-check-wiki.sh` and `scripts/test-check-wording.sh`: the guard
   tests for the documentation checks. A guard test collects loosely, asserts
   strictly (it requires that something was found) and includes a case that
