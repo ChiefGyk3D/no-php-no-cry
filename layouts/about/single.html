@@ -1,6 +1,6 @@
 {{ define "main" }}
 <article class="page-about">
-  <h1>{{ .Title }}</h1>
+  <div class="title-block"><h1 class="fx pl xl live">{{ .Title }}</h1></div>
   {{- with site.Data.about }}
   <p class="about-lede">{{ .opener }}</p>
   {{- end }}
@@ -8,10 +8,10 @@
   <div class="about-intro">
     {{- /* The portrait leads the hero; the penguin mascot stays as the small brand mark beside or under it. Both are published copies (brand/ICONS.md, Portrait). Eager: it is above the fold. */}}
     <div class="about-figure">
-      <img class="about-portrait" src="{{ "brand/portrait-640.webp" | relURL }}" srcset="{{ "brand/portrait-320.webp" | relURL }} 320w, {{ "brand/portrait-640.webp" | relURL }} 640w" sizes="(min-width: 40rem) 12rem, 8rem" width="640" height="640" loading="eager" decoding="async" alt="Portrait of ChiefGyk3D in front of a network rack">
+      <img class="about-portrait fx dk sm" src="{{ "brand/portrait-640.webp" | relURL }}" srcset="{{ "brand/portrait-320.webp" | relURL }} 320w, {{ "brand/portrait-640.webp" | relURL }} 640w" sizes="(min-width: 40rem) 12rem, 8rem" width="640" height="640" loading="eager" decoding="async" alt="Portrait of ChiefGyk3D in front of a network rack">
       <img class="about-mascot" src="{{ "brand/mascot-128.webp" | relURL }}" srcset="{{ "brand/mascot-128.webp" | relURL }} 128w, {{ "brand/mascot-256.webp" | relURL }} 256w" sizes="(min-width: 60rem) 11rem, (min-width: 40rem) 5rem, 4rem" width="128" height="128" alt="ChiefGyk3D's penguin mascot">
     </div>
-    <div class="panel">
+    <div class="panel fx dk">
       {{- range site.Data.about.paragraphs }}
       <p>{{ . }}</p>
       {{- end }}
@@ -35,7 +35,7 @@
   </div>
 
   <div class="about-projects">
-  <h2 id="projects">Current projects</h2>
+  <h2 id="projects" class="fx pl sm">Current projects</h2>
   {{- /* The six tiles are named in data/about.yaml (project_tiles) and read from data/resume.yaml, so the lines stay in sync with the resume. */}}
   {{- $all := site.Data.resume.projects }}
   <ul class="tile-grid project-tiles">
@@ -45,12 +45,12 @@
     {{- if ne (len $hit) 1 }}{{ errorf "about project tile %q is not exactly one entry in data/resume.yaml" $name }}{{ end }}
     {{- with index $hit 0 }}
     {{- if not (strings.HasPrefix .url "https://") }}{{ errorf "about project tile %q url is not https" $name }}{{ end }}
-    <li><a class="tile" href="{{ .url }}" target="_blank" rel="noopener"><strong>{{ .name }}</strong><span class="meta"> {{ .line }}</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
+    <li><a class="tile fx" href="{{ .url }}" target="_blank" rel="noopener"><strong>{{ .name }}</strong><span class="meta"> {{ .line }}</span><span class="visually-hidden"> (GitHub, opens in a new tab)</span></a></li>
     {{- end }}
     {{- end }}
     {{- with site.Data.about.projects_more_url }}
     {{- if not (strings.HasPrefix . "https://") }}{{ errorf "about projects_more_url is not https" }}{{ end }}
-    <li class="tile-more"><a class="tile" href="{{ . }}" target="_blank" rel="noopener"><strong>More projects on GitHub</strong><span class="meta"> There is plenty more than fits here. Everything else I build is on my GitHub profile.</span><span class="visually-hidden"> (opens in a new tab)</span></a></li>
+    <li class="tile-more"><a class="tile fx" href="{{ . }}" target="_blank" rel="noopener"><strong>More projects on GitHub</strong><span class="meta"> There is plenty more than fits here. Everything else I build is on my GitHub profile.</span><span class="visually-hidden"> (opens in a new tab)</span></a></li>
     {{- end }}
   </ul>
   </div>
@@ -58,10 +58,10 @@
 
   {{- with site.Data.about }}
   <section class="about-skills" aria-labelledby="skills">
-    <h2 id="skills">{{ .skills_heading }}</h2>
+    <h2 id="skills" class="fx pl sm">{{ .skills_heading }}</h2>
     <div class="skill-groups">
     {{- range .skills }}
-      <div class="skill-group">
+      <div class="skill-group fx dk">
         <h3>{{ .name }}</h3>
         <p>{{ .text }}</p>
       </div>
@@ -76,13 +76,13 @@
   {{- range $sections }}
   {{- if .cards }}
   <section class="about-facts" aria-labelledby="{{ .id }}">
-    <h2 id="{{ .id }}">{{ .heading }}</h2>
+    <h2 id="{{ .id }}" class="fx pl sm">{{ .heading }}</h2>
     {{- with .intro }}
     <p class="facts-intro">{{ . }}</p>
     {{- end }}
     <dl class="fact-grid{{ .modifier }}">
     {{- range .cards }}
-      <div class="fact-card">
+      <div class="fact-card fx dk">
         <dt>{{ .name }}</dt>
         <dd class="card-text">{{ .text }}</dd>
         {{- with .links }}
@@ -103,7 +103,8 @@
 
   {{- /* Issue 261: Contact closes the page, so visitors do not read it as the end of the bio. */}}
   <section class="about-contact" aria-labelledby="contact">
-    <h2 id="contact">Contact</h2>
+    <h2 id="contact" class="fx pl sm">Contact</h2>
+    <div class="contact-card fx dk">
     {{- $c := site.Data.about.contact | default dict }}
     {{- $complete := partial "contact-complete.html" . }}
     <p>There's no contact form. If you want to chat as part of the community, use the Matrix room or the Discord server. The two are bridged.{{ if not $complete }} Business inquiries go by email, and the address will be listed here soon.{{ end }}</p>
@@ -116,6 +117,7 @@
       <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>
       <li><a href="https://discord.chiefgyk3d.com" target="_blank" rel="noopener">Discord<span class="visually-hidden"> (opens in a new tab)</span></a></li>
     </ul>
+    </div>
   </section>
 </article>
 {{ end }}

@@ -663,7 +663,7 @@ if [[ -f "$public/index.html" ]]; then
     }
     hguard "per-row class wrong (orphan row)" 's/home-social--per-6/home-social--per-11/'
     hguard "a chip removed" '/<li><a class="?icon-kick"?/d'
-    hguard "LinkedIn leaked into the Home chips" 's#(<li><a class="icon-github" href="https://github\.com/ChiefGyk3D">GitHub</a></li>)#\1<li><a class="icon-linkedin" href="https://www.linkedin.com/in/moshe-g">LinkedIn</a></li>#'
+    hguard "LinkedIn leaked into the Home chips" 's#(<li><a class="icon-github fx sm chip" href="https://github\.com/ChiefGyk3D">GitHub</a></li>)#\1<li><a class="icon-linkedin" href="https://www.linkedin.com/in/moshe-g">LinkedIn</a></li>#'
     hguard "chip list class dropped" 's/class="?home-social home-social--per-6"?/class=home-social/'
     # The CSS guard: a stylesheet missing the rule of one generated per-row class must fail (the rule
     # for the real page's class, per-6, and for a small count, per-1).
@@ -714,7 +714,7 @@ if (cd "$many" && HUGO_MINIFY_MINIFYOUTPUT=false hugo --destination "$many/publi
     python3 -I - "$many/public/index.html" "$work/three.html" <<'PY'
 import re, sys
 s = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r"<li>.*?</li>", s[s.index("home-latest"):], re.S)
+m = re.search(r"<li[^>]*>.*?</li>", s[s.index("home-latest"):], re.S)
 k = s.index("home-latest") + m.end()
 open(sys.argv[2], "w", encoding="utf-8").write(s[:k] + m.group(0) + s[k:])
 PY
@@ -741,14 +741,14 @@ if [[ -f "$social" && -f "$products" ]]; then
         fi
     }
     guard "rel=me dropped" social "$social" 's/rel="me noopener"/rel="noopener"/g'
-    guard "pixelfed href altered" social "$social" 's/<a class="tile social-tile" href="https:\/\/pics\.chiefgyk3d\.com\/ChiefGyk3D" rel="me noopener">/<a class="tile social-tile" href="https:\/\/x.example\/" rel="me noopener">/'
-    guard "LinkedIn leaked into the Socials page" social "$social" '/class="tile social-tile" href="https:\/\/github\.com/,/<\/li>/ s#</li>#</li><li class="tile-item"><a class="tile social-tile" href="https://www.linkedin.com/in/moshe-g" rel="noopener"><span class="social-icon social-icon--linkedin" aria-hidden="true"></span><span class="social-name">LinkedIn</span></a></li>#'
+    guard "pixelfed href altered" social "$social" 's/<a class="tile fx pl social-tile" href="https:\/\/pics\.chiefgyk3d\.com\/ChiefGyk3D" rel="me noopener">/<a class="tile social-tile" href="https:\/\/x.example\/" rel="me noopener">/'
+    guard "LinkedIn leaked into the Socials page" social "$social" '/class="tile fx pl social-tile" href="https:\/\/github\.com/,/<\/li>/ s#</li>#</li><li class="tile-item"><a class="tile fx pl social-tile" href="https://www.linkedin.com/in/moshe-g" rel="noopener"><span class="social-icon social-icon--linkedin" aria-hidden="true"></span><span class="social-name">LinkedIn</span></a></li>#'
     guard "pixelfed icon dropped" social "$social" 's/social-icon--pixelfed/social-icon--placeholder/'
     guard "vendor label wrong" products "$products" '0,/product-vendor">Amazon</{s/Amazon/Direct/}'
     guard "item dropped" products "$products" '0,/<li class="product">/s//<li class="product-x">/'
     guard "first group closed" products "$products" 's/<details class="accordion" open>/<details class="accordion">/'
     guard "sponsored dropped" products "$products" 's/rel="sponsored noopener"/rel="noopener"/'
-    guard "disclosure moved to the top" products "$products" 's#<div class="disclosure" role="note">#<div class="disclosure" role="note"><p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. Some products I link directly to the company instead of a store.</p></div><div class="disclosure" role="note">#'
+    guard "disclosure moved to the top" products "$products" 's#<div class="disclosure fx dk" role="note">#<div class="disclosure fx dk" role="note"><p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. Some products I link directly to the company instead of a store.</p></div><div class="disclosure fx dk" role="note">#'
     guard "disclosure changed" products "$products" 's/at no extra cost to you/at a cost to you/'
     guard "vendor-label note dropped" products "$products" 's/says whether the link goes to Amazon or straight to the company/says where the link goes/'
     guard "price note restored" products "$products" '0,/<p class="product-line">/s//<p class="product-checked meta">Price checked on May 1, 2026<\/p><p class="product-line">/'

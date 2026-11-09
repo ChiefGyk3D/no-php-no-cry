@@ -21,13 +21,13 @@
       {{- $t = replace $t "{url}" (replace (urlquery $url) "+" "%20") }}
       {{- $t = replace $t "{text}" (replace (urlquery $text) "+" "%20") }}
       {{- $t = replace $t "{image}" (replace (urlquery $image) "+" "%20") }}
-    <li>{{ if eq .kind "mailto" }}{{ "<!--email_off-->" | safeHTML }}{{ end }}<a class="icon-{{ .id }} share-link l1" href="{{ $t }}" rel="noopener noreferrer" target="_blank" aria-label="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}">{{ .label }}</a>{{ if eq .kind "mailto" }}{{ "<!--/email_off-->" | safeHTML }}{{ end }}</li>
+    <li>{{ if eq .kind "mailto" }}{{ "<!--email_off-->" | safeHTML }}{{ end }}<a class="icon-{{ .id }} share-link fx sm" href="{{ $t }}" rel="noopener noreferrer" target="_blank" aria-label="{{ cond (eq .kind "mailto") "Share by" "Share on" }} {{ .label }}">{{ .label }}</a>{{ if eq .kind "mailto" }}{{ "<!--/email_off-->" | safeHTML }}{{ end }}</li>
       {{- end }}
     {{- else if eq .kind "mastodon" }}
-    <li><button type="button" class="icon-{{ .id }} share-link l1" data-share="mastodon" data-text="{{ $text }}" aria-label="Share on {{ .label }}" hidden>{{ .label }}</button></li>
-    <li><button type="button" class="share-link share-change l1" data-share="server" aria-label="Change {{ .label }} server" hidden>Change server</button></li>
+    <li><button type="button" class="icon-{{ .id }} share-link fx sm" data-share="mastodon" data-text="{{ $text }}" aria-label="Share on {{ .label }}" hidden>{{ .label }}</button></li>
+    <li><button type="button" class="share-link share-change fx sm" data-share="server" aria-label="Change {{ .label }} server" hidden>Change server</button></li>
     {{- else if eq .kind "copy" }}
-    <li><button type="button" class="{{ if ne .id "lemmy" }}icon-{{ .id }} {{ end }}share-link l1" data-share="copy" data-url="{{ $url }}" aria-label="{{ if eq .id "copy" }}Copy link{{ else }}Copy link to share on {{ .label }}{{ end }}" hidden>{{ .label }}</button></li>
+    <li><button type="button" class="{{ if ne .id "lemmy" }}icon-{{ .id }} {{ end }}share-link fx sm" data-share="copy" data-url="{{ $url }}" aria-label="{{ if eq .id "copy" }}Copy link{{ else }}Copy link to share on {{ .label }}{{ end }}" hidden>{{ .label }}</button></li>
     {{- end }}
     {{- end }}
   </ul>

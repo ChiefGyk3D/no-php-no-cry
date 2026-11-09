@@ -21,6 +21,9 @@ PAIRS = [
     ("link", "bg", 4.5),
     ("link", "surface", 4.5),
     ("on-accent", "accent", 4.5),
+    # Lettering on the cream frame plate, and on its amber hover state.
+    ("frame-ink", "frame-cream", 4.5),
+    ("frame-ink", "accent", 4.5),
     ("focus", "bg", 3.0),
     ("focus", "surface", 3.0),
     # Kit gray: text on the ground, a 3:1 accent on the charcoal surface.
