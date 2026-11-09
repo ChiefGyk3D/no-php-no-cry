@@ -23,14 +23,14 @@ python3 -I scripts/author.py new journal "Bench notes" --description "What I tri
 | --- | --- |
 | `TITLE` | Required, at most 200 characters, one line. |
 | `--description TEXT` | Required, 1 to 160 characters, even on a draft. On a terminal the helper asks for it when you leave it out; without a terminal it stops with an error. |
-| `--date YYYY-MM-DD` | A real calendar date. Default: today in UTC. A future date is refused unless you add `--allow-future`. |
+| `--date YYYY-MM-DD` | A real calendar date. Default: now, in Eastern time with its offset (for example `2026-11-09T09:30:00-05:00`). A future date is refused unless you add `--allow-future`. |
 | `--tag SLUG` | A lowercase slug (a-z, 0-9, single hyphens, at most 40 characters). Repeat for more, at most 10. |
 
 The helper builds the slug from the title: ASCII letters and digits joined by single
 hyphens, at most 80 characters. Accents are folded (`Café` becomes `cafe`) and other
 scripts are dropped; a title with nothing left is refused. The new page is
 `content/posts/<slug>/index.md` (or `content/journal/<slug>/index.md`), always with
-`draft: true` and `syndicate: false`, and a short body that ends the summary with
+`draft: true` and `syndicate: true` (a draft is never built or announced, so the flag only takes effect once you publish), and a short body that ends the summary with
 `<!--more-->`.
 
 It never overwrites: if the folder, or any file or link of that name, exists, it stops

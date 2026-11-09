@@ -70,7 +70,8 @@ python3 -I "$root/scripts/check-content.py" --root "$r" content/posts/my-first-p
 expect "new journal" 0 "created content/journal/day-one/index.md" new journal "Day one" --description "$D"
 au check content/journal/day-one
 [[ $rc -eq 0 ]] && ok "check passes on the new journal entry" || bad "check on journal: $out"
-grep -q "^date: $(date -u +%F)$" "$r/content/journal/day-one/index.md" && ok "default date is today UTC" || bad "default date"
+grep -qE '^date: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}-0[45]:00$' "$r/content/journal/day-one/index.md" && ok "default date is now with the Eastern offset" || bad "default date"
+grep -q '^syndicate: true$' "$r/content/journal/day-one/index.md" && ok "syndicate is true" || bad "syndicate"
 
 # --- mutation proof: the same page, published with an unfinished description, must fail ------
 repo
@@ -209,6 +210,13 @@ ln -s "$work/target$n.md" "$r/content/posts/linked/index.md"
 expect "check refuses a symlinked index.md" 1 "not a regular file|symlink" check content/posts/linked
 expect "check refuses a path outside content" 1 "not inside content/" check ../../etc/passwd
 expect "check refuses the repo root file" 1 "not inside content/" check brand/approved-assets.txt
+repo
+mkdir -p "$work/realc$n/posts/p"
+printf -- '---\ntitle: "x"\n---\n' >"$work/realc$n/posts/p/index.md"
+rm -rf "$r/content"
+ln -s "$work/realc$n" "$r/content"
+expect "check refuses a symlinked content/" 1 "symlink" check content/posts/p/index.md
+repo
 expect "check refuses content/ itself" 1 "not inside content/" check content
 ln -s "$outside" "$r/content/journal/viasym"
 expect "check refuses a path through a symlinked directory" 1 "symlink" check content/journal/viasym/index.md

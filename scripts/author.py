@@ -7,7 +7,7 @@ Usage: python3 -I scripts/author.py [--root DIR] new (post|journal) TITLE [optio
   new post|journal TITLE   create content/posts/<slug>/index.md (or content/journal/<slug>/index.md)
       --description TEXT   required, 1 to 160 characters. Asked for on a terminal when missing;
                            without a terminal a missing description is an error.
-      --date YYYY-MM-DD    a real calendar date (default: today, UTC). A future date is refused
+      --date YYYY-MM-DD    a real calendar date (default: now, Eastern time with its offset). A future date is refused
                            unless --allow-future is given.
       --tag SLUG           a lowercase slug (a-z, 0-9, single hyphens); repeat for more, at most 10
       --allow-future       accept a date after today
@@ -15,7 +15,7 @@ Usage: python3 -I scripts/author.py [--root DIR] new (post|journal) TITLE [optio
                            a slug path under content/. Prints its result and passes its exit code.
 
 The slug comes from the title: ASCII letters and digits joined by single hyphens, at most 80
-characters. A new page is always draft: true. The helper never overwrites anything, follows no
+characters. A new page is always draft: true (a draft is never built or announced). The helper never overwrites anything, follows no
 symlink, writes only a new folder and index.md under content/, and does no network, git or
 browser work. --root DIR names the repository root (default: this repository; tests use it).
 
@@ -28,6 +28,7 @@ import re
 import subprocess
 import sys
 import unicodedata
+import zoneinfo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_ROOT = os.path.dirname(HERE)
@@ -74,10 +75,18 @@ def clean_text(name, value, maxlen):
     return value
 
 
+def eastern_now():
+    try:
+        return datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York")).replace(microsecond=0)
+    except zoneinfo.ZoneInfoNotFoundError:
+        raise Refuse("the America/New_York time zone data is missing; pass --date YYYY-MM-DD") from None
+
+
 def parse_date(value, allow_future):
-    today = datetime.datetime.now(datetime.timezone.utc).date()
+    """The date line: now with the Eastern offset, or a given calendar date as written."""
     if value is None:
-        return today
+        return eastern_now().isoformat()
+    today = eastern_now().date()
     m = DATE_RE.match(value)
     if not m:
         raise Refuse("date must look like 2026-11-08")
@@ -86,8 +95,8 @@ def parse_date(value, allow_future):
     except ValueError:
         raise Refuse("date %s is not a real calendar date" % value) from None
     if d > today and not allow_future:
-        raise Refuse("date %s is in the future (today is %s UTC); use --allow-future to keep it" % (d, today))
-    return d
+        raise Refuse("date %s is in the future (today is %s Eastern); use --allow-future to keep it" % (d, today))
+    return d.isoformat()
 
 
 def check_tags(tags):
@@ -112,13 +121,13 @@ def render(kind, title, when, description, slug, tags):
     lines = [
         "---",
         "title: " + quote(title),
-        "date: " + when.isoformat(),
+        "date: " + when,
         "draft: true",
         "description: " + quote(description),
         "slug: " + quote(slug),
         "categories: []",
         "tags: [" + ", ".join(quote(t) for t in tags) + "]",
-        "syndicate: false",
+        "syndicate: true",
     ]
     if kind == "post":
         lines.append("affiliate: false")
@@ -187,6 +196,8 @@ def resolve_target(root, arg):
     p = arg if os.path.isabs(arg) else os.path.join(root, arg)
     p = os.path.normpath(p)
     content = os.path.join(root, "content")
+    if os.path.islink(content):
+        raise Refuse("content/ is a symlink")
     if p == content or os.path.commonpath([p, content]) != content:
         raise Refuse("%s is not inside content/" % arg)
     # no component below content/ may be a symlink
