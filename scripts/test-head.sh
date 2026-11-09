@@ -43,6 +43,8 @@ EXPECTED = {
     ("property", "og:url"), ("property", "og:image"),
     ("property", "article:published_time"), ("property", "article:modified_time"),
     ("property", "og:image:width"), ("property", "og:image:height"),
+    ("property", "og:locale"), ("name", "twitter:title"), ("name", "twitter:description"),
+    ("property", "og:image:alt"), ("name", "twitter:image:alt"),
 }
 
 
@@ -404,6 +406,12 @@ def cmd_page(path, permalink, og_image, kind, sameas_file):
         bad.append("og:image / twitter:image are not %s" % og_image)
     if meta(p, "name", "twitter:card") != ["summary_large_image"]:
         bad.append("twitter:card is not summary_large_image")
+    if meta(p, "property", "og:locale") != ["en_US"]:
+        bad.append("og:locale is not en_US")
+    if meta(p, "name", "twitter:title") != meta(p, "property", "og:title"):
+        bad.append("twitter:title is not og:title")
+    if meta(p, "name", "twitter:description") != meta(p, "property", "og:description"):
+        bad.append("twitter:description is not og:description")
     robots = meta(p, "name", "robots")
     if kind == "404":
         if len(robots) != 1 or "noindex" not in robots[0]:
@@ -441,9 +449,22 @@ def cmd_page(path, permalink, og_image, kind, sameas_file):
                 bad.append("Article author name is not ChiefGyk3D")
             if not a.get("image", "").startswith("https://"):
                 bad.append("Article image is not absolute")
+        crumbs = [n for n in ns if n.get("@type") == "BreadcrumbList"]
+        if len(crumbs) != 1:
+            bad.append("post needs exactly one BreadcrumbList, has %d" % len(crumbs))
+        else:
+            items = crumbs[0].get("itemListElement") or []
+            if [i.get("position") for i in items] != [1, 2, 3]:
+                bad.append("BreadcrumbList positions are not 1, 2, 3")
+            elif items[-1].get("item") != permalink or items[0].get("item") != permalink.split("/posts/")[0] + "/":
+                bad.append("BreadcrumbList does not run from the home page to the post")
+            elif not all(i.get("name") for i in items):
+                bad.append("BreadcrumbList item without a name")
     else:
         if arts:
             bad.append("%s page carries an Article" % kind)
+        if [n for n in ns if n.get("@type") == "BreadcrumbList"]:
+            bad.append("%s page carries a BreadcrumbList (posts and journal entries only)" % kind)
     for n in persons:
         if n.get("name") != "ChiefGyk3D":
             bad.append("a Person is named %r" % n.get("name"))
@@ -521,8 +542,39 @@ def cmd_rss(path, host, needle, absent):
     return 1 if bad else 0
 
 
+def cmd_alt(path, want):
+    p = load(path)
+    a = meta(p, "property", "og:image:alt")
+    b = meta(p, "name", "twitter:image:alt")
+    exp = [want] if want else []
+    if a != exp or b != exp:
+        print("card alt text is %r / %r, want %r" % (a, b, exp))
+        return 1
+    return 0
+
+
+def cmd_titles(*pairs):
+    import re
+    bad = []
+    for path, want in zip(pairs[0::2], pairs[1::2]):
+        try:
+            m = re.search(r"<title>([^<]*)</title>", open(path, encoding="utf-8").read())
+        except OSError:
+            bad.append("%s: not built" % path)
+            continue
+        if not m or m.group(1) != want:
+            bad.append("%s: title is %r, want %r" % (path, m and m.group(1), want))
+    for b in bad:
+        print(b)
+    return 1 if bad else 0
+
+
 if __name__ == "__main__":
     c, a = sys.argv[1], sys.argv[2:]
+    if c == "alt":
+        sys.exit(cmd_alt(*a))
+    if c == "titles":
+        sys.exit(cmd_titles(*a))
     if c == "page":
         sys.exit(cmd_page(*a))
     if c == "descs":
@@ -570,7 +622,9 @@ title: "Post B"
 date: 2024-06-06T07:08:09-04:00
 description: "Post B has its own description."
 image: "/brand/penguin-color.png"
+imageAlt: "Alt text for B."
 tags: ["alpha"]
+categories: ["alpha"]
 ---
 
 Body B.
@@ -599,6 +653,9 @@ seo_ok "post: canonical, default OG card, Article JSON-LD" page "$pub/posts/a/in
 seo_ok "post with an image: its own image and Article JSON-LD" page "$pub/posts/b/index.html" "https://$host/posts/b/" "https://$host/brand/penguin-color.png" article "$sameas"
 seo_ok "about page: no Article, no robots meta" page "$pub/about/index.html" "https://$host/about/" "$card" page "$sameas"
 seo_ok "404 page: noindex, canonical, card" page "$pub/404.html" "https://$host/404.html" "$card" 404 "$sameas"
+seo_ok "post with an image: og:image:alt and twitter:image:alt from imageAlt" alt "$pub/posts/b/index.html" "Alt text for B."
+seo_ok "post without an image: no card alt text" alt "$pub/posts/a/index.html" ""
+seo_ok "term pages: the title names the kind, so /tags/x/ and /categories/x/ differ" titles "$pub/tags/alpha/index.html" "Tag: Alpha | ChiefGyk3D" "$pub/categories/alpha/index.html" "Category: Alpha | ChiefGyk3D"
 seo_ok "every indexable page has its own description" descs "$pub/index.html" "$pub/posts/index.html" "$pub/posts/a/index.html" "$pub/posts/b/index.html" "$pub/about/index.html" "$pub/tags/alpha/index.html"
 seo_ok "sitemap: lastmod on every url, no alias, no 404" sitemap "$pub/sitemap.xml" "$host" /posts/a/ /posts/b/ /about/ /social/ / -- /old-post-a/ /404.html /contact/
 seo_ok "feed: atom self link and the full post body" rss "$pub/index.xml" "$host" FULLBODYMARKER "<script"
@@ -621,6 +678,12 @@ if run_seo page "$work/g.html" "https://$host/posts/a/" "$card" article "$sameas
     fail "guard: a wrong author name was accepted"
 else
     pass "guard: a wrong author name is rejected"
+fi
+sed 's#"position":3#"position":4#' "$pub/posts/a/index.html" >"$work/gb.html"
+if run_seo page "$work/gb.html" "https://$host/posts/a/" "$card" article "$sameas" >/dev/null 2>&1; then
+    fail "guard: a broken BreadcrumbList was accepted"
+else
+    pass "guard: a broken BreadcrumbList is rejected"
 fi
 cp "$pub/404.html" "$work/g404.html"
 sed -i 's#noindex#index#g' "$work/g404.html"

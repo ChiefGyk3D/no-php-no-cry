@@ -20,6 +20,10 @@
 {{- $personID := printf "%s#person" $home -}}
 <meta name="description" content="{{ $desc }}">
 <meta property="og:site_name" content="{{ site.Title }}">
+{{- $loc := split (site.Language.Locale | default "en-us") "-" }}
+<meta property="og:locale" content="{{ index $loc 0 }}{{ with after 1 $loc }}_{{ upper (index . 0) }}{{ end }}">
+<meta name="twitter:title" content="{{ $title }}">
+<meta name="twitter:description" content="{{ $desc }}">
 <meta property="og:title" content="{{ $title }}">
 <meta property="og:description" content="{{ $desc }}">
 <meta property="og:type" content="{{ cond $article "article" "website" }}">
@@ -31,6 +35,11 @@
 {{- end }}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="{{ $image }}">
+{{- /* Alt text for the card image: only where the page has its own image and its required imageAlt (layouts/_partials/featured-image.html). The default card has no alt text of its own. */}}
+{{- with and $custom .Params.imageAlt }}
+<meta property="og:image:alt" content="{{ . }}">
+<meta name="twitter:image:alt" content="{{ . }}">
+{{- end }}
 <meta name="theme-color" content="#0F0F0F">
 <link rel="manifest" href="{{ "site.webmanifest" | relURL }}">
 {{- if and (eq .Kind "404") (ne $env "staging") }}
@@ -65,9 +74,13 @@
   {{- $site := dict "@type" "WebSite" "@id" (printf "%s#website" $home) "name" site.Title "url" $home "description" $desc "publisher" (dict "@id" $personID) -}}
   {{- $ld = dict "@context" "https://schema.org" "@graph" (slice $site $person) -}}
 {{- else if $article -}}
-  {{- $art := dict "@context" "https://schema.org" "@type" "Article" "headline" .Title "description" $desc "url" .Permalink "mainEntityOfPage" (dict "@type" "WebPage" "@id" .Permalink) "image" $image "datePublished" (.Date.Format "2006-01-02T15:04:05Z07:00") "dateModified" (.Lastmod.Format "2006-01-02T15:04:05Z07:00") "author" (dict "@type" "Person" "@id" $personID "name" $name "url" $home) -}}
+  {{- $art := dict "@type" "Article" "headline" .Title "description" $desc "url" .Permalink "mainEntityOfPage" (dict "@type" "WebPage" "@id" .Permalink) "image" $image "datePublished" (.Date.Format "2006-01-02T15:04:05Z07:00") "dateModified" (.Lastmod.Format "2006-01-02T15:04:05Z07:00") "author" (dict "@type" "Person" "@id" $personID "name" $name "url" $home) -}}
   {{- with .Params.tags }}{{ $art = merge $art (dict "keywords" (delimit . ", ")) }}{{ end -}}
-  {{- $ld = $art -}}
+  {{- /* BreadcrumbList: Home, the section (Posts or Journal), the entry. One @graph with the Article, so a crawler reads one block. */ -}}
+  {{- $crumbs := slice (dict "@type" "ListItem" "position" 1 "name" site.Title "item" $home) -}}
+  {{- with .Parent }}{{ $crumbs = $crumbs | append (dict "@type" "ListItem" "position" 2 "name" .Title "item" .Permalink) }}{{ end -}}
+  {{- $crumbs = $crumbs | append (dict "@type" "ListItem" "position" (add (len $crumbs) 1) "name" .Title "item" .Permalink) -}}
+  {{- $ld = dict "@context" "https://schema.org" "@graph" (slice $art (dict "@type" "BreadcrumbList" "itemListElement" $crumbs)) -}}
 {{- end -}}
 {{- with $ld }}
 <script type="application/ld+json">{{ . | jsonify | safeJS }}</script>
