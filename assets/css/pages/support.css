@@ -210,6 +210,163 @@ a.support-tile:focus-visible .support-tile-blurb {
   user-select: all;
 }
 
+/* The cards are tinted (the minimal frame stays) and the address is collapsed by
+ * default (issue 285): the first 8 and last 8 characters, a note, and a native
+ * details toggle. The full address is always in the page for screen readers and
+ * for the Copy button; it is only clipped visually while the toggle is closed. */
+.coin.panel {
+  --fill: rgb(251 176 59 / 0.1);
+}
+
+.addr-box {
+  position: relative;
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.addr-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* The toggle is the short form: [first 8 ... last 8   Show full v]. */
+.addr-more {
+  width: 100%;
+}
+
+.addr-more > summary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  background: var(--bg);
+  border: var(--rule-width) solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  list-style: none;
+}
+
+.addr-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.addr-short {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.addr-show,
+.addr-hide {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.addr-hide,
+.addr-more[open] .addr-show,
+.addr-more[open] .addr-short {
+  display: none;
+}
+
+.addr-more[open] .addr-hide {
+  display: inline;
+}
+
+.addr-more[open] > summary {
+  justify-content: center;
+}
+
+.addr-more > summary::after {
+  content: "";
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  margin-top: -0.2em;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+}
+
+.addr-more[open] > summary::after {
+  margin-top: 0.2em;
+  transform: rotate(225deg);
+}
+
+.addr-more > summary:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* Collapsed: clip the full address visually (it stays in the accessibility tree).
+ * Without :has() the full address stays visible and the toggle is hidden. */
+.addr-more {
+  display: none;
+}
+
+@supports selector(:has(*)) {
+  .addr-more {
+    display: block;
+  }
+
+  .addr-box:not(:has(.addr-more[open])) .address {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media print {
+  .addr-box .address {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .addr-more {
+    display: none;
+  }
+}
+
+/* The Copy button is a plain amber outline: no art, no ticks (the card already
+ * wears the frame). Hover fills amber with ink; the focus ring sits outside. */
+.coin .copy-btn {
+  border-color: var(--accent);
+  background-color: transparent;
+  background-image: none;
+  box-shadow: inset 0 0 0 calc(var(--rule-accent-width) - var(--rule-width)) var(--accent);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.coin .copy-btn:hover {
+  background-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.coin .copy-btn:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 3px;
+}
+
 /* Copy sits centered below the address. The status text ("Copied") is placed
  * beside the button without taking part in the layout, so the button stays
  * centered and showing the text moves nothing. */

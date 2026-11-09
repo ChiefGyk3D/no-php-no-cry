@@ -226,7 +226,7 @@ def support(p, errs, repo):
     if "Cryptocurrency tips" not in flat or html.find("Shop merch") > html.find("Cryptocurrency tips"):
         errs.append("the cryptocurrency section must follow the four tiles")
     if any(t == "details" and "coin" in (a.get("class") or "") for t, a in p.tags):
-        errs.append("the cryptocurrency block is always open, not a details element")
+        errs.append("the cryptocurrency block is always open, not a details element (only the address toggle may be one)")
     # One Copy button per address: hidden until the script reveals it, named for
     # the coin, wired to the id of that coin's address, with a live status region.
     for coin, addr in ADDRESSES.items():
@@ -256,6 +256,24 @@ def support(p, errs, repo):
         name = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", card[b:].split("</button>", 1)[0])).strip()
         if name != "Copy %s address" % names[coin]:
             errs.append("%s Copy button accessible name is %r" % (coin, name))
+    # Issue 285: the address is collapsed by default behind a native details toggle (no JS). The
+    # collapsed form shows the first 8 and last 8 characters (never fewer), the full address stays
+    # in the page once as the <code> the Copy button reads (so it is also there for screen readers),
+    # a one-line verify note sits next to it, and the toggle is a details with a summary.
+    for coin, addr in ADDRESSES.items():
+        card = next((c for c in cards if "qr-%s.svg" % coin in c), "")
+        m = re.search(r"<span class=addr-short aria-hidden=true>([^<]*)</span>", card)
+        got = m.group(1).replace("&mldr;", "...").replace(chr(0x2026), "...") if m else None
+        if got != addr[:8] + "..." + addr[-8:]:
+            errs.append("%s collapsed address must be the first 8 and last 8 characters (got %r)" % (coin, got))
+        if card.count("<details") != 1 or "<summary>" not in card or "addr-more" not in card:
+            errs.append("%s card needs exactly one native details address toggle with a summary" % coin)
+        if "Verify the full address before sending." not in card:
+            errs.append("%s card lacks the one-line verify note beside the short address" % coin)
+        if not re.search(r"<code class=address id=addr-%s>%s</code>" % (coin, re.escape(addr)), card):
+            errs.append("%s full address must stay in the page as the Copy target" % coin)
+        if "<details open" in card or "<details class=addr-more open" in card:
+            errs.append("%s address toggle must be collapsed by default" % coin)
     if html.count("<script") != 1 or "<script src=/copy.js></script>" not in html:
         errs.append("/support/ must carry exactly the one pinned <script src=/copy.js></script>")
     # Addresses: verbatim, in a <code> element each, once.
@@ -725,6 +743,33 @@ PY
             fail "guard: a support page with Copy out of order ($v) passed"
         else
             pass "guard: a support page with Copy out of order ($v) fails"
+        fi
+    done
+fi
+# Guard (issue 285): the collapsed address check bites. A short form with fewer than 8 leading
+# characters, an open-by-default toggle and a missing verify note must each fail the support rules.
+if [[ -f "$pub/support/index.html" ]]; then
+    python3 -I - "$pub/support/index.html" "$work" <<'PY'
+import re
+import sys
+
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"<span class=addr-short aria-hidden=true>(.{6})", s)
+assert m, "no collapsed address in the built page"
+variants = {
+    "short6": s.replace(m.group(0), "<span class=addr-short aria-hidden=true>" + m.group(1)[:5], 1),
+    "open": s.replace("<details class=addr-more>", "<details class=addr-more open>", 1),
+    "nonote": s.replace("Verify the full address before sending.", "", 1),
+}
+for name, text in variants.items():
+    assert text != s, name
+    open("%s/support-addr-%s.html" % (sys.argv[2], name), "w", encoding="utf-8").write(text)
+PY
+    for v in short6 open nonote; do
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" support "$work/support-addr-$v.html" "$root/layouts/support/single.html" >/dev/null 2>&1; then
+            fail "guard: a support page with a bad collapsed address ($v) passed"
+        else
+            pass "guard: a support page with a bad collapsed address ($v) fails"
         fi
     done
 fi

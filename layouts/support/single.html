@@ -5,6 +5,8 @@
   cryptocurrency): coin mark, QR code with the coin mark in its middle, the
   address as selectable text, and a Copy button below it (issue 194).
 
+  The Copy button is a plain amber-outline button (no frame art or ticks) so it does not read as a frame inside the card's own frame; it is not routed through btn-frame.html.
+
   Copy buttons are progressive enhancement. The address is always visible text
   (selectable with one click). The button carries the hidden attribute and
   /copy.js, one of the two pinned scripts (docs/pinned-script.md), reveals it; with no
@@ -49,9 +51,15 @@
         </div>
         {{- /* One centered column in every card: QR, the address, then Copy below it. */}}
         <img class="qr" src="{{ printf "support/qr-%s.svg" .coin | relURL }}" width="200" height="200" alt="QR code for the {{ .name }} address">
-        <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+        {{- /* Collapsed by default (issue 285): the first 8 and last 8 characters, a one-line note, and a native details toggle. The full address stays in the page as one <code> (screen readers read it, the Copy button always copies it); CSS only hides it visually while the toggle is closed, and shows it always where :has() is missing or in print. */}}
+        {{- $addr := .address }}
+        <div class="addr-box">
+          <details class="addr-more"><summary><span class="addr-short" aria-hidden="true">{{ slicestr $addr 0 8 }}&hellip;{{ slicestr $addr (sub (len $addr) 8) }}</span><span class="addr-show">Show full<span class="visually-hidden"> address</span></span><span class="addr-hide">Hide full<span class="visually-hidden"> address</span></span></summary></details>
+          <code class="address" id="addr-{{ .coin }}">{{ .address }}</code>
+          <p class="addr-note">Verify the full address before sending.</p>
+        </div>
         <div class="coin-actions">
-          <button type="button" class="btn btn-ghost copy-btn{{ partial "btn-frame.html" (dict "kind" "ghost" "ctx" "copy-btn") }}" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
+          <button type="button" class="btn btn-ghost copy-btn" data-copy="addr-{{ .coin }}" hidden>Copy<span class="visually-hidden"> {{ .name }} address</span></button>
           <span class="copy-status" role="status"></span>
         </div>
       </li>
