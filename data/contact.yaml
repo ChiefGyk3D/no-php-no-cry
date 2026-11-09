@@ -1,0 +1,12 @@
+# Copy for /contact/ (issue 329). Written by ChatGPT-style drafting from the owner's facts (Codex run, 2026-11-09)
+# and kept here, not in the template, so the owner's voice edits touch one file. The address, the PGP
+# fingerprint and the key link are in data/about.yaml (contact:); the Discord and Matrix links are the
+# entries named Discord and Matrix in data/socials.yaml. OWNER CONFIRM: that the two are bridged in most rooms.
+intro: "Use email for business inquiries. For general correspondence, find me on Discord or Matrix."
+general_title: "General Correspondence"
+general_text: "Use Discord or Matrix for general correspondence. They are bridged, so you can read chats from the other side in most rooms unless there is an issue with a bridge."
+business_title: "Business Inquiries"
+business_text: "The email address here is primarily for business inquiries."
+pgp_text: "Use the PGP fingerprint and key link if you want to encrypt your email."
+# Shown instead of the address while data/about.yaml's contact block is incomplete.
+business_soon: "The address will be listed here soon."

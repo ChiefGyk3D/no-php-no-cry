@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Tests for the /contact/ page's metadata and wiring (issue 329): its title and description
+# (seoTitle front matter, in the style of the issue 318 title work), the sitemap entry, the footer
+# link, and that the About page no longer carries the address. Builds the site into the
+# repository's gitignored tmp/ (never /tmp). With --against DIR it checks an already built
+# site instead (used to show the test fails on the build from before the page existed).
+# A guard self-test breaks each rule on a copy of the page and requires a failure.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+mkdir -p "$root/tmp"
+work="$(mktemp -d "$root/tmp/contact-page.XXXXXX")"
+trap '[[ -n "${KEEP:-}" ]] || rm -rf "$work"' EXIT
+
+pub=""
+if [[ "${1:-}" == "--against" ]]; then
+    pub="$2"
+else
+    command -v hugo >/dev/null 2>&1 || {
+        echo "FAIL: hugo is not on PATH (see .hugo-version)"
+        exit 1
+    }
+    hugo --minify --gc --quiet --destination "$work/public" >"$work/hugo.log" 2>&1 || {
+        cat "$work/hugo.log"
+        echo "FAIL: build"
+        exit 1
+    }
+    pub="$work/public"
+fi
+
+checker="$work/check.py"
+cat >"$checker" <<'PY'
+import html
+import re
+import sys
+
+pub, root = sys.argv[1], sys.argv[2]
+page = sys.argv[3] if len(sys.argv) > 3 else pub + "/contact/index.html"
+errs = []
+
+
+def read(path):
+    try:
+        return open(path, encoding="utf-8").read()
+    except OSError:
+        return None
+
+
+fm = read(root + "/content/contact/index.md") or ""
+
+
+def front(key):
+    m = re.search(r'^%s: "(.*)"$' % key, fm, re.M)
+    return m.group(1) if m else None
+
+
+seo, desc = front("seoTitle"), front("description")
+if not seo or not desc:
+    errs.append("content/contact/index.md needs seoTitle and description")
+h = read(page)
+if h is None:
+    errs.append("the /contact/ page is not built")
+    h = ""
+title = re.search(r"<title>(.*?)</title>", h, re.S)
+title = html.unescape(title.group(1)) if title else ""
+baseof = read(root + "/layouts/baseof.html") or ""
+# Until the seoTitle layout change of issue 318 lands, the title is the page title.
+want = (seo if "seoTitle" in baseof else "Contact") + " | "
+if not title.startswith(want):
+    errs.append("title is %r, expected it to start with %r" % (title, want))
+if seo and not (30 <= len(seo) <= 62 and seo.startswith("Contact")):
+    errs.append("seoTitle must start with Contact and be 30 to 62 characters: %r" % seo)
+m = re.search(r'<meta name=description content="?([^">]*)', h)
+got = html.unescape(m.group(1)) if m else ""
+if desc and got != desc:
+    errs.append("meta description is %r, expected %r" % (got, desc))
+if desc and not (70 <= len(desc) <= 160):
+    errs.append("description must be 70 to 160 characters (found %d)" % len(desc))
+if chr(8212) in h or chr(8211) in h:
+    errs.append("an em or en dash is on the page")
+sm = read(pub + "/sitemap.xml") or ""
+if "/contact/</loc>" not in sm:
+    errs.append("the sitemap does not list /contact/")
+fl = re.search(r'<a[^>]*href=([^\s>]+)[^>]*>Contact</a>', h)
+if not fl or fl.group(1).strip('"').endswith("/about/#contact") or not fl.group(1).strip('"').endswith("/contact/"):
+    errs.append("the footer Contact link must point at /contact/ (found %r)" % (fl.group(1) if fl else None))
+ab = read(pub + "/about/index.html") or ""
+if "mailto:" in ab:
+    errs.append("the About page still carries the email link")
+if "/contact/" not in ab:
+    errs.append("the About page must point to /contact/")
+for e in errs:
+    print(e)
+sys.exit(1 if errs else 0)
+PY
+
+failures=0
+if python3 -I "$checker" "$pub" "$root"; then
+    echo "ok: the contact page metadata and wiring"
+else
+    failures=$((failures + 1))
+    echo "FAIL: the contact page metadata and wiring"
+fi
+
+if [[ "${1:-}" != "--against" ]]; then
+    mk() { # <name> <python expression on s>
+        python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); t = eval(sys.argv[3]); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$pub/contact/index.html" "$work/bad-$1.html" "$2"
+    }
+    mk title 's.replace("<title>", "<title>x", 1)'
+    mk desc 's.replace("<meta name=description content=", "<meta name=description content=x", 1)'
+    for b in title desc; do
+        if python3 -I "$checker" "$pub" "$root" "$work/bad-$b.html" >/dev/null 2>&1; then
+            echo "FAIL: guard: a contact page with a broken $b passed"
+            failures=$((failures + 1))
+        else
+            echo "ok: guard: a contact page with a broken $b fails"
+        fi
+    done
+fi
+
+[[ $failures -eq 0 ]] || exit 1
+echo "test-contact-page: all passed"

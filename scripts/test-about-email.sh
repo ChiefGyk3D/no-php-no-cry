@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test that the About page's business email is readable without JavaScript
+# Test that the Contact page's business email is readable without JavaScript
 # (issue 329). Cloudflare Email Address Obfuscation rewrites an address in the
 # served HTML into "[email protected]" plus a decoder script, unless the address
 # sits between <!--email_off--> and <!--/email_off--> (Cloudflare docs, Email
@@ -57,12 +57,12 @@ if ! hugo --minify --gc --source "$root" --destination "$work/public" --quiet >"
     echo "$failures failure(s)"
     exit 1
 fi
-expect_pass "production About page shows the address with no host rewrite" "$work/public"
+expect_pass "production Contact page shows the address with no host rewrite" "$work/public"
 
-mutant() { # <name>: a copy of the production site, About page edited by $2 (a python expression on s)
+mutant() { # <name>: a copy of the production site, Contact page edited by $2 (a python expression on s)
     local d="$work/m-$1"
     cp -r "$work/public" "$d"
-    if ! python3 -I - "$d/about/index.html" "$2" <<'PY'
+    if ! python3 -I - "$d/contact/index.html" "$2" <<'PY'
 import re, sys
 p, expr = sys.argv[1], sys.argv[2]
 s = open(p, encoding="utf-8").read()
@@ -83,15 +83,15 @@ EXPECT_MAIL="$("$root/scripts/about-email.sh")"
 }
 
 d="$(mutant no-markers 's.replace("<!--email_off-->", "").replace("<!--/email_off-->", "")')"
-expect_fail "About page without the email_off markers" about-email-unprotected "$d"
+expect_fail "Contact page without the email_off markers" about-email-unprotected "$d"
 d="$(mutant cfemail 're.sub(r"<a href=\"?mailto:[^>]*>[^<]*</a>", "<a href=\"/cdn-cgi/l/email-protection#00\" class=\"__cf_email__\" data-cfemail=\"00\">[email&#160;protected]</a>", s)')"
-expect_fail "About page with the host rewrite (data-cfemail)" about-email-rewritten "$d"
+expect_fail "Contact page with the host rewrite (data-cfemail)" about-email-rewritten "$d"
 d="$(mutant decoder 's.replace("</body>", "<script src=\"/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js\"></script></body>")')"
-expect_fail "About page with the host decoder script" about-email-rewritten "$d"
+expect_fail "Contact page with the host decoder script" about-email-rewritten "$d"
 d="$(mutant placeholder 's.replace("'"$EXPECT_MAIL"'", "[email protected]")')"
-expect_fail "About page that shows the placeholder instead of the address" about-email-rewritten "$d"
+expect_fail "Contact page that shows the placeholder instead of the address" about-email-rewritten "$d"
 d="$(mutant no-text 's.replace(">'"$EXPECT_MAIL"'</a>", ">write to me</a>")')"
-expect_fail "About page whose link text is not the address" about-email-missing "$d"
+expect_fail "Contact page whose link text is not the address" about-email-missing "$d"
 
 # 2. A rewrite on any other page is also a failure.
 cp -r "$work/public" "$work/other"
@@ -108,7 +108,7 @@ expect_pass "image variant: alt names no address, no text address" --mode image 
 expect_fail "the text build checked as an image build" about-email-missing --mode image "$work/public"
 expect_fail "the image build checked as a text build" about-email-missing "$work/public-image"
 cp -r "$work/public-image" "$work/image-alt"
-python3 -I - "$work/image-alt/about/index.html" "$EXPECT_MAIL" <<'PY'
+python3 -I - "$work/image-alt/contact/index.html" "$EXPECT_MAIL" <<'PY'
 import re, sys
 p, mail = sys.argv[1], sys.argv[2]
 s = open(p, encoding="utf-8").read()

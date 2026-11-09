@@ -102,3 +102,5 @@ after the key cycle (issue 332), build (a) in its no-JS variant first
 POST, `form-action 'self'`): it keeps the CSP and the pinned-scripts rule intact.
 Add Turnstile only if the no-JS variant draws spam, and then as a separate decision
 because it needs a third-party script on one page. Avoid (c).
+
+Note (2026-11-09): the form is not being built for this site now. It moves to the Reach Around media kit later, gated for business inquiries. The /contact/ page lists email, Discord and Matrix instead (issue 329).

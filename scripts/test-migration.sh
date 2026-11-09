@@ -178,12 +178,11 @@ else
 fi
 
 # --- the legacy WordPress URLs that are not posts are redirected by the site ---
-# 10 posts (once their drafts are published) plus these five make the 15 aliases
+# 10 posts (once their drafts are published) plus these four, and /contact/ (a real page since issue 329), make the 15 aliases
 # of docs/redesign-brief.md section 12 item 16.
 if hugo --quiet --source "$root" --destination "$work/real" >"$work/real.log" 2>&1; then
     for want in \
         "/blog /posts/ 301" "/blog/ /posts/ 301" \
-        "/contact /about/#contact 301" "/contact/ /about/#contact 301" \
         "/support-me /support/ 301" "/support-me/ /support/ 301" \
         "/social-media /social/ 301" "/social-media/ /social/ 301" \
         "/sample-page / 301" "/sample-page/ / 301"; do

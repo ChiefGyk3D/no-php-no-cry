@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The About page's business email must be readable without JavaScript (issue 329).
+# The Contact page's business email must be readable without JavaScript (issue 329).
 #
 # Usage: scripts/check-about-email.sh [--mode text|image] [output-dir]   (default: public)
 #
@@ -11,8 +11,8 @@
 # "Prevent Cloudflare from obfuscating email"). Findings, printed as "[rule] file":
 #
 #   about-email-rewritten    any page carries the host rewrite or decoder markers
-#   about-email-unprotected  the About page has the address outside email_off markers
-#   about-email-missing      the About page lacks the address in the expected form:
+#   about-email-unprotected  the Contact page has the address outside email_off markers
+#   about-email-missing      the Contact page lacks the address in the expected form:
 #                            text mode, the address as the link text of a mailto link;
 #                            image mode, a mailto link around an <img> and no address as text
 #   about-email-image-alt    image mode, the image's alt text contains the address, or is
@@ -58,10 +58,10 @@ for base, _, files in os.walk(root):
         if REWRITE.search(open(path, encoding="utf-8", errors="replace").read()):
             findings.append(("about-email-rewritten", rel))
 
-about = os.path.join(root, "about", "index.html")
+about = os.path.join(root, "contact", "index.html")
 if mail and os.path.exists(about):
     s = open(about, encoding="utf-8").read()
-    rel = "about/index.html"
+    rel = "contact/index.html"
     m = re.escape(mail)
     # Every occurrence of the address (text or href) must sit inside one email_off region.
     regions = [(a.end(), b.start()) for a, b in zip(re.finditer(r"<!--email_off-->", s), re.finditer(r"<!--/email_off-->", s))]
