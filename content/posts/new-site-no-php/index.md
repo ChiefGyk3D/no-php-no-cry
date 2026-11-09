@@ -66,7 +66,7 @@ SEO is 69 because staging is deliberately `noindex`, and its `robots.txt` disall
 
 ## Threat model
 
-The repository carries an OWASP Threat Dragon model with diagrams for the publishing path, reader path, and data stores and secrets, plus a plain-language risk summary. As of 2026-11-09, it contains 57 threats: 32 Mitigated, 22 Open, 2 Accepted and 1 N/A.
+The repository carries an OWASP Threat Dragon model with diagrams for the publishing path, reader path, and data stores and secrets, plus a plain-language risk summary. As of 2026-11-09, it contains 57 threats: 33 Mitigated, 21 Open, 2 Accepted and 1 N/A.
 
 A threat counts as Mitigated only when its control exists in the repository and the model names that control by path. The build fails if a named path does not exist. Controls in a provider account, including sign-in strength, token permissions and DNS, stay Open until somebody reads them and records the date. The check proves the model is well formed and its named controls exist. It cannot prove those controls work.
 
