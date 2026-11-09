@@ -86,9 +86,21 @@ what Cloudflare itself adds to a response (see "Verified and inferred").
    ones that do not).
 5. If anything was published on WordPress after the 2026-10-25 export, the
    owner makes a fresh read-only export and the difference is imported.
-6. On the cutover commit: `scripts/check-wording.sh` and the full gate pass, and
+6. Launch SEO check. Build the site for the apex in production mode and run the
+   check on that output:
+
+   ```
+   HUGO_PARAMS_ENVIRONMENT=production hugo --minify --gc --baseURL https://chiefgyk3d.com/ --destination out
+   python3 -I scripts/check-launch-seo.py out chiefgyk3d.com
+   ```
+
+   It fails on a page that is noindex, a `robots.txt` that disallows everything or has no
+   `Sitemap:` line, a sitemap or canonical URL on another host, a missing or repeated
+   title or description, a page with no canonical, and a missing `_redirects` map for the
+   old WordPress addresses. It must exit 0 before the cutover.
+7. On the cutover commit: `scripts/check-wording.sh` and the full gate pass, and
    the production build passes `EXPECT_ENV=production scripts/check-output.sh`.
-7. Rehearse the verifier on staging (command above) and keep the output.
+8. Rehearse `scripts/verify-live.sh` on staging, with the command in the section "Checking a deployed host: scripts/verify-live.sh" above (`--env staging`), and keep the output. (The launch SEO check in step 6 is a different tool; it runs on a built directory, not on a host.)
 
 ## WordPress freeze
 
