@@ -342,6 +342,24 @@ def strip_jpeg(b):
     return bytes(out), dims
 
 
+PNG_DEPTHS = {0: (1, 2, 4, 8, 16), 2: (8, 16), 3: (1, 2, 4, 8), 4: (8, 16), 6: (8, 16)}
+PNG_CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+ADAM7 = ((0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4), (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2))
+
+
+def png_raw_size(w, h, depth, ctype, interlace):
+    """Bytes of filtered scanline data the IDAT stream must inflate to (PNG spec, sections 7 and 9)."""
+    bits = depth * PNG_CHANNELS[ctype]
+    if not interlace:
+        return h * (1 + (w * bits + 7) // 8)
+    total = 0
+    for x0, y0, dx, dy in ADAM7:
+        pw, ph = (w - x0 + dx - 1) // dx, (h - y0 + dy - 1) // dy
+        if pw > 0 and ph > 0:
+            total += ph * (1 + (pw * bits + 7) // 8)
+    return total
+
+
 PNG_KEEP = {b"IHDR", b"PLTE", b"tRNS", b"IDAT", b"IEND", b"gAMA", b"cHRM", b"sRGB"}
 
 
@@ -352,6 +370,9 @@ def strip_png(b):
     dims = None
     idat = 0
     first = True
+    z = []
+    palette = False
+    last = b""
     while True:
         if i + 12 > n:
             raise bad
@@ -367,14 +388,27 @@ def strip_png(b):
                 raise bad
             w, h = struct.unpack(">II", data[:8])
             check_dims(w, h)
+            depth, ctype, comp, filt, interlace = data[8:13]
+            if ctype not in PNG_DEPTHS or depth not in PNG_DEPTHS[ctype] or comp != 0 or filt != 0 or interlace > 1:
+                raise Refuse("the PNG header has an invalid bit depth, color type, or method (malformed)")
             dims = (w, h)
             first = False
         elif kind == b"IHDR":
             raise bad
         if kind == b"eXIf":
             refuse_rotated(exif_orientation(data))
+        if kind == b"PLTE":
+            if idat or palette or ctype in (0, 4) or length % 3 or not 3 <= length <= 3 * (1 << depth):
+                raise bad
+            palette = True
         if kind == b"IDAT":
+            if idat and last != b"IDAT":
+                raise bad  # IDAT chunks must be consecutive
+            if ctype == 3 and not palette:
+                raise bad
             idat += 1
+            z.append(data)
+        last = kind
         if kind in PNG_KEEP:
             out += b[i : i + 12 + length]
         i += 12 + length
@@ -384,6 +418,15 @@ def strip_png(b):
         raise Refuse("the PNG has %d bytes after the end of the image; refused" % (n - i))
     if idat == 0:
         raise bad
+    # inflate the image data (bounded) and require exactly the scanline bytes the header implies
+    want = png_raw_size(dims[0], dims[1], depth, ctype, interlace)
+    d = zlib.decompressobj()
+    try:
+        got = d.decompress(b"".join(z), want + 1)
+        if len(got) != want or d.unconsumed_tail or not d.eof or d.unused_data:
+            raise bad
+    except zlib.error:
+        raise bad from None
     return bytes(out), dims
 
 

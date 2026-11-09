@@ -310,6 +310,16 @@ w("bomb.jpg", jpeg(w=65000, h=65000, exif_blob=exif()))
 w("zero.jpg", b"")
 w("polyglot.jpg", jpeg(exif_blob=exif()) + b"<?php system($_GET['c']); ?>")
 w("bad-crc.png", good_png[:-8] + b"\0\0\0\0" + good_png[-4:])
+def bare_png(w_, h_, depth, ctype, raw):
+    head = chunk(b"IHDR", struct.pack(">IIBBBBB", w_, h_, depth, ctype, 0, 0, 0))
+    return b"\x89PNG\r\n\x1a\n" + head + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+
+w("png-depth3.png", bare_png(1, 1, 3, 0, b""))
+w("png-short.png", bare_png(4, 4, 8, 0, b"\0" * 7))
+w("png-long.png", bare_png(4, 4, 8, 0, b"\0" * 40))
+w("png-badtype.png", bare_png(1, 1, 8, 5, b"\0\0"))
+w("png-nopalette.png", bare_png(1, 1, 8, 3, b"\0\0"))
+w("png-garbage.png", good_png[:33] + chunk(b"IDAT", b"\1\2\3") + chunk(b"IEND", b""))
 w("big.jpg", jpeg() + bytes(5 * 1024 * 1024))
 PY
 SENT="FAKEGPS-SENTINEL-0000"
@@ -415,6 +425,12 @@ imgrefuse "WebP renamed to .jpg refused" "not a JPEG or PNG" "$fx/webp-as.jpg" -
 imgrefuse "empty file refused" "not a JPEG or PNG|empty" "$fx/zero.jpg" --alt "$ALT"
 imgrefuse "truncated jpeg refused" "truncated|malformed" "$fx/trunc.jpg" --alt "$ALT"
 imgrefuse "bad png crc refused" "malformed|checksum" "$fx/bad-crc.png" --alt "$ALT"
+imgrefuse "PNG with illegal bit depth for its color type refused" "malformed" "$fx/png-depth3.png" --alt "$ALT"
+imgrefuse "PNG with invalid color type refused" "malformed" "$fx/png-badtype.png" --alt "$ALT"
+imgrefuse "palette PNG without PLTE refused" "malformed" "$fx/png-nopalette.png" --alt "$ALT"
+imgrefuse "PNG whose image data is too short refused" "malformed" "$fx/png-short.png" --alt "$ALT"
+imgrefuse "PNG whose image data is too long refused" "malformed" "$fx/png-long.png" --alt "$ALT"
+imgrefuse "PNG whose image data is not a zlib stream refused" "malformed" "$fx/png-garbage.png" --alt "$ALT"
 imgrefuse "decompression-bomb png dimensions refused" "dimensions" "$fx/bomb.png" --alt "$ALT"
 imgrefuse "decompression-bomb jpeg dimensions refused" "dimensions" "$fx/bomb.jpg" --alt "$ALT"
 imgrefuse "bytes after the end of the image refused" "after the end|malformed" "$fx/polyglot.jpg" --alt "$ALT"
