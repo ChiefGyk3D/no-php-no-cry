@@ -241,8 +241,8 @@ after the first deploy to the staging host, run
 ### Old image addresses
 
 `data/legacy_uploads.json` is a list of `{"from": "/wp-content/uploads/...",
-"to": "/posts/<slug>/<file>"}` entries and ships empty (`[]`) because the
-migrated posts are private drafts until published. The converter writes the real
+"to": "/posts/<slug>/<file>"}` entries. It holds 23 entries now that six migrated
+posts are published (issue 322); a post still in draft contributes none. The converter writes the real
 list, only for images the migrated posts show, as `legacy-uploads.json` beside
 its page bundles in the (private) output directory. Steps, after the WebP step
 so the targets carry the final names:
@@ -254,12 +254,15 @@ so the targets carry the final names:
    bundles it points at, in the same pull request. The file holds public URL
    paths only, no private text.
 
-The ten migrated posts are drafts, so `data/legacy_uploads.json` stays `[]`
-until they are published: a draft's page bundle is not built in production, and
-a redirect to it would land on a 404. `docs/migration-uploads.md` lists, per
-post, the entries to add back (the file is documentation, the build ignores it).
-Flip a post to `draft: false` and add that post's entries in the same pull
-request, then run `scripts/test-redirects.sh`.
+Six migrated posts were published in issue 322, so `data/legacy_uploads.json`
+now holds 23 entries (the posts' old upload addresses, 3 for the
+community-automation post and 20 for the headphone post; the other four have
+none). A draft's page bundle is not built in production and a redirect to it
+would land on a 404, so a post still in draft contributes no entries.
+`docs/migration-uploads.md` lists, per post, the entries to add (the file is
+documentation, the build ignores it). Flip a post to `draft: false` and add
+that post's entries in the same pull request, then run
+`scripts/test-redirects.sh`.
 
 **Flip these two posts together.** The Twitch-and-Toot post carries
 `supersededBy` pointing to the Stream Daemon post. If Twitch-and-Toot goes live
