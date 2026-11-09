@@ -64,8 +64,8 @@ The apex cutover plan, gates and rollback are in
 ## Credentials
 
 The deploy job needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. It reads
-them from a secrets manager over OIDC when that is configured, otherwise from
-GitHub Actions secrets of the same names. The token is a user token with exactly
+them from the secrets manager over OIDC and from nowhere else: no GitHub
+repository secret is read or recommended. The token is a user token with exactly
 one permission (Cloudflare Pages: Edit). Never put either value in the
 repository, in an issue or in a log. If you fork, change the OIDC subject and
 `SITE_URL` to match your repository.
