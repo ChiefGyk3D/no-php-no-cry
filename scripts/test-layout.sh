@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# CSS-level layout guards (issue 308): the Home hero buttons sit on one row and text inside a
-# bordered box uses the box width. A browser is not available in CI, so this asserts the rules
-# in the stylesheets; the measured evidence (bounding boxes at the viewport matrix) is in
-# docs/viewport-matrix.md. A guard self-test feeds the checker a stylesheet that breaks each
+# CSS-level layout guard (issue 308): asserts the stylesheet rules behind the Home hero button row
+# and the text width inside bordered boxes, so an edit that drops one fails fast and names the rule,
+# without a browser or a build. It does not measure layout. The measured check is the browser
+# gate (scripts/browser-gate.py, the "browser gate" leg of the ci job), which at 1878x930 and
+# 1366x768 fails [hero] when the hero buttons wrap or the page scrolls sideways, and [boxtext]
+# when a bordered box leaves more than 25 percent of its width empty on the right. See
+# docs/viewport-matrix.md. A guard self-test feeds this checker a stylesheet that breaks each
 # rule and requires a failure.
 set -euo pipefail
 

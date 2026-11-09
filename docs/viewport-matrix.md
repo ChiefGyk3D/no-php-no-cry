@@ -29,9 +29,20 @@ scrollbar plus a browser side panel). Measure at 1878x930 first.
 Use headless Chromium with `--window-size` or CDP `Emulation.setDeviceMetricsOverride`, and read
 `getBoundingClientRect()`. The Playwright MCP screenshot call times out here.
 
-## CI guard
+## What CI covers
 
-A browser is not available in CI, so `scripts/test-layout.sh` asserts the CSS rules behind the
-measurements (hero row gap and padding, the 6fr 5fr hero grid, the prose tokens and the box
-rule) and runs a self-test that breaks each rule and requires a failure. If you change one of
-those values, re-measure the matrix above and update the test in the same pull request.
+Two layers, and neither replaces the other.
+
+- Browser gate (`scripts/browser-gate.py`, the "browser gate" leg of the `ci` job, headless
+  Chrome over a pipe, run on site changes). Besides its older rules it now loads every page
+  template at 1878x930 and 1366x768 and fails `[hero]` when the `.hero-actions` buttons are on
+  more than one row or the page scrolls sideways, and `[boxtext]` when the widest text line of
+  a bordered box (`.panel`, `.skill-group`, `.about-contact`) with a wrapping paragraph ends more
+  than 25 percent of the box content width short of its right edge. Its other rules run at 1440,
+  1024, 768, 393 and 390 wide, and the fit rule at 1920x930. It does not run 1728, 1536, 1440x800
+  or 1280 for the hero row; those are measured by hand with the matrix above. Its self-test is
+  `scripts/test-browser-gate.sh` (fixture pages that break each rule).
+- `scripts/test-layout.sh` is a CSS-level check with no browser or build: it guards the rules
+  themselves (hero row gap and padding, the 6fr 5fr hero grid, the prose tokens and the box
+  rule) and names the rule when one is edited away. If you change one of those values,
+  re-measure the matrix above and update both checks in the same pull request.
