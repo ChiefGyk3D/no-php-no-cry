@@ -1894,7 +1894,7 @@
             "id": "186a6034-1b5e-5df0-a225-cc1ffbb19670",
             "data": {
               "name": "Cloudflare Web Analytics beacon",
-              "description": "Cloudflare injects its own beacon at the edge. The CSP allows exactly its script URL and same-origin reporting.",
+              "description": "Cloudflare injects its own beacon at the edge. The CSP allows exactly one path prefix on Cloudflare's script host (static.cloudflareinsights.com/beacon.min.js/) and same-origin reporting.",
               "type": "tm.Process",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -1908,8 +1908,19 @@
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
                   "description": "The injected beacon is code this project does not control, allowed by the script-src entry.",
-                  "mitigation": "Accepted by the owner (docs/analytics-from-reach-around.md, decision Q3, 2026-11-09). Limited to one URL in static/_headers; every other script is still blocked and the beacon is not in the built HTML, so scripts/check-output.sh still rejects any script element that is not a pinned file.",
+                  "mitigation": "Accepted by the owner (docs/analytics-from-reach-around.md, decision Q3, 2026-11-09). Limited to one path in static/_headers (the entry that the injected tag's versioned path needs, issue 318); every other script is still blocked and the beacon is not in the built HTML, so scripts/check-output.sh still rejects any script element that is not a pinned file.",
                   "number": 32
+                },
+                {
+                  "id": "bc25203c-fef4-4d14-9cc7-d596d5fabbef",
+                  "title": "Path prefix lets the host serve any script under the beacon path",
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "The script-src entry ends in a slash, so the browser accepts every URL under /beacon.min.js/ on Cloudflare's script host, not only the one file the injected tag loads.",
+                  "mitigation": "The entry names one host and one path, never the host alone or a wildcard; a longer or shorter path, another host and a second third-party source all fail (scripts/check-output.sh csp_scripts_ok and weak-csp, scripts/check-site-artifact.sh, scripts/smoke-site.sh, mutants in scripts/test-check-output.sh and scripts/test-smoke-site.sh). The injected tag carries a subresource integrity hash, which the browser checks on the bytes it fetches. Residual: Cloudflare can serve other files under that path; accepted with the beacon itself (threat 32).",
+                  "number": 58
                 }
               ],
               "hasOpenThreats": false,
@@ -3865,6 +3876,6 @@
     ],
     "diagramTop": 3,
     "reviewer": "ChiefGyk3D",
-    "threatTop": 57
+    "threatTop": 58
   }
 }

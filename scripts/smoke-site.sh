@@ -78,7 +78,7 @@ fi
 # The build's policy must allow scripts from 'self' only (the copy script): one
 # script-src, exactly 'self'. 'none' would mean the header and the copy script
 # drifted apart; anything looser is a weaker site than the one reviewed.
-if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com/beacon.min.js" 'BEGIN {
+if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com/beacon.min.js/" 'BEGIN {
         n = split(csp, d, ";")
         for (i = 1; i <= n; i++) {
             gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])

@@ -11,7 +11,7 @@ by the owner is out of scope. A mistake by the owner or a contributor is in scop
 
 ## Counts
 
-57 threats in three diagrams: 33 Mitigated, 21 Open, 2 Accepted, 1 N/A.
+58 threats in three diagrams: 34 Mitigated, 21 Open, 2 Accepted, 1 N/A.
 
 A threat counts as Mitigated only when a control is in this repository and the model names it by path.
 `scripts/check-threat-model.py` fails the build when a named path does not exist.
@@ -33,7 +33,8 @@ A threat counts as Mitigated only when a control is in this repository and the m
 ## Accepted by decision
 
 - The Cloudflare Web Analytics beacon is a third-party script that the CSP allows by name (owner decision
-  Q3, `docs/analytics-from-reach-around.md`).
+  Q3, `docs/analytics-from-reach-around.md`). The CSP names one path prefix on Cloudflare's script host, with a trailing slash
+  (issue 318); the model records that prefix as its own mitigated threat.
 - Page counts can be inflated by anyone who requests pages. Counts are an estimate, never used for security.
 
 ## Open, in order of how much they matter
@@ -80,3 +81,4 @@ Medium and low severity:
 | --- | --- |
 | 2026-11-09 | First version (issue 290). Provider-side settings not read. |
 | 2026-11-09 | Counts corrected to 33 Mitigated and 21 Open after the GitHub secret fallbacks were removed (PR 307); numbers read from the model with `scripts/check-threat-model.py`. |
+| 2026-11-09 | Counts 58 threats, 34 Mitigated: the beacon CSP entry became a path prefix (issue 318) and the model gained one threat for it. |

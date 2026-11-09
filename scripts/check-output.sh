@@ -36,7 +36,9 @@
 # HTML is under 40 KB gzip (search-page-budget): it is the browse list with
 # JavaScript off, and past that size the approach needs another look. The CSP
 # must carry exactly one script-src, and it must be 'self' plus the one
-# Cloudflare Web Analytics beacon URL (injected at the edge; never in built HTML).
+# Cloudflare Web Analytics beacon path (injected at the edge; never in built HTML). The entry ends in a slash
+# on purpose: the injected tag loads /beacon.min.js/v<version>, and a CSP path ending in / matches by prefix
+# (CSP3 section 6.7.2.12), where the bare /beacon.min.js entry matches only that exact path.
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
@@ -137,7 +139,7 @@ has_redirect() {
 # that is 'self', and no script-src-elem or script-src-attr (either would
 # override script-src).
 csp_scripts_ok() {
-    awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js" '
+    awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js/" '
         { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; cs = 0; ok = 1
           for (i = 1; i <= n; i++) {
               gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
@@ -555,7 +557,7 @@ if [[ ! -s "$dir/_headers" ]]; then
 else
     csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
     if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
-        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js/}"; then
+        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js\//}"; then
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
         report weak-csp "_headers (script-src must be exactly 'self' plus the Cloudflare beacon URL, once, connect-src exactly 'self', no script-src-elem or script-src-attr)"

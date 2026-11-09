@@ -102,7 +102,7 @@ fi
 
 # The expected policy: one script-src, exactly 'self' plus the Cloudflare Web Analytics beacon URL, one connect-src, exactly 'self',
 # and no script-src-elem or script-src-attr to override it.
-if ! awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js" '
+if ! awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js/" '
     /^[[:space:]]*Content-Security-Policy:/ {
         sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; cs = 0
         for (i = 1; i <= n; i++) {

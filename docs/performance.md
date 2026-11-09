@@ -85,7 +85,7 @@ Lighthouse run from this machine against `https://test-blog.chiefgyk3d.com`
 |---|---|---|
 | Staging SEO 69 (`is-crawlable`) | `<meta name="robots" content="noindex, nofollow">` and `robots.txt` `Disallow: /` on test-blog, by design | None. Production builds score SEO 100 locally on every indexable page. Re-measure after cutover. |
 | 404 page SEO 69 | The 404 template carries `<meta name=robots content="noindex">` | None. A not-found page should not be indexed; keep it. |
-| Staging Best Practices 92 (`errors-in-console`, `inspector-issues`) | The Cloudflare beacon is requested as `https://static.cloudflareinsights.com/beacon.min.js/v<token>`; the CSP names `.../beacon.min.js`, a path source that matches that exact path only, so the browser blocks it ("violates the following Content Security Policy directive") | Owner decision, not changed here (the CSP stays as is, and `check-output.sh` pins the exact entry). Either accept the console error, turn Web Analytics automatic injection off, or approve a wider beacon source (for example the `static.cloudflareinsights.com` host) in `static/_headers` and `check-output.sh` together. The blocked URL with the suffix was observed in Lighthouse's console audit on staging, 2026-11-08. |
+| Staging Best Practices 92 (`errors-in-console`, `inspector-issues`) before issue 318 | The Cloudflare beacon is requested as `https://static.cloudflareinsights.com/beacon.min.js/v<token>`; the old CSP entry `.../beacon.min.js` is a path source that matches that exact path only, so the browser blocked it (and the beacon collected nothing) | Fixed in issue 318 (owner decision 2026-11-09): the entry is now `https://static.cloudflareinsights.com/beacon.min.js/`, with a trailing slash. Re-measure Best Practices on the host after the deploy; expected 100. Details: section "CSP entry for the Cloudflare beacon" below. |
 | `render-blocking-insight` (CSS, 40 to 150 ms on mobile) | One 6 to 7 KB stylesheet is the only blocking request. Inlining it needs `style-src 'unsafe-inline'` | None. The strict CSP rules it out. It does not lower the Performance score. |
 | `cache-insight` and cache lifetime | Fixed in issue 240: `static/_headers` has a second block, `/css/*`, that sets `Cache-Control: public, max-age=31536000, immutable`. Every file there is named by its own sha256 (Hugo fingerprint), proven on every build by `check-output.sh` (`immutable-unhashed`, `missing-immutable`, `headers-structure`). Fonts, brand images, post images and the pinned scripts keep unhashed names and the host default, on purpose | None. Cloudflare Pages merges the matching blocks; confirm with `curl -sI` on the staging stylesheet after the first deploy (the local test server applies `_headers` the same way, but the host is the judge). |
 | `image-delivery-insight` on the post (15 KiB) | The hero is already `fetchpriority=high`, `srcset`, WebP, with dimensions | Optional: a smaller hero encode. Not a scored audit. |
@@ -135,12 +135,12 @@ injects scripts at the edge, so these are not the production numbers.
 | All 14 indexable page types | 99/100/92/69 | 100/100/92/69 |
 | 404 (`/404.html`) | 99/100/92/69 | 100/100/92/69 |
 
-- Best Practices 92 on every page: `errors-in-console` and `inspector-issues`.
-  Cloudflare injects the Web Analytics beacon as
-  `https://static.cloudflareinsights.com/beacon.min.js/v<token>`; the CSP names
-  `.../beacon.min.js`, which matches that exact path only, so the browser blocks
-  it. Host-controlled; the owner's Cloudflare task is issue 241. The CSP and
-  `check-output.sh` are unchanged.
+- Best Practices 92 on every page (measured 2026-11-08, before issue 318): `errors-in-console`
+  and `inspector-issues`. Cloudflare injects the Web Analytics beacon as
+  `https://static.cloudflareinsights.com/beacon.min.js/v<token>`; the old CSP entry
+  `.../beacon.min.js` matched that exact path only, so the browser blocked it and the beacon
+  collected nothing. Issue 318 changes the entry to the path prefix
+  `.../beacon.min.js/` (below); the score is re-measured after the deploy.
 - SEO 69: staging is `noindex` by design (see the table above); production
   builds score 100 on every indexable page.
 - Performance 99 on mobile: First Contentful Paint 1.6 to 1.7 s under simulated
@@ -178,21 +178,62 @@ URLs; source: web.dev/articles/trusted-types, read 2026-11-08): none is used.
 `value`; `window.open` and `prompt` are not Trusted Types sinks. So no policy and
 no `trusted-types` directive is needed, and `check-output.sh` rejects one
 (`weak-csp`). No pinned script changed, so no `.sha256` file changed.
-Risk: Cloudflare's own injected beacon is not ours to audit. If it used a sink it
-would log a violation in the console; on staging it is already blocked by the CSP
-path mismatch (above), and issue 241 removes it.
+Risk: Cloudflare's own injected beacon is not ours to audit. If it used a Trusted
+Types sink it would log a violation in the console. Observed 2026-11-09: a
+parser-inserted script with `integrity` and `crossorigin=anonymous` runs under the full
+policy, `require-trusted-types-for 'script'` included (stand-in test, below).
 
-### CSP host allowlist for the Cloudflare beacon (kept, tracked)
+### CSP entry for the Cloudflare beacon (issue 318)
 
-PageSpeed flags `script-src ... https://static.cloudflareinsights.com/beacon.min.js`
-because host allowlists can be bypassed. It stays until issue 241 turns off
-Cloudflare's automatic Web Analytics injection. When #241 is done, delete from
-`static/_headers`: the beacon URL in `script-src` (leaving `script-src 'self'`).
-The `connect-src 'self'` stays. In the same change update the beacon constant
-and the allowances in `scripts/check-output.sh` (`csp_scripts_ok`, the
-`weak-csp` substitution), `scripts/smoke-site.sh` messages, and the beacon
-variants in `scripts/test-check-output.sh`. A comment in `static/_headers` points
-here so it is not forgotten.
+The policy carries `script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/`
+and `connect-src 'self'`. Cloudflare's FAQ (web-analytics/faq, "What do I need to add to my
+Content Security Policy", read 2026-11-09) names the bare URL and `'self'` for automatic
+injection, but the tag it injects loads `/beacon.min.js/v<token>`, which the bare entry does
+not match. CSP3 section 6.7.2.12, path-part matching (w3c.github.io/webappsec-csp, read
+2026-11-09): a path ending in `/` matches by prefix ("/subdirectory/" matches
+"/subdirectory/file"); a path without it matches exactly.
+
+PageSpeed flags any host allowlist in `script-src` as bypassable; a path prefix on one host is the narrowest form the CSP
+syntax offers for this script.
+
+Observed in headless Chrome, 2026-11-09, with `default-src 'none'`, `connect-src 'self'` and
+`require-trusted-types-for 'script'`, six parser-inserted script tags on the real host name:
+
+| Source in script-src | Blocked | Allowed |
+| --- | --- | --- |
+| `.../beacon.min.js` (the old entry) | `/beacon.min.js/v<token>`, `/beacon.min.jsx`, `/other.js`, `/beacon.min.js/vABC/extra.js`, `/beacon.min.js/../evil.js` (the browser resolves it to `/evil.js`) | `/beacon.min.js` |
+| `.../beacon.min.js/` (the new entry) | `/beacon.min.js`, `/beacon.min.jsx`, `/other.js`, `/evil.js` | `/beacon.min.js/v<token>`, `/beacon.min.js/vABC/extra.js` |
+| the host `https://static.cloudflareinsights.com` (not used) | nothing | everything |
+
+So the narrow entry allows the versioned path and nothing outside `/beacon.min.js/` on that
+host. It no longer allows the bare `/beacon.min.js`; the injected tag does not use it.
+
+Subresource integrity: the injected tag carries `integrity="sha512-..."` and
+`crossorigin="anonymous"` (observed in the staging HTML, 2026-11-09). The policy and the hash are
+separate checks. In a stand-in test (a local server on a second port, with the same tag shape,
+`Access-Control-Allow-Origin: *`, the hash of its own bytes), under the new entry the script ran;
+with a wrong hash it did not run and no policy violation was reported; with the old bare entry
+the policy blocked it. Not tested here: the real script (TLS to that host failed on this machine)
+and Cloudflare's CORS header on it (INFERRED to be sent, since the docs describe automatic
+injection with an integrity attribute; the post-deploy check below proves it).
+
+Every place that pins the entry changed together: `static/_headers`, `scripts/check-output.sh`
+(`csp_scripts_ok`, the `weak-csp` substitution), `scripts/check-site-artifact.sh`,
+`scripts/smoke-site.sh`, and the mutants in `scripts/test-check-output.sh`,
+`scripts/test-smoke-site.sh` and `scripts/test-share.sh`. The old bare entry, the host alone, a
+wildcard, a deeper path, another host and a second third-party source all fail `weak-csp`.
+
+After the deploy (the host is the judge):
+
+1. `curl -sI https://test-blog.chiefgyk3d.com/` shows the new `script-src` entry in the
+   `Content-Security-Policy` header.
+2. Open any page in a browser with the console open: no CSP violation for the beacon, and in
+   the network panel a `POST` to `/cdn-cgi/rum` answers 2xx (a `GET` answers 405 by design,
+   Cloudflare changelog 2026-05-13).
+3. Run Lighthouse on the host: Best Practices 100 (`errors-in-console` and `inspector-issues`
+   pass). SEO stays 69 while the host is staging.
+4. After a day, the Web Analytics page for the project shows page views. The dashboard path is
+   UNVERIFIED; read Cloudflare's current Web Analytics docs first.
 
 ### HSTS preload (not enabled: owner decision)
 

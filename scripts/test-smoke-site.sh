@@ -19,7 +19,7 @@ stop_server() {
 }
 trap 'stop_server; rm -rf "$work"' EXIT
 
-csp="default-src 'none'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'"
+csp="default-src 'none'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; connect-src 'self'"
 pub="$work/public"
 mkdir -p "$pub"
 printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n' "$csp" >"$pub/_headers"
@@ -326,7 +326,7 @@ expect "build holding only the required redirect" pass good "$work/lean"
 # The expected policy must carry script-src exactly 'self' plus the Cloudflare beacon URL: 'none' (the header
 # and the copy script would have drifted apart) and anything looser are refused
 # before any request is made.
-for src in "'none'" "'self' https:" "'unsafe-inline'" "*" "'self' data:" "'self'" "'self' https://static.cloudflareinsights.com"; do
+for src in "'none'" "'self' https:" "'unsafe-inline'" "*" "'self' data:" "'self'" "'self' https://static.cloudflareinsights.com" "'self' https://static.cloudflareinsights.com/beacon.min.js"; do
     d="$work/csp-$(printf '%s' "$src" | tr -c '[:lower:]' '_')"
     mkdir -p "$d"
     cp "$pub/_redirects" "$d/"
