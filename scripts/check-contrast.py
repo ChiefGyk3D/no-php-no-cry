@@ -9,6 +9,7 @@ only (brand kit decision L): the one :root block is checked. Text pairs need
 failure, missing token or missing block. A leftover light or data-theme block
 also fails, so light mode cannot come back unnoticed.
 """
+import os
 import re
 import sys
 
@@ -96,6 +97,47 @@ def ratio(fg, bg):
     return (hi + 0.05) / (lo + 0.05)
 
 
+# Text on the translucent amber tint (--frame-fill in borders.css, an rgb() with
+# an alpha over the page ground). The tint is composited over --bg and the result
+# is checked like any other surface. Pairs: (text token, minimum ratio).
+TINT_TEXT = [("text", 4.5), ("muted", 4.5), ("link", 4.5)]
+TINT_RE = re.compile(
+    r"--frame-fill\s*:\s*rgb\(\s*(\d+)\s+(\d+)\s+(\d+)\s*/\s*([0-9.]+)\s*\)\s*;"
+)
+
+
+def composite(rgb, alpha, ground_hex):
+    ground = [int(ground_hex[i : i + 2], 16) for i in (1, 3, 5)]
+    mixed = [round(alpha * c + (1 - alpha) * g) for c, g in zip(rgb, ground)]
+    return "#%02X%02X%02X" % tuple(mixed)
+
+
+def check_tint(path, tokens):
+    """Check text on the --frame-fill tint; borders.css sits beside tokens.css."""
+    borders = os.path.join(os.path.dirname(path) or ".", "borders.css")
+    if not os.path.exists(borders):
+        return False
+    with open(borders, encoding="utf-8") as handle:
+        match = TINT_RE.search(strip_comments(handle.read()))
+    if not match:
+        print("FAIL borders.css: --frame-fill rgb(R G B / alpha) not found")
+        return True
+    rgb = [int(match.group(i)) for i in (1, 2, 3)]
+    tint = composite(rgb, float(match.group(4)), tokens["bg"])
+    failed = False
+    for fg, need in TINT_TEXT:
+        if fg not in tokens:
+            continue
+        got = ratio(tokens[fg], tint)
+        if got < need:
+            failed = True
+        print(
+            "%s dark: %s on frame-fill tint %s on %s = %.2f:1 (need %.1f)"
+            % ("ok  " if got >= need else "FAIL", fg, tokens[fg], tint, got, need)
+        )
+    return failed
+
+
 def main(path):
     with open(path, encoding="utf-8") as handle:
         css = handle.read()
@@ -124,6 +166,8 @@ def main(path):
             "%s dark: %s on %s %s on %s = %.2f:1 (need %.1f)"
             % (status, fg, bg, tokens[fg], tokens[bg], got, need)
         )
+    if check_tint(path, tokens):
+        failed = True
     return 1 if failed else 0
 
 

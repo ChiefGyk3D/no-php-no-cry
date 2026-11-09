@@ -170,7 +170,7 @@
 }
 
 h2.fx,
-summary.fx h2 {
+summary.fx {
   --fill: transparent;
 }
 
