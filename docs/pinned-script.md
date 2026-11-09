@@ -31,8 +31,9 @@ these reviewed files instead of an inspection of their code:
 
 - Each script has a committed hash file at the repository root, one line, the
   sha256 of the script in `sha256sum` format: `copy.js.sha256` holds
-  `<64 lowercase hex>  copy.js` and `search.js.sha256` holds
-  `<64 lowercase hex>  search.js`.
+  `<64 lowercase hex>  copy.js`, `search.js.sha256` holds
+  `<64 lowercase hex>  search.js` and `share.js.sha256` holds
+  `<64 lowercase hex>  share.js`.
 - `scripts/check-output.sh`, `scripts/check-site-artifact.sh` and the post-deploy
   `scripts/smoke-site.sh` accept a script only if its sha256 equals the line in
   its own hash file. The smoke check also hashes the bytes the live site serves.
@@ -83,7 +84,7 @@ that.
 ## Changing a script
 
 1. Edit `static/copy.js`, `static/search.js` or `static/share.js`.
-2. Run `scripts/pin-script.sh` (both scripts) or `scripts/pin-script.sh
+2. Run `scripts/pin-script.sh` (all three scripts: `copy.js`, `search.js`, `share.js`) or `scripts/pin-script.sh
    static/search.js` (one). It refuses a script of 1 KB gzip or more and writes
    `<name>.sha256`. (`scripts/pin-script.sh --check` verifies them.)
 3. Commit the script and its hash file in the same pull request. The hash change
