@@ -117,11 +117,6 @@
     {{- end }}</p>{{ "<!--/email_off-->" | safeHTML }}
     <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
     <p class="pgp-key-link"><a href="{{ $c.pgp_url | relURL }}">PGP public key</a></p>
-    {{- /* Issue 329: the keyserver copy, linked by FINGERPRINT so it can only ever be this key. Rendered only while data/about.yaml sets pgp_keyserver_url (https://keys.openpgp.org/ only); set it once the key is uploaded and verified there. */}}
-    {{- with $c.pgp_keyserver_url }}
-    {{- if not (strings.HasPrefix . "https://keys.openpgp.org/") }}{{ errorf "about contact pgp_keyserver_url is not on https://keys.openpgp.org/" }}{{ end }}
-    <p class="pgp-keyserver-link"><a href="{{ . }}" target="_blank" rel="noopener">PGP key on keys.openpgp.org<span class="visually-hidden"> (opens in a new tab)</span></a></p>
-    {{- end }}
     {{- end }}
     <ul class="contact-links">
       <li><a href="https://matrix.to/#/#renegade-penguin:chiefgyk3d.com" target="_blank" rel="noopener">Matrix<span class="visually-hidden"> (opens in a new tab)</span></a></li>

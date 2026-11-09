@@ -600,28 +600,17 @@ def about(p, errs, repo):
             errs.append("the fingerprint line must be 'PGP fingerprint: <code>...</code>'")
         if not re.search(r"<p[^>]*>\s*Email, for business inquiries only: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
             errs.append("the email line must be 'Email, for business inquiries only: <a mailto>...</a>'")
-        # Issues 224 and 329: the keyserver held a different (older) key for this address on
-        # 2026-11-09, so a keyserver link is allowed only as the by-fingerprint URL of THIS
-        # fingerprint (data/about.yaml pgp_keyserver_url), never by address or key id.
-        ks_urls = re.findall(r"https://keys\.openpgp\.org/[^\"'\s<>]*", repo["html"])
+        # Issue 329 (owner correction 2026-11-09, supersedes the 224 key choice for now): the key in
+        # use is the one on keys.openpgp.org, so the key link must be that keyserver's
+        # by-fingerprint URL of the PUBLISHED fingerprint, and the unused key file kept in static/
+        # (static/chiefgyk3d.asc) must not be linked or named on the page.
         ks_ok = "https://keys.openpgp.org/vks/v1/by-fingerprint/" + re.sub(r"\s+", "", cd["pgp_fingerprint"]).upper()
-        if any(u != ks_ok for u in ks_urls):
-            errs.append("a keys.openpgp.org link on About must be the by-fingerprint URL of the published fingerprint (issues 224, 329); found %r" % ks_urls)
-        if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "").endswith(cd["pgp_url"])]:
-            errs.append("the PGP key link text must be 'PGP public key'")
-        if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
-            errs.append("PGP key link missing")
-        else:
-            keyfile = os.path.join(os.path.dirname(os.path.dirname(os.environ["ABOUT_DATA"])), "static", cd["pgp_url"].lstrip("/"))
-            if not os.path.isfile(keyfile):
-                errs.append("the PGP key file %s is not in static/" % cd["pgp_url"])
-            else:
-                key = open(keyfile, encoding="ascii").read()
-                if "PRIVATE" in key or not key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----"):
-                    errs.append("the key file is not a public key block only")
-                want_fp = key_fingerprint(keyfile)
-                if want_fp is not None and want_fp != cd["pgp_fingerprint"].replace(" ", "").upper():
-                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want_fp))
+        if cd["pgp_url"] != ks_ok:
+            errs.append("pgp_url must be %s (the by-fingerprint URL of the published fingerprint); found %r" % (ks_ok, cd["pgp_url"]))
+        if "chiefgyk3d.asc" in repo["html"]:
+            errs.append("the About page must not link the unused local key file")
+        if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "") == cd["pgp_url"]]:
+            errs.append("the PGP key link text must be 'PGP public key' and its href the data pgp_url")
     stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - ({cd["email"]} if email_set else set())
     if stray:
         errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
@@ -815,9 +804,9 @@ fi
 # break must fail. Then a copy of the repository with the email and PGP entries
 # emptied must build a page that renders none of them.
 if [[ -f "$pub/about/index.html" ]]; then
-    mutate "$work/about-fp.html" "98B2 D533 1A9F 17AC" "98B2 D533 1A9F 17AD"
+    mutate "$work/about-fp.html" "70EA A2B2 49A3 50E7" "70EA A2B2 49A3 50E8"
     mutate "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
-    mutate "$work/about-nokey.html" "/chiefgyk3d.asc" "/other.asc"
+    mutate "$work/about-nokey.html" "by-fingerprint/5AFF" "by-fingerprint/5AFE"
     # Issue 224 guard: the three lines merged into one paragraph must fail.
     python3 -I - "$work/about-merged.html" "$pub/about/index.html" <<'PYEOF'
 import re, sys
@@ -864,8 +853,8 @@ PYEOF
             fail "contact case $name ($5): the About asserter rejected the page"
         fi
     }
-    FP="93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
-    KEYURL="/chiefgyk3d.asc"
+    FP="5AFF B5C1 C37A 63AB DB93 07C1 70EA A2B2 49A3 50E7"
+    KEYURL="https://keys.openpgp.org/vks/v1/by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E7"
     build_contact_case neither "" "" "" incomplete
     build_contact_case email-only "chief@chiefgyk3d.com" "" "" incomplete
     build_contact_case key-only "" "$FP" "$KEYURL" incomplete
