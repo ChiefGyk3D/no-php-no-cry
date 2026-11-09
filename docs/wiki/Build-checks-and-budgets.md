@@ -98,6 +98,8 @@ Every `scripts/test-*.sh` pairs with a check or a feature. The ones to read:
   `scripts/fixture-site.py`).
 - `scripts/test-check-content.sh`: a fixture for each post and image rule, passing and
   failing, plus hostile front matter, a huge file and non-UTF-8 input.
+- `scripts/test-author.sh`: the authoring helper (`scripts/author.py`): slugs, dates,
+  tags, collisions, path and symlink safety, and a created page that passes the content check.
 - `scripts/test-check-wiki.sh` and `scripts/test-check-wording.sh`: the guard
   tests for the documentation checks. A guard test collects loosely, asserts
   strictly (it requires that something was found) and includes a case that

@@ -18,6 +18,9 @@ this page does not repeat its tables.
    address (`/posts/my-post-title/`). Hugo builds a page bundle from
    `archetypes/posts/index.md`: a folder holding `index.md`, with room for the
    images beside it. The new post is a draft and does not syndicate.
+
+   The authoring helper does the same in one command and can check the result:
+   see [Authoring helper](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/docs/authoring-helper.md).
 3. **Write it.** The file starts with front matter, then the opening paragraph,
    then the line `<!--more-->`. Everything above that line is the summary, so
    write the opening paragraph to stand on its own.
