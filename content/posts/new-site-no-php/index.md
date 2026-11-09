@@ -3,14 +3,14 @@ title: "I Rebuilt My Site Without PHP"
 date: 2026-11-09
 draft: true
 slug: "new-site-no-php"
-description: "A static Hugo site with no PHP, built to be fast, locked down and open to read, now on a staging address."
+description: "I rebuilt this site with Hugo, strict security checks, accessible templates and no PHP or database."
 categories: ["Open Source"]
 tags: ["hugo", "security", "accessibility", "performance", "open-source"]
 syndicate: false
 affiliate: false
 ---
 
-No PHP No Cry is my static site and work journal, built with Hugo, with no PHP and no database. It is running at [test-blog.chiefgyk3d.com](https://test-blog.chiefgyk3d.com) right now, but that is staging. My main domain still serves the WordPress site, and it will stay that way until both this project and Reach Around are done.
+This site is a static personal site and work journal built with Hugo, without PHP or a database. I wrote the templates from scratch, kept the browser code small, and put the security, accessibility and performance rules into checks that can fail the build.
 
 <!--more-->
 
@@ -18,74 +18,80 @@ No PHP No Cry is my static site and work journal, built with Hugo, with no PHP a
 
 I built this because of PHP2Shell and my frustration with Matt Mullenweg and his toxicity. I covered the WordPress situation in [Who can't drive an Automattic? The fall of Wordpress and Matt Mullenweg](https://www.youtube.com/watch?v=FnoazrD6-Rg), [The Internet at Risk: WordPress Drama and Matt Mullenweg's Petty Fight Against WP Engine](https://www.youtube.com/watch?v=RqRZoQqKPgs), and [Automattic and Matt Mullenweg "Are Doing Open Source Dirty"](https://www.youtube.com/watch?v=QLEzJ3cXiWI).
 
-I wanted something fast, light, capable, better designed and more secure, with the code open so other creators could use it and learn from it. The templates are written from scratch. This is not a Hugo theme wrapped around somebody else's decisions.
+I wanted something fast, light, capable, better designed and more secure, with the work open so other people could use it and learn from it. This is not a Hugo theme wrapped around somebody else's decisions.
 
-The site deploys to Cloudflare Pages. When I eventually cut over, the old WordPress addresses will remain as 301 redirects. I also built a converter that turns a WordPress export into Hugo page bundles and scrubs private data. There is no cutover date.
+I also built a converter that turns a WordPress export into Hugo page bundles, scrubs private data and preserves old addresses as redirects.
 
 ## What is here
 
-The site has posts and a work journal, with each entry stored as a page bundle containing `index.md` and its images. It supports tags, categories, optional headline images, archive notices on older posts and links to newer material.
+Posts and work journal entries live in page bundles, with their Markdown and images together. They support tags, categories, archive notices, optional headline images, card thumbnails and social cards.
 
-Search starts as a complete A to Z index, so it still works without JavaScript. A small pinned script adds filtering when JavaScript is available. The site also publishes RSS at `/feed/index.xml`, redirects the old WordPress feed addresses there, provides feeds for the home, posts and journal sections, and includes a sitemap, environment-aware `robots.txt` and `/llms.txt`.
+Search starts as a complete A to Z index, so it remains useful before JavaScript does anything. A small script adds filtering. The site also publishes RSS feeds, a sitemap, `robots.txt` and `llms.txt`.
 
-Each post and journal entry has a share row made from plain links, with no embedded widgets or tracking parameters. It covers Threads, Bluesky, Twitter, Reddit, LinkedIn, Facebook, Hacker News, Email and Pinterest when the post has a headline image. There is also a Copy link button. Mastodon and Lemmy ask for the visitor's instance in a small box, check it in the browser and send it nowhere through the site. It stays in that browser only if the visitor selects Remember. This replaces the old Discuss on Mastodon links, which did not work.
+The other pages cover About, Resume, Social links, Gear and tools, Support and Privacy, plus a useful 404 page instead of a blank shrug from the server.
 
-## Three scripts
+Posts and journal entries have a share panel made from plain links without tracking parameters. Mastodon and Lemmy are the awkward pair because each needs an instance instead of one universal share address. Their buttons open an inline picker, validate the instance as a plain host name and build a fixed HTTPS share address in the browser. Nothing is sent while the visitor types, and the instance stays in local storage only when Remember is selected. Unticking it removes the stored value.
 
-The site ships exactly three scripts: `/copy.js` on Support, `/search.js` on Search and `/share.js` on posts and journal entries. Each is pinned with a sha256 hash file, limited to the pages where it belongs and held under a 1 KB gzip budget.
+The authoring helper creates draft posts and journal entries, checks one page, adds cleaned JPEG or PNG images and starts a preview on loopback. It removes image metadata without re-encoding the picture, but refuses placeholder alt text, malformed files, unsafe paths, symlinks, oversized images, rotations it cannot safely correct and anything it would have to overwrite. It also refuses to edit the brand manifest because that records a human review.
 
-The build fails on a fourth script, a script on the wrong page, inline scripts or styles, event handlers, third-party assets and plain HTTP references. The site's own code sets no cookies and embeds nothing from other sites.
+## Small browser code
 
-Cloudflare Web Analytics is enabled at the host, and that is the one third-party script I chose to allow. The Privacy page says so. Cloudflare currently injects it in a form that the staging Content Security Policy blocks, which is also why one of the Lighthouse scores below is not 100.
+The site ships exactly three scripts:
 
-## Headers, CI and design
+- `/copy.js` on Support
+- `/search.js` on Search
+- `/share.js` on posts and journal entries
 
-The Content Security Policy begins with `default-src 'none'`. Images, styles, fonts, the manifest and scripts are restricted to the site itself. Connections are limited to the site, while base URIs, form actions and framing are disabled. Trusted Types are required for scripts.
+Each has a committed SHA-256 hash, a page allowlist and a budget below 1 KB gzip. Add a fourth script, change one without updating its hash, or put one on the wrong page, and the build fails.
 
-Staging also sends Strict Transport Security for one year with subdomains, `nosniff`, a strict-origin-when-cross-origin referrer policy, same-origin opener isolation and a Permissions Policy that disables the accelerometer, camera, geolocation, gyroscope, microphone, payment and USB features.
+The site's code sets no cookies and embeds nothing from another site. Cloudflare Web Analytics is enabled at the host and adds its own beacon at the edge, but the site does not run its own analytics yet.
 
-CI uses reusable workflows pinned by commit. A local job named CI green is the single required check, and deployment runs from `main` only after that check passes on the same commit. The checks come paired with tests that prove they fail when they should.
+A separate page-view counter using a Cloudflare Pages Function and D1 is built and tested locally, but it is not deployed and its privacy text is not live. The plan is to count successful HTML page views server side, honor Global Privacy Control and Do Not Track, keep narrowly defined aggregates, and update the Privacy page in the same change that enables it.
 
-The design is dark only, using amber on near-black, with Jost and Orbitron stored in the repository instead of requested from a third party. The target is WCAG 2.2 AA. There is a skip link, proper landmarks, native controls, visible focus, reduced-motion and forced-colors rules, and controls are at least 44 by 44 CSS pixels.
+## Security in the build
 
-Images cannot ship without alt text. Remote images, unsupported formats, EXIF data and GPS data also fail the build. A real-browser gate uses headless Chrome and a vendored, hash-pinned copy of axe-core to check axe violations, horizontal overflow at several widths including 200 percent zoom and 320 CSS pixels, small targets, bad focus order, console errors and CSP violations.
+The Content Security Policy begins with `default-src 'none'`. Images, styles, fonts, the manifest and scripts are restricted to approved sources, while base addresses, form submissions and framing are disabled. The headers also include `nosniff`, a strict referrer policy, one year of Strict Transport Security with subdomains, same-origin opener isolation, Trusted Types enforcement for scripts, and a Permissions Policy that disables features the site does not use.
 
-That still is not human testing. Axe cannot decide every contrast case, and no script replaces somebody using a screen reader.
+CI calls reusable workflows pinned by commit. The local gate named `CI green` waits for them and is the single required check. Deployment proceeds from `main` only after that gate passes for the same commit.
 
-## Measured performance
+Deployment credentials come from Doppler through OIDC instead of repository secrets. `scripts/check-workflow-secrets.py` checks the workflows and refuses forbidden secret references or credential placement.
 
-I measured the site on 2026-11-09 with Lighthouse 13.6.0, Chromium 156.0.8078.47 headless and Hugo 0.168.0. Each result is the median of three runs per page and strategy. These are lab numbers, not field data, and they move a few points between runs.
+The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 57 threats: 33 Mitigated, 21 Open, 2 Accepted and 1 Not Applicable.
 
-The local production build scored 100/100/100/100 for Performance, Accessibility, Best Practices and SEO on Home, Search and About for mobile and desktop. The migrated Mastodon relays guide, which has a hero image, scored 99/100/100/100 on mobile with a 2.0 s Largest Contentful Paint, and 100/100/100/100 on desktop. Cumulative Layout Shift was 0 and Total Blocking Time was 0 ms on every page.
+And Mitigated has a deliberately narrow meaning: the control must exist in the repository, and the threat must name its path. Provider account settings remain Open until somebody checks them and records the date. The model checker proves that the structure and cited paths exist. It does not prove the control works.
 
-Over the real network and real Cloudflare headers, public staging scored 99/100/92/69 on mobile and 100/100/92/69 on desktop across Home, Post, Search and About. One About desktop run scored 99. Mobile Largest Contentful Paint was 1.6 s on Home and 1.8 s on the post. Desktop was 0.5 s on all four. Cumulative Layout Shift was 0 and Total Blocking Time was 0 ms.
+Open items include owner account or machine takeover, live token scopes, provider account and domain controls, build-step egress that still runs in audit mode, and controls for planned analytics and syndication work. Changes to architecture, data flow, secrets or third parties require the threat model to be updated in the same pull request.
 
-Best Practices is 92 because Cloudflare adds a version suffix to its Web Analytics beacon path, while the CSP names the path without that suffix. The browser blocks it and logs a console error. This is a host setting, and the CSP has not been changed for it.
+## Accessibility has limits
 
-SEO is 69 because staging is deliberately `noindex`, and its `robots.txt` disallows everything. The local production build scores SEO 100. The size budget also passed on November 9: `budget: ok (39 pages, 132 files)`.
+The templates include a skip link, landmarks, native controls, visible focus, reduced-motion and forced-colors rules, real text for disclosures, and controls at least 44 by 44 CSS pixels. Informative images cannot publish without alt text.
 
-## Threat model
+A browser gate runs a vendored, hash-pinned copy of axe-core and checks violations, focus order, keyboard behavior, horizontal overflow, small targets, failed requests, console errors and Content Security Policy violations. It covers widths down to 320 CSS pixels and a 200 percent zoom case.
 
-The repository carries an OWASP Threat Dragon model with diagrams for the publishing path, reader path, and data stores and secrets, plus a plain-language risk summary. As of 2026-11-09, it contains 57 threats: 33 Mitigated, 21 Open, 2 Accepted and 1 N/A.
+But automated testing is still automated testing. Axe cannot decide every contrast case, the gate does not run a screen reader, and it does not exercise forced colors or print. No script proves accessibility conformance.
 
-A threat counts as Mitigated only when its control exists in the repository and the model names that control by path. The build fails if a named path does not exist. Controls in a provider account, including sign-in strength, token permissions and DNS, stay Open until somebody reads them and records the date. The check proves the model is well formed and its named controls exist. It cannot prove those controls work.
+## Lab performance
 
-The largest open items are owner account or machine takeover, Cloudflare token scopes, domain or account takeover at the provider, and the planned analytics and syndication pieces that are not built. Build-step network egress policy runs in audit mode, not block.
+I measured the site on 2026-11-09 with Lighthouse 13.6.0, Chromium 156.0.8078.47 headless and Hugo 0.168.0. Each result is the median of three runs per page and strategy against a local production build served on loopback with the build's own security headers and no compression.
 
-The pull request template asks whether a change affects the architecture, a data flow, a secret or a third party. If it does, the model is updated in the same pull request. A review is also due when a third-party script or embed, the analytics function, syndication job, a new token or secret, or a hosting change lands.
+Home, Search and About scored 100/100/100/100 for Performance, Accessibility, Best Practices and SEO on mobile and desktop. The migrated Mastodon relays guide, which has a hero image, scored 99/100/100/100 on mobile with a 2.0 s Largest Contentful Paint, and 100/100/100/100 on desktop.
+
+Cumulative Layout Shift was 0 and Total Blocking Time was 0 ms on every measured page. `scripts/check-budget.py` also passed on that build.
+
+These are lab numbers, not field data, and they move a few points between runs. I will measure again on the live domain after launch.
 
 ## Reach Around
 
-[Reach Around](https://github.com/ChiefGyk3D/Reach-Around) is my Apache-2.0 project for putting a creator's link page, media kit and numbers across platforms in one self-hosted place using their own API keys. It is meant to replace Beacons.ai for creators, close to 1:1 and then go further, but that is the goal, not the finished state. It is alpha software. Expect breaking changes, no stable configuration format and no upgrade path between 0.x releases. The latest published release on GitHub is v0.2.2, published 2026-11-06 and checked 2026-11-09; the 0.3.0 release candidates in the changelog are not releases yet.
+[Reach Around](https://github.com/ChiefGyk3D/Reach-Around) is an upcoming self-hosted project for putting a creator's link page, media kit and numbers across platforms in one place using their own API keys. It is intended to replace Beacons.ai closely and then go further, but that is the plan, not a claim that every part is finished.
 
-The alpha code includes a configuration loader, static link page builder, a non-root container image for Docker or Podman, click tracking through a small write-only Cloudflare Worker, a media kit with an email gate, follower counts pulled from a few platforms into a numbers file and an owner-run report command. Platform API research covers 16 platforms. Link-page clicks use the `ping` attribute on anchors, so the page needs no script for them.
+It is alpha software with breaking changes, no stable configuration format and no upgrade path promised between `0.x` releases. The latest published GitHub release is v0.2.2 from 2026-11-06. The `0.3.0` release candidates listed in the changelog are not published releases.
 
-The blog's page-view counter is built and tested locally, but it is not deployed, and its drafted privacy text is not live. Posts carry a `syndicate` flag in their front matter for the syndication job to read, and the job itself is planned.
+What exists includes a strict configuration loader, static link-page builder, non-root container, write-only click Worker, page-view rollups, platform count collection, and the media-kit and reporting work described in its public documentation. Research notes cover 16 platforms. Link clicks can use the anchor `ping` attribute, so that path does not need a browser script.
 
-## What is next
+## Read the work
 
-The cutover to the main domain waits for this site and Reach Around to be done, and it has no date. The page-view counter, a Cloudflare Pages Function with a D1 database, is built and tested but not deployed, and its privacy text will go live with it. The syndication job is planned. The authoring helper is phase 1 of a local editor, with a full check command, editor settings and a publish step planned. The threat model's open items around token scopes and domain checks still need to be read from the provider side and recorded with a date.
+The [public repository](https://github.com/ChiefGyk3D/no-php-no-cry) contains the templates, checks, converter, threat model and documentation. Its [15-page wiki](https://github.com/ChiefGyk3D/no-php-no-cry/wiki) starts with the pinned toolchain, then follows the project through templates, build failures, CI, deployment, migration tooling, analytics and threat modeling.
 
-## Read the project
+Code is licensed under Apache-2.0. Written content and documentation use CC BY 4.0. The mascot, wordmark and logos are all rights reserved and are not licensed for reuse.
 
-The [public repository](https://github.com/ChiefGyk3D/no-php-no-cry) contains the site, checks, migration tooling, threat model and documentation. Code is Apache-2.0, written content and documentation are CC BY 4.0, and the mascot, wordmark and logos are not licensed for reuse. The [wiki](https://github.com/ChiefGyk3D/no-php-no-cry/wiki) has 15 pages, including a Learn from this site reading order through the repository.
+The unfinished pieces are documented too: deploying the site-owned analytics with its privacy text, building the syndication job, extending the authoring editor with its planned settings and publishing work, verifying provider-side security controls, and keeping the threat model current as those parts land.
