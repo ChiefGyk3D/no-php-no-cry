@@ -249,6 +249,12 @@
   border-color: var(--accent-deep);
 }
 
+/* The closing block spans the whole row: its short text uses the full box width (issue 308),
+ * so a last orphan line does not leave the right side empty. */
+.skill-group:last-child p {
+  max-width: none;
+}
+
 @media (min-width: 40rem) {
   .skill-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));

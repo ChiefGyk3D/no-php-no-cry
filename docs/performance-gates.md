@@ -124,6 +124,12 @@ cannot fit (posts, a post, products, about, resume, search) are named in
 `FIT_ALLOW` in `scripts/browser-gate.py`, each with a reason; a stale name fails
 `[setup]`. Home, Social, Support, Privacy and the 404 page must fit.
 
+Hero and box text (`hero`, `boxtext`, issue 308): every template is loaded at 1878x930 (the
+owner's real window) and 1366x768. `[hero]` fails when the `.hero-actions` buttons are on more
+than one row or the page scrolls sideways; `[boxtext]` fails when the widest text line of a
+bordered box (`.panel`, `.skill-group`, `.about-contact`) with a wrapping paragraph ends more
+than 25 percent of the box width short of its right edge. See `docs/viewport-matrix.md`.
+
 Toggle (`toggle`): the dark-only brand kit has no theme toggle yet (the redesign
 brief's `/theme.js` is not implemented). The check runs only when the build
 ships `/theme.js`: the header must hold a real `<button>` (`aria-pressed` or
