@@ -97,7 +97,7 @@ browser text size. It is a fallback, not the default.
 ## Recommendation
 
 Keep (b) as the live state now, fixed by this issue. If a form is still wanted
-after the keyserver key is published, build (a) in its no-JS variant first
+after the key cycle (issue 332), build (a) in its no-JS variant first
 (honeypot, signed time token, rate limit, verified-destination send, same-origin
 POST, `form-action 'self'`): it keeps the CSP and the pinned-scripts rule intact.
 Add Turnstile only if the no-JS variant draws spam, and then as a separate decision
