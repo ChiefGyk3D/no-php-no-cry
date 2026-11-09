@@ -2,7 +2,7 @@
 
 One frame, in three amounts. It is the button frame from the Twitch panels:
 stepped corner brackets that split at mid edge, thin amber rules, and (at the
-top level only) angled end-cap plates and a faint glow under the bottom rule.
+top level only) angled end-cap plates.
 The site is dark only, so there is one set of colors. Calm is the goal: one
 frame per region, never a frame inside a framed parent.
 
@@ -18,7 +18,7 @@ test), and the `multiple-l3` rule in `scripts/check-output.sh`.
 | --- | --- | --- | --- |
 | L1 whisper | hairline and four 10 by 2 px amber corner ticks | none, pure CSS: the classes `panel`, `tile`, `btn` and `l1` | buttons (including the Menu button), tiles elsewhere than /support/, the post share panel, panels, post cards, the previous and next post links, home network chips (hairline only) |
 | L2 classy | the same bracket layout, one chamfer per bracket, a corner dash, two thin amber rules, translucent amber fill, no glow | `class="bx l2"` plus the partial | the page title block: a post title and the archive titles (Posts, Journal, tag pages) |
-| L3 faithful | the full traced button frame: stepped gradient brackets, end-cap plates, dashes, long and short rules, the faint glow under the bottom rule | `class="bx l3"` plus the partial | ONE per page: the Home hero. The four /support/ tiles are not L3: they are solid amber with the faithful button art at tile size (`frame-faithful-tile*.svg`, issue 285), so /support/ carries none |
+| L3 faithful | the full traced button frame: stepped gradient brackets, end-cap plates, dashes, long and short rules; the amber tint is clipped to the brackets' inner outline, so none shows past the frame; static, no glow | `class="bx l3"` plus the partial | ONE per page: the Home hero. The four /support/ tiles are not L3: they are solid amber with the faithful button art at tile size (`frame-faithful-tile*.svg`, issue 285), so /support/ carries none |
 
 Not framed, on purpose: the header and footer (hairline rules only), tag links
 on a post, the footer credit, running text. A frame on every element is the
@@ -48,9 +48,7 @@ failure this system exists to avoid.
 - Hover swaps a control's fill to amber with `--on-accent` text. Focus is an
   outline drawn on the element itself, outside the frame, so no frame clips it.
 - Tap targets stay at least 44 px (`--tap`); the browser gate measures them.
-- No animation by default. The L3 glow may breathe only on an element with the
-  class `live`, only inside `prefers-reduced-motion: no-preference`. Nothing uses
-  that class yet.
+- No animation, no glow: the frame is static. Nothing uses motion.
 - Forced colors and print hide the SVG and the rule and glow layers, and fall back to a plain border (print also drops the backgrounds).
 
 ## Weight
@@ -75,7 +73,7 @@ them is a possible later pass. The setting lives in one place, `params.frames` i
 
 The shipped default is `level = "minimal"` with `btn-primary = "faithful"`: the primary buttons (Read the latest, Start over) wear the faithful art and every other button the minimal frame. `level` is the default for every button; `[params.frames.classes]` overrides one
 button class (`btn-primary`, `btn-ghost`, and the specific `nav-toggle`,
-`copy-btn`, `product-btn`), the most specific entry winning. An unknown level
+`copy-btn`, `product-btn`, `hero-btn`), the most specific entry winning. An unknown level
 fails the build. `layouts/_partials/btn-frame.html` turns the setting into a
 `bf-none` or `bf-faithful` class (minimal adds no class).
 

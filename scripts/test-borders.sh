@@ -137,14 +137,30 @@ sys.exit(0 if ok(block(bf, ".btn.bf-faithful")) and ok(block(sup, ".support-tile
 PY
 then pass "faithful buttons and support tiles keep a transparent box background (no fill rectangle past the art)"; else fail "a faithful box sets a background color: it would show past the chamfered frame"; fi
 
+# The L3 hero tint is clipped to the brackets' inner outline (issue 285): the box background
+# is none, and the ::after layer carries the tint under a clip-path polygon (no glow shadow).
+if python3 -I - "$css" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+rules = {m.group(1).strip(): m.group(2) for m in re.finditer(r"([^{}]+)\{([^}]*)\}", css)}
+box = rules.get(".bx.l3", "")
+aft = rules.get(".bx.l3::after", "")
+ok = re.search(r"background:\s*none", box) and "clip-path: polygon(" in aft and "box-shadow" not in aft and aft.count("calc(") >= 40
+sys.exit(0 if ok else 1)
+PY
+then pass "the L3 tint is clipped to the frame outline (box background none, no glow)"; else fail "the L3 tint is not clipped to the frame, or a glow is back"; fi
+grep -qE 'btn-primary bf-none' "$out/index.html" && [[ "$(grep -oE 'btn-ghost bf-none' "$out/index.html" | wc -l)" -ge 2 ]] \
+    && pass "the three Home hero buttons are plain (none level)" || fail "the Home hero buttons are not all at the none level"
+
 # No cream or white fill: the primary button hover is amber, never --text.
 if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is set to the text color (cream or white)"; else pass "no fill is cream or white"; fi
 
 # Button levels (params.frames): the default marks only the primary button; a level or a per-class
 # override adds bf-none or bf-faithful to the buttons it names; a bad level fails.
 default_bf="$(grep -rhoE 'bf-[a-z]+' "$out" --include='*.html' | sort -u | tr '\n' ' ')"
-[[ "$default_bf" == "bf-faithful " ]] && pass "the default is faithful on the primary button and minimal elsewhere" || fail "unexpected bf- classes at the default level: $default_bf"
-if grep -rqE 'btn-ghost[^"]* bf-' "$out" --include='*.html'; then fail "a ghost button is marked at the default level"; else pass "ghost buttons carry no bf- class at the default level"; fi
+# The Home hero buttons are the one exception (issue 285): hero-btn = "none" in hugo.toml.
+[[ "$default_bf" == "bf-faithful bf-none " ]] && pass "the default is faithful on the primary button, none on the Home hero buttons, minimal elsewhere" || fail "unexpected bf- classes at the default level: $default_bf"
+if grep -rqE 'btn-ghost[^"]* bf-' "$out" --include='*.html' --exclude=index.html || grep -qE 'btn-ghost[^"]* bf-(faithful|minimal)' "$out/index.html"; then fail "a ghost button is marked at the default level"; else pass "ghost buttons carry no bf- class at the default level (but the Home hero's plain ones)"; fi
 build_with() { # build_with <name> <toml body>: prints the destination
     printf '[params.frames]\n%s\n' "$2" >"$work/$1.toml"
     (cd "$root" && hugo --minify --config hugo.toml,"$work/$1.toml" --destination "$work/pub-$1" >"$work/$1.log" 2>&1) && echo "$work/pub-$1"
@@ -158,22 +174,18 @@ faith_body='  level = "minimal"
   [params.frames.classes]
   btn-primary = "faithful"'
 if dest="$(build_with faith "$faith_body")" &&
-    grep -qE 'btn-primary bf-faithful' "$dest/index.html" && ! grep -qE 'btn-ghost[^"]* bf-' "$dest/index.html"; then
-    pass "a per-class override marks only the primary buttons"
+    grep -rqE 'btn-primary bf-faithful' "$dest" --include='*.html' && ! grep -rqE 'btn-ghost[^"]* bf-(faithful|minimal)' "$dest" --include='*.html'; then
+    pass "a per-class override marks only the primary buttons (the Home hero keeps its own hero-btn level)"
 else
     fail "the per-class override did not build or marked the wrong buttons"
 fi
 if build_with bad '  level = "glowing"' >/dev/null; then fail "an unknown frame level built"; else pass "an unknown frame level fails the build"; fi
 if python3 -I - "$css" <<'PY'
 import re, sys
-css = open(sys.argv[1]).read()
-css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-# remove the one allowed block, then no animation may remain
-allowed = re.search(r"@media \(prefers-reduced-motion: no-preference\) \{.*?\n\}\n", css, flags=re.S)
-rest = css.replace(allowed.group(0), "") if allowed else css
-sys.exit(1 if re.search(r"animation\s*:", rest) or not allowed else 0)
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+sys.exit(1 if re.search(r"animation\s*:|@keyframes", css) else 0)
 PY
-then pass "animation only under prefers-reduced-motion: no-preference"; else fail "borders.css animates outside no-preference"; fi
+then pass "borders.css has no animation (static frames)"; else fail "borders.css animates"; fi
 
 # Colors come from tokens.css (brand rule), and no frame rule sets amber text.
 if python3 -I - "$css" "$root/layouts/_partials/frame.html" <<'PY'

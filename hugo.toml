@@ -102,7 +102,7 @@ timeZone = "America/New_York"
   # the default and what the site shipped on Nov 8), faithful (the owner's button
   # art). Only buttons are set here; every other element keeps its look.
   # "level" is the default for all buttons; "classes" overrides one button class
-  # (btn-primary, btn-ghost, nav-toggle, copy-btn, product-btn), the most specific
+  # (btn-primary, btn-ghost, nav-toggle, copy-btn, product-btn, hero-btn), the most specific
   # entry winning. The default: minimal on every button, faithful on the primary
   # button (Read the latest, Start over). The frame is drawn inside the button's
   # own box, so a level never changes a button's size.
@@ -110,6 +110,9 @@ timeZone = "America/New_York"
     level = "minimal"
     [params.frames.classes]
       btn-primary = "faithful"
+      # The three Home hero buttons are plain (issue 285): the hero box wears the
+      # frame, so its buttons are the none level (amber outline, no art, no ticks).
+      hero-btn = "none"
 
   [params.author]
     name = "ChiefGyk3D"

@@ -17,7 +17,6 @@
  * label on a light ground; amber lettering is not used. */
 :root {
   --frame-fill: rgb(251 176 59 / 0.16);
-  --frame-glow: rgb(251 176 59 / 0.45);
 }
 
 /* L1: one hairline plus four 10x2 amber ticks, drawn as background layers of the
@@ -183,7 +182,11 @@
     var(--a) left 50% bottom calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat;
 }
 
-/* L3 adds the short outer rules and the faint glow under the bottom rule only. */
+/* L3 adds the short outer rules. The amber tint is NOT a background rectangle: a
+ * rectangle shows past the chamfered brackets (issue 285). It is the ::after layer,
+ * clipped to the inner outline of the four brackets (the same vertices the inline
+ * art draws, at the same --s), so no amber reaches past the frame on any side. The
+ * box's own background stays transparent. Static: no glow, nothing animates. */
 .bx.l3::before {
   background:
     var(--a) left 50% top calc(var(--s) * 17px) / calc(100% - var(--s) * 360px) calc(var(--s) * 6px) no-repeat,
@@ -192,12 +195,55 @@
     var(--a) left 50% bottom 0 / 42.6% calc(var(--s) * 6px) no-repeat;
 }
 
+.bx.l3 {
+  background: none;
+}
+
 .bx.l3::after {
-  left: 28.7%;
-  width: 42.6%;
-  bottom: 0;
-  height: calc(var(--s) * 6px);
-  box-shadow: 0 calc(var(--s) * 16px) calc(var(--s) * 16px) var(--frame-glow);
+  inset: 0;
+  background: var(--f);
+  clip-path: polygon(
+    calc(var(--s) * 39px) calc(var(--s) * 150px),
+    calc(var(--s) * 39px) calc(var(--s) * 114px),
+    calc(var(--s) * 41px) calc(var(--s) * 110.5px),
+    calc(var(--s) * 54px) calc(var(--s) * 97.5px),
+    calc(var(--s) * 54px) calc(var(--s) * 71.5px),
+    calc(var(--s) * 62px) calc(var(--s) * 70.5px),
+    calc(var(--s) * 82px) calc(var(--s) * 69.5px),
+    calc(var(--s) * 97px) calc(var(--s) * 52.5px),
+    calc(var(--s) * 133px) calc(var(--s) * 51.5px),
+    calc(var(--s) * 147px) calc(var(--s) * 50.5px),
+    calc(100% - var(--s) * 147px) calc(var(--s) * 50.5px),
+    calc(100% - var(--s) * 133px) calc(var(--s) * 51.5px),
+    calc(100% - var(--s) * 97px) calc(var(--s) * 52.5px),
+    calc(100% - var(--s) * 82px) calc(var(--s) * 69.5px),
+    calc(100% - var(--s) * 62px) calc(var(--s) * 70.5px),
+    calc(100% - var(--s) * 54px) calc(var(--s) * 71.5px),
+    calc(100% - var(--s) * 54px) calc(var(--s) * 97.5px),
+    calc(100% - var(--s) * 41px) calc(var(--s) * 110.5px),
+    calc(100% - var(--s) * 39px) calc(var(--s) * 114px),
+    calc(100% - var(--s) * 39px) calc(var(--s) * 150px),
+    calc(100% - var(--s) * 39px) calc(100% - var(--s) * 150px),
+    calc(100% - var(--s) * 39px) calc(100% - var(--s) * 114px),
+    calc(100% - var(--s) * 41px) calc(100% - var(--s) * 110.5px),
+    calc(100% - var(--s) * 54px) calc(100% - var(--s) * 97.5px),
+    calc(100% - var(--s) * 54px) calc(100% - var(--s) * 71.5px),
+    calc(100% - var(--s) * 62px) calc(100% - var(--s) * 70.5px),
+    calc(100% - var(--s) * 82px) calc(100% - var(--s) * 69.5px),
+    calc(100% - var(--s) * 97px) calc(100% - var(--s) * 52.5px),
+    calc(100% - var(--s) * 133px) calc(100% - var(--s) * 51.5px),
+    calc(100% - var(--s) * 147px) calc(100% - var(--s) * 50.5px),
+    calc(var(--s) * 147px) calc(100% - var(--s) * 50.5px),
+    calc(var(--s) * 133px) calc(100% - var(--s) * 51.5px),
+    calc(var(--s) * 97px) calc(100% - var(--s) * 52.5px),
+    calc(var(--s) * 82px) calc(100% - var(--s) * 69.5px),
+    calc(var(--s) * 62px) calc(100% - var(--s) * 70.5px),
+    calc(var(--s) * 54px) calc(100% - var(--s) * 71.5px),
+    calc(var(--s) * 54px) calc(100% - var(--s) * 97.5px),
+    calc(var(--s) * 41px) calc(100% - var(--s) * 110.5px),
+    calc(var(--s) * 39px) calc(100% - var(--s) * 114px),
+    calc(var(--s) * 39px) calc(100% - var(--s) * 150px)
+  );
 }
 
 /* Text inside a frame is --text, or --on-accent on an amber fill: the support
@@ -219,20 +265,6 @@ a.bx:hover {
 .bx:focus-visible {
   outline: var(--rule-accent-width) solid var(--focus);
   outline-offset: 6px;
-}
-
-/* Only the L3 glow may move, only when the visitor allows it, and only if the
- * element opts in with .live. Nothing animates by default. */
-@media (prefers-reduced-motion: no-preference) {
-  .bx.l3.live::after {
-    animation: frame-breathe 4s ease-in-out infinite;
-  }
-
-  @keyframes frame-breathe {
-    50% {
-      opacity: 0.45;
-    }
-  }
 }
 
 @media (forced-colors: active) {
