@@ -30,7 +30,8 @@ Rules (the id is the first word of an error):
                   required fields and their shape (description: posts only, 1 to 160 chars)
   image-alt       `image` is set on a published page without a real `imageAlt`
   inline-alt      an inline image on a published page has empty, filename or placeholder alt
-  image-remote    an inline image on a published page is not a file in the page bundle
+  image-remote    an inline or headline image that is not a regular file inside the page folder
+                  (remote, absolute, ../ and missing files all fail)
   unsafe-link     a javascript:, vbscript: or data: link
   raw-html        script, iframe, object, embed or style tags, or an on*= event handler
   guard-word      an employer-name guard word or a scrub term (the word is never printed)
@@ -38,7 +39,10 @@ Rules (the id is the first word of an error):
   image-name      a bundle image name that is not a lowercase safe name
   image-type      a bundle image that is not WebP, JPEG or PNG
   image-metadata  EXIF, GPS, XMP or IPTC data (scripts/check-image-metadata.py does the reading)
-  image-size      a bundle image over the cap
+  image-size      a bundle image over the byte cap
+  image-dimensions a bundle image over 10000 px a side or 64 megapixels, or one whose size cannot be read
+  image-unreferenced a bundle image its page never uses (image: or an inline image)
+  slug            a post or journal entry without a lowercase-hyphen slug
   brand-asset     a bundle image missing from brand/approved-assets.txt or with another sha256
                   (scripts/check-brand-assets.sh does the checking)
 """
@@ -52,6 +56,7 @@ import struct
 import subprocess
 import sys
 from datetime import date, datetime
+from urllib.parse import unquote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_ROOT = os.path.dirname(HERE)
@@ -60,6 +65,9 @@ MD_MAX = 1024 * 1024
 FM_MAX_BYTES = 64 * 1024
 FM_MAX_LINES = 400
 IMAGE_MAX = 5 * 1024 * 1024
+# Decode and resize cost grows with pixels, not bytes: a small, highly compressed file can be huge.
+MAX_SIDE = 10000
+MAX_PIXELS = 64 * 1000 * 1000
 ALLOWED_IMAGES = {".webp", ".jpg", ".jpeg", ".png"}
 DESC_MAX = 160
 ALT_MAX = 2000
@@ -417,8 +425,63 @@ def alt_problem(alt, dest):
     return None
 
 
+def bundle_path(page_dir, dest):
+    """The repository-relative path of a page-bundle file named by dest, or None when dest
+    is remote, absolute, backslashed or climbs out of the page folder."""
+    d = unquote((dest or "").split("#")[0].split("?")[0]).strip()
+    if not d or d.startswith("/") or "\\" in d or "\x00" in d or is_remote(d):
+        return None
+    n = os.path.normpath(d)
+    if n == "." or n == ".." or n.startswith("../"):
+        return None
+    return page_dir + "/" + n.replace(os.sep, "/")
+
+
 def is_remote(dest):
     return bool(re.match(r"^(?:[a-z][a-z0-9+.-]*:|//)", dest or "", re.I))
+
+
+def image_dimensions(b, ext):
+    """(width, height) from the header of a PNG, JPEG or WebP, or None. Reads headers only."""
+    try:
+        if ext == ".png" and b[:8] == bytes([0x89]) + b"PNG\r\n" + bytes([0x1A, 0x0A]) and b[12:16] == b"IHDR":
+            return struct.unpack(">II", b[16:24])
+        if ext in (".jpg", ".jpeg") and b[:2] == bytes([0xFF, 0xD8]):
+            i = 2
+            while i + 4 <= len(b):
+                if b[i] != 0xFF:
+                    return None
+                m = b[i + 1]
+                if m == 0xFF:
+                    i += 1
+                    continue
+                if 0xD0 <= m <= 0xD8 or m == 0x01:
+                    i += 2
+                    continue
+                n = struct.unpack(">H", b[i + 2 : i + 4])[0]
+                if m in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                    h, w = struct.unpack(">HH", b[i + 5 : i + 9])
+                    return (w, h)
+                if m in (0xDA, 0xD9):
+                    return None
+                i += 2 + n
+        if ext == ".webp" and b[:4] == b"RIFF" and b[8:12] == b"WEBP":
+            i = 12
+            while i + 8 <= len(b):
+                kind = b[i : i + 4]
+                size = struct.unpack("<I", b[i + 4 : i + 8])[0]
+                body = b[i + 8 : i + 8 + size]
+                if kind == b"VP8X" and len(body) >= 10:
+                    return (1 + int.from_bytes(body[4:7], "little"), 1 + int.from_bytes(body[7:10], "little"))
+                if kind == b"VP8L" and len(body) >= 5 and body[0] == 0x2F:
+                    v = int.from_bytes(body[1:5], "little")
+                    return ((v & 0x3FFF) + 1, ((v >> 14) & 0x3FFF) + 1)
+                if kind == b"VP8 " and len(body) >= 10 and body[3:6] == bytes([0x9D, 0x01, 0x2A]):
+                    return (struct.unpack("<H", body[6:8])[0] & 0x3FFF, struct.unpack("<H", body[8:10])[0] & 0x3FFF)
+                i += 8 + size + (size & 1)
+    except (struct.error, IndexError):
+        return None
+    return None
 
 
 # --- terms -----------------------------------------------------------------------------------
@@ -469,6 +532,7 @@ class Checker:
         self.errors = []
         self.md = 0
         self.images = []
+        self.refs = {}
         spec = importlib.util.spec_from_file_location("check_image_metadata", os.path.join(HERE, "check-image-metadata.py"))
         self.meta = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.meta)
@@ -510,8 +574,9 @@ class Checker:
             self.err("file-type", rel, "only Markdown and WebP, JPEG or PNG images belong under content/")
 
     # -- Markdown --
-    def check_markdown(self, rel):
-        self.md += 1
+    def check_markdown(self, rel, count=True):
+        if count:
+            self.md += 1
         raw = self.read(rel, MD_MAX)
         if raw is None:
             return
@@ -544,6 +609,9 @@ class Checker:
             self.err("title", rel, "title is required and must be non-empty text")
         if len(parts) >= 3 and parts[1] in ("posts", "journal") and not is_index:
             self.check_date(rel, fm.get("date"))
+            slug = fm.get("slug")
+            if not isinstance(slug, str) or not SLUG.match(slug):
+                self.err("slug", rel, "slug is required: lowercase words joined by single hyphens (a-z, 0-9)")
         if is_post:
             d = fm.get("description")
             if not isinstance(d, str) or not d.strip():
@@ -570,9 +638,14 @@ class Checker:
                 prob = alt_problem(alt, img if isinstance(img, str) else "")
                 if prob:
                     self.err("image-alt", rel, "imageAlt: " + prob)
-        if isinstance(img, str) and img.strip() and not is_remote(img):
-            if not os.path.isfile(os.path.join(self.root, os.path.dirname(rel), img)) and published:
-                self.err("image-alt", rel, "image names a file that is not beside the page")
+        page_dir = os.path.dirname(rel)
+        refs = self.refs.setdefault(page_dir, set())
+        if isinstance(img, str) and img.strip():
+            bp = bundle_path(page_dir, img)
+            if bp:
+                refs.add(bp)
+            if published and not (bp and self.is_bundle_file(bp)):
+                self.err("image-remote", rel, "image must name a file inside the page folder")
 
         # body rules
         whole = text
@@ -593,16 +666,24 @@ class Checker:
             if tgt.startswith(BAD_SCHEMES):
                 self.err("unsafe-link", rel, "a %s link is not allowed" % tgt.split(":")[0])
                 break
-        if published:
-            for alt, dest in scan_images(visible):
-                if dest is None or dest == "":
-                    prob = alt_problem(alt, "") or "image has no destination"
-                else:
-                    prob = alt_problem(alt, dest)
-                if prob:
-                    self.err("inline-alt", rel, prob)
-                if dest and is_remote(dest):
-                    self.err("image-remote", rel, "an image must be a file in the page folder, not a link")
+        for alt, dest in scan_images(visible):
+            bp = bundle_path(page_dir, dest) if dest else None
+            if bp:
+                refs.add(bp)
+            if not published:
+                continue
+            if dest is None or dest == "":
+                prob = alt_problem(alt, "") or "image has no destination"
+            else:
+                prob = alt_problem(alt, dest)
+            if prob:
+                self.err("inline-alt", rel, prob)
+            if dest and not (bp and self.is_bundle_file(bp)):
+                self.err("image-remote", rel, "an image must be a file inside the page folder (no links, absolute or ../ paths)")
+
+    def is_bundle_file(self, rel):
+        full = os.path.join(self.root, rel)
+        return os.path.isfile(full) and not os.path.islink(full)
 
     def check_date(self, rel, v):
         if not isinstance(v, str) or not v.strip():
@@ -644,6 +725,40 @@ class Checker:
             found = ["unreadable image structure"]
         for what in found:
             self.err("image-metadata", rel, what)
+        dims = image_dimensions(data, ext)
+        if dims is None:
+            self.err("image-dimensions", rel, "the image width and height could not be read")
+        elif dims[0] > MAX_SIDE or dims[1] > MAX_SIDE or dims[0] * dims[1] > MAX_PIXELS:
+            self.err(
+                "image-dimensions",
+                rel,
+                "%dx%d pixels, limit %d per side and %d megapixels" % (dims[0], dims[1], MAX_SIDE, MAX_PIXELS // 1000000),
+            )
+
+    def load_refs(self, page_dir):
+        """References of a page whose Markdown is not in this run: parsed with its errors dropped."""
+        if page_dir in self.refs:
+            return
+        self.refs[page_dir] = set()
+        if not os.path.isfile(os.path.join(self.root, page_dir, "index.md")):
+            return
+        saved = self.errors
+        self.errors = []
+        try:
+            self.check_markdown(page_dir + "/index.md", count=False)
+        finally:
+            self.errors = saved
+
+    def check_unreferenced(self):
+        for rel in self.images:
+            page_dir = os.path.dirname(rel)
+            self.load_refs(page_dir)
+            if rel not in self.refs.get(page_dir, ()):
+                self.err(
+                    "image-unreferenced",
+                    rel,
+                    "no page uses this image: reference it from index.md (image: or ![alt](name)) or remove it",
+                )
 
     def check_brand(self):
         if not self.images:
@@ -768,6 +883,7 @@ def main(argv):
     ck = Checker(root, max_image, load_terms(terms_file))
     for rel in sel:
         ck.check_file(rel)
+    ck.check_unreferenced()
     ck.check_brand()
     ck.errors.sort(key=lambda e: (e["path"], e["rule"], e["message"]))
     nfiles = len(sel)

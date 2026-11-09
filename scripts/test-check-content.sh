@@ -29,11 +29,11 @@ extra = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 # A TIFF block with one tag in IFD0: any tag is an EXIF finding.
 TIFF = bytes.fromhex("4d4d002a000000080001010f0002000000024100000000000000000000")
 
-def png(exif=False):
+def png(exif=False, w=1, h=1):
     def chunk(t, b):
         return struct.pack(">I", len(b)) + t + b + struct.pack(">I", zlib.crc32(t + b) & 0xFFFFFFFF)
     d = bytes([0x89]) + b"PNG\r\n" + bytes([0x1A, 0x0A])
-    d += chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    d += chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
     if exif:
         d += chunk(b"eXIf", TIFF)
     d += chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00"))
@@ -45,6 +45,7 @@ def jpeg(exif=False):
     if exif:
         seg = b"Exif\x00\x00" + TIFF
         d += bytes([0xFF, 0xE1]) + struct.pack(">H", len(seg) + 2) + seg
+    d += bytes([0xFF, 0xC0]) + struct.pack(">HBHHB", 11, 8, 1, 1, 1) + b"\x01\x11\x00"
     return d + bytes([0xFF, 0xDA]) + b"\x00" * 8 + bytes([0xFF, 0xD9])
 
 def webp(exif=False):
@@ -53,7 +54,7 @@ def webp(exif=False):
         body += b"EXIF" + struct.pack("<I", len(TIFF)) + TIFF + b"\x00" * (len(TIFF) & 1)
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
-data = {"png": png(), "png-exif": png(True), "jpg": jpeg(), "jpg-exif": jpeg(True), "webp": webp(), "webp-exif": webp(True)}[kind]
+data = {"png-wide": png(False, 12000, 10), "png-huge": png(False, 9000, 9000), "png": png(), "png-exif": png(True), "jpg": jpeg(), "jpg-exif": jpeg(True), "webp": webp(), "webp-exif": webp(True)}[kind]
 open(out, "wb").write(data + b"\x00" * extra)
 PY
 
@@ -63,6 +64,7 @@ repo() {
     local d="$work/$1"
     mkdir -p "$d/content/posts/p" "$d/brand" "$d/static/brand" "$d/static/fonts"
     printf '# manifest\n' >"$d/brand/approved-assets.txt"
+    : >"$d/content/posts/p/pic.png"
     echo "$d"
 }
 good_fm='---
@@ -149,17 +151,17 @@ expect tag-block-list-ok 0 - "$(fm_with 'tags:' 'tags:
   - web-editor')$nl$body"
 
 # --- headline image alt ------------------------------------------------------------------------------------
-d="$(put image-needs-alt "$(fm_with 'slug:' 'image: "featured.png"')$nl$body")"
+d="$(put image-needs-alt "$(fm_with 'syndicate:' 'image: "featured.png"')$nl$body")"
 python3 -I "$mk" png "$d/content/posts/p/featured.png"
 rc=0
 out="$(check_py --root "$d" content/posts/p/index.md 2>&1)" || rc=$?
 if [[ $rc -eq 1 ]] && grep -q '^image-alt: content/posts/p/index.md' <<<"$out"; then ok "image without imageAlt fails"; else bad "image without imageAlt (exit $rc): $out"; fi
-printf '%s' "$(fm_with 'slug:' 'image: "featured.png"
+printf '%s' "$(fm_with 'syndicate:' 'image: "featured.png"
 imageAlt: "TODO alt text"')$nl$body" >"$d/content/posts/p/index.md"
 rc=0
 out="$(check_py --root "$d" content/posts/p/index.md 2>&1)" || rc=$?
 if [[ $rc -eq 1 ]] && grep -q '^image-alt: .*placeholder' <<<"$out"; then ok "placeholder imageAlt fails"; else bad "placeholder imageAlt (exit $rc): $out"; fi
-printf '%s' "$(fm_with 'slug:' 'image: "featured.png"
+printf '%s' "$(fm_with 'syndicate:' 'image: "featured.png"
 imageAlt: "A red square used as a stand-in photo."')$nl$body" >"$d/content/posts/p/index.md"
 sum="$(sha256sum "$d/content/posts/p/featured.png" | cut -d' ' -f1)"
 printf 'content/posts/p/featured.png | %s | test | looked at\n' "$sum" >>"$d/brand/approved-assets.txt"
@@ -398,7 +400,9 @@ if [[ $rc -eq 1 ]] && grep -q '^file-type: .*not a regular file' <<<"$out"; then
 # img_case <name> <exit> <rule or -> <maker kind> <file name> [extra bytes] [list in manifest yes|no]
 img_case() {
     local name="$1" want="$2" rule="$3" kind="$4" fname="$5" extra="${6:-0}" listed="${7:-yes}" d out rc=0
-    d="$(put "img-$name" "$good_fm$body")"
+    d="$(put "img-$name" "$good_fm$body
+![A test image used by the fixture.](<$fname>)
+")"
     python3 -I "$mk" "$kind" "$d/content/posts/p/$fname" "$extra"
     if [[ "$listed" == yes ]]; then
         printf 'content/posts/p/%s | %s | test | looked at\n' "$fname" "$(sha256sum "$d/content/posts/p/$fname" | cut -d' ' -f1)" >>"$d/brand/approved-assets.txt"
@@ -424,6 +428,48 @@ img_case leading-dot-name 1 image-name png .hidden.png
 img_case wrong-type-gif 1 image-type png pic.gif
 img_case too-big 1 image-size png pic.png 6000000
 img_case unlisted 1 brand-asset png pic.png 0 no
+img_case too-wide 1 image-dimensions png-wide pic.png
+img_case too-many-pixels 1 image-dimensions png-huge pic.png
+
+# unreferenced image: the page never uses it
+d="$(put orphan "$good_fm$body")"
+python3 -I "$mk" png "$d/content/posts/p/orphan.png"
+printf 'content/posts/p/orphan.png | %s | test | looked at\n' "$(sha256sum "$d/content/posts/p/orphan.png" | cut -d' ' -f1)" >>"$d/brand/approved-assets.txt"
+rc=0
+out="$(check_py --root "$d" content/posts/p/orphan.png 2>&1)" || rc=$?
+if [[ $rc -eq 1 ]] && grep -q '^image-unreferenced: content/posts/p/orphan.png' <<<"$out"; then ok "an image no page uses fails"; else bad "orphan (exit $rc): $out"; fi
+printf '%s' "$good_fm$body
+![An orphan that is now used.](orphan.png)
+" >"$d/content/posts/p/index.md"
+rc=0
+out="$(check_py --root "$d" content/posts/p/orphan.png 2>&1)" || rc=$?
+if [[ $rc -eq 0 ]]; then ok "the same image passes once the page uses it"; else bad "referenced (exit $rc): $out"; fi
+
+# headline and inline images must be real files inside the page folder
+expect headline-missing-file 1 image-remote "$(fm_with 'syndicate:' 'image: "nope.png"
+imageAlt: "A description of the missing file."')$nl$body"
+expect headline-climbs-out 1 image-remote "$(fm_with 'syndicate:' 'image: "../p/index.md"
+imageAlt: "A description of a file outside the bundle."')$nl$body"
+expect headline-absolute 1 image-remote "$(fm_with 'syndicate:' 'image: "/etc/hostname"
+imageAlt: "A description of an absolute path."')$nl$body"
+expect inline-missing-file 1 image-remote "$good_fm$body
+![A picture that is not in the folder.](missing.png)
+"
+expect inline-climbs-out 1 image-remote "$good_fm$body
+![A picture from another folder.](../p/index.md)
+"
+expect inline-encoded-climb 1 image-remote "$good_fm$body
+![A picture from another folder.](%2e%2e/p/index.md)
+"
+expect inline-absolute 1 image-remote "$good_fm$body
+![A picture at an absolute path.](/etc/hostname)
+"
+
+# slug
+expect slug-missing 1 slug "$(fm_with 'slug:' '')$nl$body"
+expect slug-uppercase 1 slug "$(fm_with 'slug:' 'slug: "My-Post"')$nl$body"
+expect slug-space 1 slug "$(fm_with 'slug:' 'slug: "my post"')$nl$body"
+expect slug-underscore 1 slug "$(fm_with 'slug:' 'slug: "my_post"')$nl$body"
 
 d="$(put wrong-sha "$good_fm$body")"
 python3 -I "$mk" png "$d/content/posts/p/pic.png"

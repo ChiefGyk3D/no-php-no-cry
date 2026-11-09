@@ -71,16 +71,18 @@ for the size cap below.
 | Rule | What fails |
 | --- | --- |
 | `front-matter` | Missing or unclosed `---` lines, TOML (`+++`), anchors, aliases, tags, duplicate keys or tabs. |
-| `title`, `date`, `description` | A missing title, a date that is not a real date (`2026-11-08` or `2026-11-08T09:30:00-05:00`), and for posts a description that is empty or over 160 characters. |
+| `title`, `date`, `slug`, `description` | A missing title, a missing or non-lowercase-hyphen slug, a date that is not a real date (`2026-11-08` or `2026-11-08T09:30:00-05:00`), and for posts a description that is empty or over 160 characters. |
 | `draft` | Anything but unquoted `true` or `false`. A missing `draft` counts as published. |
 | `tags` | A tag that is not a lowercase slug: `work-from-home`, not `Work from home`. |
 | `image-alt`, `inline-alt` | On a published page: an `image` without `imageAlt`, or an inline image whose alt text is empty, a file name such as `IMG_1234.jpg`, or a placeholder such as `TODO alt text`. A draft is not checked. |
-| `image-remote` | An inline image that is not a file in the post folder. |
+| `image-remote` | An inline or headline image that is not a real file inside the post folder: a link, an absolute path, a `../` path or a file that is not there. |
+| `image-unreferenced` | A bundle image that the post never uses, neither as `image:` nor inline. Reference it or remove it. |
 | `unsafe-link`, `raw-html` | `javascript:`, `vbscript:` or `data:` links, and script, iframe, object, embed or style tags and `on*=` handlers. Code samples are exempt. |
 | `todo` | A `TODO` or `FIXME` anywhere in a published post, comments included. Delete the archetype comments before publishing. |
 | `guard-word` | An employer-name guard word or a term from `SCRUB_TERMS` ([Scrub terms](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/docs/scrub-terms.md)). The word is never printed. |
 | `image-name`, `image-type` | A bundle image whose name is not lowercase letters, digits, dot, hyphen and underscore (no spaces), or that is not WebP, JPEG or PNG. |
 | `image-metadata` | EXIF (which holds GPS), XMP or IPTC data. Strip it before you upload. |
+| `image-dimensions` | A bundle image over 10000 pixels on a side or 64 megapixels, or one whose size cannot be read. A small file can still be enormous once decoded. |
 | `image-size` | A bundle image over 5 MiB. This is a source cap only: Hugo resizes at build, and `scripts/check-budget.py` still limits what readers download. The 5 MiB figure is a proposal; the built-image limits are in [Build checks and budgets](Build-checks-and-budgets.md). |
 | `brand-asset` | An image missing from `brand/approved-assets.txt`, or listed with another sha256. See [Images and alt text](Images-and-alt-text.md). |
 
