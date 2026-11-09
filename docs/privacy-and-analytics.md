@@ -12,8 +12,16 @@ and is the only source of the `--allow-email` exemption in `check-output.sh`
 and `smoke-site.sh`). `scripts/test-pages.sh` builds a copy of the repository for
 neither, email-only, key-only, email+fingerprint, email+url and both, and
 `scripts/test-check-output.sh` checks `about-email.sh` for the same cases.
-If Cloudflare Email Address Obfuscation is enabled on the zone it may rewrite the
-address on the live page; that is a host setting this repository does not control.
+Cloudflare Email Address Obfuscation is on by default and rewrites an address in the
+served HTML to "[email protected]" plus a decoder script, which needs JavaScript
+(issue 329). The page therefore wraps the address in `<!--email_off-->` and
+`<!--/email_off-->` (Cloudflare docs, "Prevent Cloudflare from obfuscating email"),
+and `scripts/check-about-email.sh` (tested by `scripts/test-about-email.sh`) fails the
+build when the markers are missing or the rewrite markers appear. The markers are
+read by the host at the edge, so the live page is the proof: after a deploy, fetch
+`/about/` and confirm the address is in the HTML and no `data-cfemail` appears.
+`params.emailAsImage` (default false) swaps the text for an image; see
+`docs/contact-form-options.md`.
 
 ## Privacy page
 
