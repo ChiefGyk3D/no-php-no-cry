@@ -88,13 +88,17 @@ Platform glyphs are first-party files under `static/brand/` used as CSS masks
 and Matrix reuse `static/brand/icons/` (Simple Icons, see `brand/ICONS.md`).
 Twitter (file `bird.svg`), Reddit, LinkedIn, Facebook, Hacker News, Pinterest, Email and Copy link
 come from Font Awesome Free 7.3.1 (icons CC BY 4.0), in `static/brand/share/`,
-unmodified, with a provenance line each in `brand/approved-assets.txt`. **Lemmy
-has no icon**: no clearly licensed glyph was available, so the button is text
-only until one is supplied.
+unmodified, with a provenance line each in `brand/approved-assets.txt`. Lemmy is
+the Simple Icons 16.36.0 glyph, whose per-icon license is the Lemmy project's
+AGPL v3 (not the CC0 of the other Simple Icons files); the license text is kept
+in `brand/LICENSE-lemmy-agpl-3.0.txt`.
+
+The share block is one quiet panel: a grid of equal icon buttons (the words are
+hidden, each link keeps its `aria-label` and a `title` tooltip) and a Copy link
+button with its words. Change server, when shown, takes a full row.
 
 ## Changing the list
 
 Edit `data/share.yaml` (a template change needs its source and date), then run
 `scripts/test-share.sh`. A new target needs an icon rule in `share.css` and a
-manifest line, or no icon (`lemmy` is the only text-only exception the test
-allows).
+manifest line.

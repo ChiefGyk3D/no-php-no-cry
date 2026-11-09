@@ -3,7 +3,7 @@
 #
 # Builds the site into the repository's gitignored tmp/ (never /tmp) and asserts:
 #   - no page carries more than ONE level 3 frame (svg class "fr fr-l3"), and the
-#     two pages that own one (Home, Support) carry exactly one;
+#     page that owns one (Home) carries exactly one, and Support carries none;
 #   - every frame (svg class "fr") is aria-hidden and the build holds no style
 #     attribute or style element (the CSP forbids both);
 #   - assets/css/borders.css has no url(), no hex color (colors come from the
@@ -64,10 +64,11 @@ while IFS= read -r -d '' page; do
 done < <(find "$out" -name '*.html' -print0)
 [[ "$over" -eq 0 ]] && pass "no page has more than one L3 frame"
 
-for p in index.html support/index.html; do
-    n="$(l3_count "$out/$p")"
-    [[ "$n" -eq 1 ]] && pass "$p has exactly one L3 frame" || fail "$p has $n L3 frames, wanted 1"
-done
+n="$(l3_count "$out/index.html")"
+[[ "$n" -eq 1 ]] && pass "index.html has exactly one L3 frame" || fail "index.html has $n L3 frames, wanted 1"
+# The Support tiles use the faithful button art (issue 285), not the L3 machinery: no L3 there.
+n="$(l3_count "$out/support/index.html")"
+[[ "$n" -eq 0 ]] && pass "support/index.html has no L3 frame (its tiles use the button art)" || fail "support/index.html has $n L3 frames, wanted 0"
 
 bad="$(for f in $(grep -rlE "class=.?fr fr-l[23]" "$out" --include="*.html"); do grep -qE "class=.?fr fr-l[23].? aria-hidden=" "$f" || echo "$f"; done)"
 [[ -z "$bad" ]] && pass "every frame is aria-hidden" || fail "a frame is not aria-hidden: $bad"
@@ -76,7 +77,7 @@ styled="$(grep -rlE '(<style[ >]|[[:space:]]style=)' "$out" --include='*.html' |
 [[ -z "$styled" ]] && pass "no style element or style attribute in any page" || fail "inline style in: $styled"
 
 css="$root/assets/css/borders.css"
-# The only url() in borders.css are the two faithful button art files.
+# The only url() in borders.css are the two faithful button art files (the tile art is named in pages/support.css).
 if python3 -I - "$css" <<'PY'
 import re, sys
 css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)

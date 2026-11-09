@@ -16,9 +16,9 @@ test), and the `multiple-l3` rule in `scripts/check-output.sh`.
 
 | Level | Draws | Markup | Used on |
 | --- | --- | --- | --- |
-| L1 whisper | hairline and four 10 by 2 px amber corner ticks | none, pure CSS: the classes `panel`, `tile`, `btn` and `l1` | buttons (including the Menu button and share buttons), tiles, panels, post cards, the previous and next post links, home network chips (hairline only) |
+| L1 whisper | hairline and four 10 by 2 px amber corner ticks | none, pure CSS: the classes `panel`, `tile`, `btn` and `l1` | buttons (including the Menu button), tiles elsewhere than /support/, the post share panel, panels, post cards, the previous and next post links, home network chips (hairline only) |
 | L2 classy | the same bracket layout, one chamfer per bracket, a corner dash, two thin amber rules, translucent amber fill, no glow | `class="bx l2"` plus the partial | the page title block: a post title and the archive titles (Posts, Journal, tag pages) |
-| L3 faithful | the full traced button frame: stepped gradient brackets, end-cap plates, dashes, long and short rules, the faint glow under the bottom rule | `class="bx l3"` plus the partial | ONE per page: the Home hero and the first support link on /support/ |
+| L3 faithful | the full traced button frame: stepped gradient brackets, end-cap plates, dashes, long and short rules, the faint glow under the bottom rule | `class="bx l3"` plus the partial | ONE per page: the Home hero. The four /support/ tiles are not L3: they are solid amber with the faithful button art at tile size (`frame-faithful-tile*.svg`, issue 285), so /support/ carries none |
 
 Not framed, on purpose: the header and footer (hairline rules only), tag links
 on a post, the footer credit, running text. A frame on every element is the

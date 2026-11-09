@@ -22,12 +22,10 @@
   <h1>{{ .Title }}</h1>
   <p class="lede">If you want to support the streams, videos, and projects, these are the ways to do it. It is optional.</p>
   <ul class="tile-grid support-tiles">
-    {{- /* The first link is the page's one L3 frame (docs/borders.md): the support button. */}}
-    {{- $first := true }}
+    {{- /* All four tiles are solid amber with the faithful button art at tile size (issue 285); none is an L3 frame, so the page carries no L3 (docs/borders.md). */}}
     {{- range site.Data.support }}{{ if and .button (strings.HasPrefix .url "https://") }}
-    <li class="tile-item{{ if $first }} tile-hero{{ end }}">
-      <a class="tile support-tile{{ if $first }} bx l3 s18{{ end }}" href="{{ .url }}" target="_blank" rel="noopener">
-        {{- if $first }}{{ partial "frame.html" (dict "level" 3) }}{{ end }}
+    <li class="tile-item">
+      <a class="tile support-tile" href="{{ .url }}" target="_blank" rel="noopener">
         <span class="support-tile-name">{{ .button }}</span>
         {{- with .blurb }}
         <span class="support-tile-blurb">{{ . }}</span>
@@ -35,7 +33,6 @@
         <span class="visually-hidden"> (opens in a new tab)</span>
       </a>
     </li>
-    {{- $first = false }}
     {{- end }}{{ end }}
   </ul>
 

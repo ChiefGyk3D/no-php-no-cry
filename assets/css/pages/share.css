@@ -1,46 +1,109 @@
-/* Share links on posts (issue 220). Tokens only. Every target is at least --tap
- * (44 px) square, the browser gate's rule (scripts/browser-gate.py). The buttons
- * carry [hidden] until /share.js runs. */
+/* Share links on posts (issue 220, layout issue 285). Tokens only. Every target is
+ * at least --tap (44 px) square, the browser gate's rule (scripts/browser-gate.py).
+ * The buttons carry [hidden] until /share.js runs. */
+/* The share block is one quiet panel (L1 hairline and ticks, from .panel) holding
+ * a grid of equal icon buttons and the Copy link button (issue 285). No frame on
+ * an icon. The visible words are hidden, not removed: each link keeps its
+ * aria-label and a title tooltip, and its text is the fallback if the icon mask
+ * does not load. */
+/* .syndication is a flex row (.meta): the panel takes the whole row. */
+.share.panel {
+  flex: 1 1 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: var(--space-2);
+}
+
 .share-title {
   display: block;
-  margin: var(--space-3) 0 var(--space-1);
+  margin: 0 0 var(--space-2);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .share-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  gap: var(--space-2) var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(var(--tap), 1fr));
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.share-list [hidden] {
+.share-list [hidden],
+.share-list li:has(> [hidden]) {
   display: none;
+}
+
+/* Copy link and Change server keep their words and take a full row. */
+.share-list li:has(> .share-copy),
+.share-list li:has(> .share-change) {
+  grid-column: 1 / -1;
+}
+
+/* Both full-width rows sit below the icons, Change server above Copy link. */
+.share-list li:has(> .share-change) {
+  order: 98;
+}
+
+.share-list li:has(> .share-copy) {
+  order: 99;
 }
 
 .share-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 var(--space-3);
+  padding: 0;
+  border: var(--rule-width) solid transparent;
+  background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: 0;
   text-decoration: none;
   cursor: pointer;
 }
 
-.share-link:hover {
-  --fill: var(--accent);
-  --tick: var(--on-accent);
+.share .share-link[class^="icon-"]::before {
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+}
+
+.share-link:hover,
+.share-link:focus-visible {
+  background-color: var(--accent);
   color: var(--on-accent);
 }
 
 .share-link:focus-visible {
-  outline: var(--rule-accent-width) solid var(--accent);
-  outline-offset: 4px;
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 2px;
+}
+
+.share-copy,
+.share-change {
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.share-copy {
+  border-color: var(--accent);
+}
+
+.share-change {
+  border-color: var(--border);
+}
+
+.share .share-copy[class^="icon-"]::before {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .share-status {
@@ -78,4 +141,8 @@
 
 .icon-copy {
   --icon: url("../brand/share/link.svg");
+}
+
+.icon-lemmy {
+  --icon: url("../brand/share/lemmy.svg");
 }

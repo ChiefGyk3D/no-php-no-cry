@@ -140,7 +140,7 @@ def svg(W,H,level,rule=AMBER,hs=None):
             o.append(rrect(min(dx0,dx1),Yb(290),abs(dx1-dx0),max(1.6,6*spy),AMBER))
     o.append('</svg>'); return "".join(o)
 
-SIZES=[("button",140,44,None)]
+SIZES=[("button",140,44,None),("tile",330,79,None)]
 
 
 def files():

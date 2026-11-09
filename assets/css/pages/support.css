@@ -18,12 +18,6 @@
   display: flex;
 }
 
-/* The L3 support button spans both columns on a phone, where a half-width tile
- * is too narrow for the full frame. */
-.support-tiles .tile-hero {
-  grid-column: 1 / -1;
-}
-
 .support-tile {
   display: flex;
   flex-direction: column;
@@ -49,9 +43,61 @@
   .support-tiles {
     grid-template-columns: repeat(4, 1fr);
   }
+}
 
-  .support-tiles .tile-hero {
-    grid-column: auto;
+/* The four tiles (issue 285): solid amber with the faithful button art at tile
+ * size (static/brand/frame-faithful-tile*.svg, applied at 100% by 100%, the same
+ * mechanism as .btn.bf-faithful in borders.css), ink text. Hover and keyboard
+ * focus swap to the dark surface with the amber-rule art and light text; the
+ * focus ring (borders.css) sits outside. No glow, no animation, dark only. */
+.support-tile {
+  --art: url("../brand/frame-faithful-tile-amber.svg");
+  --fill: var(--accent);
+  min-height: 5.25rem;
+  border-color: transparent;
+  background-color: var(--fill);
+  background-image: var(--art);
+  background-size: 100% 100%;
+  background-position: 0 0;
+}
+
+a.support-tile .support-tile-name,
+a.support-tile .support-tile-blurb {
+  color: var(--on-accent);
+}
+
+a.support-tile:hover,
+a.support-tile:focus-visible {
+  --art: url("../brand/frame-faithful-tile.svg");
+  --fill: var(--surface);
+}
+
+a.support-tile:hover .support-tile-name,
+a.support-tile:focus-visible .support-tile-name {
+  color: var(--text);
+}
+
+a.support-tile:hover .support-tile-blurb,
+a.support-tile:focus-visible .support-tile-blurb {
+  color: var(--muted);
+}
+
+@media (forced-colors: active) {
+  .support-tile {
+    background-image: none;
+    border-color: CanvasText;
+  }
+}
+
+@media print {
+  .support-tile {
+    background: none;
+    border-color: CanvasText;
+  }
+
+  a.support-tile .support-tile-name,
+  a.support-tile .support-tile-blurb {
+    color: CanvasText;
   }
 }
 
