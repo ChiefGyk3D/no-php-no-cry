@@ -634,6 +634,10 @@ def contact(p, errs, repo):
             errs.append("the fingerprint line must be 'PGP fingerprint: <code>...</code>'")
         if not re.search(r"<p[^>]*>\s*Email: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
             errs.append("the email line must be 'Email: <a mailto>...</a>'")
+        # Issue 329 (owner correction 2026-11-09, supersedes the 224 key choice for now): the key in
+        # use is the one on keys.openpgp.org, so the key link must be that keyserver's
+        # by-fingerprint URL of the PUBLISHED fingerprint, and the unused key file kept in static/
+        # (static/chiefgyk3d.asc) must not be linked or named on the page.
         ks_ok = "https://keys.openpgp.org/vks/v1/by-fingerprint/" + re.sub(r"\s+", "", cd["pgp_fingerprint"]).upper()
         if cd["pgp_url"] != ks_ok:
             errs.append("pgp_url must be %s (the by-fingerprint URL of the published fingerprint); found %r" % (ks_ok, cd["pgp_url"]))

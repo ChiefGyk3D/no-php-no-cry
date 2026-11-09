@@ -9,7 +9,7 @@ build:
 description: "Stream Daemon is a secure, open source engine that watches your live status on streaming platforms and announces it across your social networks."
 archive: true
 categories: ["Open Source"]
-tags: ["stream daemon", "streaming", "automation", "open source"]
+tags: ["stream-daemon", "streaming", "automation", "open-source"]
 syndicate: false
 syndicated:
   mastodon: "https://social.chiefgyk3d.com/@chiefgyk3d/115499302153001935"
