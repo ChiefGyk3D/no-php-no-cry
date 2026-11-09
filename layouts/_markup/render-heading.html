@@ -1,0 +1,6 @@
+{{- /* Headings in a post body. A level 2 heading is a section banner (docs/borders.md); the other levels stay plain. Same id and text Hugo makes by default. */ -}}
+{{- if eq .Level 2 -}}
+<h2 id="{{ .Anchor }}" class="fx pl sm">{{ .Text | safeHTML }}</h2>
+{{- else -}}
+<h{{ .Level }} id="{{ .Anchor }}"{{ range $k, $v := .Attributes }}{{ if not (eq $k "id") }} {{ $k }}="{{ $v }}"{{ end }}{{ end }}>{{ .Text | safeHTML }}</h{{ .Level }}>
+{{- end -}}

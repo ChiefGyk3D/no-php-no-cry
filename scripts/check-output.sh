@@ -16,12 +16,13 @@
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, template-element, missing-output, missing-llms,
-# bad-llms, old-site-name, image-metadata, multiple-l3.
+# bad-llms, old-site-name, image-metadata, inline-frame.
 #
-# multiple-l3: the border system (docs/borders.md) allows ONE level 3 frame, the
-# full button frame, per page: more than one <svg class="fr fr-l3"> on a page is a
-# finding. A page's frames are inline SVG from layouts/_partials/frame.html and
-# carry no style attribute (style-attribute, below, covers them).
+# inline-frame: the border system (docs/borders.md) draws every frame from CSS and
+# four SVG files under static/brand/, so markup cost does not grow with the number
+# of frames; an inline <svg class="fr ..."> frame in a page is a finding. There is
+# no per-page limit on frames, only that a frame never holds another frame
+# (scripts/test-borders.sh).
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pins of
@@ -269,9 +270,9 @@ while IFS= read -r -d '' f; do
     if grep -qEi '[[:space:]]style=' "$f"; then
         report style-attribute "$rel"
     fi
-    # Border system: one level 3 frame per page at most (docs/borders.md).
-    if [[ "$(grep -oE 'class="?fr fr-l3[" >]' "$f" | wc -l)" -gt 1 ]]; then
-        report multiple-l3 "$rel"
+    # Border system: frames are CSS and SVG files, never inline svg (docs/borders.md).
+    if grep -qE '<svg[^>]*class="?fr[ "]' "$f"; then
+        report inline-frame "$rel"
     fi
     # Event-handler attributes and javascript: URLs are read from real
     # attributes by the parser pass below (scripts/scan-markup.py).

@@ -1,11 +1,11 @@
 {{ define "main" }}
-<h1>{{ .Title }}</h1>
+<div class="title-block"><h1 class="fx pl xl live">{{ .Title }}</h1></div>
 {{ .Content }}
 {{- /* One native disclosure per group (no script). The first group starts open; the rest are one short row each, with the item count. The h2 sits inside the summary so the group stays a heading in the outline. */}}
 {{- range $i, $g := site.Data.products }}
 <section class="product-group" aria-labelledby="group-{{ $g.group | urlize }}">
   <details class="accordion"{{ if eq $i 0 }} open{{ end }}>
-    <summary>
+    <summary class="fx pl sm">
       <h2 id="group-{{ $g.group | urlize }}">{{ $g.group }}</h2>
       <span class="product-count meta">{{ len $g.items }} {{ cond (eq (len $g.items) 1) "item" "items" }}</span>
     </summary>
@@ -33,7 +33,7 @@
 {{- /* The disclosure is rendered once, after the last group (owner ruling 2026-11-08, issue 123); each item still carries its Amazon or Direct label and a "sponsored" link. Not every link goes to Amazon: some go straight to the company, so the copy and the card labels say so. The Amazon Associates line shows only while at least one item has vendor Amazon (data/products.yaml). */}}
 {{- $amazon := false }}
 {{- range site.Data.products }}{{ range .items }}{{ if eq .vendor "Amazon" }}{{ $amazon = true }}{{ end }}{{ end }}{{ end }}
-<div class="disclosure" role="note">
+<div class="disclosure fx dk" role="note">
   <p>Some links on this page are affiliate links. If you buy something through one, I may earn a commission at no extra cost to you. The label on each card says whether the link goes to Amazon or straight to the company.</p>
   {{- if $amazon }}
   <p class="meta">As an Amazon Associate I earn from qualifying purchases.</p>

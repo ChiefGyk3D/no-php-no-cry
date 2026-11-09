@@ -1,7 +1,7 @@
 {{ define "main" }}
 {{- with site.Data.resume }}
 <article class="resume">
-  <div class="resume-head">
+  <div class="resume-head fx pl lg">
     {{- /* A small portrait (published, metadata-stripped copy; brand/ICONS.md, Portrait). Eager: it is above the fold. Screen only: hidden in print. */}}
     <img class="resume-portrait" src="{{ "brand/portrait-320.webp" | relURL }}" srcset="{{ "brand/portrait-320.webp" | relURL }} 320w, {{ "brand/portrait-640.webp" | relURL }} 640w" sizes="8rem" width="320" height="320" loading="eager" decoding="async" alt="Portrait of ChiefGyk3D in front of a network rack">
     <div class="resume-id">
@@ -14,7 +14,7 @@
   </div>
 
   <section aria-labelledby="r-summary">
-    <h2 id="r-summary" class="hud-heading">Summary</h2>
+    <h2 id="r-summary" class="fx pl sm">Summary</h2>
     <div class="resume-summary">
       {{- range .summary }}
       <p>{{ . }}</p>
@@ -25,7 +25,7 @@
   {{- /* Issue 262: Background reuses the owner-approved About bio (data/about.yaml); nothing is copied, so the two pages cannot drift. */}}
   {{- with site.Data.about }}
   <section aria-labelledby="r-background">
-    <h2 id="r-background" class="hud-heading">Background</h2>
+    <h2 id="r-background" class="fx pl sm">Background</h2>
     <div class="resume-summary">
       {{- range .paragraphs }}
       <p>{{ . }}</p>
@@ -42,7 +42,7 @@
   {{- end }}
 
   <section aria-labelledby="r-skills">
-    <h2 id="r-skills" class="hud-heading">Skills</h2>
+    <h2 id="r-skills" class="fx pl sm">Skills</h2>
     <dl class="resume-skills">
       {{- range .skills }}
       <div>
@@ -57,7 +57,7 @@
   {{- with site.Data.about }}
   {{- with .skills }}
   <section aria-labelledby="r-tools">
-    <h2 id="r-tools" class="hud-heading">Tools and platforms</h2>
+    <h2 id="r-tools" class="fx pl sm">Tools and platforms</h2>
     <dl class="resume-detail">
       {{- range . }}
       <div>
@@ -72,7 +72,7 @@
 
   {{- with .site_proof }}
   <section aria-labelledby="r-proof">
-    <h2 id="r-proof" class="hud-heading">{{ .heading }}</h2>
+    <h2 id="r-proof" class="fx pl sm">{{ .heading }}</h2>
     <p>{{ .text }}</p>
   </section>
   {{- end }}
@@ -80,7 +80,7 @@
   {{- /* Build-safe slot (issue 262): renders only when data/resume.yaml has an `experience` list of {name, text}. Empty today, so nothing shows. */}}
   {{- with .experience }}
   <section aria-labelledby="r-experience">
-    <h2 id="r-experience" class="hud-heading">Selected accomplishments</h2>
+    <h2 id="r-experience" class="fx pl sm">Selected accomplishments</h2>
     <dl class="resume-detail">
       {{- range . }}
       <div>
@@ -93,7 +93,7 @@
   {{- end }}
 
   <section aria-labelledby="r-projects">
-    <h2 id="r-projects" class="hud-heading">Open-Source Projects</h2>
+    <h2 id="r-projects" class="fx pl sm">Open-Source Projects</h2>
     {{- with .projects_intro }}
     <p>{{ . }}</p>
     {{- end }}
@@ -110,7 +110,7 @@
   {{- with site.Data.about }}
   {{- with .homelab }}
   <section aria-labelledby="r-homelab">
-    <h2 id="r-homelab" class="hud-heading">Homelab and engineering practice</h2>
+    <h2 id="r-homelab" class="fx pl sm">Homelab and engineering practice</h2>
     {{- with $.Site.Data.about.homelab_intro }}
     <p>{{ . }}</p>
     {{- end }}
@@ -136,28 +136,28 @@
   {{- end }}
 
   <section aria-labelledby="r-credentials">
-    <h2 id="r-credentials" class="hud-heading">Certifications</h2>
+    <h2 id="r-credentials" class="fx pl sm">Certifications</h2>
     <ul class="resume-list">
       {{- range .credentials }}<li>{{ . }}</li>{{ end }}
     </ul>
   </section>
 
   <section aria-labelledby="r-education">
-    <h2 id="r-education" class="hud-heading">Education</h2>
+    <h2 id="r-education" class="fx pl sm">Education</h2>
     <ul class="resume-list">
       {{- range .education }}<li>{{ . }}</li>{{ end }}
     </ul>
   </section>
 
   <section aria-labelledby="r-community">
-    <h2 id="r-community" class="hud-heading">Speaking and community</h2>
+    <h2 id="r-community" class="fx pl sm">Speaking and community</h2>
     <ul class="resume-list">
       {{- range .community }}<li>{{ . }}</li>{{ end }}
     </ul>
   </section>
 
   <section aria-labelledby="r-creator">
-    <h2 id="r-creator" class="hud-heading">Creator and teaching work</h2>
+    <h2 id="r-creator" class="fx pl sm">Creator and teaching work</h2>
     {{- with site.Data.about.mission }}
     <p>{{ . }}</p>
     {{- end }}
@@ -174,14 +174,14 @@
   </section>
 
   <section aria-labelledby="r-outside">
-    <h2 id="r-outside" class="hud-heading">Outside work</h2>
+    <h2 id="r-outside" class="fx pl sm">Outside work</h2>
     <ul class="resume-list">
       {{- range .outside_work }}<li>{{ . }}</li>{{ end }}
     </ul>
   </section>
 
   <section aria-labelledby="r-contact">
-    <h2 id="r-contact" class="hud-heading">Contact</h2>
+    <h2 id="r-contact" class="fx pl sm">Contact</h2>
     <p>{{ .contact }} <a href="{{ .contact_url | relURL }}">{{ .contact_link_text }}</a>.</p>
     {{- with .linkedin_url }}
     <p>Find me online: <a href="{{ . }}" rel="noopener">LinkedIn</a></p>

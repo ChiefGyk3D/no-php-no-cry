@@ -36,8 +36,8 @@
       {{- /* Phones: the list sits in a native popover menu (no script): the Menu button opens it; Escape, a click outside or a second press closes it, and focus returns to the button. From 52rem up, CSS shows the list without opening it. */}}
       <nav class="site-nav" aria-label="Main">
         <div class="nav-menu">
-          <button class="btn btn-ghost nav-toggle" type="button" popovertarget="nav-list">Menu</button>
-          <ul id="nav-list" popover>
+          <button class="btn btn-ghost nav-toggle sm" type="button" popovertarget="nav-list">Menu</button>
+          <ul id="nav-list" class="fx dk sm" popover>
             {{- /* aria-current="page" marks the link whose URL is this page; a post under /posts/ is not that page, so the Posts link stays plain there. */}}
             {{- $here := .RelPermalink }}
             <li><a href="{{ "/" | relURL }}"{{ if eq $here ("/" | relURL) }} aria-current="page"{{ end }}>Home</a></li>
@@ -61,6 +61,7 @@
   </main>
   <footer class="site-footer">
     <div class="wrap">
+      <div class="footer-frame fx dk sm">
       <ul class="footer-row" aria-label="Footer">
         <li><a href="{{ "/about/" | relURL }}">About</a></li>
         <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
@@ -85,6 +86,7 @@
         </nav>
         {{- end }}
         <p class="credit">&copy; {{ now.Year }} Renegade Penguin LLC <span aria-hidden="true">&middot;</span> Powered by <a href="https://github.com/ChiefGyk3D/no-php-no-cry" rel="noopener">No PHP No Cry<span class="visually-hidden"> (external site)</span></a></p>
+      </div>
       </div>
     </div>
   </footer>

@@ -3,14 +3,13 @@
   font-size: var(--text-lg);
 }
 
-.page-support h2.hud-heading {
+.page-support h2.fx {
   margin: var(--space-6) 0 var(--space);
-  font-size: var(--text-lg);
 }
 
 /* Ways to chip in: tiles, 2 across on a phone, 4 across from 40rem. */
 .support-tiles {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   margin: var(--space-5) 0 var(--space-2);
 }
 
@@ -18,13 +17,8 @@
   display: flex;
 }
 
-/* The L3 support button spans both columns on a phone, where a half-width tile
- * is too narrow for the full frame. */
-.support-tiles .tile-hero {
-  grid-column: 1 / -1;
-}
-
 .support-tile {
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -35,24 +29,25 @@
 
 .support-tile-name {
   font-family: var(--font-display);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 700;
-  color: var(--accent);
 }
 
 .support-tile-blurb {
-  color: var(--muted);
   font-size: var(--text-sm);
+}
+
+@media (min-width: 30rem) and (max-width: 39.99rem) {
+  .support-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 40rem) {
   .support-tiles {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .support-tiles .tile-hero {
-    grid-column: auto;
-  }
 }
 
 /* One panel per cryptocurrency: 1 column on a phone, 2 from 40rem. */
@@ -73,20 +68,22 @@
 
 .coin {
   display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* The card holds the coin, QR and address; the Copy button is its own frame
+ * below it (a frame never holds another frame). */
+.coin-body {
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space);
   align-content: start;
   justify-items: center;
   min-width: 0;
-}
-
-/* The four cards share their rows (heading, QR, address, Copy), so the Copy
- * buttons line up even when one address wraps to more lines than another. */
-@supports (grid-template-rows: subgrid) {
-  .coin-list > .coin {
-    grid-row: span 4;
-    grid-template-rows: subgrid;
-  }
+  --py: var(--space-5);
+  --px: var(--space-5);
 }
 
 .coin-head {
@@ -121,8 +118,8 @@
     gap: var(--space);
   }
 
-  .coin.panel {
-    padding: var(--space);
+  .coin-body {
+    --px: var(--space);
   }
 
   .coin-head {
@@ -217,16 +214,12 @@
     margin: var(--space-4) 0 var(--space-3);
   }
 
-  .support-tiles .tile:not(.bx) {
-    padding: var(--space-2) var(--space);
-  }
-
   .page-support .meta {
     margin: 0;
   }
 
-  .page-support h2.hud-heading {
-    margin: var(--space-4) 0 var(--space-2);
+  .page-support h2.fx {
+    margin: var(--space-4) 0 var(--space-3);
   }
 
   .support-coins > p {
@@ -237,9 +230,13 @@
     margin-top: var(--space-3);
   }
 
-  .coin.panel {
-    padding: var(--space-3) var(--space);
+  .coin-body {
+    --py: var(--space-4);
     gap: var(--space-2);
+  }
+
+  .coin {
+    gap: var(--space-3);
   }
 
   .coin-mark {
@@ -260,5 +257,42 @@
     padding: var(--space-1) var(--space-2);
     font-size: var(--text-sm);
     line-height: 1.4;
+  }
+}
+
+/* Standing rule (issue 123), with frames: /support/ fits 1920x930. */
+@media (min-width: 80rem) {
+  .page-support h1.fx {
+    --s: 0.2;
+  }
+
+  .page-support .support-tiles .tile {
+    --s: 0.15;
+    --py: var(--space-2);
+  }
+
+  .page-support h2.fx {
+    --s: 0.12;
+    margin: var(--space-3) 0 var(--space-2);
+  }
+
+  .coin-body {
+    --py: var(--space-3);
+  }
+
+  .qr {
+    width: min(100%, 10rem);
+  }
+
+  .coin .btn {
+    --s: 0.14;
+  }
+
+  .coin-body {
+    gap: var(--space-2);
+  }
+
+  .support-tiles {
+    margin: var(--space-3) 0 0;
   }
 }
