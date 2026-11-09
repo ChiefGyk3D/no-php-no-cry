@@ -8,8 +8,11 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-mkdir -p "$root/tmp"
-work="$(mktemp -d "$root/tmp/social-identity.XXXXXX")"
+# The scratch directory is OUTSIDE the source tree: the malformed-data fixtures below copy Hugo
+# inputs, and a copy of the repository into its own descendant fails.
+scratch_base="${SOCIAL_IDENTITY_TMP:-$HOME/.local/share/no-php-no-cry-dev/tmp}"
+mkdir -p "$scratch_base"
+work="$(mktemp -d "$scratch_base/social-identity.XXXXXX")"
 trap '[[ -n "${KEEP:-}" ]] || rm -rf "$work"' EXIT
 command -v hugo >/dev/null 2>&1 || {
     echo "FAIL: hugo is not on PATH (see .hugo-version)"
@@ -68,11 +71,37 @@ if grep -rlE 'name="?twitter:(site|creator)' "$pub" >/dev/null; then fail "twitt
 unexpected="$(grep -rhoE --include='*.html' '<script[^>]*>' "$pub" | sort -u | grep -vE '^<script src="?/(copy|search|share)\.js"?>$' | grep -vE '^<script type="?application/ld\+json"?>$' || true)"
 if [[ -z "$unexpected" ]]; then pass "no script element beyond the pinned scripts and JSON-LD data"; else fail "unexpected script elements: $unexpected"; fi
 
-# A malformed creator fails the build (never a silent wrong tag).
-cp -r "$root" "$work/bad" 2>/dev/null || true
-rm -rf "$work/bad/tmp" "$work/bad/public" "$work/bad/.git"
-sed -i 's|^\(  *\)fediverse_creator: .*|\1fediverse_creator: "not-a-handle"|' "$work/bad/data/socials.yaml"
-if hugo --source "$work/bad" --destination "$work/bad-public" --quiet >"$work/bad.log" 2>&1; then fail "a malformed fediverse_creator built"; else pass "a malformed fediverse_creator fails the build"; fi
+# A malformed creator fails the build, with articles AND on a site with no published article
+# (the validation must not depend on which pages render). Only the Hugo inputs are copied.
+fixture() { # <dir> <with-articles: yes|no>
+    local d="$1"
+    mkdir -p "$d/content"
+    cp -r "$root/layouts" "$root/assets" "$root/static" "$root/data" "$root/hugo.toml" "$d/" || return 1
+    printf -- '---\ntitle: "Home"\n---\n' >"$d/content/_index.md"
+    if [[ "$2" == yes ]]; then
+        mkdir -p "$d/content/posts/a"
+        printf -- '---\ntitle: "A"\ndate: 2026-01-02\ndescription: "A post."\n---\n\nBody.\n' >"$d/content/posts/a/index.md"
+    fi
+}
+for variant in yes no; do
+    d="$work/fixture-$variant"
+    if ! fixture "$d" "$variant"; then
+        fail "could not copy the Hugo inputs for the malformed-creator fixture ($variant)"
+        continue
+    fi
+    if hugo --source "$d" --destination "$d-ok" --quiet >"$work/ok-$variant.log" 2>&1; then
+        pass "the unmodified fixture builds (articles: $variant)"
+    else
+        fail "the unmodified fixture does not build (articles: $variant): $(tail -n 3 "$work/ok-$variant.log")"
+        continue
+    fi
+    sed -i 's|^\(  *\)fediverse_creator: .*|\1fediverse_creator: "not-a-handle"|' "$d/data/socials.yaml"
+    grep -q 'fediverse_creator: "not-a-handle"' "$d/data/socials.yaml" || {
+        fail "could not malform the fixture ($variant)"
+        continue
+    }
+    if hugo --source "$d" --destination "$d-bad" --quiet >"$work/bad-$variant.log" 2>&1; then fail "a malformed fediverse_creator built (articles: $variant)"; else pass "a malformed fediverse_creator fails the build (articles: $variant)"; fi
+done
 
 if ((failures > 0)); then
     echo "$failures failure(s)"
