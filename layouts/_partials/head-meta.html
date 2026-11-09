@@ -13,7 +13,8 @@
   {{- if $res }}{{ $card := $res.Fit "1200x630 jpg q80 #0F0F0F" }}{{ $image = $card.Permalink }}{{ $ogW = $card.Width }}{{ $ogH = $card.Height }}{{ else }}{{ $image = . | absURL }}{{ $sized = false }}{{ end -}}
   {{- $custom = true -}}
 {{- end -}}
-{{- $title := cond .IsHome site.Title .Title -}}
+{{- /* seoTitle (front matter) is the title for search results and cards when the on-page heading (title) is shorter; the home title is params.homeTitle. */ -}}
+{{- $title := cond .IsHome (site.Params.homeTitle | default site.Title) (.Params.seoTitle | default .Title) -}}
 {{- $article := and .IsPage (in (slice "posts" "journal") .Section) -}}
 {{- $name := site.Params.author.name | default "ChiefGyk3D" -}}
 {{- $home := "/" | absURL -}}
