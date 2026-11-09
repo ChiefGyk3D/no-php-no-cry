@@ -11,7 +11,7 @@ by the owner is out of scope. A mistake by the owner or a contributor is in scop
 
 ## Counts
 
-57 threats in three diagrams: 33 Mitigated, 21 Open, 2 Accepted, 1 N/A.
+57 threats in three diagrams: 32 Mitigated, 22 Open, 2 Accepted, 1 N/A.
 
 A threat counts as Mitigated only when a control is in this repository and the model names it by path.
 `scripts/check-threat-model.py` fails the build when a named path does not exist.
@@ -56,6 +56,9 @@ Medium and low severity:
   daily visitor code, report suppression, the outbound-domain flood cap, and an admission budget for the
   Function so a flood cannot burn the free daily allowance. Each is a numbered plan item in
   `docs/analytics-from-reach-around.md`. Nothing here is live until the analytics Function is deployed.
+- Build-step egress: the build and check jobs run the runner egress policy in audit mode, not block
+  (`docs/ci-parallel.md`), so a compromised build step could send the (public) source out. Flip it to block
+  once the allowed hosts are measured.
 - A look-alike copy of the site. Cannot be prevented; takedown is manual.
 - Syndication abuse and repeats, until the job exists.
 - The database edit token for the analytics maintenance job must be dropped after the work.

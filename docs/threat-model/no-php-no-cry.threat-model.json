@@ -584,12 +584,12 @@
                 {
                   "id": "0220acf0-d1aa-5b3a-91c0-12a31615e7c9",
                   "title": "Build step reaches out and leaks source or tokens",
-                  "status": "Mitigated",
+                  "status": "Open",
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "A compromised step sends repository contents or a token to an outside host.",
-                  "mitigation": "The security job and deploy job set the runner egress policy to block (.github/workflows/ci.yml, .github/workflows/deploy.yml). CI jobs hold no cloud credential; permissions are read-only by default.",
+                  "mitigation": "Open. Partly handled: the credentialed deploy job and the security and shell jobs set the runner egress policy to block (.github/workflows/deploy.yml, .github/workflows/ci.yml), and CI build jobs hold no cloud credential and have read-only permissions. The build and check jobs run with egress-policy-secretless set to audit (.github/workflows/ci.yml, documented in docs/ci-parallel.md), so a compromised build step can still send source over the network. Source is public, so the loss is limited, but the claim stays Open until that policy is flipped to block.",
                   "number": 10
                 },
                 {
@@ -604,7 +604,7 @@
                   "number": 11
                 }
               ],
-              "hasOpenThreats": false,
+              "hasOpenThreats": true,
               "privilegeLevel": ""
             }
           },

@@ -72,7 +72,9 @@ Function is deployed, the syndication job lands, a new token or secret is create
 Structure (the schema Threat Dragon publishes, v2 models):
 
 ```sh
-# schema: td.vue/src/assets/schema/threat-dragon-v2.schema.json in OWASP/threat-dragon
+# fetch the schema from the 2.6.2 release (the version this file targets)
+curl -fsSL -o threat-dragon-v2.schema.json \
+    https://raw.githubusercontent.com/OWASP/threat-dragon/v2.6.2/td.vue/src/assets/schema/threat-dragon-v2.schema.json
 npm install -g ajv-cli
 npx ajv validate --allow-union-types -s threat-dragon-v2.schema.json --all-errors --verbose \
     -d docs/threat-model/no-php-no-cry.threat-model.json

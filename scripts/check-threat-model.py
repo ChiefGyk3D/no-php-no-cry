@@ -28,6 +28,7 @@ Rules:
                    title and type; status and severity are values the app writes; the
                    type is allowed for the element kind (STRIDE table); ids and numbers
                    are unique; threatTop is at least the highest number
+  (cell and top-level rules also cover the schema's size, position, stroke, id and version-length limits)
   mitigated-path   a Mitigated threat cites at least one path in this repository
   bad-path         a path-like word in a mitigation or description names a file or folder
                    that does not exist
@@ -85,16 +86,23 @@ def repo_index(root):
 def cited_paths(text, root, top, names):
     """Return (existing, missing) path-like words found in text."""
     ok, missing = [], []
+    real_root = os.path.realpath(root)
     text = re.sub(r"\S+://\S+", " ", text)
     for raw in WORD.findall(text):
         w = raw.rstrip(".-")
         if not w or w.startswith("/"):
             continue
         if "/" in w:
-            first = w.split("/", 1)[0]
+            norm = os.path.normpath(w)
+            if norm == ".." or norm.startswith("../") or os.path.isabs(norm):
+                missing.append(w)  # climbs out of the repository
+                continue
+            first = norm.split("/", 1)[0]
             if first not in top:
                 continue
-            (ok if os.path.exists(os.path.join(root, w)) else missing).append(w)
+            real = os.path.realpath(os.path.join(root, norm))
+            inside = real == real_root or real.startswith(real_root + os.sep)
+            (ok if inside and os.path.exists(real) else missing).append(w)
         elif w.lower().endswith(EXTENSIONS) and len(w) > 4 and not w.startswith("."):
             (ok if w in names or w in top else missing).append(w)
         elif w.startswith(".") and w.lower().endswith(EXTENSIONS):
@@ -121,16 +129,49 @@ def nonempty(obj, key, where, f):
     return v
 
 
+def check_cell_geometry(c, cwhere, f):
+    """Constraints the v2 schema puts on a cell's position, size and stroke attributes."""
+    cid = c.get("id")
+    if isinstance(cid, str) and len(cid) < 2:
+        f.add("cell", cwhere, "id is shorter than the schema's 2 characters")
+    pos = c.get("position")
+    if pos is not None:
+        for k in ("x", "y"):
+            if not isinstance(pos, dict) or not isinstance(pos.get(k), (int, float)) or isinstance(pos.get(k), bool):
+                f.add("cell", cwhere, "position needs a numeric %s" % k)
+    size = c.get("size")
+    if size is not None:
+        for k in ("width", "height"):
+            v = size.get(k) if isinstance(size, dict) else None
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 10:
+                f.add("cell", cwhere, "size needs a numeric %s of at least 10" % k)
+    attrs = c.get("attrs")
+    if isinstance(attrs, dict):
+        body = attrs.get("body")
+        if isinstance(body, dict):
+            for k in ("stroke", "strokeWidth", "strokeDasharray"):
+                if k not in body:
+                    f.add("cell", cwhere, "attrs.body is missing %s" % k)
+        line = attrs.get("line")
+        if isinstance(line, dict) and "targetMarker" not in line:
+            f.add("cell", cwhere, "attrs.line is missing targetMarker")
+
+
 def check_model(model, root, f):
     top, names = repo_index(root)
-    need(model, "version", str, "model", f, "top-level")
+    ver = need(model, "version", str, "model", f, "top-level")
+    if isinstance(ver, str) and len(ver) > 10:
+        f.add("top-level", "model", "version is longer than the schema's 10 characters")
     summary = need(model, "summary", dict, "model", f, "top-level")
     if summary is not None:
         need(summary, "title", str, "summary", f, "top-level")
     detail = need(model, "detail", dict, "model", f, "top-level")
     if detail is None:
         return
-    need(detail, "contributors", list, "detail", f, "detail")
+    contributors = need(detail, "contributors", list, "detail", f, "detail")
+    for ct in contributors or []:
+        if not isinstance(ct, dict) or ("name" in ct and not isinstance(ct["name"], str)):
+            f.add("detail", "detail", "each contributor must be an object with a string name")
     need(detail, "reviewer", str, "detail", f, "detail")
     diagram_top = need(detail, "diagramTop", int, "detail", f, "detail")
     threat_top = need(detail, "threatTop", int, "detail", f, "detail")
@@ -176,6 +217,7 @@ def check_model(model, root, f):
                 if cid in cell_ids:
                     f.add("cell", cwhere, "duplicate cell id")
                 cell_ids.add(cid)
+            check_cell_geometry(c, cwhere, f)
             data = need(c, "data", dict, cwhere, f, "cell")
             if data is None:
                 continue
