@@ -15,7 +15,7 @@ From the terms list: the `employer`, `hostname` and `serial` categories.
 
 ## Where the terms live
 
-Doppler project `no-php-no-cry`, config `prd`, secret `SCRUB_TERMS`. The format
+Doppler project `no-php-no-cry`, config `dev`, secret `SCRUB_TERMS`. The format
 is one `category:term` per line:
 
 ```
@@ -44,7 +44,7 @@ and writes the result back, so the term is never printed, never on a command
 line and never in history:
 
 ```sh
-read -rs -p "category:term " L; echo; { doppler secrets get SCRUB_TERMS --project no-php-no-cry --config prd --plain; printf '%s\n' "$L"; } | doppler secrets set SCRUB_TERMS --project no-php-no-cry --config prd >/dev/null; unset L
+read -rs -p "category:term " L; echo; { doppler secrets get SCRUB_TERMS --project no-php-no-cry --config dev --plain; printf '%s\n' "$L"; } | doppler secrets set SCRUB_TERMS --project no-php-no-cry --config dev >/dev/null; unset L
 ```
 
 Type the line at the prompt, for example `serial:` followed by the value.
@@ -55,7 +55,7 @@ screen, in shell history or in any output.)
 
 Appending leaves the placeholder in place. To replace it, edit the secret in
 Doppler, or rewrite the whole secret by piping the complete new content into
-`doppler secrets set SCRUB_TERMS --project no-php-no-cry --config prd`. Keep the
+`doppler secrets set SCRUB_TERMS --project no-php-no-cry --config dev`. Keep the
 comment lines and any `allow:` lines you still need.
 
 ## Run the converter with the terms
@@ -63,7 +63,7 @@ comment lines and any `allow:` lines you still need.
 The terms go in over stdin, so they never touch disk:
 
 ```sh
-doppler secrets get SCRUB_TERMS --project no-php-no-cry --config prd --plain | python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR --scrub-terms - --require-terms
+doppler secrets get SCRUB_TERMS --project no-php-no-cry --config dev --plain | python3 -I tools/wxr2hugo/convert.py --wxr PATH/export.xml --out DIR --scrub-terms - --require-terms
 ```
 
 `--require-terms` makes a list with no `employer`, `hostname` or `serial` term
