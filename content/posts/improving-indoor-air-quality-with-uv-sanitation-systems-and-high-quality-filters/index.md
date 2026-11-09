@@ -1,7 +1,7 @@
 ---
 title: "Improving Indoor Air Quality with UV Sanitation Systems and High-Quality Filters"
 date: 2023-04-10T14:24:51-04:00
-draft: true
+draft: false
 slug: "improving-indoor-air-quality-with-uv-sanitation-systems-and-high-quality-filters"
 image: "featured.jpg"
 imageAlt: "A blue OdorStop UV Cleaner unit with a warning label mounted on sheet metal air ducts, with foil tape along the bottom."
@@ -9,7 +9,7 @@ build:
   publishResources: false
 description: "My experience with a UV-C light in my HVAC system and room air filters to fight mold and improve indoor air quality."
 categories: ["Health"]
-tags: ["HVAC", "office", "wfh", "work from home"]
+tags: ["hvac", "office", "wfh", "work-from-home"]
 syndicate: false
 affiliate: true
 aliases:
