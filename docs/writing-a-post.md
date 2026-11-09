@@ -23,6 +23,9 @@ URL (`/posts/my-post-title/`). For a journal entry, use `journal/` instead of
 Hugo builds a page bundle from the archetype in `archetypes/posts/index.md`:
 a folder with an `index.md` and room for the images beside it. The new file is a
 draft, it does not syndicate, and it carries comments that explain each choice.
+
+Or let the authoring helper make the bundle and check it:
+see [Authoring helper](authoring-helper.md).
 Delete the comments you do not need before you open the pull request.
 
 ## 2. Front matter reference

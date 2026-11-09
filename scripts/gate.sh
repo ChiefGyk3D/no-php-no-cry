@@ -70,6 +70,7 @@ step test-check-wiki "" 'scripts/test-check-wiki.sh'
 step test-publish-wiki "" 'scripts/test-publish-wiki.sh'
 step check-content "" 'python3 -I scripts/check-content.py'
 step test-check-content "" 'scripts/test-check-content.sh'
+step test-author "" 'scripts/test-author.sh'
 step test-pin-script "" 'scripts/test-pin-script.sh'
 step test-check-hugo-version "" 'scripts/test-check-hugo-version.sh'
 step test-smoke-site "" 'scripts/test-smoke-site.sh'
@@ -108,10 +109,10 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
     build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume
     test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-wiki test-check-wiki test-publish-wiki
-    check-content test-check-content)
+    check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
-docs_steps=(check-wording test-check-wording check-license test-check-license check-wiki test-check-wiki test-publish-wiki check-content test-check-content)
+docs_steps=(check-wording test-check-wording check-license test-check-license check-wiki test-check-wiki test-publish-wiki check-content test-check-content test-author)
 
 # Tools a step needs that its command line does not show (wrapper scripts call them).
 # "chrome" means the browser named by CHROME.
