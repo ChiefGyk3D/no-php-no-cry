@@ -14,6 +14,9 @@ Usage: python3 -I scripts/author.py [--root DIR] new (post|journal) TITLE [optio
   img add BUNDLE FILE --alt TEXT [--name NAME] [--featured]
                            copy a JPEG or PNG into a page bundle with every metadata block removed
                            (EXIF with GPS, XMP, IPTC, comments, thumbnails). See docs/authoring-helper.md.
+  preview [--port N] [--hugo PATH]
+                           hugo server -D bound to 127.0.0.1 only (any other --host is refused); prints
+                           the URL, opens no browser. Needs the pinned standard Hugo from .hugo-version.
   check PATH               run scripts/check-content.py on PATH: an index.md, a bundle folder, or
                            a slug path under content/. Prints its result and passes its exit code.
 
@@ -498,6 +501,72 @@ def add_image(root, bundle_arg, file_arg, alt, name, featured):
     return "\n".join(lines)
 
 
+# --- preview ------------------------------------------------------------------------------------
+
+LOOPBACK = "127.0.0.1"
+
+
+def free_port():
+    import socket  # only to find a free loopback port; nothing listens beyond 127.0.0.1
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((LOOPBACK, 0))
+        return s.getsockname()[1]
+
+
+def find_hugo(root, hugo_arg):
+    """The Hugo binary (--hugo or the first one on PATH), confirmed to be the pinned standard edition."""
+    import shutil
+
+    path = hugo_arg if hugo_arg else shutil.which("hugo")
+    if not path or not os.path.isfile(path) or not os.access(path, os.X_OK):
+        raise Refuse(
+            "hugo is not installed (%s). Install the release named in .hugo-version "
+            "(standard edition) as the README describes, or pass --hugo PATH"
+            % ("%s is not an executable file" % hugo_arg if hugo_arg else "none was found on PATH")
+        )
+    pin_file = os.path.join(os.path.realpath(root), ".hugo-version")
+    try:
+        with open(pin_file, encoding="utf-8") as f:
+            pin = f.read().strip()
+    except OSError:
+        raise Refuse(".hugo-version is missing; cannot tell which Hugo release is pinned") from None
+    try:
+        v = subprocess.run([path, "version"], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise Refuse("could not run %s version: %s" % (path, e)) from None
+    version_out = (v.stdout or "").strip()
+    gate = subprocess.run(
+        ["bash", os.path.join(HERE, "check-hugo-version.sh"), pin, version_out],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if v.returncode != 0 or gate.returncode != 0:
+        raise Refuse(
+            "wrong Hugo version: %r found, the pinned standard edition v%s is required (%s)"
+            % (version_out[:80], pin, (gate.stdout.strip().splitlines() or ["no version output"])[-1])
+        )
+    return path
+
+
+def preview(root, host, port, hugo_arg):
+    if host != LOOPBACK:
+        raise Refuse("preview binds %s only; refusing host %r" % (LOOPBACK, host))
+    if port is not None and not 1024 <= port <= 65535:
+        raise Refuse("port must be between 1024 and 65535")
+    hugo = find_hugo(root, hugo_arg)
+    port = port or free_port()
+    url = "http://%s:%d/" % (LOOPBACK, port)
+    print("preview (drafts shown): %s  (Ctrl-C stops it; nothing else can reach it)" % url, flush=True)
+    argv = [hugo, "server", "-D", "--bind", LOOPBACK, "--port", str(port), "--baseURL", url, "--source", os.path.realpath(root)]
+    try:
+        return subprocess.call(argv, stdin=subprocess.DEVNULL)
+    except KeyboardInterrupt:
+        return 0
+
+
 def resolve_target(root, arg):
     """Turn PATH into a content/... Markdown path relative to root, inside content/ only."""
     root = os.path.realpath(root)
@@ -552,6 +621,10 @@ def build_parser():
     ia.add_argument("--alt", required=True)
     ia.add_argument("--name")
     ia.add_argument("--featured", action="store_true")
+    pv = sub.add_parser("preview", help="serve the site with drafts on 127.0.0.1 only")
+    pv.add_argument("--host", default=LOOPBACK)
+    pv.add_argument("--port", type=int)
+    pv.add_argument("--hugo", help="path to the pinned hugo binary (default: hugo on PATH)")
     c = sub.add_parser("check", help="run the content check on a file or bundle")
     c.add_argument("path")
     return p
@@ -571,6 +644,8 @@ def main(argv):
             print("created %s (draft: true)" % rel)
             print("next: python3 -I scripts/author.py check %s" % rel)
             return 0
+        if args.cmd == "preview":
+            return preview(args.root, args.host, args.port, args.hugo)
         if args.cmd == "img":
             print(add_image(args.root, args.bundle, args.file, args.alt, args.name, args.featured))
             return 0

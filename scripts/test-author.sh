@@ -462,6 +462,49 @@ rc=0
 python3 -I "$root/scripts/check-image-metadata.py" "$r/content/posts/pic" >/dev/null 2>&1 || rc=$?
 [[ $rc -ne 0 ]] && ok "mutant output fails check-image-metadata.py" || bad "mutant output passed the metadata check"
 
+# --- preview (issue #254): a stub Hugo records its arguments; the helper must bind loopback only ---------
+repo
+echo "0.168.0" >"$r/.hugo-version"
+stubdir="$work/stub"
+mkdir -p "$stubdir"
+cat >"$stubdir/hugo" <<'STUB'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "version" ]]; then
+    echo "${STUB_VERSION:-hugo v0.168.0-deadbeef linux/amd64 BuildDate=unknown}"
+    exit 0
+fi
+printf '%s\n' "$@" >"${STUB_ARGS:?}"
+exit "${STUB_EXIT:-0}"
+STUB
+chmod +x "$stubdir/hugo"
+export STUB_ARGS="$work/stub-args"
+rm -f "$STUB_ARGS"
+expect "preview runs the stub and prints the URL" 0 "http://127\.0\.0\.1:[0-9]+/" preview --hugo "$stubdir/hugo"
+if [[ -f "$STUB_ARGS" ]] && grep -qx -- "server" "$STUB_ARGS" && grep -qx -- "-D" "$STUB_ARGS" && grep -qx -- "--bind" "$STUB_ARGS" && grep -qx -- "127.0.0.1" "$STUB_ARGS"; then ok "hugo server -D --bind 127.0.0.1"; else bad "stub args: $(cat "$STUB_ARGS" 2>/dev/null)"; fi
+if grep -qE -- '0\.0\.0\.0|::|localhost' "$STUB_ARGS"; then bad "a non-loopback address reached hugo"; else ok "no wildcard or name host reached hugo"; fi
+if grep -qE -- '--openBrowser|--open' "$STUB_ARGS"; then bad "preview asked hugo to open a browser"; else ok "no browser opened"; fi
+port="$(grep -E -o 'http://127\.0\.0\.1:[0-9]+/' <<<"$out" | head -1 | sed -E 's|.*:([0-9]+)/|\1|')"
+grep -qx -- "$port" "$STUB_ARGS" && ok "the printed port is the port hugo got" || bad "port mismatch ($port)"
+expect "preview with a chosen port" 0 "http://127\.0\.0\.1:41234/" preview --hugo "$stubdir/hugo" --port 41234
+STUB_EXIT=3 expect "preview passes the exit code of hugo" 3 - preview --hugo "$stubdir/hugo" --port 41234
+for h in 0.0.0.0 :: localhost 192.168.1.5 example.com ""; do
+    rm -f "$STUB_ARGS"
+    au preview --hugo "$stubdir/hugo" --host "$h"
+    if [[ $rc -eq 1 ]] && grep -q "127.0.0.1" <<<"$out" && [[ ! -e "$STUB_ARGS" ]]; then ok "host '$h' refused, hugo never started"; else bad "host '$h' (rc $rc): $out"; fi
+done
+expect "explicit 127.0.0.1 accepted" 0 "http://127\.0\.0\.1:" preview --hugo "$stubdir/hugo" --host 127.0.0.1
+expect "port 0 refused" 1 "port" preview --hugo "$stubdir/hugo" --port 0
+expect "port 70000 refused" 1 "port" preview --hugo "$stubdir/hugo" --port 70000
+STUB_VERSION="hugo v0.100.0-abc linux/amd64" expect "wrong hugo version refused" 1 "version" preview --hugo "$stubdir/hugo"
+STUB_VERSION="hugo v0.168.0-abc+extended linux/amd64" expect "extended edition refused" 1 "extended" preview --hugo "$stubdir/hugo"
+expect "missing hugo path says so plainly" 1 "hugo is not installed" preview --hugo "$work/no-such-hugo"
+rc=0
+py3="$(command -v python3)"
+out="$(PATH="$work/nobin" "$py3" -I "$root/scripts/author.py" --root "$r" preview 2>&1 </dev/null)" || rc=$?
+[[ $rc -eq 1 ]] && grep -q "hugo is not installed" <<<"$out" && ok "no hugo on PATH says so plainly" || bad "no hugo on PATH (rc $rc): $out"
+unset STUB_ARGS
+if grep -nE '"0\.0\.0\.0"|shell=True|os\.system' "$root/scripts/author.py"; then bad "author.py has a wildcard address or a shell call"; else ok "author.py has no wildcard address and no shell call"; fi
+
 # --- nothing outside content/ was written, no git, no network ---------------------------------
 repo
 before="$(cd "$r" && find . -path ./content -prune -o -print | sort | sha256sum)"
@@ -469,7 +512,9 @@ au new post "Scope" --description "$D"
 after="$(cd "$r" && find . -path ./content -prune -o -print | sort | sha256sum)"
 [[ "$before" == "$after" ]] && ok "nothing written outside content/" || bad "wrote outside content/"
 [[ ! -e "$r/.git" ]] && ok "no git repository touched" || bad ".git appeared"
-if grep -nE '^\s*(import|from)\s+(socket|urllib|http|requests|webbrowser|ftplib|smtplib)\b' "$root/scripts/author.py"; then bad "author.py imports a network module"; else ok "author.py imports no network or browser module"; fi
+if grep -nE '^\s*(import|from)\s+(urllib|http|requests|webbrowser|ftplib|smtplib)\b' "$root/scripts/author.py"; then bad "author.py imports a network module"; else ok "author.py imports no network or browser module"; fi
+# socket is imported only inside preview, to find a free loopback port: every bind names 127.0.0.1
+if grep -nE '\.bind\(' "$root/scripts/author.py" | grep -vF '.bind((LOOPBACK, 0))'; then bad "author.py binds something other than loopback"; else ok "author.py binds loopback only"; fi
 if grep -nE '"git"|webbrowser|xdg-open' "$root/scripts/author.py"; then bad "author.py names git or a browser"; else ok "author.py runs no git or browser"; fi
 
 if [[ $fail -ne 0 ]]; then

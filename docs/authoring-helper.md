@@ -5,9 +5,9 @@ that starts a post or journal entry the safe way. It is phase 1 of the local
 authoring editor (epic #237); the full check command, editor settings and the
 publish step arrive in later issues.
 
-It does no network, git or browser work. It writes only a new folder and `index.md`
+It does no git or browser work and opens no outside network connection. It writes only a new folder and `index.md`
 under `content/` (new post or journal entry) or one new image file inside an existing
-page bundle (img add).
+page bundle (img add). The preview command listens on loopback only.
 
 ## New post or journal entry
 
@@ -93,6 +93,20 @@ The brand check requires every image under `content/` to be listed in
 of the cleaned file; look at the image, fill in the source and what you checked, and add it
 yourself. The helper never writes the manifest, because that line records your own review.
 
+## Preview
+
+```sh
+python3 -I scripts/author.py preview
+```
+
+Runs `hugo server -D` (drafts shown) bound to `127.0.0.1` on a free port, prints the URL
+and opens no browser. Any `--host` other than `127.0.0.1` is refused, so the preview is
+never reachable from the network. `--port N` (1024 to 65535) picks the port. Press Ctrl-C to
+stop. It uses the `hugo` on your `PATH` (or `--hugo PATH`) and refuses unless that is the
+standard edition named in `.hugo-version`, using `scripts/check-hugo-version.sh`. If Hugo is
+not installed it says so and stops. Hugo is started with an argument list, never through a
+shell.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -109,5 +123,6 @@ mutation proof (the same page published with an unfinished description fails the
 The `img add` tests build tiny synthetic JPEG and PNG files in the test, with metadata blocks
 holding a fake GPS marker (never a real picture or coordinate), and cover alt text, content
 sniffing, hostile files, paths, and a mutation proof: with the stripping step replaced by a
-copy, the marker survives and `scripts/check-image-metadata.py` fails.
+copy, the marker survives and `scripts/check-image-metadata.py` fails. The preview tests use a
+stub Hugo that records its arguments (loopback bind, refused hosts and ports, wrong version, no Hugo).
 It runs in `scripts/gate.sh` and in the `content checks` CI job.
