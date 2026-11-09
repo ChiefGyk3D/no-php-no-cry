@@ -137,6 +137,83 @@ sys.exit(0 if ok(block(bf, ".btn.bf-faithful")) and ok(block(sup, ".support-tile
 PY
 then pass "faithful buttons and support tiles keep a transparent box background (no fill rectangle past the art)"; else fail "a faithful box sets a background color: it would show past the chamfered frame"; fi
 
+# The L3 hero tint is clipped to the brackets' inner outline (issue 285): the box background is none and
+# the ::after layer carries the tint under a clip-path polygon (no glow shadow). The polygon is parsed:
+# the vertex count and every vertex must equal scripts/gen-frame-art.py hero_clip(), every vertex lies
+# inside the box, and no two edges cross. A self-test feeds it a typo and a self-intersecting polygon.
+hero_clip_check() { # hero_clip_check <css> [geometry]: "geometry" skips the generator comparison (self-test of the crossing check)
+    python3 -I - "$1" "$root/scripts/gen-frame-art.py" "${2:-}" <<'PY'
+import importlib.util, re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+spec = importlib.util.spec_from_file_location("gen", sys.argv[2]); gen = importlib.util.module_from_spec(spec); spec.loader.exec_module(gen)
+rules = {m.group(1).strip(): m.group(2) for m in re.finditer(r"([^{}]+)\{([^}]*)\}", css)}
+box, aft = rules.get(".bx.l3", ""), rules.get(".bx.l3::after", "")
+if not re.search(r"background:\s*none", box): sys.exit("the L3 box background is not none")
+if "box-shadow" in aft: sys.exit("the L3 ::after carries a shadow (glow)")
+m = re.search(r"clip-path:\s*polygon\((.*?)\);", aft, flags=re.S)
+if not m: sys.exit("no clip-path polygon on .bx.l3::after")
+def coord(t):
+    t = t.strip()
+    k = re.fullmatch(r"calc\(var\(--s\) \* ([\d.]+)px\)", t)
+    if k: return (0, float(k.group(1)))
+    k = re.fullmatch(r"calc\(100% - var\(--s\) \* ([\d.]+)px\)", t)
+    if k: return (1, float(k.group(1)))
+    sys.exit("unparsable vertex coordinate: " + t)
+verts = []
+for line in re.split(r",\s*", m.group(1).strip()):
+    xy = re.fullmatch(r"(calc\(.*?\)) (calc\(.*?\))", line.strip())
+    if not xy: sys.exit("unparsable vertex: " + line)
+    verts.append((coord(xy.group(1)), coord(xy.group(2))))
+want = gen.hero_clip()
+if len(verts) != len(want): sys.exit("expected %d vertices, found %d" % (len(want), len(verts)))
+for i, (v, w) in enumerate(zip(verts, want)):
+    if sys.argv[3] != "geometry" and v != (w[0], w[1]): sys.exit("vertex %d is %s, the generator says %s" % (i, v, w))
+# geometry at a sample box (scale 0.15, 676 x 433 as on Home at 1920 and 358 x 905 as on a phone)
+def pt(v, W, H, s): return ((W if v[0][0] else 0) + (-1 if v[0][0] else 1) * s * v[0][1], (H if v[1][0] else 0) + (-1 if v[1][0] else 1) * s * v[1][1])
+def cross(a, b, c): return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0])
+def inter(p1, p2, p3, p4):
+    d1, d2, d3, d4 = cross(p3, p4, p1), cross(p3, p4, p2), cross(p1, p2, p3), cross(p1, p2, p4)
+    return d1 * d2 < 0 and d3 * d4 < 0
+for W, H, s in ((676, 433, .15), (532, 561, .24), (358, 905, .24)):
+    pts = [pt(v, W, H, s) for v in verts]
+    if any(not (0 < x < W and 0 < y < H) for x, y in pts): sys.exit("a vertex lies outside the box at %dx%d" % (W, H))
+    n = len(pts)
+    for i in range(n):
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1: continue
+            if inter(pts[i], pts[(i+1) % n], pts[j], pts[(j+1) % n]): sys.exit("edges %d and %d cross at %dx%d" % (i, j, W, H))
+PY
+}
+hero_css() { # hero_css <polygon body>: a minimal stylesheet around it, for the self-test
+    printf '.bx.l3 { background: none; }\n.bx.l3::after { inset: 0; clip-path: polygon(%s); }\n' "$1"
+}
+good_poly="$(
+    python3 -I - "$css" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+print(re.search(r"clip-path:\s*polygon\((.*?)\);", css, flags=re.S).group(1))
+PY
+)"
+typo_poly="${good_poly/var(--s) * 147px/var(--s) * 174px}"
+cross_poly="$(
+    python3 -I - "$good_poly" <<'PY'
+import re, sys
+parts = re.split(r",\s*", sys.argv[1].strip())
+parts[0], parts[5] = parts[5], parts[0]   # swap two vertices: the outline crosses itself
+print(",\n".join(parts))
+PY
+)"
+hero_css "$typo_poly" >"$work/hero-typo.css"
+hero_css "$cross_poly" >"$work/hero-cross.css"
+if hero_clip_check "$css" 2>"$work/hero-clip.err" && ! hero_clip_check "$work/hero-typo.css" >/dev/null 2>&1 && ! hero_clip_check "$work/hero-cross.css" geometry >/dev/null 2>"$work/hero-cross.err" && grep -q "cross" "$work/hero-cross.err"; then
+    pass "the L3 tint is clipped to the generator's frame outline (polygon parsed; a typo and a self-crossing polygon are rejected)"
+else
+    cat "$work/hero-clip.err" 2>/dev/null
+    fail "the L3 clip polygon is wrong, or its check is blind to a typo or a self-crossing polygon"
+fi
+grep -qE 'btn-primary bf-none' "$out/index.html" && [[ "$(grep -oE 'btn-ghost bf-none' "$out/index.html" | wc -l)" -ge 2 ]] &&
+    pass "the three Home hero buttons are plain (none level)" || fail "the Home hero buttons are not all at the none level"
+
 # The tile art carries the site tints (--frame-fill and --frame-fill-hover in borders.css) as its fill
 # opacity, so the dark amber tile and its brighter hover cannot drift from the tokens the contrast
 # check measures (scripts/check-contrast.py), and neither is solid amber (issue 285).
@@ -162,8 +239,9 @@ if grep -qE -- '--fill:[[:space:]]*var\(--text\)' "$css"; then fail "a fill is s
 # Button levels (params.frames): the default marks only the primary button; a level or a per-class
 # override adds bf-none or bf-faithful to the buttons it names; a bad level fails.
 default_bf="$(grep -rhoE 'bf-[a-z]+' "$out" --include='*.html' | sort -u | tr '\n' ' ')"
-[[ "$default_bf" == "bf-faithful " ]] && pass "the default is faithful on the primary button and minimal elsewhere" || fail "unexpected bf- classes at the default level: $default_bf"
-if grep -rqE 'btn-ghost[^"]* bf-' "$out" --include='*.html'; then fail "a ghost button is marked at the default level"; else pass "ghost buttons carry no bf- class at the default level"; fi
+# The Home hero buttons are the one exception (issue 285): hero-btn = "none" in hugo.toml.
+[[ "$default_bf" == "bf-faithful bf-none " ]] && pass "the default is faithful on the primary button, none on the Home hero buttons, minimal elsewhere" || fail "unexpected bf- classes at the default level: $default_bf"
+if grep -rqE 'btn-ghost[^"]* bf-' "$out" --include='*.html' --exclude=index.html || grep -qE 'btn-ghost[^"]* bf-(faithful|minimal)' "$out/index.html"; then fail "a ghost button is marked at the default level"; else pass "ghost buttons carry no bf- class at the default level (but the Home hero's plain ones)"; fi
 build_with() { # build_with <name> <toml body>: prints the destination
     printf '[params.frames]\n%s\n' "$2" >"$work/$1.toml"
     (cd "$root" && hugo --minify --config hugo.toml,"$work/$1.toml" --destination "$work/pub-$1" >"$work/$1.log" 2>&1) && echo "$work/pub-$1"
@@ -177,22 +255,18 @@ faith_body='  level = "minimal"
   [params.frames.classes]
   btn-primary = "faithful"'
 if dest="$(build_with faith "$faith_body")" &&
-    grep -qE 'btn-primary bf-faithful' "$dest/index.html" && ! grep -qE 'btn-ghost[^"]* bf-' "$dest/index.html"; then
-    pass "a per-class override marks only the primary buttons"
+    grep -rqE 'btn-primary bf-faithful' "$dest" --include='*.html' && ! grep -rqE 'btn-ghost[^"]* bf-(faithful|minimal)' "$dest" --include='*.html'; then
+    pass "a per-class override marks only the primary buttons (the Home hero keeps its own hero-btn level)"
 else
     fail "the per-class override did not build or marked the wrong buttons"
 fi
 if build_with bad '  level = "glowing"' >/dev/null; then fail "an unknown frame level built"; else pass "an unknown frame level fails the build"; fi
 if python3 -I - "$css" <<'PY'
 import re, sys
-css = open(sys.argv[1]).read()
-css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-# remove the one allowed block, then no animation may remain
-allowed = re.search(r"@media \(prefers-reduced-motion: no-preference\) \{.*?\n\}\n", css, flags=re.S)
-rest = css.replace(allowed.group(0), "") if allowed else css
-sys.exit(1 if re.search(r"animation\s*:", rest) or not allowed else 0)
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+sys.exit(1 if re.search(r"animation\s*:|@keyframes", css) else 0)
 PY
-then pass "animation only under prefers-reduced-motion: no-preference"; else fail "borders.css animates outside no-preference"; fi
+then pass "borders.css has no animation (static frames)"; else fail "borders.css animates"; fi
 
 # Colors come from tokens.css (brand rule), and no frame rule sets amber text.
 if python3 -I - "$css" "$root/layouts/_partials/frame.html" <<'PY'
