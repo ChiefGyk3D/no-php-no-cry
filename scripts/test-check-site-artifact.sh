@@ -471,7 +471,7 @@ else
     failures=$((failures + 1))
 fi
 
-for fault in "default-src 'none'|x-default-src 'none'" "manifest-src 'self'|x-manifest-src 'self'" "default-src 'none'|default-src 'none' https:" "manifest-src 'self'|manifest-src 'self' https:"; do
+for fault in "default-src 'none'|x-default-src 'none'" "manifest-src 'self'|x-manifest-src 'self'" "default-src 'none'|default-src 'none' https:" "manifest-src 'self'|manifest-src 'self' https:" "default-src 'none'|default-src 'none'; default-src 'none'" "manifest-src 'self'|manifest-src 'self'; manifest-src 'self'"; do
     from="${fault%%|*}" to="${fault#*|}"
     make_good
     sed -i "s/$from/$to/" "$site/_headers"

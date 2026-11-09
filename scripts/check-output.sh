@@ -572,7 +572,7 @@ fi
 if [[ ! -s "$dir/_headers" ]]; then
     report missing-headers "_headers"
 else
-    csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
+    csp="$(grep -iE '^[[:space:]]*Content-Security-Policy:' "$dir/_headers" || true)"
     if [[ -z "$csp" ]] || ! csp_base_ok <<<"$csp" ||
         grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js\//}"; then
         report weak-csp "_headers"

@@ -333,7 +333,7 @@ for src in "'none'" "'self' https:" "'unsafe-inline'" "*" "'self' data:" "'self'
     printf '/*\n  Content-Security-Policy: default-src %s; script-src %s\n' "'none'" "$src" >"$d/_headers"
     expect "expected-script-src-$src" input good "$d"
 done
-for bad in "x-default-src 'none'; manifest-src 'self'" "default-src 'none' https:; manifest-src 'self'" "default-src 'none'; x-manifest-src 'self'" "default-src 'none'" "manifest-src 'self'" "default-src 'none'; manifest-src 'self' https:"; do
+for bad in "x-default-src 'none'; manifest-src 'self'" "default-src 'none' https:; manifest-src 'self'" "default-src 'none'; x-manifest-src 'self'" "default-src 'none'" "manifest-src 'self'" "default-src 'none'; manifest-src 'self' https:" "default-src 'none'; default-src 'none'; manifest-src 'self'" "default-src 'none'; manifest-src 'self'; manifest-src 'self'"; do
     d="$work/csp-base-$(printf '%s' "$bad" | tr -c '[:alnum:]' '_')"
     mkdir -p "$d"
     cp "$pub/_redirects" "$d/"

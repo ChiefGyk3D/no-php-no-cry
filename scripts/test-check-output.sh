@@ -628,6 +628,11 @@ csp_manifest_wide() { sed -i "s#manifest-src 'self'#manifest-src 'self' https:#"
 variant csp-manifest-src-not-exact weak-csp csp_manifest_wide
 csp_default_twice() { sed -i "s#default-src 'none'#default-src 'none'; default-src 'none'#" "$1/_headers"; }
 variant csp-default-src-twice weak-csp csp_default_twice
+csp_manifest_twice() { sed -i "s#manifest-src 'self'#manifest-src 'self'; manifest-src 'self'#" "$1/_headers"; }
+variant csp-manifest-src-twice weak-csp csp_manifest_twice
+# The only policy sits in a commented line: Cloudflare ignores it, so it is missing.
+csp_commented_only() { sed -i 's#^  Content-Security-Policy:#  \# Content-Security-Policy:#; s#^\s*Content-Security-Policy:#\# &#' "$1/_headers"; }
+variant csp-only-in-comment weak-csp csp_commented_only
 csp_beacon_deeper() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#static.cloudflareinsights.com/beacon.min.js/v1/#" "$1/_headers"; }
 variant csp-beacon-deeper-path weak-csp csp_beacon_deeper
 csp_beacon_otherhost() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#example.net/beacon.min.js/#" "$1/_headers"; }
