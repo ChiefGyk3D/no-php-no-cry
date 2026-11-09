@@ -228,6 +228,240 @@ mkdir -p "$r/content/posts/bad"
 printf -- '---\ntitle: "Bad"\ndate: 2026-11-08\ndraft: true\nslug: "bad"\n---\nbody\n' >"$r/content/posts/bad/index.md"
 expect "check prints findings and exits 1" 1 "description: content/posts/bad/index.md" check content/posts/bad
 
+# --- img add (issue #256) ---------------------------------------------------------------------
+# Fixtures are built here from bytes: tiny synthetic JPEG and PNG files whose metadata blocks carry
+# an obviously fake GPS sentinel (never a real coordinate, callsign, address or personal image).
+fx="$work/fx"
+mkdir -p "$fx"
+python3 -I - "$fx" <<'PY'
+import struct, sys, zlib, os
+out = sys.argv[1]
+SENT = b"FAKEGPS-SENTINEL-0000"
+
+def exif(orient=1):
+    # little-endian TIFF: IFD0 {Make, Orientation, GPS pointer}, GPS IFD {LatRef, Lat}
+    make = b"FAKECAM-SENTINEL\0"
+    ifd0_off = 8
+    n0 = 3
+    gps_ifd_off = ifd0_off + 2 + n0 * 12 + 4
+    n1 = 2
+    make_off = gps_ifd_off + 2 + n1 * 12 + 4
+    lat_off = make_off + len(make)
+    ifd0 = struct.pack("<H", n0)
+    ifd0 += struct.pack("<HHII", 0x010F, 2, len(make), make_off)
+    ifd0 += struct.pack("<HHIHH", 0x0112, 3, 1, orient, 0)
+    ifd0 += struct.pack("<HHII", 0x8825, 4, 1, gps_ifd_off) + struct.pack("<I", 0)
+    gps = struct.pack("<H", n1)
+    gps += struct.pack("<HHI", 0x0001, 2, 2) + b"N\0\0\0"
+    gps += struct.pack("<HHII", 0x0002, 5, 3, lat_off) + struct.pack("<I", 0)
+    rationals = struct.pack("<6I", 0, 1, 0, 1, 0, 1) + SENT
+    return b"II*\0" + struct.pack("<I", 8) + ifd0 + gps + make + rationals
+
+def seg(m, payload):
+    return bytes([0xFF, m]) + struct.pack(">H", len(payload) + 2) + payload
+
+def jpeg(w=8, h=8, exif_blob=None, trunc=False):
+    b = b"\xff\xd8"
+    b += seg(0xE0, b"JFIF\0\1\1\0\0\1\0\1\0\0")
+    if exif_blob is not None:
+        b += seg(0xE1, b"Exif\0\0" + exif_blob)
+    b += seg(0xE1, b"http://ns.adobe.com/xap/1.0/\0<x:xmpmeta>" + SENT + b"</x:xmpmeta>")
+    b += seg(0xED, b"Photoshop 3.0\0" + SENT)
+    b += seg(0xFE, b"comment " + SENT)
+    b += seg(0xDB, b"\0" + bytes(range(1, 65)))
+    b += seg(0xC0, bytes([8]) + struct.pack(">HH", h, w) + bytes([1, 1, 0x11, 0]))
+    b += seg(0xC4, b"\x00" + bytes([1] + [0] * 15) + b"\x00")
+    b += seg(0xDA, bytes([1, 1, 0, 0, 63, 0]))
+    b += bytes([0x12, 0xFF, 0x00, 0x34, 0x56])
+    if not trunc:
+        b += b"\xff\xd9"
+    return b
+
+def chunk(t, d):
+    return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d))
+
+def png(w=4, h=4, meta=True):
+    b = b"\x89PNG\r\n\x1a\n"
+    b += chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0))
+    if meta:
+        b += chunk(b"eXIf", exif())
+        b += chunk(b"tEXt", b"Comment\0" + SENT)
+        b += chunk(b"iTXt", b"XML:com.adobe.xmp\0\0\0\0\0<x:xmpmeta>" + SENT + b"</x:xmpmeta>")
+        b += chunk(b"tIME", struct.pack(">HBBBBB", 2026, 1, 2, 3, 4, 5))
+    rows = b"".join(b"\0" + bytes([i * 16] * 4) for i in range(4)) if (w, h) == (4, 4) else b"\0"
+    b += chunk(b"IDAT", zlib.compress(rows))
+    b += chunk(b"IEND", b"")
+    return b
+
+def w(name, data):
+    with open(os.path.join(out, name), "wb") as f:
+        f.write(data)
+
+good_png = png()
+w("photo.jpg", jpeg(exif_blob=exif()))
+w("shot.png", good_png)
+w("rot6.jpg", jpeg(exif_blob=exif(6)))
+w("clean.png", png(meta=False))
+w("fake.jpg", b"This is a text file renamed to jpg.\n" * 20)
+w("webp-as.jpg", b"RIFF\x10\0\0\0WEBPVP8 " + bytes(40))
+w("trunc.jpg", jpeg(exif_blob=exif(), trunc=True))
+w("bomb.png", png(w=70000, h=70000))
+w("bomb.jpg", jpeg(w=65000, h=65000, exif_blob=exif()))
+w("zero.jpg", b"")
+w("polyglot.jpg", jpeg(exif_blob=exif()) + b"<?php system($_GET['c']); ?>")
+w("bad-crc.png", good_png[:-8] + b"\0\0\0\0" + good_png[-4:])
+w("big.jpg", jpeg() + bytes(5 * 1024 * 1024))
+PY
+SENT="FAKEGPS-SENTINEL-0000"
+img() { # img <bundle> <file> <args...>
+    local b="$1" f="$2"
+    shift 2
+    au img add "$b" "$f" "$@"
+}
+mkbundle() {
+    repo
+    mkdir -p "$r/content/posts/pic"
+    printf -- '---\ntitle: "Pic"\ndate: 2026-11-08\ndraft: true\ndescription: "A plain sentence that describes the page."\nslug: "pic"\n---\nbody\n' >"$r/content/posts/pic/index.md"
+}
+ALT="A synthetic gray gradient used as a test image"
+
+mkbundle
+img content/posts/pic "$fx/photo.jpg" --alt "$ALT"
+if [[ $rc -eq 0 ]]; then ok "img add jpeg"; else bad "img add jpeg: $out"; fi
+grep -qF '![A synthetic gray gradient used as a test image](photo.jpg)' <<<"$out" && ok "prints the exact markdown" || bad "markdown line: $out"
+dest="$r/content/posts/pic/photo.jpg"
+[[ -f "$dest" && ! -L "$dest" ]] && ok "jpeg landed in the bundle" || bad "jpeg not in bundle"
+if grep -qF "$SENT" "$dest" || grep -qF "FAKECAM" "$dest"; then bad "sentinel survived in jpeg"; else ok "no GPS or camera sentinel in the cleaned jpeg"; fi
+rc=0
+python3 -I "$root/scripts/check-image-metadata.py" "$r/content/posts/pic" >/dev/null 2>&1 || rc=$?
+[[ $rc -eq 0 ]] && ok "check-image-metadata.py passes on the cleaned jpeg" || bad "metadata check rc $rc on jpeg"
+python3 -I - "$fx/photo.jpg" "$dest" <<'PY' && ok "jpeg scan data unchanged" || bad "jpeg scan data changed"
+import sys
+a, b = (open(p, "rb").read() for p in sys.argv[1:3])
+tail = bytes([0x12, 0xFF, 0x00, 0x34, 0x56]) + b"\xff\xd9"
+assert a.endswith(tail) and b.endswith(tail) and b[:2] == b"\xff\xd8"
+PY
+[[ "$(sha256sum <"$fx/photo.jpg")" != "$(sha256sum <"$dest")" ]] && ok "output differs from the source" || bad "output equals source"
+[[ -f "$fx/photo.jpg" ]] && grep -q "brand/approved-assets.txt" <<<"$out" && ok "tells the owner about the brand manifest entry" || bad "no manifest note: $out"
+# the page passes the content check once the owner has approved the image (the manifest line is what the owner adds)
+sum="$(sha256sum "$dest" | cut -d' ' -f1)"
+printf 'content/posts/pic/photo.jpg | %s | synthetic test image | test fixture\n' "$sum" >>"$r/brand/approved-assets.txt"
+printf '\n![A synthetic gray gradient used as a test image](photo.jpg)\n' >>"$r/content/posts/pic/index.md"
+au check content/posts/pic
+[[ $rc -eq 0 ]] && ok "check passes on the page with the added image" || bad "check after img add: $out"
+
+mkbundle
+img content/posts/pic "$fx/shot.png" --alt "$ALT" --name "My Screen Shot!"
+[[ $rc -eq 0 ]] && ok "img add png" || bad "img add png: $out"
+dest="$r/content/posts/pic/my-screen-shot.png"
+[[ -f "$dest" ]] && ok "name sanitized to my-screen-shot.png" || bad "sanitized name: $out"
+grep -qF '![A synthetic gray gradient used as a test image](my-screen-shot.png)' <<<"$out" && ok "png markdown line" || bad "png markdown: $out"
+if grep -qF "$SENT" "$dest" || grep -qF "eXIf" "$dest" || grep -qF "tIME" "$dest"; then bad "metadata chunk survived in png"; else ok "no metadata chunks in the cleaned png"; fi
+rc=0
+python3 -I "$root/scripts/check-image-metadata.py" "$r/content/posts/pic" >/dev/null 2>&1 || rc=$?
+[[ $rc -eq 0 ]] && ok "check-image-metadata.py passes on the cleaned png" || bad "metadata check rc $rc on png"
+python3 -I - "$dest" <<'PY' && ok "png still decodes (chunk CRCs valid, IDAT intact)" || bad "cleaned png is broken"
+import struct, sys, zlib
+b = open(sys.argv[1], "rb").read()
+assert b[:8] == b"\x89PNG\r\n\x1a\n"
+i, kinds, idat = 8, [], b""
+while i < len(b):
+    n = struct.unpack(">I", b[i:i+4])[0]
+    t, d = b[i+4:i+8], b[i+8:i+8+n]
+    assert zlib.crc32(t + d) == struct.unpack(">I", b[i+8+n:i+12+n])[0]
+    kinds.append(t)
+    if t == b"IDAT":
+        idat += d
+    i += 12 + n
+assert kinds[0] == b"IHDR" and kinds[-1] == b"IEND"
+assert len(zlib.decompress(idat)) == 4 * 5
+PY
+
+# featured image: prints the front matter lines, never edits the page
+mkbundle
+before="$(sha256sum <"$r/content/posts/pic/index.md")"
+img content/posts/pic "$fx/clean.png" --alt "$ALT" --featured
+[[ $rc -eq 0 ]] && grep -qF 'image: "clean.png"' <<<"$out" && grep -qF 'imageAlt: "A synthetic gray gradient used as a test image"' <<<"$out" && ok "--featured prints image and imageAlt lines" || bad "--featured: $out"
+[[ "$before" == "$(sha256sum <"$r/content/posts/pic/index.md")" ]] && ok "index.md left untouched" || bad "index.md was edited"
+
+# never overwrites
+mkbundle
+img content/posts/pic "$fx/photo.jpg" --alt "$ALT"
+h1="$(sha256sum <"$r/content/posts/pic/photo.jpg")"
+img content/posts/pic "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && grep -q "already exists" <<<"$out" && [[ "$h1" == "$(sha256sum <"$r/content/posts/pic/photo.jpg")" ]] && ok "refuses to overwrite and leaves the file alone" || bad "overwrite: rc $rc $out"
+img content/posts/pic "$fx/photo.jpg" --alt "$ALT" --name photo-two
+[[ $rc -eq 0 && -f "$r/content/posts/pic/photo-two.jpg" ]] && ok "--name picks another file name" || bad "--name: $out"
+
+# refusals: exit 1, the message matches, and nothing but index.md is in the bundle
+mkbundle
+imgrefuse() { # <name> <pattern> <file> <args...>
+    local name="$1" pat="$2" f="$3"
+    shift 3
+    img content/posts/pic "$f" "$@"
+    if [[ $rc -eq 1 ]] && grep -qE -- "$pat" <<<"$out" && [[ -z "$(find "$r/content/posts/pic" -type f ! -name index.md -print -quit)" ]]; then ok "$name"; else bad "$name (rc $rc): $out"; fi
+}
+imgrefuse "empty alt refused" "alt text" "$fx/photo.jpg" --alt ""
+imgrefuse "blank alt refused" "alt text" "$fx/photo.jpg" --alt "   "
+imgrefuse "filename-like alt refused" "alt text" "$fx/photo.jpg" --alt "photo.jpg"
+imgrefuse "placeholder alt refused" "alt text" "$fx/photo.jpg" --alt "TODO"
+imgrefuse "overlong alt refused" "at most" "$fx/photo.jpg" --alt "$(printf 'word %.0s' $(seq 1 100))"
+imgrefuse "control character in alt refused" "plain text" "$fx/photo.jpg" --alt "$(printf 'two\nlines of alt')"
+au img add content/posts/pic "$fx/photo.jpg"
+[[ $rc -eq 2 ]] && ok "missing --alt is a usage error" || bad "missing --alt: rc $rc $out"
+
+imgrefuse "text renamed to .jpg refused" "not a JPEG or PNG" "$fx/fake.jpg" --alt "$ALT"
+imgrefuse "WebP renamed to .jpg refused" "not a JPEG or PNG" "$fx/webp-as.jpg" --alt "$ALT"
+imgrefuse "empty file refused" "not a JPEG or PNG|empty" "$fx/zero.jpg" --alt "$ALT"
+imgrefuse "truncated jpeg refused" "truncated|malformed" "$fx/trunc.jpg" --alt "$ALT"
+imgrefuse "bad png crc refused" "malformed|checksum" "$fx/bad-crc.png" --alt "$ALT"
+imgrefuse "decompression-bomb png dimensions refused" "dimensions" "$fx/bomb.png" --alt "$ALT"
+imgrefuse "decompression-bomb jpeg dimensions refused" "dimensions" "$fx/bomb.jpg" --alt "$ALT"
+imgrefuse "bytes after the end of the image refused" "after the end|malformed" "$fx/polyglot.jpg" --alt "$ALT"
+imgrefuse "oversize file refused with the limit" "5 MiB" "$fx/big.jpg" --alt "$ALT"
+imgrefuse "orientation other than 1 refused with a clear message" "orientation" "$fx/rot6.jpg" --alt "$ALT"
+imgrefuse "missing source refused" "does not exist|not a regular file" "$fx/nope.jpg" --alt "$ALT"
+imgrefuse "directory as source refused" "regular file" "$fx" --alt "$ALT"
+
+# paths: symlinks, traversal, confinement
+ln -s "$fx/photo.jpg" "$work/link.jpg"
+imgrefuse "symlink source refused" "symlink" "$work/link.jpg" --alt "$ALT"
+mkdir -p "$work/realdir"
+cp "$fx/photo.jpg" "$work/realdir/photo.jpg"
+ln -s "$work/realdir" "$work/linkdir"
+imgrefuse "source through a symlinked directory refused" "symlink" "$work/linkdir/photo.jpg" --alt "$ALT"
+img content/posts/../../../escape "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && grep -q "not inside content/" <<<"$out" && ok "bundle traversal refused" || bad "bundle traversal: rc $rc $out"
+img /etc "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && grep -q "not inside content/" <<<"$out" && ok "bundle outside content/ refused" || bad "bundle outside: rc $rc $out"
+img content/posts "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && ok "a section folder is not a bundle" || bad "section as bundle: rc $rc $out"
+img content/posts/nope "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && ok "missing bundle refused" || bad "missing bundle: rc $rc $out"
+mkdir -p "$work/outside"
+printf -- '---\ntitle: "x"\n---\n' >"$work/outside/index.md"
+ln -s "$work/outside" "$r/content/posts/viasym"
+img content/posts/viasym "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && grep -q "symlink" <<<"$out" && [[ -z "$(find "$work/outside" -name '*.jpg' -print -quit)" ]] && ok "symlinked bundle refused, nothing written outside" || bad "symlinked bundle: rc $rc $out"
+rm -f "$r/content/posts/pic/index.md"
+img content/posts/pic "$fx/photo.jpg" --alt "$ALT"
+[[ $rc -eq 1 ]] && grep -q "index.md" <<<"$out" && ok "a folder without index.md is not a bundle" || bad "no index.md: rc $rc $out"
+
+# mutation proof: with the stripping step replaced by a copy, the same input keeps its GPS sentinel and
+# fails the metadata check; the real helper removes it. So the stripping is what removes the GPS.
+mut="$work/mut"
+mkdir -p "$mut"
+cp "$root"/scripts/*.py "$root"/scripts/*.sh "$mut/"
+grep -q 'clean, dims = strip_image(kind, data)' "$mut/author.py" || bad "mutation anchor missing in author.py"
+sed -i 's/clean, dims = strip_image(kind, data)/clean, dims = data, (1, 1)/' "$mut/author.py"
+mkbundle
+rc=0
+timeout 60 python3 -I "$mut/author.py" --root "$r" img add content/posts/pic "$fx/photo.jpg" --alt "$ALT" >/dev/null 2>&1 </dev/null || rc=$?
+if [[ $rc -eq 0 ]] && grep -qF "$SENT" "$r/content/posts/pic/photo.jpg"; then ok "mutant (no stripping): the sentinel survives"; else bad "mutant did not keep the sentinel (rc $rc)"; fi
+rc=0
+python3 -I "$root/scripts/check-image-metadata.py" "$r/content/posts/pic" >/dev/null 2>&1 || rc=$?
+[[ $rc -ne 0 ]] && ok "mutant output fails check-image-metadata.py" || bad "mutant output passed the metadata check"
+
 # --- nothing outside content/ was written, no git, no network ---------------------------------
 repo
 before="$(cd "$r" && find . -path ./content -prune -o -print | sort | sha256sum)"

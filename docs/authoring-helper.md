@@ -5,8 +5,9 @@ that starts a post or journal entry the safe way. It is phase 1 of the local
 authoring editor (epic #237); the full check command, editor settings and the
 publish step arrive in later issues.
 
-It does no network, git or browser work, and it writes only a new folder and
-`index.md` under `content/`.
+It does no network, git or browser work. It writes only a new folder and `index.md`
+under `content/` (new post or journal entry) or one new image file inside an existing
+page bundle (img add).
 
 ## New post or journal entry
 
@@ -47,6 +48,51 @@ prints its result and exit code. A page the helper creates passes. Publishing is
 separate step: set `draft: false` only when the page is ready, then open a pull
 request; the CI check applies the same rules.
 
+## Add an image
+
+```sh
+python3 -I scripts/author.py img add content/posts/my-post-title ~/Pictures/bench.jpg \
+  --alt "A breadboard with a small radio module wired to a microcontroller"
+python3 -I scripts/author.py img add content/posts/my-post-title ~/Pictures/hero.png \
+  --alt "The finished enclosure on a desk" --featured
+```
+
+`BUNDLE` is a page folder under `content/` that has its own `index.md`. `FILE` is the
+picture to add. The helper copies a cleaned version into the bundle and prints the line
+to paste; it never edits `index.md`.
+
+| Option | Meaning |
+| --- | --- |
+| `--alt TEXT` | Required. Real alt text, at most 300 characters, one line. Empty, a placeholder (`TODO`), or file-name-like text (`photo.jpg`, `IMG_1234`) is refused, by the same rules the content check applies. |
+| `--name NAME` | The file name to use (default: the source file name). It is lowercased to letters, digits and single hyphens, at most 60 characters; the extension comes from the content (`.jpg` or `.png`). |
+| `--featured` | Print `image:` and `imageAlt:` front matter lines instead of a Markdown image line. |
+
+What the helper does, and refuses:
+
+- **JPEG or PNG only, by content.** The first bytes decide, never the extension. A text
+  file renamed `.jpg`, a WebP, or an empty file is refused.
+- **Metadata removed.** A JPEG keeps only its tables, frame and scan data; EXIF (and with
+  it GPS), XMP, IPTC, ICC, comments, thumbnails and every other application block are
+  dropped. A PNG keeps IHDR, PLTE, tRNS, IDAT, IEND and the plain colour chunks
+  (gAMA, cHRM, sRGB); `eXIf`, text, XMP and time chunks are dropped. The picture data is
+  copied as it is, not re-encoded, so quality is unchanged. This uses only the standard
+  library (no new dependency).
+- **Rotated images are refused.** If EXIF says the picture is stored rotated or mirrored
+  (orientation other than 1), the helper cannot rotate pixels without an image library, and
+  removing the tag would show it sideways. Rotate it in an editor, save it with orientation
+  normal, and add it again.
+- **Size and shape.** At most 5 MiB (the content check's cap), 10000 pixels a side and 64
+  megapixels; truncated or malformed files, bad PNG checksums and extra bytes after the end
+  of the image are refused. Hugo resizes at build time, so nothing is resized here.
+- **Confinement.** The bundle must be inside `content/` with no symlink on the way; the
+  source file must be a regular file reached through no symlink. The new file is written
+  with exclusive create and is never overwritten (use `--name` for a second copy).
+
+The brand check requires every image under `content/` to be listed in
+`brand/approved-assets.txt` with its sha256. The helper prints the exact line with the hash
+of the cleaned file; look at the image, fill in the source and what you checked, and add it
+yourself. The helper never writes the manifest, because that line records your own review.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -60,4 +106,8 @@ request; the CI check applies the same rules.
 `scripts/test-author.sh` builds throwaway repository layouts under `tmp/` and covers
 slugs, dates, tags, collisions, traversal, symlinks, the check on a created page and a
 mutation proof (the same page published with an unfinished description fails the check).
+The `img add` tests build tiny synthetic JPEG and PNG files in the test, with metadata blocks
+holding a fake GPS marker (never a real picture or coordinate), and cover alt text, content
+sniffing, hostile files, paths, and a mutation proof: with the stripping step replaced by a
+copy, the marker survives and `scripts/check-image-metadata.py` fails.
 It runs in `scripts/gate.sh` and in the `content checks` CI job.
