@@ -3,7 +3,7 @@
 Issue 185. `.github/workflows/ci.yml` used to run one job, `build`, with about
 forty steps in a row. It now calls the shared `parallel-ci.yml` from
 [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together)
-(GYST), pinned by commit at v1.33.0. The build runs once. The checks then run as
+(GYST), pinned by commit at v1.34.0. The build runs once. The checks then run as
 separate jobs, each on the build it downloads, so the wall time is the build plus
 the slowest check, not the sum.
 
