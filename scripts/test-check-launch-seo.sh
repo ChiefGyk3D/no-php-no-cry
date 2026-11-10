@@ -86,6 +86,11 @@ expect redirects-missing 1 redirects-missing "rm _redirects"
 expect header-noindex 1 header-noindex "printf '/*\n  X-Robots-Tag: noindex, nofollow\n' >_headers"
 expect header-noindex-indented 1 header-noindex "printf '/*\n  Content-Type: text/html\n  x-robots-tag: googlebot: noindex\n' >_headers"
 expect header-none 1 header-noindex "printf '/posts/*\n  X-Robots-Tag: none\n' >_headers"
+# A valued directive whose value is "none" does not block indexing (issue 318 review).
+expect header-max-image-preview-none 0 - "printf '/*\n  X-Robots-Tag: max-image-preview: none\n' >_headers"
+expect header-valued-then-noindex 1 header-noindex "printf '/*\n  X-Robots-Tag: max-image-preview: none, noindex\n' >_headers"
+expect header-bot-valued-none 0 - "printf '/*\n  X-Robots-Tag: googlebot: max-snippet: 0, max-image-preview: none\n' >_headers"
+expect meta-max-image-preview-none 0 - "sed -i 's#</head>#<meta name=robots content=\"max-image-preview:none\"></head>#' about/index.html"
 expect header-harmless 0 - "printf '/*\n  X-Robots-Tag: max-snippet:-1\n  X-Content-Type-Options: nosniff\n' >_headers"
 expect header-comment-ignored 0 - "printf '# X-Robots-Tag: noindex\n/*\n  X-Content-Type-Options: nosniff\n' >_headers"
 # A meta robots of "none" means noindex, nofollow; a Googlebot-specific meta or robots group counts.

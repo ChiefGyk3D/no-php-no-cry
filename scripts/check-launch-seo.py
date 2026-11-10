@@ -92,6 +92,24 @@ def host_of(url):
     return m.group(1).lower() if m else None
 
 
+# Directives that take a value; "max-image-preview: none" is not a noindex.
+VALUED_DIRECTIVES = ("max-snippet", "max-image-preview", "max-video-preview", "unavailable_after")
+
+
+def blocks_indexing(value):
+    """True when a robots meta or X-Robots-Tag value has a standalone noindex or none directive.
+
+    The value is a comma list of directives; the first may carry a user-agent prefix
+    ("googlebot: noindex"). A valued directive ("max-image-preview: none") is not a match.
+    """
+    for part in value.lower().split(","):
+        part = part.strip()
+        m = re.fullmatch(r"(?:([a-z0-9_-]+)\s*:\s*)?(noindex|none)", part)
+        if m and m.group(1) not in VALUED_DIRECTIVES:
+            return True
+    return False
+
+
 def robots_findings(root, host):
     out = []
     path = os.path.join(root, "robots.txt")
@@ -168,7 +186,7 @@ def headers_findings(root):
         if line.startswith("#") or ":" not in line:
             continue
         k, v = (x.strip() for x in line.split(":", 1))
-        if k.lower() == "x-robots-tag" and re.search(r"\b(noindex|none)\b", v.lower()):
+        if k.lower() == "x-robots-tag" and blocks_indexing(v):
             out.append(("header-noindex", "_headers line %d" % n))
     return out
 
@@ -181,7 +199,7 @@ def page_findings(root, host):
         if p.refresh:  # an alias redirect stub, not a page
             continue
         is404 = rel == "404.html"
-        if any(re.search(r"\b(noindex|none)\b", r.lower()) for r in p.robots) and not is404:
+        if any(blocks_indexing(r) for r in p.robots) and not is404:
             out.append(("noindex", rel))
         t = p.title.strip()
         if not t:
