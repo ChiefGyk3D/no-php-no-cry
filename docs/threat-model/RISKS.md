@@ -1,99 +1,183 @@
-# Risks in plain language
+# Risk register
 
-Summary of `no-php-no-cry.threat-model.json`, written 2026-11-09 against the repository at that time. It
-says what could go wrong, what is already handled, what is knowingly left, and what is still open. Open the
-model for the diagrams and the full text of each threat. How to open and update it is in [README.md](README.md).
+This register summarizes the Threat Dragon model in
+[`no-php-no-cry.threat-model.json`](no-php-no-cry.threat-model.json). It covers the publishing path,
+the reader path, and credential storage. The model contains the full descriptions, mitigations, severity,
+and STRIDE categories.
 
-## Who we defend against
+<!-- threat-summary:start -->
+| Diagram | Total | Mitigated | Open | Accepted | NotApplicable |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All diagrams | 63 | 33 | 26 | 3 | 1 |
+| 1 Publishing path | 25 | 15 | 10 | 0 | 0 |
+| 2 Reader path | 25 | 11 | 10 | 3 | 1 |
+| 3 Data stores and secrets | 13 | 7 | 6 | 0 | 0 |
+<!-- threat-summary:end -->
 
-A public visitor, and a reader of released reports. The owner is a trusted operator, so a deliberate act
-by the owner is out of scope. A mistake by the owner or a contributor is in scope.
+The summary is generated from the JSON model by `scripts/render-threat-summary.py`. The status vocabulary
+is:
 
-## Counts
+- `Open`: more work or verification is needed.
+- `Mitigated`: a repository control exists and the model cites it.
+- `Accepted`: the owner has chosen to carry the remaining risk.
+- `NotApplicable`: the modeled feature is not present, and the model explains why the threat does not apply.
 
-63 threats in three diagrams: 33 Mitigated, 26 Open, 3 Accepted, 1 N/A.
+## Scope and assumptions
 
-A threat counts as Mitigated only when a control is in this repository and the model names it by path.
-`scripts/check-threat-model.py` fails the build when a named path does not exist.
+The model considers attacks by public visitors, contributors, compromised dependencies, and readers of
+released reports. The owner is a trusted operator. Accidental owner actions remain in scope.
 
-## What is handled
+Controls that can be verified only in a provider account remain `Open` until a dated review is recorded.
+Planned features also remain `Open` until their controls are implemented and tested.
 
-- Script injection and header drift: the strict CSP in `static/_headers` and the build checks that read the
-  built files. Only three scripts are allowed, each pinned by a hash (`docs/pinned-script.md`).
-- Supply chain: actions and shared workflows pinned by commit, a locked deploy tool, a pinned Hugo,
-  committed fonts, dependency review and secret scanning in CI.
-- Deploy safety: a deploy runs only from the main branch after the CI green check on that exact commit; the
-  one job that gets the Cloudflare credential checks out two scripts and re-checks the build folder first.
-- Share panel: the Mastodon server a visitor types is checked as a plain host name, and the share link is
-  always built from `https`, that host and a fixed path (`static/share.js`, `scripts/test-share.sh`).
-- Redirects and links: only internal redirect lines are generated, with a test that feeds bad lines.
-- Private data and secrets in commits: the content scrub list, the secret scan, and a pull request checklist.
-- Analytics code (not deployed): a source guard bans address headers, cookies and logging in the Function.
+## Main controls
 
-## Accepted by decision
+- Content security policy and build checks restrict scripts and detect unsafe output.
+- CI separates untrusted changes from deployment credentials and verifies the exact revision being deployed.
+- Dependencies, actions, shared workflows, the site generator, and fonts are pinned or committed.
+- Share links validate visitor input and use a fixed secure URL shape.
+- Redirect generation rejects external destinations.
+- Secret scanning and content checks reduce accidental publication of private data.
+- Planned analytics code has privacy checks, request limits, and reporting safeguards under development.
 
-- The Cloudflare Web Analytics beacon is a third-party script that the CSP allows by name (owner decision
-  Q3, `docs/analytics-from-reach-around.md`). The CSP names one path prefix on Cloudflare's script host, with a trailing slash
-  (issue 318); the model records that prefix as its own accepted threat (residual risk accepted, with the integrity hash as the control).
-- Page counts can be inflated by anyone who requests pages. Counts are an estimate, never used for security.
+## Remaining decisions
 
-## Open, in order of how much they matter
+- Confirm provider-side sign-in, domain, credential, and workload identity settings during a dated review.
+- Decide whether the single-owner branch policy should require an approving review.
+- Decide whether to require signed commits.
+- Complete and verify the controls for planned syndication and analytics features before deployment.
 
-High severity:
+## Threats by diagram and trust boundary
 
-1. Owner account or machine taken over, and a compromised editor or helper. CI catches many bad changes but
-   cannot protect against a hijacked owner. Sign-in strength is a provider setting, not read for this model.
-2. Token scopes. The Cloudflare token is documented as narrow (`docs/deploy.md`), but the live permissions
-   have not been read for this model. Read them, then record the date here.
-3. Domain and account takeover at the provider (registrar lock, DNS signing, Cloudflare and Doppler account
-   sign-in). The repository cannot show these. Read them and record the date here.
-4. Syndication credentials. The job is planned (issue 11) and not in the workflows yet. Its design must keep
-   the four platform tokens in Doppler only.
-5. Analytics hash secret. Not built yet; it must live in Doppler only and be rotated.
-6. The production promotion path (live at the apex since 2026-11-10). The site is built and deployed from a
-   private repository that pins a commit of this one, so most of its controls are outside what this
-   repository can show. Four threats stay Open until the owner reads them and the date is recorded here:
-   the pin file as the reviewable gate (a change to it is a visible diff, and a pin revert is the
-   rollback); the build job kept apart from the credentialed deploy job; the validation of the build
-   output as inert data in a credential-free step before any credentialed step (the validator is
-   `scripts/check-site-artifact.sh`, here and tested, but its production use is not read from here); and
-   the identity claim rules at the secret manager. The claim rules are an owner-configured control at the
-   provider, not something this repository enforces.
+Entries below are generated from the model. Positioned elements are assigned to the smallest trust boundary
+that contains their center. Data flows without a position appear under `Boundary crossings`.
 
-Medium and low severity:
+<!-- threat-register:start -->
+## 1 Publishing path
 
-- Analytics privacy, all of which waits on code that is not built: a small-town re-identification floor, the
-  daily visitor code, report suppression, the outbound-domain flood cap, and an admission budget for the
-  Function so a flood cannot burn the free daily allowance. Each is a numbered plan item in
-  `docs/analytics-from-reach-around.md`. Nothing here is live until the analytics Function is deployed.
-- Edge cache staleness: after a header change, unchanged static files keep their old cached headers at
-  the edge until their URLs are purged (seen on staging for three unchanged scripts). The live verifier
-  `scripts/verify-live.sh` checks headers only on its page list, so it does not catch this. The detection is
-  a manual check of the three script URLs against `static/_headers` after a purge, with a copy-paste block in
-  `docs/cutover.md` ("Checking cached script headers"); no automation does it.
-- Build-step egress: the build and check jobs run the runner egress policy in audit mode, not block
-  (`docs/ci-parallel.md`), so a compromised build step could send the (public) source out. Flip it to block
-  once the allowed hosts are measured.
-- A look-alike copy of the site. Cannot be prevented; takedown is manual.
-- Syndication abuse and repeats, until the job exists.
-- The database edit token for the analytics maintenance job must be dropped after the work.
-- Feed identifiers: the identifier is the permalink and old addresses redirect, but no test pins an
-  existing post's identifier across a slug change.
-- Two analytics counters disagreeing and being misread. A reconciliation note is plan item 12.
+### TB1 Owner machine and accounts (trusted operator)
 
-## Items the owner should decide
+- Open: Protect the owner account and session
+- Open: Prevent the editor from altering content
+- Mitigated: Prevent accidental publication of private details
 
-1. Branch protection: main requires the CI green check and blocks force pushes (read 2026-11-09), but
-   requires zero approving reviews and does not enforce rules for administrators. This is normal for a
-   one-person project. Decide whether to keep it.
-2. Commit signing: not required. Decide whether to ask for it.
-3. After the token and domain checks above, record the dates here and move those threats to Mitigated.
+### TB2 GitHub (public repository, untrusted input)
+
+- Mitigated: Run checks on web edits
+- Mitigated: Keep pull requests away from deployment credentials
+- Mitigated: Preserve change attribution
+- Mitigated: Protect reviewed history
+- Mitigated: Preserve repository access and content
+- Open: Stop build steps from leaking source or credentials
+- Mitigated: Limit pull request use of CI
+- Open: Prevent syndication of attacker-chosen text
+- Open: Prevent duplicate or runaway announcements
+- Open: Protect syndication credentials
+- Open: Separate production build and deployment jobs
+
+### TB3 Deploy job (the only credential holder)
+
+- Mitigated: Deploy only commits that passed CI
+- Open: Limit deployment credential permissions
+- Open: Require review of production commits
+
+### TB4 Cloudflare (third-party operated)
+
+- Mitigated: Publish only the reviewed build
+
+### Boundary crossings
+
+- Mitigated: Protect content in transit to the repository
+- Mitigated: Reject hostile pull request content
+- Mitigated: Limit pull request review floods
+- Mitigated: Prevent upstream components from altering the site
+- Mitigated: Protect artifacts between build and deployment
+- Open: Reject active content from production artifacts
+
+### Outside named boundaries
+
+- Mitigated: Verify the contributor's identity
+
+## 2 Reader path
+
+### TB6 Visitor browser (untrusted input)
+
+- Open: Help visitors recognize look-alike sites
+- Mitigated: Keep instance input from redirecting share links
+- Mitigated: Limit details shared with external targets
+
+### TB7 Cloudflare edge and Pages (third-party operated)
+
+- Mitigated: Block script injection and policy bypass
+- Open: Protect the site domain
+- Mitigated: Keep redirects on this site
+- Mitigated: Keep the site available during traffic spikes
+- Open: Limit request floods against analytics
+- Mitigated: Keep visitor details out of logs and storage
+- Accepted: Limit third-party scripts on every page
+- Open: Prevent re-identification from location counts
+- Open: Prevent linking visitor codes across days
+- Accepted: Treat client-provided counts as estimates
+- Accepted: Limit scripts allowed by the beacon path
+- Open: Refresh stale security headers at the edge
+
+### TB8 Other people's sites
+
+- Mitigated: Warn readers about external link tracking
+- NotApplicable: Keep third-party embeds off the site
+
+### TB9 Release of reports (owner to readers)
+
+- Open: Prevent reports from revealing suppressed values
+- Open: Limit destination growth in click reports
+- Open: Label report periods and sources
+
+### Boundary crossings
+
+- Mitigated: Protect page requests in transit
+- Mitigated: Prevent altered pages from entering the cache
+- Open: Keep feed identifiers stable
+- Mitigated: Make external link destinations clear
+- Mitigated: Keep static routes away from the function
+
+## 3 Data stores and secrets
+
+### TB10 Doppler (secret store)
+
+- Open: Protect the secret store account
+- Mitigated: Limit credentials available to later steps
+- Mitigated: Restrict the workload identity
+- Open: Protect the analytics hashing secret
+- Open: Restrict the production workload identity
+
+### TB11 GitHub Actions (build and deploy)
+
+- Mitigated: Keep deployment credentials out of repository settings
+- Mitigated: Keep credentials out of logs and process arguments
+- Mitigated: Keep secrets and personal data out of commits
+- Open: Remove maintenance access after use
+
+### TB12 Cloudflare account
+
+- Open: Limit deployment credential permissions
+- Open: Protect the hosting account
+
+### Boundary crossings
+
+- Mitigated: Protect credentials between the secret store and runner
+
+### Outside named boundaries
+
+- Mitigated: Keep secrets out of forked pull requests
+
+<!-- threat-register:end -->
 
 ## Review log
 
 | Date | Change |
 | --- | --- |
-| 2026-11-09 | First version (issue 290). Provider-side settings not read. |
-| 2026-11-09 | Counts corrected to 33 Mitigated and 21 Open after the GitHub secret fallbacks were removed (PR 307); numbers read from the model with `scripts/check-threat-model.py`. |
-| 2026-11-09 | Counts 58 threats, 33 Mitigated, 3 Accepted: the beacon CSP entry became a path prefix (issue 318) and the model gained one threat for it, with status Accepted because its residual risk is accepted. |
-| 2026-11-10 | Production promotion path (issues 242, 323): five threats added, all Open, so 63 threats, 33 Mitigated, 26 Open, 3 Accepted, 1 N/A. None is marked Mitigated because the production pipeline and the identity claim rules live outside this repository and were not read for this model. |
+| 2026-11-09 | Created the first model and recorded that provider-side settings had not been reviewed. |
+| 2026-11-09 | Updated the model after repository credential fallbacks were removed. |
+| 2026-11-09 | Added the accepted residual risk for the analytics beacon path. |
+| 2026-11-10 | Added five open risks for the production publishing path. |
+| 2026-11-10 | Standardized titles, status labels, descriptions, grouping, and generated counts for issue 353. |

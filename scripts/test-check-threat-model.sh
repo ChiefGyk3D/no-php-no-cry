@@ -121,9 +121,9 @@ expect "em dash" 1 em-dash "$(mutate em-dash 'th["description"] = th["descriptio
 expect "counts-doc: the committed RISKS.md agrees" 0 "" "$model"
 mkdir -p "$work/cd"
 cp "$model" "$work/cd/model.json"
-sed 's/^[0-9]* threats in three diagrams/999 threats in three diagrams/' "$root/docs/threat-model/RISKS.md" >"$work/cd/RISKS.md"
+sed 's/| All diagrams | [0-9]*/| All diagrams | 999/' "$root/docs/threat-model/RISKS.md" >"$work/cd/RISKS.md"
 expect "counts-doc: a wrong total in RISKS.md" 1 counts-doc "$work/cd/model.json"
-sed 's/^\(.*threats in three diagrams: [0-9]* Mitigated, \)[0-9]* Open/\10 Open/' "$root/docs/threat-model/RISKS.md" >"$work/cd/RISKS.md"
+sed -E 's/(\| All diagrams \| [0-9]+ \| [0-9]+ \| )[0-9]+/\10/' "$root/docs/threat-model/RISKS.md" >"$work/cd/RISKS.md"
 expect "counts-doc: a wrong Open count in RISKS.md" 1 counts-doc "$work/cd/model.json"
 printf 'no counts here\n' >"$work/cd/RISKS.md"
 expect "counts-doc: RISKS.md that states no count" 1 counts-doc "$work/cd/model.json"
@@ -150,7 +150,11 @@ expect_root() {
 expect_root "default model: the copied repository passes" 0 ""
 for doc in "$risks" "$post" "$journal"; do
     cp "$root/$doc" "$copy/$doc"
-    sed -E 's/[0-9]+ threats/999 threats/; s/ (Mitigated|are mitigated)/ \1/' "$root/$doc" >"$copy/$doc"
+    if [[ $doc == "$risks" ]]; then
+        sed 's/| All diagrams | [0-9]*/| All diagrams | 999/' "$root/$doc" >"$copy/$doc"
+    else
+        sed -E 's/[0-9]+ threats/999 threats/; s/ (Mitigated|are mitigated)/ \1/' "$root/$doc" >"$copy/$doc"
+    fi
     expect_root "default model: wrong total in $doc" 1 counts-doc
     cp "$root/$doc" "$copy/$doc"
     rm -f "$copy/$doc"
