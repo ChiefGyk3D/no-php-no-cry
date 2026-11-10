@@ -329,7 +329,9 @@ def check_counts_docs(counts, root, model_path, default_model, f):
         try:
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
-        except OSError:
+        except OSError as e:
+            if default_model:
+                f.add("counts-doc", rel, "cannot read the document that states the counts: %s" % e.strerror)
             continue
         found = pat.findall(text)
         if not found:

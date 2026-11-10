@@ -1847,7 +1847,7 @@
                   "type": "Tampering",
                   "modelType": "STRIDE",
                   "description": "After a header change such as a new Content-Security-Policy, files whose bytes did not change can keep their old cached headers at the edge, so a pinned script may be served under the previous policy until the cache is purged.",
-                  "mitigation": "Open. Detection exists: scripts/verify-live.sh compares the headers served for each page with static/_headers, and scripts/smoke-site.sh checks the live policy and the script hashes after a deploy. The fix is manual: purge the unchanged script URLs after a header change (docs/cutover.md, Lessons). Observed once on staging for three unchanged scripts. No automation purges them, so the threat stays Open.",
+                  "mitigation": "Open. No automated detection: scripts/verify-live.sh and scripts/smoke-site.sh check headers on pages and the script hashes, not the headers of an unchanged script. The check and the fix are manual: purge the unchanged script URLs after a header change, then compare their headers with static/_headers (docs/cutover.md, Checking cached script headers). Observed once on staging for three unchanged scripts. No automation purges them, so the threat stays Open.",
                   "number": 62
                 }
               ],

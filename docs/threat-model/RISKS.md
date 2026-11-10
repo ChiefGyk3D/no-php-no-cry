@@ -67,8 +67,10 @@ Medium and low severity:
   Function so a flood cannot burn the free daily allowance. Each is a numbered plan item in
   `docs/analytics-from-reach-around.md`. Nothing here is live until the analytics Function is deployed.
 - Edge cache staleness: after a header change, unchanged static files keep their old cached headers at
-  the edge until their URLs are purged (seen on staging for three unchanged scripts). `scripts/verify-live.sh`
-  detects it; the purge is a manual runbook step (`docs/cutover.md`, Lessons).
+  the edge until their URLs are purged (seen on staging for three unchanged scripts). The live verifier
+  `scripts/verify-live.sh` checks headers only on its page list, so it does not catch this. The detection is
+  a manual check of the three script URLs against `static/_headers` after a purge, with a copy-paste block in
+  `docs/cutover.md` ("Checking cached script headers"); no automation does it.
 - Build-step egress: the build and check jobs run the runner egress policy in audit mode, not block
   (`docs/ci-parallel.md`), so a compromised build step could send the (public) source out. Flip it to block
   once the allowed hosts are measured.

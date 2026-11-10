@@ -225,8 +225,10 @@ who reviews a pin, the identity claim rules). Those are owner-configured control
 listed as Open in `docs/threat-model/RISKS.md` until read and dated.
 
 After a header change (for example a new Content-Security-Policy), unchanged static files
-keep their cached headers at the edge. Purge those URLs, then run
-`scripts/verify-live.sh` again (`docs/cutover.md`, "Lessons").
+keep their cached headers at the edge. Purge those URLs, then fetch `/copy.js`,
+`/search.js` and `/share.js` and compare their headers with `static/_headers`
+(`docs/cutover.md`, "Checking cached script headers", has a copy-paste block).
+`scripts/verify-live.sh` does not cover this: it checks headers only on its own page list.
 
 ## Owner cleanup after agent-assisted Cloudflare work
 

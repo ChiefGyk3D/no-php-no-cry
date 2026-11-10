@@ -65,10 +65,12 @@ ruleset through the API, read the existing rules first: a PUT replaces the whole
   domain itself is at fault.
 - Unchanged static files keep their cached headers at the edge after a header change.
   Staging deploys served stale headers on three unchanged scripts until their URLs were
-  purged. After any CSP or other header change, purge those URLs and run
-  `scripts/verify-live.sh` again; it reports `header-duplicate` or `header-wrong` when the
-  edge still serves the old value. The purge needs only the cache purge permission on that
-  zone, granted for the task and dropped after.
+  purged. After any CSP or other header change, purge the URLs of the unchanged files
+  (`/copy.js`, `/search.js`, `/share.js`) and then fetch each one and compare its headers with
+  `static/_headers`. `scripts/verify-live.sh` does not do this: it checks headers only on
+  its own list of pages, so it can pass while a cached script still carries the old policy.
+  See "Checking cached script headers" below. The purge needs only the cache purge
+  permission on that zone, granted for the task and dropped after.
 - Mail records were left alone. A web cutover (apex record, redirect rule) does not need
   them; read them before and after to prove it.
 - Keep the old and the new tier on separate identities. The production service account and
@@ -117,17 +119,48 @@ check failed (each failure is a `FAIL: rule: detail` line), 2 means bad input.
 
 Dev host, through a public resolver address because the laptop's resolver
 may return nothing for the name (look the address up with
-`dig +short @1.1.1.1 test-blog.chiefgyk3d.com`). For the apex, pass `--env production`
-and no `--resolve-ip`:
+`dig +short @1.1.1.1 test-blog.chiefgyk3d.com`):
 
 ```sh
 scripts/verify-live.sh test-blog.chiefgyk3d.com --resolve-ip 104.21.3.60
 ```
 
+For the apex, build the site with the apex base URL and production parameters first.
+Without `--public`, the verifier builds this repository with the dev base URL from
+`hugo.toml`, and its sitemap, feed and canonical checks would not match the apex. Pass the
+build with `--public`, name the apex, and pin `--env production`; no `--resolve-ip` is
+needed when the resolver answers:
+
+```sh
+HUGO_PARAMS_ENVIRONMENT=production hugo --minify --gc --baseURL https://chiefgyk3d.com/ --destination tmp/apex-build
+scripts/verify-live.sh chiefgyk3d.com --public tmp/apex-build --env production
+```
+
+(The production pipeline pins a commit of this repository, so build that same commit.)
+
 The test `scripts/test-verify-live.sh` runs it against a local fake server with
 a negative case per check (CI step "Test the live-host verifier"). It cannot show
 what Cloudflare itself adds to a response (see "Verified and inferred").
 
+
+## Checking cached script headers
+
+After a header change and a purge, check the three pinned scripts by hand. The block
+compares the Content-Security-Policy each script is served with against the value in
+`static/_headers` (run it from the repository root; read-only GET requests):
+
+```sh
+host=chiefgyk3d.com   # or the dev host
+want=$(sed -n 's/^  Content-Security-Policy: //p' static/_headers | head -1)
+for f in copy.js search.js share.js; do
+  got=$(curl -sSI --max-time 15 "https://$host/$f" | tr -d '\r' | sed -n 's/^[Cc]ontent-[Ss]ecurity-[Pp]olicy: //p')
+  if [ "$got" = "$want" ]; then echo "ok $f"; else echo "STALE $f: ${got:-none}"; fi
+done
+```
+
+Any `STALE` line means that URL still has cached headers: purge it again. The other
+headers of `static/_headers` (`X-Content-Type-Options`, `Strict-Transport-Security` and the
+rest) can be compared the same way with `curl -sSI` and a read of the output.
 
 ## Feed and legacy URLs
 
@@ -224,16 +257,14 @@ Redirect rule, because `_redirects` matches paths and not hosts.
 
 ## Post-cutover verification
 
-On the apex, with the `site` artifact of the deploy run (or any build of the
-cutover commit):
+On the apex, against a build of the deployed commit:
 
 ```sh
-scripts/verify-live.sh chiefgyk3d.com --env production
+scripts/verify-live.sh chiefgyk3d.com --public DIR --env production
 ```
 
-It must exit 0. Run it again about 5 minutes later (edge caches). Then by hand:
-open the home page and one post in a browser and check the favicon and `/support/`; confirm `test-blog.chiefgyk3d.com` redirects (or is still
-staging, checked with `--env staging`). The verifier follows the build's
+(`DIR` is the `site` artifact or the apex build from "Checking a deployed host" above.) It must exit 0. Run it again about 5 minutes later (edge caches). Then by hand:
+open the home page and one post in a browser and check the favicon and `/support/`; confirm `test-blog.chiefgyk3d.com` is still the noindex dev host (checked with `--env staging`). The verifier follows the build's
 `_redirects`: each static rule must answer with its declared status and
 Location (including the `/feed/` 301 to `/feed/index.xml`), the two splat rules
 (`/category/*`, `/page/*`) are tested with one probe path each, and the feed

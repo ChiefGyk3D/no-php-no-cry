@@ -128,6 +128,36 @@ expect "counts-doc: a wrong Open count in RISKS.md" 1 counts-doc "$work/cd/model
 printf 'no counts here\n' >"$work/cd/RISKS.md"
 expect "counts-doc: RISKS.md that states no count" 1 counts-doc "$work/cd/model.json"
 
+# Default-model mode: a copy of the repository, so --root alone selects the model and the
+# three documents that state the counts (RISKS.md, the announcement post, the journal entry).
+copy="$work/repo"
+mkdir -p "$copy"
+(cd "$root" && tar --exclude=.git --exclude=./tmp --exclude=./public -cf - .) | tar -xf - -C "$copy"
+risks=docs/threat-model/RISKS.md
+post=content/posts/new-site-no-php/index.md
+journal=content/journal/a-threat-model-for-a-static-site/index.md
+expect_root() {
+    local name="$1" want="$2" rule="$3" rc=0
+    python3 -I "$check" --root "$copy" >"$work/out.log" 2>&1 || rc=$?
+    if [[ $rc -ne $want ]]; then
+        fail "$name (exit $rc, want $want): $(head -3 "$work/out.log")"
+    elif [[ -n $rule ]] && ! grep -q "^\[$rule\]" "$work/out.log"; then
+        fail "$name (exit ok but no [$rule] finding): $(head -3 "$work/out.log")"
+    else
+        pass "$name"
+    fi
+}
+expect_root "default model: the copied repository passes" 0 ""
+for doc in "$risks" "$post" "$journal"; do
+    cp "$root/$doc" "$copy/$doc"
+    sed -E 's/[0-9]+ threats/999 threats/; s/ (Mitigated|are mitigated)/ \1/' "$root/$doc" >"$copy/$doc"
+    expect_root "default model: wrong total in $doc" 1 counts-doc
+    cp "$root/$doc" "$copy/$doc"
+    rm -f "$copy/$doc"
+    expect_root "default model: missing $doc" 1 ""
+    cp "$root/$doc" "$copy/$doc"
+done
+
 # usage error
 rc=0
 python3 -I "$check" --bogus >/dev/null 2>&1 || rc=$?
