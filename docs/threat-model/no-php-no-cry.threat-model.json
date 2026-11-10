@@ -2820,7 +2820,7 @@
         "title": "3 Data stores and secrets",
         "diagramType": "STRIDE",
         "id": 2,
-        "description": "Where credentials live and who can reach them: Doppler as the only secret store, the OIDC identity, the Cloudflare token, the planned analytics hash secret, and the GitHub secrets policy.",
+        "description": "Where credentials live and who can reach them: Doppler as the only secret store, the OIDC identity, the Cloudflare token, and the GitHub secrets policy.",
         "thumbnail": "./public/content/images/thumbnail.stride.jpg",
         "cells": [
           {
@@ -3040,7 +3040,7 @@
             "id": "7e95b890-72da-55bb-ac7a-efdb9465abdc",
             "data": {
               "name": "Doppler (product project, dev environment config)",
-              "description": "Holds two deployment credential values for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables. A later project holds the analytics hash secret.",
+              "description": "Holds two deployment credential values for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables.",
               "type": "tm.Store",
               "isTrustBoundary": false,
               "outOfScope": false,

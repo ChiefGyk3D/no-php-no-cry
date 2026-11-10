@@ -387,7 +387,7 @@ readers of released reports. The owner is a trusted operator on his own machine
 | Edge amplification burns the daily free quota | Flood of real pages | Existing: background write bounded by a timer, kill switch (`ANALYTICS_OFF`), fail open (VERIFIED: `analytics/middleware.mjs`). GAP: no per-site per-hour admission budget; every accepted HTML response schedules a D1 insert until the daily quota is spent (then counts are lost, pages are not). Planned: plan item 17 | Load test with the budget spent (after item 17) |
 | Small-place re-identification (city in aggregates, Q2) | Reader of a report or D1 | Per-granularity floor, roll up to region then country, complementary suppression, city in its own marginal table | Small-cell test per granularity |
 | Profile built from the network class (hosting, VPN or proxy, Tor) | D1 read access | Class lives only in its own marginal table | Schema guard |
-| Report leaks a suppressed value by subtraction | Reader of released reports | Marginal pairs only; remainder row; joint suppression with totals; applies to unique counts too | Matrix test (issue 408) |
+| Report leaks a suppressed value by subtraction | Reader of released reports | Marginal pairs only; remainder row; joint suppression with totals; applies only to page-view counts because Q6 superseded unique counts | Matrix test (issue 408) |
 | Visitor code linked across days or to a person (superseded Q6) | A unique-visitor hash exists | Not applicable: the blog dropped visitor hashing, and `analytics/collect.mjs` creates no visitor code or secret | Collector and schema review |
 | Hash key leak (superseded Q6) | A visitor hashing key exists | Not applicable: the blog has no visitor hashing secret | Collector and configuration review |
 | Two counters disagree and get misread as a bug or a leak | Reader of both | Reconciliation note in docs and report footer | Doc test |
@@ -419,7 +419,7 @@ the board before work starts (this PR files nothing).
 | 10 | 3 Privacy | Privacy page rewrite covering both counters, city, domain clicks, floors and the reconciliation sentence, with the test change in the same PR | #1 | Feature | S |
 | 11 | 3 Privacy | Cloudflare Web Analytics kept: update docs and CSP notes; close or relabel no-php-no-cry#241 and Reach-Around#405 for the blog (Q3) | #1 | Task | XS |
 | 12 | 3 Docs | Counter reconciliation note and report footer wording (Q3) | #1 | Task | XS |
-| 13 | 4 Converge | Extract the shared rules (path, referrer, bot, derivation, closed vocabularies) into one module used by both sites (Q1) | R#325 | Feature | M |
+| 13 | 4 Converge | Extract the shared rules (path, referrer, bot, closed vocabularies) into one module used by both sites (Q1). The Q6 visitor-code derivation is superseded and is not part of this work | R#325 | Feature | M |
 | 14 | 4 Converge | Edge ingest entry in the shared Worker plus service binding, only if the owner later wants a cross-site report | R#325 | Feature | L |
 | 15 | 5 Report | Blog report views and a funnel section for site `blog` in the owner report, floors applied. Needs item 18 first | R#245 | Feature | M |
 | 17 | 2 Views live | Per-site per-hour admission budget in the Function (sample or skip before the D1 insert once spent, flagged in a counter), and the load test (closes the gap in the threat table) | #1 | Feature | M |
