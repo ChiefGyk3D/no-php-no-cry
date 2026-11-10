@@ -607,7 +607,7 @@ STUB
 chmod +x "$stubdir/gh"
 export GH_ARGS="$work/gh-args"
 gn=0
-# grepo: sets $r to a git repo on main with a bare remote $rem, then a new post on branch post/pub-post
+# grepo: sets $r to a git repo on main with a bare remote $rem, then a new (untracked) post, still on main
 grepo() {
     gn=$((gn + 1))
     repo
@@ -628,7 +628,6 @@ grepo() {
         git push -q origin main
     )
     au new post "Pub post" --description "$D"
-    (cd "$r" && git switch -q -c post/pub-post)
     rm -f "$GH_ARGS"
 }
 gitc() { git -C "$r" "$@"; }
@@ -640,17 +639,22 @@ au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
 remote_has post/pub-post && ok "the branch was pushed" || bad "branch not pushed"
 [[ "$(git --git-dir="$rem" rev-parse refs/heads/main)" == "$main_before" ]] && ok "the remote main is unchanged" || bad "remote main moved"
 [[ -z "$(gitc status --porcelain)" ]] && ok "the tree is clean after publish" || bad "dirty after publish"
-[[ "$(gitc diff --name-only HEAD~1 HEAD)" == "content/posts/pub-post/index.md" ]] && ok "the commit holds only the bundle" || bad "commit files: $(gitc diff --name-only HEAD~1 HEAD)"
-grep -qx "draft: true" "$r/content/posts/pub-post/index.md" && ok "draft stays true without the flag" || bad "draft changed without the flag"
+[[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && ok "the original branch is checked out again" || bad "branch after publish: $(gitc rev-parse --abbrev-ref HEAD)"
+[[ "$(gitc rev-parse main)" == "$(git --git-dir="$rem" rev-parse refs/heads/main)" ]] && ok "local main is untouched" || bad "local main moved"
+[[ "$(gitc diff --name-only main post/pub-post)" == "content/posts/pub-post/index.md" ]] && [[ "$(gitc rev-list --count main..post/pub-post)" == "1" ]] && ok "post/pub-post holds one commit with only the bundle" || bad "branch content: $(gitc diff --name-only main post/pub-post)"
+[[ "$(git --git-dir="$rem" rev-parse refs/heads/post/pub-post)" == "$(gitc rev-parse post/pub-post)" ]] && ok "the pushed branch matches the local one" || bad "pushed branch differs"
+gitc show post/pub-post:content/posts/pub-post/index.md | grep -qx "draft: true" && ok "draft stays true without the flag" || bad "draft changed without the flag"
+[[ ! -e "$r/content/posts/pub-post" ]] && ok "nothing of the post is left in the original tree" || bad "post left in the original tree"
 grep -qx "pr" "$GH_ARGS" && grep -qx "create" "$GH_ARGS" && grep -qx -- "--base" "$GH_ARGS" && grep -qx "main" "$GH_ARGS" && grep -qx "post/pub-post" "$GH_ARGS" && ok "gh pr create with base main and the branch as head" || bad "gh args: $(cat "$GH_ARGS")"
 grep -q "Refs #254" "$GH_ARGS" && ok "the PR body carries the issue line the template wants" || bad "no Refs line: $(cat "$GH_ARGS")"
 grep -qx "merge" "$GH_ARGS" && bad "gh merge was called" || ok "no merge call"
 grep -qiE 'session|Generated with' "$GH_ARGS" && bad "PR body has an attribution link" || ok "PR body has no attribution link"
 
 grepo
-f="$r/content/posts/pub-post/index.md"
-cp "$f" "$work/orig-post.md"
+cp "$r/content/posts/pub-post/index.md" "$work/orig-post.md"
 au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+f="$work/pub-file.md"
+gitc show post/pub-post:content/posts/pub-post/index.md >"$f"
 [[ $rc -eq 0 ]] && grep -qx "draft: false" "$f" && ! grep -qx "draft: true" "$f" && ok "--set-draft-false flips the draft line" || bad "flip (rc $rc): $out"
 diff <(sed 's/^draft: true$/draft: false/' "$work/orig-post.md") "$f" >/dev/null && ok "exactly the draft line changed" || bad "flip changed more than the draft line"
 remote_has post/pub-post && ok "published branch pushed" || bad "flip: not pushed"
@@ -659,7 +663,8 @@ remote_has post/pub-post && ok "published branch pushed" || bad "flip: not pushe
 grepo
 printf 'draft: true\n' >>"$r/content/posts/pub-post/index.md"
 au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
-f="$r/content/posts/pub-post/index.md"
+f="$work/pub-file.md"
+gitc show post/pub-post:content/posts/pub-post/index.md >"$f"
 [[ $rc -eq 0 ]] && [[ "$(grep -c '^draft: true$' "$f")" == "1" ]] && [[ "$(tail -n 1 "$f")" == "draft: true" ]] && sed -n '2,/^---$/p' "$f" | grep -q '^draft: false$' && ok "only the front matter draft line is flipped" || bad "injection body line (rc $rc): $out"
 grepo
 sed -i 's/^draft: true$/draft: true\ndraft: true/' "$r/content/posts/pub-post/index.md"
@@ -670,19 +675,41 @@ au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-fal
 pubrefuse() {
     local name="$1" pat="$2"
     shift 2
-    local head_before
+    local head_before br_before
     head_before="$(gitc rev-parse HEAD)"
+    br_before="$(gitc rev-parse --abbrev-ref HEAD)"
     au publish "$@"
-    if [[ $rc -eq 1 ]] && grep -qE -- "$pat" <<<"$out" && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ ! -e "$GH_ARGS" ]] && [[ -z "$(git --git-dir="$rem" for-each-ref refs/heads --format='%(refname)' | grep -v '^refs/heads/main$')" ]]; then ok "$name"; else bad "$name (rc $rc): $out"; fi
+    if [[ $rc -eq 1 ]] && grep -qE -- "$pat" <<<"$out" && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "$br_before" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && [[ ! -e "$GH_ARGS" ]] && [[ -z "$(git --git-dir="$rem" for-each-ref refs/heads --format='%(refname)' | grep -v '^refs/heads/main$')" ]]; then ok "$name"; else bad "$name (rc $rc): $out"; fi
 }
 grepo
-gitc switch -q main
-gitc merge -q --ff-only post/pub-post 2>/dev/null || true
-pubrefuse "publish on main is refused" "main" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+gitc switch -q -c feature/other
+echo y >"$r/content/posts/.gitkeep"
+gitc add content/posts/.gitkeep
+gitc commit -q -m other
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 0 ]] && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "feature/other" ]] && remote_has post/pub-post && ok "publish from a feature branch returns to it" || bad "feature branch publish (rc $rc): $out"
+# an existing branch of that name refuses, locally and on the remote
 grepo
-gitc branch -q master
-gitc switch -q master
-pubrefuse "publish on master is refused" "master" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+gitc branch -q post/pub-post
+head_before="$(gitc rev-parse HEAD)"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 1 ]] && grep -q "already exists" <<<"$out" && [[ ! -e "$GH_ARGS" ]] && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && [[ -f "$r/content/posts/pub-post/index.md" ]] && ok "a local branch of that name refuses" || bad "local branch exists (rc $rc): $out"
+grepo
+gitc push -q origin main:refs/heads/post/pub-post
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 1 ]] && grep -q "already exists" <<<"$out" && [[ ! -e "$GH_ARGS" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && [[ -f "$r/content/posts/pub-post/index.md" ]] && ok "a remote branch of that name refuses" || bad "remote branch exists (rc $rc): $out"
+# a push failure after the branch was made: back on main, local branch gone, post and draft state as before
+grepo
+cp "$r/content/posts/pub-post/index.md" "$work/before.md"
+gitc config remote.origin.pushurl "$work/no-such-remote.git"
+head_before="$(gitc rev-parse HEAD)"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+[[ $rc -eq 1 ]] && grep -q "push" <<<"$out" && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && [[ ! -e "$GH_ARGS" ]] && cmp -s "$work/before.md" "$r/content/posts/pub-post/index.md" && [[ -z "$(gitc status --porcelain | grep -v 'content/posts/pub-post')" ]] && ok "a push failure restores branch, tree and draft state" || bad "push failure cleanup (rc $rc): $out"
+# a gh failure: back on main, local branch gone, the pushed remote branch is named in the message
+grepo
+cp "$r/content/posts/pub-post/index.md" "$work/before.md"
+GH_EXIT=1 au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+[[ $rc -eq 1 ]] && grep -q "post/pub-post" <<<"$out" && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && remote_has post/pub-post && cmp -s "$work/before.md" "$r/content/posts/pub-post/index.md" && ok "a gh failure cleans up the local branch and restores the post" || bad "gh failure cleanup (rc $rc): $out"
 grepo
 gitc switch -q --detach
 pubrefuse "publish on a detached HEAD is refused" "detached" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
@@ -727,8 +754,6 @@ grepo
 head_before="$(gitc rev-parse HEAD)"
 au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --dry-run
 [[ $rc -eq 0 ]] && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ ! -e "$GH_ARGS" ]] && ! remote_has post/pub-post && grep -q "dry run" <<<"$out" && ok "--dry-run changes nothing and says what it would do" || bad "dry run (rc $rc): $out"
-GH_EXIT=1 au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
-[[ $rc -eq 1 ]] && grep -q "gh" <<<"$out" && remote_has post/pub-post && ok "a gh failure is reported and exits 1" || bad "gh failure (rc $rc): $out"
 expect "publish without an issue is a usage error" 2 - publish content/posts/pub-post
 expect "publish without a bundle is a usage error" 2 - publish --issue 254
 unset GH_ARGS

@@ -797,7 +797,6 @@ def check_page(root, rel, require_published=False, build=False, hugo_arg=None):
 ISSUE_RE = re.compile(r"^(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#?[1-9][0-9]{0,8}$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 BASE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,100}$")
-PROTECTED = ("main", "master")
 
 
 def git(root, *args, timeout=120):
@@ -866,12 +865,14 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
     branch = cur.stdout.strip()
     if cur.returncode != 0 or not branch:
         raise Refuse("detached HEAD: switch to a branch for this change first (git switch -c post/%s)" % slug)
-    protected = set(PROTECTED) | {base}
-    head_ref = git(root, "symbolic-ref", "-q", "--short", "refs/remotes/%s/HEAD" % remote)
-    if head_ref.returncode == 0 and head_ref.stdout.strip().startswith(remote + "/"):
-        protected.add(head_ref.stdout.strip()[len(remote) + 1:])
-    if branch in protected:
-        raise Refuse("you are on the branch '%s'; publish never commits to it. Run: git switch -c post/%s" % (branch, slug))
+    new_branch = "post/" + slug
+    if git(root, "rev-parse", "--verify", "-q", "refs/heads/" + new_branch).returncode == 0:
+        raise Refuse("the branch %s already exists locally; delete it or pick another folder name" % new_branch)
+    listed = git(root, "ls-remote", "--heads", remote, "refs/heads/" + new_branch, timeout=120)
+    if listed.returncode != 0:
+        raise Refuse("could not ask %s about branches: %s" % (remote, (listed.stderr or listed.stdout).strip()[:200]))
+    if listed.stdout.strip():
+        raise Refuse("the branch %s already exists on %s; delete it or pick another folder name" % (new_branch, remote))
     status = git_ok(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
     outside = [e[3:] for e in status.split("\0") if e and not e[3:].startswith(bundle_rel + "/")]
     if outside:
@@ -883,7 +884,7 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
             if not (stat.S_ISREG(m) or stat.S_ISDIR(m)):
                 raise Refuse("%s/%s is a symlink or special file; the bundle may hold regular files only" % (os.path.relpath(dirpath, os.path.realpath(root)), n))
     original = read_page(root, page)
-    print("publish %s from branch %s" % (bundle_rel, branch))
+    print("publish %s from branch %s to a new branch %s" % (bundle_rel, branch, new_branch))
     failed = check_page(root, page)
     if failed:
         raise Refuse("the check failed (%s); nothing was committed" % ", ".join(failed))
@@ -906,9 +907,13 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
         bundle_rel, ", ".join(CHECK_STEPS), "false" if is_public else "true",
     )
     if dry_run:
-        print("dry run: would commit %s, push branch %s to %s and open a pull request against %s (%s). Nothing was changed." % (bundle_rel, branch, remote, base, title))
+        print("dry run: would create branch %s, commit %s, push it to %s and open a pull request against %s (%s). Nothing was changed." % (new_branch, bundle_rel, remote, base, title))
         return 0
+    made_branch = False
+    committed = False
     try:
+        git_ok(root, "switch", "-q", "-c", new_branch)
+        made_branch = True
         git_ok(root, "add", "--", bundle_rel)
         staged = [x for x in git_ok(root, "diff", "--cached", "--name-only", "-z").split("\0") if x]
         if not staged:
@@ -916,23 +921,33 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
         if any(not x.startswith(bundle_rel + "/") for x in staged):
             raise Refuse("the index holds files outside the bundle; nothing was committed")
         git_ok(root, "commit", "-q", "-m", title)
-    except Refuse:
+        committed = True
+        refspec = "refs/heads/%s:refs/heads/%s" % (new_branch, new_branch)
+        pushed = git(root, "push", remote, refspec, timeout=300)
+        if pushed.returncode != 0:
+            raise Refuse("git push failed: %s" % (pushed.stderr or pushed.stdout).strip()[:300])
+        argv = [gh, "pr", "create", "--base", base, "--head", new_branch, "--title", title, "--body", pr_body(root, issue, summary)]
+        try:
+            made = subprocess.run(argv, cwd=os.path.realpath(root), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            raise Refuse("gh timed out; the branch %s is pushed, open the pull request by hand" % new_branch) from None
+        if made.returncode != 0:
+            raise Refuse("gh failed (exit %d: %s); the branch %s is pushed, open the pull request by hand" % (made.returncode, (made.stderr or made.stdout).strip()[:200], new_branch))
+    except BaseException:
+        if made_branch:
+            if committed:
+                git(root, "reset", "-q", "--mixed", "HEAD~1")  # keep the files, drop the commit
+            else:
+                git(root, "reset", "-q", "--", bundle_rel)
+            git(root, "switch", "-q", branch)
+            git(root, "branch", "-q", "-D", new_branch)
         if flipped:
             write_page(root, page, original)
-        git(root, "reset", "-q", "--", bundle_rel)
         raise
-    refspec = "refs/heads/%s:refs/heads/%s" % (branch, branch)
-    pushed = git(root, "push", remote, refspec, timeout=300)
-    if pushed.returncode != 0:
-        raise Refuse("git push failed (the commit stays local on %s): %s" % (branch, (pushed.stderr or pushed.stdout).strip()[:300]))
-    argv = [gh, "pr", "create", "--base", base, "--head", branch, "--title", title, "--body", pr_body(root, issue, summary)]
-    try:
-        made = subprocess.run(argv, cwd=os.path.realpath(root), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
-    except subprocess.TimeoutExpired:
-        raise Refuse("gh timed out; the branch %s is pushed, open the pull request by hand" % branch) from None
-    if made.returncode != 0:
-        raise Refuse("gh failed (exit %d: %s); the branch %s is pushed, open the pull request by hand" % (made.returncode, (made.stderr or made.stdout).strip()[:200], branch))
-    print("pushed branch %s to %s; the helper never merges" % (branch, remote))
+    back = git(root, "switch", "-q", branch)
+    if back.returncode != 0:
+        raise Refuse("the pull request is open, but switching back to %s failed: %s" % (branch, back.stderr.strip()[:200]))
+    print("pushed branch %s to %s and returned to %s; the helper never merges" % (new_branch, remote, branch))
     print(made.stdout.strip())
     return 0
 

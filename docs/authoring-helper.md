@@ -121,14 +121,15 @@ stops. Hugo is started with an argument list, never through a shell.
 ## Publish
 
 ```sh
-git switch -c post/my-post-title
 python3 -I scripts/author.py publish content/posts/my-post-title --issue 254 --dry-run
 python3 -I scripts/author.py publish content/posts/my-post-title --issue 254 --set-draft-false
 ```
 
-Create your own branch first, then `publish` runs the check, commits the bundle, pushes the
-branch and opens a pull request with `gh` against `main` (`--base`). It prints the pull request
-URL. The merge stays yours.
+Run it from `main` or any other branch. `publish` runs the check, creates and switches to a new
+branch `post/<slug>` (the bundle folder name), commits only the bundle there, pushes only that
+branch and opens a pull request with `gh` against `main` (`--base`). Then it switches back to
+the branch you started on and prints the pull request URL. The post now lives on the pull
+request branch, so it is no longer in your starting tree. The merge stays yours.
 
 | Option | Meaning |
 | --- | --- |
@@ -140,13 +141,16 @@ URL. The merge stays yours.
 
 Safety properties:
 
-- Refuses on `main`, `master`, the base branch, the remote's default branch, or a detached HEAD.
+- Refuses a detached HEAD, and refuses when `post/<slug>` already exists locally or on the remote.
 - Refuses a dirty tree: any change outside the bundle (staged, modified or untracked) stops it.
   Only the bundle is committed.
 - Refuses unless every check step passes; nothing is committed on failure.
-- Never merges, never force-pushes, never pushes to `main`: it pushes exactly
-  `refs/heads/<current>:refs/heads/<current>`. A branch that already exists on the remote with
-  other history is rejected by git.
+- Never merges, never force-pushes, never pushes to `main` or the default branch: it pushes
+  exactly `refs/heads/post/<slug>:refs/heads/post/<slug>`.
+- Leaves nothing behind on failure. If the commit, the push or `gh` fails, it undoes the
+  commit (keeping your files), switches back to the starting branch, deletes the local
+  `post/<slug>` and restores the draft line, so the tree is as it was. After a `gh` failure the
+  pushed remote branch stays and the message names it; open the pull request by hand.
 - Flips only the single `draft:` line inside the front matter. Two such lines, or a body line
   that looks like one, cannot change which line is edited. The write goes through a temporary
   file and a rename.
@@ -154,8 +158,7 @@ Safety properties:
   that is not a lowercase slug, a path outside `content/`, and issue, remote or base text with
   anything but plain name characters (all programs get argument lists, never a shell).
 - Stores and reads no token: authentication is whatever `git` and `gh` already have.
-- If `gh` fails after the push, it says so; the branch stays pushed and you open the pull
-  request by hand. Fill in the rest of the pull request template yourself.
+- Fill in the rest of the pull request template (the checklist) yourself.
 
 ## Exit codes
 
@@ -171,7 +174,8 @@ Safety properties:
 slugs, dates, tags, collisions, traversal, symlinks, the check steps (with a mutation proof for
 each: the same page with an unfinished description, a dash, the short form or an image carrying
 EXIF fails) and `publish` against a temporary git repository with a bare remote and a fake `gh`
-(refusal paths, no push to `main`, draft flip, hostile names, a symlinked post, a huge file).
+(branch creation from `main` and from a feature branch, existing branches, restore after each
+failure, no push to `main`, draft flip, hostile names, a symlinked post, a huge file).
 The `img add` tests build tiny synthetic JPEG and PNG files in the test, with metadata blocks
 holding a fake GPS marker (never a real picture or coordinate), and cover alt text, content
 sniffing, hostile files, paths, and a mutation proof: with the stripping step replaced by a
