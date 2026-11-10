@@ -2,6 +2,8 @@
 title: "I Rebuilt My Site Without PHP"
 date: 2026-11-09
 draft: true
+image: "featured.png"
+imageAlt: "A cartoon penguin with a white outline sits holding a rifle on a dark charcoal background with an amber border on each side; a large faded penguin face is visible behind it."
 slug: "new-site-no-php"
 description: "I rebuilt this site with Hugo, strict security checks, accessible templates and no PHP or database."
 categories: ["Open Source"]
@@ -56,7 +58,7 @@ CI calls reusable workflows pinned by commit. The local gate named `CI green` wa
 
 Deployment credentials come from Doppler through OIDC instead of repository secrets. `scripts/check-workflow-secrets.py` checks the workflows and refuses forbidden secret references or credential placement.
 
-The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 57 threats: 33 Mitigated, 21 Open, 2 Accepted and 1 Not Applicable.
+The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 58 threats: 33 Mitigated, 21 Open, 3 Accepted and 1 Not Applicable.
 
 And Mitigated has a deliberately narrow meaning: the control must exist in the repository, and the threat must name its path. Provider account settings remain Open until somebody checks them and records the date. The model checker proves that the structure and cited paths exist. It does not prove the control works.
 
