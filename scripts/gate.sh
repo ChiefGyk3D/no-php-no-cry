@@ -76,6 +76,8 @@ step check-wording "" 'scripts/check-wording.sh'
 step test-check-wording "" 'scripts/test-check-wording.sh'
 step check-threat-model "" 'python3 -I scripts/check-threat-model.py'
 step test-check-threat-model "" 'scripts/test-check-threat-model.sh'
+step check-threat-diagrams "" 'python3 -I scripts/render-threat-diagram.py --check'
+step test-render-threat-diagram "" 'scripts/test-render-threat-diagram.sh'
 step check-license "" 'scripts/check-license.sh'
 step test-check-license "" 'scripts/test-check-license.sh'
 step check-wiki "" 'python3 -I scripts/check-wiki.py'
@@ -124,11 +126,11 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
     build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume test-layout
-    test-pages test-titles test-about-email check-email-image test-check-email-image test-social-identity test-contact-page test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
+    test-pages test-titles test-about-email check-email-image test-check-email-image test-social-identity test-contact-page test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model check-threat-diagrams test-render-threat-diagram check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
-docs_steps=(check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model check-license test-check-license check-wiki test-check-wiki test-publish-wiki test-check-launch-seo check-content test-check-content test-author test-scrub-config)
+docs_steps=(check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model check-threat-diagrams test-render-threat-diagram check-license test-check-license check-wiki test-check-wiki test-publish-wiki test-check-launch-seo check-content test-check-content test-author test-scrub-config)
 
 # Tools a step needs that its command line does not show (wrapper scripts call them).
 # "chrome" means the browser named by CHROME.

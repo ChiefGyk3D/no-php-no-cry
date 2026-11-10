@@ -37,7 +37,8 @@ Rules (the id is the first word of an error):
   guard-word      an employer-name guard word or a scrub term (the word is never printed)
   todo            a TODO or FIXME marker on a published page
   image-name      a bundle image name that is not a lowercase safe name
-  image-type      a bundle image that is not WebP, JPEG or PNG
+  image-type      a bundle image that is not WebP, JPEG, PNG or a plain SVG
+  image-svg       an SVG with a script, link, event handler, external URL, entity or style import, or no viewBox
   image-metadata  EXIF, GPS, XMP or IPTC data (scripts/check-image-metadata.py does the reading)
   image-size      a bundle image over the byte cap
   image-dimensions a bundle image over 10000 px a side or 64 megapixels, or one whose size cannot be read
@@ -68,7 +69,7 @@ IMAGE_MAX = 5 * 1024 * 1024
 # Decode and resize cost grows with pixels, not bytes: a small, highly compressed file can be huge.
 MAX_SIDE = 10000
 MAX_PIXELS = 64 * 1000 * 1000
-ALLOWED_IMAGES = {".webp", ".jpg", ".jpeg", ".png"}
+ALLOWED_IMAGES = {".webp", ".jpg", ".jpeg", ".png", ".svg"}
 DESC_MAX = 160
 ALT_MAX = 2000
 MAX_FILES = 5000
@@ -524,6 +525,35 @@ def guard_hits(text, terms):
 # --- the checker ---------------------------------------------------------------------------------
 
 
+def svg_findings(data):
+    """Reasons an SVG is not a plain, inert picture (issue 352). Entities and DTDs are refused before parsing."""
+    import xml.etree.ElementTree as ET
+
+    low = data.lower()
+    if b"<!doctype" in low or b"<!entity" in low:
+        return ["has a DOCTYPE or entity declaration"]
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError:
+        return ["is not well-formed XML"]
+    found = []
+    if not root.tag.endswith("}svg") and root.tag != "svg":
+        found.append("root element is not svg")
+    for el in root.iter():
+        tag = el.tag.split("}")[-1].lower()
+        if tag in ("script", "foreignobject", "style", "a", "image", "use", "iframe", "object", "embed"):
+            found.append("has a <%s> element" % tag)
+        for k, v in el.attrib.items():
+            key = k.split("}")[-1].lower()
+            if key == "href" or key.startswith("on"):
+                found.append("has a %s attribute" % key)
+            if re.search(r"https?:|//|@import|javascript:", v, re.I):
+                found.append("has an external reference in %s" % key)
+    if "viewBox" not in root.attrib:
+        found.append("has no viewBox")
+    return sorted(set(found))
+
+
 class Checker:
     def __init__(self, root, max_image, terms):
         self.root = root
@@ -568,10 +598,10 @@ class Checker:
         ext = os.path.splitext(rel)[1].lower()
         if ext == ".md":
             self.check_markdown(rel)
-        elif ext in ALLOWED_IMAGES or ext in (".gif", ".svg", ".avif", ".heic", ".bmp", ".tif", ".tiff"):
+        elif ext in ALLOWED_IMAGES or ext in (".gif", ".avif", ".heic", ".bmp", ".tif", ".tiff"):
             self.check_image(rel, ext)
         else:
-            self.err("file-type", rel, "only Markdown and WebP, JPEG or PNG images belong under content/")
+            self.err("file-type", rel, "only Markdown and WebP, JPEG, PNG or SVG images belong under content/")
 
     # -- Markdown --
     def check_markdown(self, rel, count=True):
@@ -712,6 +742,10 @@ class Checker:
             return
         data = self.read(rel, self.max_image, "image-size")
         if data is None:
+            return
+        if ext == ".svg":
+            for what in svg_findings(data):
+                self.err("image-svg", rel, what)
             return
         if ext == ".webp":
             parser = self.meta.webp_findings

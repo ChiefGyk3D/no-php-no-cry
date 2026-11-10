@@ -1,7 +1,8 @@
 {{- /*
   Markdown image render hook. Only page-bundle images are accepted (a file
   beside index.md), so the page never requests a third-party image. Only JPEG, PNG
-  and WebP are processed. Alt text is required and the build fails
+  and WebP are processed, plus a page-bundle SVG (issue 352), served as is with the
+  width and height of its viewBox (scripts/check-content.py keeps SVGs inert). Alt text is required and the build fails
   without it. Output carries srcset, sizes, width, height and lazy loading.
 */ -}}
 {{- $alt := .PlainText | strings.TrimSpace -}}
@@ -16,6 +17,16 @@
 {{- if not $img -}}
   {{- errorf "image %q on page %q is not a page-bundle resource (remote and site-wide images are not allowed)" .Destination .Page.File.Path -}}
 {{- end -}}
+{{- if eq $img.MediaType.Type "image/svg+xml" -}}
+  {{- $m := findRESubmatch `viewBox="0 0 ([0-9.]+) ([0-9.]+)"` $img.Content 1 -}}
+  {{- if not $m -}}
+    {{- errorf "image %q on page %q is an SVG without a viewBox of the form 0 0 width height" .Destination .Page.File.Path -}}
+  {{- end -}}
+  {{- $vb := index $m 0 -}}
+<img src="{{ $img.RelPermalink }}" width="{{ index $vb 1 }}" height="{{ index $vb 2 }}" alt="{{ $alt }}"
+  {{- with .Title }} title="{{ . }}"{{ end }}
+  loading="lazy" decoding="async">
+{{- else -}}
 {{- if not (in (slice "image/jpeg" "image/png" "image/webp") $img.MediaType.Type) -}}
   {{- errorf "image %q on page %q is %s; only JPEG, PNG and WebP are supported" .Destination .Page.File.Path $img.MediaType.Type -}}
 {{- end -}}
@@ -35,3 +46,4 @@
   alt="{{ $alt }}"
   {{- with .Title }} title="{{ . }}"{{ end }}
   loading="lazy" decoding="async">
+{{- end -}}

@@ -54,7 +54,13 @@ def webp(exif=False):
         body += b"EXIF" + struct.pack("<I", len(TIFF)) + TIFF + b"\x00" * (len(TIFF) & 1)
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
-data = {"png-wide": png(False, 12000, 10), "png-huge": png(False, 9000, 9000), "png": png(), "png-exif": png(True), "jpg": jpeg(), "jpg-exif": jpeg(True), "webp": webp(), "webp-exif": webp(True)}[kind]
+def svg(inner="", head='viewBox="0 0 10 10"'):
+    return ('<svg xmlns="http://www.w3.org/2000/svg" %s><title>t</title>%s</svg>\n' % (head, inner)).encode()
+
+data = {"svg": svg('<rect width="5" height="5"/>'), "svg-script": svg("<script>1</script>"), "svg-href": svg('<rect href="#x" width="5" height="5"/>'),
+        "svg-url": svg('<rect fill="url(https://example.invalid/x)" width="5" height="5"/>'), "svg-onload": svg('<rect onclick="1" width="5" height="5"/>'),
+        "svg-entity": b'<!DOCTYPE svg [<!ENTITY a "b">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>', "svg-novb": svg("", ""),
+        "png-wide": png(False, 12000, 10), "png-huge": png(False, 9000, 9000), "png": png(), "png-exif": png(True), "jpg": jpeg(), "jpg-exif": jpeg(True), "webp": webp(), "webp-exif": webp(True)}[kind]
 open(out, "wb").write(data + b"\x00" * extra)
 PY
 
@@ -425,6 +431,13 @@ img_case exif-webp 1 image-metadata webp-exif pic.webp
 img_case uppercase-name 1 image-name png Pic.png
 img_case space-name 1 image-name png 'my pic.png'
 img_case leading-dot-name 1 image-name png .hidden.png
+img_case good-svg 0 - svg pic.svg
+img_case svg-script 1 image-svg svg-script pic.svg
+img_case svg-href 1 image-svg svg-href pic.svg
+img_case svg-external-url 1 image-svg svg-url pic.svg
+img_case svg-event-handler 1 image-svg svg-onload pic.svg
+img_case svg-entity 1 image-svg svg-entity pic.svg
+img_case svg-no-viewbox 1 image-svg svg-novb pic.svg
 img_case wrong-type-gif 1 image-type png pic.gif
 img_case too-big 1 image-size png pic.png 6000000
 img_case unlisted 1 brand-asset png pic.png 0 no
