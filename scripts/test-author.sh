@@ -521,6 +521,334 @@ out="$(PATH="$work/nobin" "$py3" -I "$root/scripts/author.py" --root "$r" previe
 unset STUB_ARGS
 if grep -nE '"0\.0\.0\.0"|shell=True|os\.system' "$root/scripts/author.py"; then bad "author.py has a wildcard address or a shell call"; else ok "author.py has no wildcard address and no shell call"; fi
 
+# --- preview --no-drafts (issue #254): drafts are shown by default, --no-drafts turns them off --------------
+export STUB_ARGS="$work/stub-args2"
+expect "preview --no-drafts runs" 0 "http://127\.0\.0\.1:" preview --hugo "$stubdir/hugo" --no-drafts
+if grep -qx -- "-D" "$STUB_ARGS"; then bad "--no-drafts still passed -D"; else ok "--no-drafts leaves drafts out"; fi
+unset STUB_ARGS
+
+# --- check, full (issues #254, #257): named steps, dashes, wording, images, draft state, build ------------
+EM="$(printf '\xe2\x80\x94')"
+EN="$(printf '\xe2\x80\x93')"
+CRY="$(printf 'cry%s' pto)"
+repo
+au new post "Steps" --description "$D"
+au check content/posts/steps
+[[ $rc -eq 0 ]] && grep -q '^\[ok\] content' <<<"$out" && grep -q '^\[ok\] dashes' <<<"$out" && grep -q '^\[ok\] wording' <<<"$out" && ok "check names each passing step" || bad "check steps (rc $rc): $out"
+grep -qE '^note: draft: true' <<<"$out" && ok "check reports the draft state" || bad "draft state line: $out"
+au check content/posts/steps --require-published
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] draft' <<<"$out" && ok "--require-published fails on a draft and names the step" || bad "require-published (rc $rc): $out"
+f="$r/content/posts/steps/index.md"
+printf 'A sentence %s with an em dash.\n' "$EM" >>"$f"
+au check content/posts/steps
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] dashes' <<<"$out" && grep -qE 'dashes: content/posts/steps/index.md:[0-9]+' <<<"$out" && ok "em dash fails the dashes step with a line number" || bad "em dash (rc $rc): $out"
+sed -i '$d' "$f"
+printf 'Pages 1%s2 with an en dash.\n' "$EN" >>"$f"
+au check content/posts/steps
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] dashes' <<<"$out" && ok "en dash fails the dashes step" || bad "en dash (rc $rc): $out"
+sed -i '$d' "$f"
+printf 'I like %s a lot.\n' "$CRY" >>"$f"
+au check content/posts/steps
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] wording' <<<"$out" && ok "the short form fails the wording step" || bad "wording (rc $rc): $out"
+sed -i '$d' "$f"
+au check content/posts/steps
+[[ $rc -eq 0 ]] && ok "removing the bad lines makes the check pass again (mutation proof)" || bad "restored page (rc $rc): $out"
+# an image with an APP1 (Exif) block fails the images step
+printf '\xff\xd8\xff\xe1\x00\x0aExif\x00\x00\x00\x00\xff\xd9' >"$r/content/posts/steps/gps.jpg"
+au check content/posts/steps
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] images' <<<"$out" && ok "an image with metadata fails the images step" || bad "images step (rc $rc): $out"
+rm -f "$r/content/posts/steps/gps.jpg"
+# a huge page is refused, quickly, and does not hang the dash scan
+repo
+au new post "Huge" --description "$D"
+head -c 3000000 /dev/zero | tr '\0' 'a' >>"$r/content/posts/huge/index.md"
+au check content/posts/huge
+[[ $rc -eq 1 ]] && ok "a 3 MB page fails the check" || bad "huge page (rc $rc): $out"
+# --build uses the pinned hugo with production flags (no drafts) and then the output check
+repo
+echo "0.168.0" >"$r/.hugo-version"
+au new post "Built" --description "$D"
+cat >"$stubdir/hugo-build" <<'STUB'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "version" ]]; then
+    echo "hugo v0.168.0-deadbeef linux/amd64 BuildDate=unknown"
+    exit 0
+fi
+printf '%s\n' "$@" >"${STUB_ARGS:?}"
+dest=""
+while [[ $# -gt 0 ]]; do
+    [[ "$1" == "--destination" ]] && dest="$2"
+    shift
+done
+mkdir -p "$dest"
+exit "${STUB_EXIT:-0}"
+STUB
+chmod +x "$stubdir/hugo-build"
+export STUB_ARGS="$work/stub-args3"
+rm -f "$STUB_ARGS"
+au check content/posts/built --build --hugo "$stubdir/hugo-build"
+if grep -qx -- "--minify" "$STUB_ARGS" && grep -qx -- "--gc" "$STUB_ARGS" && grep -qx -- "--destination" "$STUB_ARGS" && ! grep -qE -- '^(-D|--buildDrafts)$' "$STUB_ARGS"; then ok "--build runs hugo --minify --gc --destination, no drafts"; else bad "build args: $(cat "$STUB_ARGS" 2>/dev/null)"; fi
+grep -q '^\[ok\] build' <<<"$out" && grep -q '^\[FAIL\] check-output' <<<"$out" && [[ $rc -eq 1 ]] && ok "--build runs check-output on the built directory (an empty build fails it)" || bad "--build output (rc $rc): $out"
+STUB_EXIT=3 au check content/posts/built --build --hugo "$stubdir/hugo-build"
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] build' <<<"$out" && ok "a failing hugo build names the build step" || bad "failing build (rc $rc): $out"
+au check content/posts/built --build --hugo "$work/no-such-hugo"
+[[ $rc -eq 1 ]] && grep -q "hugo is not installed" <<<"$out" && ok "--build without hugo says so" || bad "build without hugo (rc $rc): $out"
+unset STUB_ARGS
+[[ -z "$(find "$r/tmp" -mindepth 1 -print -quit 2>/dev/null)" ]] && ok "no build directory left behind" || bad "build directory left behind"
+
+# --- publish (issues #254, #257): a temp git repo, a bare remote, a fake gh --------------------------------
+cat >"$stubdir/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >>"${GH_ARGS:?}"
+printf -- '--\n' >>"$GH_ARGS"
+[[ "${GH_EXIT:-0}" == "0" ]] || { echo "gh: simulated failure" >&2; exit "$GH_EXIT"; }
+echo "https://github.com/example/example/pull/1"
+STUB
+chmod +x "$stubdir/gh"
+export GH_ARGS="$work/gh-args"
+gn=0
+# grepo: sets $r to a git repo on main with a bare remote $rem, then a new (untracked) post, still on main
+grepo() {
+    gn=$((gn + 1))
+    repo
+    rem="$work/remote$gn.git"
+    git init -q --bare -b main "$rem"
+    mkdir -p "$r/.github"
+    cp "$root/.github/PULL_REQUEST_TEMPLATE.md" "$r/.github/"
+    (
+        cd "$r"
+        git init -q -b main
+        git config user.email t@example.invalid
+        git config user.name tester
+        git config commit.gpgsign false
+        touch content/posts/.gitkeep content/journal/.gitkeep
+        git add -A
+        git commit -q -m init
+        git remote add origin "$rem"
+        git push -q origin main
+    )
+    au new post "Pub post" --description "$D"
+    rm -f "$GH_ARGS"
+}
+gitc() { git -C "$r" "$@"; }
+remote_has() { git --git-dir="$rem" rev-parse --verify -q "refs/heads/$1" >/dev/null; }
+grepo
+main_before="$(git --git-dir="$rem" rev-parse refs/heads/main)"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 0 ]] && grep -q "pull/1" <<<"$out" && ok "publish succeeds and prints the PR URL" || bad "publish (rc $rc): $out"
+remote_has post/pub-post && ok "the branch was pushed" || bad "branch not pushed"
+[[ "$(git --git-dir="$rem" rev-parse refs/heads/main)" == "$main_before" ]] && ok "the remote main is unchanged" || bad "remote main moved"
+[[ -z "$(gitc status --porcelain)" ]] && ok "the tree is clean after publish" || bad "dirty after publish"
+[[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && ok "the original branch is checked out again" || bad "branch after publish: $(gitc rev-parse --abbrev-ref HEAD)"
+[[ "$(gitc rev-parse main)" == "$(git --git-dir="$rem" rev-parse refs/heads/main)" ]] && ok "local main is untouched" || bad "local main moved"
+[[ "$(gitc diff --name-only main post/pub-post)" == "content/posts/pub-post/index.md" ]] && [[ "$(gitc rev-list --count main..post/pub-post)" == "1" ]] && ok "post/pub-post holds one commit with only the bundle" || bad "branch content: $(gitc diff --name-only main post/pub-post)"
+[[ "$(git --git-dir="$rem" rev-parse refs/heads/post/pub-post)" == "$(gitc rev-parse post/pub-post)" ]] && ok "the pushed branch matches the local one" || bad "pushed branch differs"
+gitc show post/pub-post:content/posts/pub-post/index.md | grep -qx "draft: true" && ok "draft stays true without the flag" || bad "draft changed without the flag"
+[[ ! -e "$r/content/posts/pub-post" ]] && ok "nothing of the post is left in the original tree" || bad "post left in the original tree"
+grep -qx "pr" "$GH_ARGS" && grep -qx "create" "$GH_ARGS" && grep -qx -- "--base" "$GH_ARGS" && grep -qx "main" "$GH_ARGS" && grep -qx "post/pub-post" "$GH_ARGS" && ok "gh pr create with base main and the branch as head" || bad "gh args: $(cat "$GH_ARGS")"
+grep -q "Refs #254" "$GH_ARGS" && ok "the PR body carries the issue line the template wants" || bad "no Refs line: $(cat "$GH_ARGS")"
+grep -qx "merge" "$GH_ARGS" && bad "gh merge was called" || ok "no merge call"
+grep -qiE 'session|Generated with' "$GH_ARGS" && bad "PR body has an attribution link" || ok "PR body has no attribution link"
+
+grepo
+cp "$r/content/posts/pub-post/index.md" "$work/orig-post.md"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+f="$work/pub-file.md"
+gitc show post/pub-post:content/posts/pub-post/index.md >"$f"
+[[ $rc -eq 0 ]] && grep -qx "draft: false" "$f" && ! grep -qx "draft: true" "$f" && ok "--set-draft-false flips the draft line" || bad "flip (rc $rc): $out"
+diff <(sed 's/^draft: true$/draft: false/' "$work/orig-post.md") "$f" >/dev/null && ok "exactly the draft line changed" || bad "flip changed more than the draft line"
+remote_has post/pub-post && ok "published branch pushed" || bad "flip: not pushed"
+
+# front matter injection: a body line that looks like draft: true is not touched; two draft lines are refused
+grepo
+printf 'draft: true\n' >>"$r/content/posts/pub-post/index.md"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+f="$work/pub-file.md"
+gitc show post/pub-post:content/posts/pub-post/index.md >"$f"
+[[ $rc -eq 0 ]] && [[ "$(grep -c '^draft: true$' "$f")" == "1" ]] && [[ "$(tail -n 1 "$f")" == "draft: true" ]] && sed -n '2,/^---$/p' "$f" | grep -q '^draft: false$' && ok "only the front matter draft line is flipped" || bad "injection body line (rc $rc): $out"
+grepo
+sed -i 's/^draft: true$/draft: true\ndraft: true/' "$r/content/posts/pub-post/index.md"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+[[ $rc -eq 1 ]] && [[ ! -e "$GH_ARGS" ]] && ok "two draft lines in the front matter are refused" || bad "dup draft (rc $rc): $out"
+
+# refusal paths: nothing committed, pushed or sent to gh
+pubrefuse() {
+    local name="$1" pat="$2"
+    shift 2
+    local head_before br_before
+    head_before="$(gitc rev-parse HEAD)"
+    br_before="$(gitc rev-parse --abbrev-ref HEAD)"
+    au publish "$@"
+    if [[ $rc -eq 1 ]] && grep -qE -- "$pat" <<<"$out" && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "$br_before" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && [[ ! -e "$GH_ARGS" ]] && [[ -z "$(git --git-dir="$rem" for-each-ref refs/heads --format='%(refname)' | grep -v '^refs/heads/main$')" ]]; then ok "$name"; else bad "$name (rc $rc): $out"; fi
+}
+grepo
+gitc switch -q -c feature/other
+echo y >"$r/content/posts/.gitkeep"
+gitc add content/posts/.gitkeep
+gitc commit -q -m other
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 0 ]] && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "feature/other" ]] && remote_has post/pub-post && ok "publish from a feature branch returns to it" || bad "feature branch publish (rc $rc): $out"
+# an existing branch of that name refuses, locally and on the remote
+grepo
+gitc branch -q post/pub-post
+head_before="$(gitc rev-parse HEAD)"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 1 ]] && grep -q "already exists" <<<"$out" && [[ ! -e "$GH_ARGS" ]] && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && [[ -f "$r/content/posts/pub-post/index.md" ]] && ok "a local branch of that name refuses" || bad "local branch exists (rc $rc): $out"
+grepo
+gitc push -q origin main:refs/heads/post/pub-post
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 1 ]] && grep -q "already exists" <<<"$out" && [[ ! -e "$GH_ARGS" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && [[ -f "$r/content/posts/pub-post/index.md" ]] && ok "a remote branch of that name refuses" || bad "remote branch exists (rc $rc): $out"
+# a push failure after the branch was made: back on main, local branch gone, post and draft state as before
+grepo
+cp "$r/content/posts/pub-post/index.md" "$work/before.md"
+gitc config remote.origin.pushurl "$work/no-such-remote.git"
+head_before="$(gitc rev-parse HEAD)"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+[[ $rc -eq 1 ]] && grep -q "push" <<<"$out" && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && [[ ! -e "$GH_ARGS" ]] && cmp -s "$work/before.md" "$r/content/posts/pub-post/index.md" && [[ -z "$(gitc status --porcelain | grep -v 'content/posts/pub-post')" ]] && ok "a push failure restores branch, tree and draft state" || bad "push failure cleanup (rc $rc): $out"
+# a gh failure: back on main, local branch gone, the pushed remote branch is named in the message
+grepo
+cp "$r/content/posts/pub-post/index.md" "$work/before.md"
+GH_EXIT=1 au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+[[ $rc -eq 1 ]] && grep -q "post/pub-post" <<<"$out" && [[ "$(gitc rev-parse --abbrev-ref HEAD)" == "main" ]] && [[ -z "$(gitc branch --list 'post/*')" ]] && remote_has post/pub-post && cmp -s "$work/before.md" "$r/content/posts/pub-post/index.md" && ok "a gh failure cleans up the local branch and restores the post" || bad "gh failure cleanup (rc $rc): $out"
+grepo
+gitc switch -q --detach
+pubrefuse "publish on a detached HEAD is refused" "detached" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+grepo
+echo x >"$r/stray.txt"
+pubrefuse "an untracked file outside the bundle blocks publish" "outside|dirty|stray" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+grepo
+echo x >>"$r/brand/approved-assets.txt"
+gitc add -A brand
+pubrefuse "a staged change outside the bundle blocks publish" "outside|dirty|approved" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+grepo
+printf 'Bad %s dash\n' "$EM" >>"$r/content/posts/pub-post/index.md"
+pubrefuse "a failing check blocks publish" "dashes" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+grepo
+pubrefuse "traversal in the bundle name is refused" "not inside content" ../../etc --issue 254 --gh "$stubdir/gh"
+pubrefuse "dot-dot inside content is refused" "not inside content" content/posts/../../brand --issue 254 --gh "$stubdir/gh"
+pubrefuse "an absolute path outside is refused" "not inside content" /etc --issue 254 --gh "$stubdir/gh"
+pubrefuse "issue text with a shell fragment is refused" "issue" content/posts/pub-post --issue "254; touch pwned" --gh "$stubdir/gh"
+pubrefuse "an option-shaped remote is refused" "remote" content/posts/pub-post --issue 254 "--remote=--upload-pack=x" --gh "$stubdir/gh"
+pubrefuse "an unknown remote is refused" "remote" content/posts/pub-post --issue 254 --remote nowhere --gh "$stubdir/gh"
+pubrefuse "a missing gh says so" "gh" content/posts/pub-post --issue 254 --gh "$work/no-such-gh"
+[[ ! -e "$r/pwned" && ! -e "$root/pwned" ]] && ok "no injected command ran" || bad "injected command ran"
+grepo
+mv "$r/content/posts/pub-post/index.md" "$r/real.md"
+ln -s ../../../real.md "$r/content/posts/pub-post/index.md"
+gitc add -A
+gitc commit -q -m link
+pubrefuse "a symlink as the post file is refused" "symlink|regular" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+grepo
+ln -s /etc/hostname "$r/content/posts/pub-post/note.txt"
+pubrefuse "a symlink inside the bundle is refused" "symlink|regular" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+grepo
+head -c 3000000 /dev/zero | tr '\0' 'a' >>"$r/content/posts/pub-post/index.md"
+pubrefuse "a huge post is refused" "size|large|limit|bytes" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+gitc add -A
+gitc commit -q -m already
+pubrefuse "a bundle already committed with no change is refused" "nothing" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+
+# --- review round: remote default branch, "..." fence, trailing comments, future dates -------------------
+pubfile() { gitc show "post/pub-post:content/posts/pub-post/index.md" >"$work/pub-file.md"; }
+setfm() { sed -i -e "$1" "$r/content/posts/pub-post/index.md"; }
+# a remote whose default is trunk, with no refs/remotes/origin/HEAD locally
+grepo
+trunk="$work/trunk$gn.git"
+git init -q --bare -b trunk "$trunk"
+gitc push -q "$trunk" main:trunk
+gitc remote set-url origin "$trunk"
+gitc symbolic-ref -q refs/remotes/origin/HEAD >/dev/null 2>&1 && gitc remote set-head origin -d >/dev/null 2>&1
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 0 ]] && grep -qx "trunk" "$GH_ARGS" && ! grep -qx "main" "$GH_ARGS" && git --git-dir="$trunk" rev-parse -q --verify refs/heads/post/pub-post >/dev/null && ok "the remote's default branch (trunk) is found from the remote and used as the PR base" || bad "trunk default (rc $rc): $out $(cat "$GH_ARGS" 2>/dev/null)"
+# the default branch cannot be determined: refuse, nothing happens
+grepo
+gitc remote set-url origin "$work/no-such-remote.git"
+pubrefuse "an unreachable remote refuses (default branch unknown)" "default branch" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+
+# "..." closes the front matter for check-content, so for the helper too
+grepo
+awk 'BEGIN{n=0} /^---$/ {n++; if (n==2) {print "..."; next}} {print}' "$r/content/posts/pub-post/index.md" >"$work/dots.md"
+cp "$work/dots.md" "$r/content/posts/pub-post/index.md"
+printf '\n---\ndraft: true\n' >>"$r/content/posts/pub-post/index.md"
+au check content/posts/pub-post
+[[ $rc -eq 0 ]] && grep -q '^note: draft: true' <<<"$out" && ok "a ... closed front matter passes check and is seen as a draft" || bad "dots check (rc $rc): $out"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "draft: false" "$work/pub-file.md" && grep -qx "\.\.\." "$work/pub-file.md" && [[ "$(grep -c '^draft: true$' "$work/pub-file.md")" == "1" ]] && ok "publish flips the draft of a ... closed page and leaves the body alone" || bad "dots publish (rc $rc): $out"
+
+# trailing YAML comments on draft
+grepo
+setfm 's/^draft: true$/draft: true # keep while editing/'
+au check content/posts/pub-post --require-published
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] draft' <<<"$out" && ok "draft: true with a comment is a draft for --require-published" || bad "comment draft (rc $rc): $out"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "draft: false # keep while editing" "$work/pub-file.md" && ok "the flip keeps the trailing comment" || bad "comment flip (rc $rc): $out"
+grepo
+setfm 's/^draft: true$/draft: false # ready/'
+au check content/posts/pub-post --require-published
+[[ $rc -eq 0 ]] && ok "draft: false with a comment passes --require-published" || bad "false comment (rc $rc): $out"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "draft: false # ready" "$work/pub-file.md" && ok "draft already false stays as written" || bad "already false (rc $rc): $out"
+grepo
+setfm 's/^draft: true$/draft: "true"/'
+pubrefuse "a quoted draft value is refused" "draft" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+setfm "s/^draft: true\$/draft: 'false'/"
+pubrefuse "a single-quoted draft value is refused" "draft" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+setfm 's/^draft: true$/draft: true # a\ndraft: true # b/'
+pubrefuse "two draft lines with comments are still refused" "draft" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+
+# a future date moves to now with --set-draft-false, in the file's own offset style
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+pubfile
+grep -qx "date: 2099-01-01T09:00:00-05:00" "$work/pub-file.md" && ok "a future date is untouched without --set-draft-false" || bad "date moved without the flag"
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qE '^date: 20(2[6-9]|[3-8][0-9])-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}-05:00$' "$work/pub-file.md" && grep -qi "date" <<<"$out" && grep -q "moved" <<<"$out" && ok "a future datetime moves to now, keeping the -05:00 offset style, and says so" || bad "future move (rc $rc): $out / $(grep '^date' "$work/pub-file.md")"
+[[ "$(diff <(sed -e 's/^draft: true$/draft: false/' -e 's/^date: .*/date: X/' "$r/content/posts/pub-post/index.md" 2>/dev/null) <(sed 's/^date: .*/date: X/' "$work/pub-file.md") | wc -l)" == "0" || ! -e "$r/content/posts/pub-post/index.md" ]] && ok "only the date and draft lines differ" || bad "extra changes"
+grepo
+setfm 's/^date: .*/date: 2099-01-01/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qE '^date: 20(2[6-9]|[3-8][0-9])-[0-9]{2}-[0-9]{2}$' "$work/pub-file.md" && ok "a future date-only value moves to today as a date" || bad "future date-only (rc $rc): $(grep '^date' "$work/pub-file.md")"
+grepo
+setfm 's/^date: .*/date: 2020-01-01T09:00:00-05:00 # old/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "date: 2020-01-01T09:00:00-05:00 # old" "$work/pub-file.md" && ! grep -q "moved" <<<"$out" && ok "a past date is untouched" || bad "past date (rc $rc): $out"
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00 # later/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+grep -qE '^date: .*-05:00 # later$' "$work/pub-file.md" && ! grep -q '2099' "$work/pub-file.md" && ok "the date comment survives the move" || bad "date comment: $(grep '^date' "$work/pub-file.md")"
+grepo
+setfm '/^date: /d'
+pubrefuse "a missing date is refused with a clear message" "date" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false --dry-run
+[[ $rc -eq 0 ]] && grep -q "would change date" <<<"$out" && grep -q '^date: 2099' "$r/content/posts/pub-post/index.md" && ok "--dry-run reports the date move and changes nothing" || bad "dry run date (rc $rc): $out"
+
+# dry run, gh failure, usage
+grepo
+head_before="$(gitc rev-parse HEAD)"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --dry-run
+[[ $rc -eq 0 ]] && [[ "$(gitc rev-parse HEAD)" == "$head_before" ]] && [[ ! -e "$GH_ARGS" ]] && ! remote_has post/pub-post && grep -q "dry run" <<<"$out" && ok "--dry-run changes nothing and says what it would do" || bad "dry run (rc $rc): $out"
+expect "publish without an issue is a usage error" 2 - publish content/posts/pub-post
+expect "publish without a bundle is a usage error" 2 - publish --issue 254
+unset GH_ARGS
+
+# the source never forces, never merges, never names main as a push target
+if grep -nE '"--force|"-f"|force-with|"merge"|refs/heads/main' "$root/scripts/author.py"; then bad "author.py force-pushes, merges or targets main"; else ok "author.py never forces, merges or targets main"; fi
+
 # --- nothing outside content/ was written, no git, no network ---------------------------------
 repo
 before="$(cd "$r" && find . -path ./content -prune -o -print | sort | sha256sum)"
@@ -531,7 +859,7 @@ after="$(cd "$r" && find . -path ./content -prune -o -print | sort | sha256sum)"
 if grep -nE '^\s*(import|from)\s+(urllib|http|requests|webbrowser|ftplib|smtplib)\b' "$root/scripts/author.py"; then bad "author.py imports a network module"; else ok "author.py imports no network or browser module"; fi
 # socket is imported only inside preview, to find a free loopback port: every bind names 127.0.0.1
 if grep -nE '\.bind\(' "$root/scripts/author.py" | grep -vF '.bind((LOOPBACK, 0))'; then bad "author.py binds something other than loopback"; else ok "author.py binds loopback only"; fi
-if grep -nE '"git"|webbrowser|xdg-open' "$root/scripts/author.py"; then bad "author.py names git or a browser"; else ok "author.py runs no git or browser"; fi
+if grep -nE 'webbrowser|xdg-open|openBrowser' "$root/scripts/author.py"; then bad "author.py names a browser"; else ok "author.py runs no browser"; fi
 
 if [[ $fail -ne 0 ]]; then
     echo "test-author: FAILED"
