@@ -89,6 +89,44 @@ if "mailto:" in ab:
     errs.append("the About page still carries the email link")
 if "/contact/" not in ab:
     errs.append("the About page must point to /contact/")
+# The Discord and Matrix tiles (issue 329): icon, name and address in separate elements, a hint,
+# an accessible name with both platform and address, new-tab link handled like other external links.
+tiles = re.findall(r'<a class="?tile contact-tile"?[^>]*>.*?</a>', h, re.S)
+if len(tiles) != 2:
+    errs.append("expected 2 contact tiles, found %d" % len(tiles))
+for t, n in zip(tiles, ("Discord", "Matrix")):
+    if 'social-icon--' + n.lower() not in t:
+        errs.append("the %s tile has no platform icon" % n)
+    nm = re.search(r'class="?contact-tile-name"?[^>]*>([^<]*)<', t)
+    ad = re.search(r'class="?contact-tile-address"?[^>]*>(.*?)(?=<span[^>]*contact-tile-go)', t, re.S)
+    if not nm or nm.group(1).strip() != n:
+        errs.append("the %s tile needs the name alone in .contact-tile-name" % n)
+    if not ad or not re.sub("<[^>]*>", "", ad.group(1)).strip():
+        errs.append("the %s tile needs the address alone in .contact-tile-address" % n)
+    al = re.search(r'aria-label="([^"]*)"', t)
+    if not al or n not in al.group(1) or not ad or html.unescape(re.sub("<[^>]*>", "", ad.group(1))).strip() not in html.unescape(al.group(1)):
+        errs.append("the %s tile accessible name must include the platform and the address" % n)
+    if 'contact-tile-go' not in t:
+        errs.append("the %s tile needs an open-in-new hint" % n)
+    if 'target=_blank' not in t.replace('"', '') or 'noopener' not in t:
+        errs.append("the %s tile must open in a new tab with rel noopener" % n)
+# Focus (issue 329 review): wherever a :focus-visible rule gives a child the on-accent color, the
+# tile itself must take the same amber fill and tick as hover, or the dark child text lands on the
+# dark surface. A rule is "the tile's own" when its selector is exactly .contact-tile:focus-visible.
+css = read(sys.argv[4] if len(sys.argv) > 4 else root + "/assets/css/pages/contact.css") or ""
+css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+child_on_accent = False
+own = ""
+for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+    sels = [x.strip() for x in sel.split(",")]
+    if any(re.search(r"\.contact-tile:focus-visible\s+\S", x) for x in sels) and "var(--on-accent)" in body:
+        child_on_accent = True
+    if ".contact-tile:focus-visible" in sels:
+        own += body
+if child_on_accent:
+    for need in (r"--fill:\s*var\(--accent\)", r"--tick:\s*var\(--on-accent\)", r"color:\s*var\(--on-accent\)", r"outline:[^;]*var\(--focus\)"):
+        if not re.search(need, own):
+            errs.append("the .contact-tile:focus-visible rule must set %s (the focus state needs the hover fill before the on-accent child colors)" % need)
 for e in errs:
     print(e)
 sys.exit(1 if errs else 0)
@@ -116,6 +154,16 @@ if [[ "${1:-}" != "--against" ]]; then
             echo "ok: guard: a contact page with a broken $b fails"
         fi
     done
+fi
+
+if [[ "${1:-}" != "--against" ]]; then
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); t = s.replace("--fill: var(--accent);", "--fill: none;"); assert t != s; open(sys.argv[2], "w", encoding="utf-8").write(t)' "$root/assets/css/pages/contact.css" "$work/bad-focus.css"
+    if python3 -I "$checker" "$pub" "$root" "$pub/contact/index.html" "$work/bad-focus.css" >/dev/null 2>&1; then
+        echo "FAIL: guard: a focus rule without the fill passed"
+        failures=$((failures + 1))
+    else
+        echo "ok: guard: a focus rule without the fill fails"
+    fi
 fi
 
 [[ $failures -eq 0 ]] || exit 1

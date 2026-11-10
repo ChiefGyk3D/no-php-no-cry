@@ -29,7 +29,7 @@
         {{- if ne (len $hit) 1 }}{{ errorf "contact page: %q is not exactly one entry in data/socials.yaml" $n }}{{ end }}
         {{- with index $hit 0 }}
         {{- if not (strings.HasPrefix .url "https://") }}{{ errorf "contact page: the %s link is not https" $n }}{{ end }}
-        <li><a class="tile contact-tile" href="{{ .url }}" target="_blank" rel="noopener"><strong>{{ .name }}</strong><span class="meta"> {{ .handle }}</span><span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        <li><a class="tile contact-tile" href="{{ .url }}" target="_blank" rel="noopener" aria-label="{{ .name }}, {{ .handle }} (opens in a new tab)"><span class="social-icon social-icon--{{ .icon }}" aria-hidden="true"></span><span class="contact-tile-name">{{ .name }}</span><span class="contact-tile-address">{{ partial "handle.html" .handle }}</span><span class="contact-tile-go" aria-hidden="true"></span></a></li>
         {{- end }}
         {{- end }}
       </ul>
