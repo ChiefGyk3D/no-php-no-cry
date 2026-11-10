@@ -49,4 +49,11 @@ if python3 -I "$root/scripts/render-threat-summary.py" --check "$work/model.json
     exit 1
 fi
 
+python3 -I "$root/scripts/render-threat-summary.py" "$work/model.json" "$work/RISKS.md"
+sed -i 's/^- Open: Untitled threat/- Open: Stale threat title/' "$work/RISKS.md"
+if python3 -I "$root/scripts/render-threat-summary.py" --check "$work/model.json" "$work/RISKS.md"; then
+    echo "FAIL: --check accepted a stale register entry" >&2
+    exit 1
+fi
+
 echo "all threat summary tests passed"

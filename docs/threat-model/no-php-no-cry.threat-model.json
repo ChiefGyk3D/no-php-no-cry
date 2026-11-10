@@ -2991,7 +2991,7 @@
                   "type": "Spoofing",
                   "modelType": "STRIDE",
                   "description": "A pull request workflow tries to read a secret or the OIDC token.",
-                  "mitigation": ".github/workflows/deploy.yml runs only on main; the credentialed job alone holds id-token write; the Doppler identity subject is limited to the protected publishing branch with no wildcard and never pull request events (docs/deploy.md). Actual identity settings live at Doppler and are the owner's to confirm.",
+                  "mitigation": ".github/workflows/deploy.yml runs only on main; the credentialed job alone holds id-token write; the Doppler identity subject is limited to the protected publishing branch with no wildcard, and the subject excludes pull request events (docs/deploy.md). Actual identity settings live at Doppler and are the owner's to confirm.",
                   "number": 46
                 }
               ],
@@ -3099,7 +3099,7 @@
                   "severity": "High",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
-                  "description": "A wildcard or a pull request events subject lets a fork or a branch fetch the token.",
+                  "description": "A wildcard or a subject for pull request events lets a fork or a branch fetch the token.",
                   "mitigation": "docs/deploy.md requires one subject form (the immutable one this repository uses), limited to the protected publishing branch, no wildcard. In .github/workflows/deploy.yml only the deploy job requests id-token.",
                   "number": 49
                 },
@@ -3111,7 +3111,7 @@
                   "type": "Spoofing",
                   "modelType": "STRIDE",
                   "description": "The production deploy identity at the secret manager accepts a token from a workflow, branch or repository other than the intended production workflow.",
-                  "mitigation": "Open. This is an owner-configured control at the provider, not one this repository enforces: each tier has its own service account and identity, and the identity restrictions (repository, branch or environment, no wildcard, never pull request events) are set by the owner. docs/deploy.md states the rule for the dev identity. The live identity restrictions were not read for this model; the owner reads them and the date is recorded in docs/threat-model/RISKS.md.",
+                  "mitigation": "Open. This is an owner-configured control at the provider, not one this repository enforces: each tier has its own service account and identity, and the identity restrictions (repository, branch or environment, no wildcard, subject excludes pull request events) are set by the owner. docs/deploy.md states the rule for the dev identity. The live identity restrictions were not read for this model; the owner reads them and the date is recorded in docs/threat-model/RISKS.md.",
                   "number": 63
                 }
               ],
@@ -3442,7 +3442,7 @@
             "id": "48f06a9c-79ca-5df7-9300-c6f1fb55b73b",
             "data": {
               "name": "Analytics database maintenance job (planned)",
-              "description": "Applies migrations and the daily roll-up and purge with a temporary database access.",
+              "description": "Applies migrations and the daily roll-up and purge with temporary database access.",
               "type": "tm.Process",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -3455,7 +3455,7 @@
                   "severity": "Medium",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
-                  "description": "A temporary database access outlives the one-time setup.",
+                  "description": "Temporary database access outlives the one-time setup.",
                   "mitigation": "Open (not built). The access table in docs/analytics-deploy.md lists the temporary access; the plan is to remove write access after the work and record the removal.",
                   "number": 56
                 }
