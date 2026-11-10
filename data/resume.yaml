@@ -145,7 +145,5 @@ outside_work:
   - Ordained Priest, Church of the Latter Day Dude. I can secure the network and officiate the wedding afterward.
 
 contact: "References, job history and a phone number are available to prospective employers on request."
-contact_link_text: "How to reach me, on the About page"
-contact_url: /about/#contact
-# The one profile link of the Contact section (issue 195); shown as "Find me online: LinkedIn".
-linkedin_url: https://www.linkedin.com/in/moshe-g
+contact_link_text: "How to reach me, on the Contact page"
+contact_url: /contact/
