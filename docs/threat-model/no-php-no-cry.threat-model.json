@@ -2985,7 +2985,7 @@
             "id": "7e95b890-72da-55bb-ac7a-efdb9465abdc",
             "data": {
               "name": "Doppler (product project, dev environment config)",
-              "description": "Holds CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for deploy; the workflow fetches only those two names, from the project and config named by repository variables. A later project holds the analytics hash secret.",
+              "description": "Holds CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables. A later project holds the analytics hash secret.",
               "type": "tm.Store",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -3009,8 +3009,8 @@
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
-                  "description": "The Doppler action exports every secret in the config to the job environment.",
-                  "mitigation": "docs/deploy.md keeps exactly two values in the config and the credentialed job runs only the pinned Wrangler plus two reviewed scripts. The shared scoped mode is tracked in the GYST repository (issue 207 in docs/deploy.md).",
+                  "description": "The Doppler action reads the whole config response to a temporary file on the runner. Its names input is an export allow-list, so only the two deploy credentials reach the job environment, but anything else in the config would still reach the runner.",
+                  "mitigation": "The workflow passes names as an export allow-list (scripts/test-deploy-doppler-vars.sh), and docs/deploy.md requires a dedicated CI branch config that holds only the two deploy credentials, with the root config kept free of secrets. The credentialed job runs only the pinned Wrangler plus two reviewed scripts. Residual risk: the allow-list does not limit the fetch, so the config must stay minimal; a server-side per-secret fetch would remove it.",
                   "number": 48
                 }
               ],

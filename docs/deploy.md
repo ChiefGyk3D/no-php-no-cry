@@ -135,9 +135,12 @@ Doppler service account, the identity, or any token.
    `prd` environments; the project is not shared with other products). Put the
    two deploy secrets there, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`,
    one at a time, reading each value from a prompt or standard input, never
-   from a command line. The workflow fetches only those two names (an
-   allow-list): any other secret in the config is not exported, and a missing
-   one fails the job. Keep the config to what CI needs anyway.
+   from a command line. The workflow passes those two names as an
+   export allow-list: only they reach the job environment, and a missing one
+   fails the job. The allow-list does not limit the fetch. The action reads
+   the whole config to a temporary file on the runner and then selects the two
+   names, so the config itself must hold only these two values. Use a dedicated
+   branch config for CI, and keep the root config free of secrets.
    Then set the repository variables `DOPPLER_PROJECT` (the project name) and
    `DOPPLER_CONFIG` (the config name). The workflow has no default for either:
    an empty one fails the job with a clear error before anything is fetched.

@@ -68,6 +68,25 @@ expect fail "a wider names list fails" "$work/wide-names.yml"
 mutate no-guard 's/-z "\$\{DOPPLER_PROJECT:-\}"/-n "${DOPPLER_PROJECT:-}"/'
 expect fail "a missing empty-variable guard fails" "$work/no-guard.yml"
 
+# claims_ok <file>...: the names input is an export allow-list, not a fetch
+# filter (the action reads the whole config). No workflow comment, doc or
+# threat-model text may say the fetch is limited to the two names.
+claims_ok() {
+    ! grep -n -i -E 'limits the fetch|fetch(es)? only (those|the) two|fetch is limited|workflow fetches only|exports every secret' "$@"
+}
+if claims_ok "$wf" "$root/docs/deploy.md" "$root/docs/threat-model/no-php-no-cry.threat-model.json" >"$work/claims.out"; then
+    echo "ok: no text claims the fetch is limited to the two names"
+else
+    echo "FAIL: text claims the fetch is limited:"; cat "$work/claims.out"
+    failures=$((failures + 1))
+fi
+printf 'names limits the fetch to two\n' >"$work/bad-claim.txt"
+if claims_ok "$work/bad-claim.txt" >/dev/null; then
+    echo "FAIL: a fetch-limited claim is not detected"; failures=$((failures + 1))
+else
+    echo "ok: a fetch-limited claim is detected"
+fi
+
 if [[ $failures -gt 0 ]]; then
     echo "$failures failure(s)"
     exit 1

@@ -258,8 +258,11 @@ jobs:
           fi
           echo "secrets project and config variables are set."
 
-      # names limits the fetch to the two deploy credentials; any other secret
-      # in the config is not exported, and a missing one fails the step.
+      # names is an export allow-list: only those two reach the job environment,
+      # and a missing one fails the step. It does not limit what is fetched: the
+      # action reads the whole config to a temporary file on the runner, then
+      # selects the two. Least privilege is the config itself, a dedicated CI
+      # config that holds only these two values (docs/deploy.md).
       - name: Fetch Cloudflare credentials from Doppler
         uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
         with:
