@@ -40,7 +40,7 @@ RULES
 # One page per template the deployed site serves: home, a post, a journal entry,
 # the two section lists, a tag page, a category page and the feed. The 404 page
 # is asked for by a name that does not exist.
-for p in posts/sample-post journal/sample-entry posts journal tags/lorem categories/sample feed; do
+for p in posts/sample-post journal/a-threat-model-for-a-static-site posts journal tags/lorem categories/sample feed; do
     mkdir -p "$pub/$p"
     printf '<!doctype html>\n' >"$pub/$p/index.html"
 done
@@ -54,7 +54,7 @@ export SCRIPT_HASH_DIR="$work/hashes"
 mkdir -p "$SCRIPT_HASH_DIR"
 served_dir="$work/served"
 mkdir -p "$served_dir"
-known="/,/posts/sample-post/,/journal/sample-entry/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml,/feed/index.xml"
+known="/,/posts/sample-post/,/journal/a-threat-model-for-a-static-site/,/posts/,/journal/,/tags/lorem/,/categories/sample/,/index.xml,/feed/index.xml"
 # The redirects the fake server answers (from=to, ';' apart): the required first
 # line, /feed/, and the sample (date archive, category, tag, upload).
 redirs="/2023/02/10/sample-post/=/posts/sample-post/;/feed/=/feed/index.xml;/2023/=/posts/;/category/sample/=/categories/sample/;/tag/lorem/=/tags/lorem/;/wp-content/uploads/2023/02/pic.jpg=/posts/sample-post/pic.png"
@@ -226,7 +226,7 @@ expect wrong-redirect redirect wrong-redirect
 
 # The policy is checked on every page template, not on the home page alone: a
 # fault on any one page fails, naming the page and the problem.
-for page in /posts/sample-post/ /journal/sample-entry/ /posts/ /journal/ /tags/lorem/ /categories/sample/ /index.xml /feed/index.xml '*404'; do
+for page in /posts/sample-post/ /journal/a-threat-model-for-a-static-site/ /posts/ /journal/ /tags/lorem/ /categories/sample/ /index.xml /feed/index.xml '*404'; do
     shown="$page"
     [[ "$page" == '*404' ]] && shown="/smoke-check-missing-page/"
     expect "no CSP on $page" "missing-csp: $shown" "nocsp@$page"

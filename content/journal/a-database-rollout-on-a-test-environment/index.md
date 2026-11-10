@@ -1,7 +1,6 @@
 ---
 title: "A database rollout on a test environment"
 date: 2026-11-09T22:00:00-05:00
-draft: true
 description: "I rolled several pending migrations onto a non-production Cloudflare D1 database, with exports, verification and a restore drill around the risky parts."
 slug: "a-database-rollout-on-a-test-environment"
 categories: ["Journal"]

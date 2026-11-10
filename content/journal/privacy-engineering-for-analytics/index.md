@@ -1,7 +1,6 @@
 ---
 title: "Privacy engineering for analytics"
 date: 2026-11-06T20:00:00-05:00
-draft: true
 description: "I built analytics reporting around privacy floors, fixed release periods, and an append-only ledger. Security review kept finding ways that individually safe reports could reveal more when compared."
 slug: "privacy-engineering-for-analytics"
 categories: ["Journal"]

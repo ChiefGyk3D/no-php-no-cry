@@ -1,7 +1,6 @@
 ---
 title: "Collectors and credential handling"
 date: 2026-11-07T23:00:00-05:00
-draft: true
 description: "A collector audit exposed why credential names cannot be treated as configuration. I standardized the boundary across sources and simplified the CI wrapper that feeds them."
 slug: "collectors-and-credential-handling"
 categories: ["Journal"]

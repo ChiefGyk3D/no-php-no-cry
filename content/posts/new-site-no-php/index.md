@@ -1,7 +1,6 @@
 ---
 title: "I Rebuilt My Site Without PHP"
-date: 2026-11-09
-draft: true
+date: 2026-11-10T00:44:00-05:00
 image: "featured.png"
 imageAlt: "A cartoon penguin with a white outline sits holding a rifle on a dark charcoal background with an amber border on each side; a large faded penguin face is visible behind it."
 slug: "new-site-no-php"

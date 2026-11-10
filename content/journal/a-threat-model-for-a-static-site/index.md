@@ -1,7 +1,6 @@
 ---
 title: "A threat model for a static site"
 date: 2026-11-07T20:00:00-05:00
-draft: true
 description: "A static Hugo site still has a publishing pipeline, credentials, third parties, and readers to protect. I put those risks into an OWASP Threat Dragon model and made CI keep the model tied to controls that actually exist."
 slug: "a-threat-model-for-a-static-site"
 categories: ["Journal"]

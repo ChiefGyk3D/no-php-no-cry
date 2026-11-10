@@ -1,7 +1,6 @@
 ---
 title: "Running a fleet of AI agents"
 date: 2026-11-09T19:00:00-05:00
-draft: true
 description: "What worked, what failed, and what I changed while coordinating AI agents across two projects."
 slug: "running-a-fleet-of-ai-agents"
 categories: ["Journal"]
