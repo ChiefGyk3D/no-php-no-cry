@@ -210,7 +210,7 @@ printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
 
 # Script files: the CSP allows 'self' scripts, so the artifact may hold exactly
-# two, /copy.js (on /support/ only) and /search.js (on /search/ only), each under
+# the pinned ones, /copy.js (on /support/ only), /search.js (on /search/ only) and /share.js (posts and journal entries), each under
 # 1 KB gzip and only when its sha256 equals the one in its committed hash file.
 # No other script file. With no hash file no script is allowed.
 for name in copy.js search.js; do
@@ -322,12 +322,12 @@ else
     failures=$((failures + 1))
 fi
 
-# Only the two names; a third script file fails even with both pinned.
+# Only the pinned names; an unlisted script file fails even with both pinned.
 make_good
 put_script copy.js
 put_script search.js
 printf 'x\n' >"$site/third.js"
-expect_fail "a third script file beside the two pinned ones" extra-script
+expect_fail "an unlisted script file beside the pinned ones" extra-script
 make_good
 printf 'x\n' >"$site/app.js"
 expect_fail "second script file" extra-script

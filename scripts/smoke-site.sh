@@ -23,11 +23,11 @@
 #                 (application/xml, text/xml or a +xml type); the build must
 #                 hold feed/index.xml (else exit 2). It is also checked like
 #                 every page (policy, nosniff, markup).
-#   script-hash    for each pinned script the build has (copy.js, search.js), the
-#                 deployed /copy.js or /search.js has the sha256 pinned in its
-#                 hash file, copy.js.sha256 or search.js.sha256 (SCRIPT_HASH_DIR
-#                 overrides the directory). The page that loads it (/support/
-#                 or /search/, from the allowlist in scripts/artifact-rules.sh)
+#   script-hash    for each pinned script the build has (copy.js, search.js, share.js), the
+#                 deployed /copy.js, /search.js or /share.js has the sha256 pinned in its
+#                 hash file, copy.js.sha256, search.js.sha256 or share.js.sha256 (SCRIPT_HASH_DIR
+#                 overrides the directory). The page that loads it (/support/,
+#                 /search/ or a post, from the allowlist in scripts/artifact-rules.sh)
 #                 is checked too.
 #   script-wrong-page / script-not-allowed / script-count / event-handler / javascript-url /
 #   external-asset / http-reference / base-element

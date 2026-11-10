@@ -30,7 +30,7 @@ wording is recorded as given.
 | 2026-11-04 | Analytics (basic, non-invasive: city, state or country, VPN flag where possible, referrer, funnel) is required before cutover. | #84 |
 | 2026-11-04 | The site doubles as the page linked from the owner's resume: a short About and a full Resume, no employer names. | #86 |
 | 2026-11-06 | The public site name is ChiefGyk3D. `no-php-no-cry` is the project name only (repo, docs, internal comments). | #126 |
-| 2026-11-06 | Add search: a static page and two pinned scripts, no third parties. | #119 |
+| 2026-11-06 | Add search: a static page and a pinned script, no third parties. | #119 |
 | 2026-11-06 | Keep `llms.txt`. | #120 |
 | 2026-11-06 | Archive the 4 old comments in-post, display name only. | #121 |
 | 2026-11-06 | `/feed/` stays a 301 to `/feed/index.xml`. | #105 |
@@ -112,7 +112,7 @@ says "owner review" or "device QA", no script can prove it.
 | Third-party requests | Google Fonts, Tag Manager, Jetpack stats | None: fonts, icons and scripts are same-origin | parity (better) | | `scripts/verify-live.sh` (`third-party`) |
 | Response headers | Provider defaults (tracked privately) | One strict `/*` block with a CSP of `script-src 'self'` and pinned scripts | parity (better) | | `scripts/check-site-artifact.sh`, `scripts/verify-live.sh` (`header-*`) |
 | Admin and login | WordPress admin, plugins, REST API | None. Static files only | dropped | 2026-11-06 no WordPress admin | n/a |
-| Page weight | 317 KB to 406 KB HTML, 35 script tags | Size budget enforced in CI, two small scripts on one page each. Since the snapshot above, `scripts/check-budget.py` reads the pinned-script table from `scripts/artifact-rules.sh`, so `/search.js` is counted (#132, merged in #135); before that fix the step failed on main | parity (better) | | `scripts/check-budget.py`, `scripts/test-check-budget.sh` |
+| Page weight | 317 KB to 406 KB HTML, 35 script tags | Size budget enforced in CI, three small pinned scripts, each only on its own page or page pattern. Since the snapshot above, `scripts/check-budget.py` reads the pinned-script table from `scripts/artifact-rules.sh`, so `/search.js` is counted (#132, merged in #135); before that fix the step failed on main | parity (better) | | `scripts/check-budget.py`, `scripts/test-check-budget.sh` |
 | Accessibility | No `<main>` or `<nav>` landmark, 55 of 56 images without alt | Landmarks, skip link, contrast and axe checks in CI | parity (better) | | `scripts/check-landmarks.py`, `scripts/browser-gate.py`, `scripts/check-contrast.py` |
 | Device matrix | Not tested | Pending | planned | 2026-11-06 gates the cutover (#131) | #131 |
 | License | None stated | None yet; the repo is public | gap | owner decision needed (#109), not a cutover gate | n/a |
