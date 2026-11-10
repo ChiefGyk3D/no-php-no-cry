@@ -9,10 +9,11 @@ Run it before the apex cutover on a build made for the apex, for example:
 
 Prints "<rule>\\t<detail>" lines and exits 1 when there are findings, 0 when the
 build is ready to be indexed. The rules:
-  noindex             a page carries a robots meta that says noindex (404.html is
+  noindex             a page carries a robots meta that says noindex or none (404.html is
                       noindex on purpose and is skipped)
   robots-missing      no robots.txt
-  robots-disallow-all robots.txt disallows everything for all agents
+  robots-disallow-all robots.txt disallows everything for all agents, Googlebot or Bingbot
+  header-noindex      _headers sets an X-Robots-Tag with noindex or none (any path block)
   robots-no-sitemap   robots.txt has no Sitemap line
   robots-host         the Sitemap line is not on the production host
   sitemap-missing     no sitemap.xml, or it does not parse or lists no url
@@ -34,6 +35,8 @@ import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
 SM = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+# robots.txt groups whose Disallow: / makes the site invisible to the search engines that matter
+SEARCH_AGENTS = ("*", "googlebot", "bingbot")
 
 
 class Page(HTMLParser):
@@ -106,7 +109,7 @@ def robots_findings(root, host):
                 if agents and agents[-1][1]:
                     agents = []
                 agents.append((v, False))
-            elif k == "disallow" and v == "/" and any(a == "*" for a, _ in agents):
+            elif k == "disallow" and v == "/" and any(a.lower() in SEARCH_AGENTS for a, _ in agents):
                 out.append(("robots-disallow-all", "robots.txt"))
             elif k == "sitemap":
                 sitemaps.append(v)
@@ -152,6 +155,24 @@ def redirects_findings(root):
     return []
 
 
+def headers_findings(root):
+    """An X-Robots-Tag with noindex (or none) in _headers, in any path block, blocks indexing."""
+    try:
+        with open(os.path.join(root, "_headers"), encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return []  # no header file, no header
+    out = []
+    for n, raw in enumerate(lines, 1):
+        line = raw.strip()
+        if line.startswith("#") or ":" not in line:
+            continue
+        k, v = (x.strip() for x in line.split(":", 1))
+        if k.lower() == "x-robots-tag" and re.search(r"\b(noindex|none)\b", v.lower()):
+            out.append(("header-noindex", "_headers line %d" % n))
+    return out
+
+
 def page_findings(root, host):
     out, titles, descs = [], {}, {}
     for f in html_files(root):
@@ -160,7 +181,7 @@ def page_findings(root, host):
         if p.refresh:  # an alias redirect stub, not a page
             continue
         is404 = rel == "404.html"
-        if any("noindex" in r.lower() for r in p.robots) and not is404:
+        if any(re.search(r"\b(noindex|none)\b", r.lower()) for r in p.robots) and not is404:
             out.append(("noindex", rel))
         t = p.title.strip()
         if not t:
@@ -193,7 +214,7 @@ def main(argv):
         print("input: %s is not a directory" % root, file=sys.stderr)
         return 2
     found = robots_findings(root, host) + sitemap_findings(root, host) \
-        + redirects_findings(root) + page_findings(root, host)
+        + redirects_findings(root) + headers_findings(root) + page_findings(root, host)
     for rule, where in sorted(found):
         print("%s\t%s" % (rule, where))
     if found:

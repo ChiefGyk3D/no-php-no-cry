@@ -80,6 +80,18 @@ expect title-duplicate 1 title-duplicate "sed -i 's#<title>About</title>#<title>
 expect description-missing 1 description-missing "sed -i 's#<meta name=description[^>]*>##' about/index.html"
 expect description-duplicate 1 description-duplicate "sed -i 's#About the author.#The home page.#' about/index.html"
 expect redirects-missing 1 redirects-missing "rm _redirects"
+# X-Robots-Tag in _headers (issue 318): the header applies to the response, so a noindex there
+# makes the page invisible even when the HTML and robots.txt are clean. Checked per path block;
+# a bot-prefixed value ("googlebot: noindex") counts too. A header without noindex is fine.
+expect header-noindex 1 header-noindex "printf '/*\n  X-Robots-Tag: noindex, nofollow\n' >_headers"
+expect header-noindex-indented 1 header-noindex "printf '/*\n  Content-Type: text/html\n  x-robots-tag: googlebot: noindex\n' >_headers"
+expect header-none 1 header-noindex "printf '/posts/*\n  X-Robots-Tag: none\n' >_headers"
+expect header-harmless 0 - "printf '/*\n  X-Robots-Tag: max-snippet:-1\n  X-Content-Type-Options: nosniff\n' >_headers"
+expect header-comment-ignored 0 - "printf '# X-Robots-Tag: noindex\n/*\n  X-Content-Type-Options: nosniff\n' >_headers"
+# A meta robots of "none" means noindex, nofollow; a Googlebot-specific meta or robots group counts.
+expect meta-none 1 noindex "sed -i 's#</head>#<meta name=robots content=\"none\"></head>#' about/index.html"
+expect meta-googlebot-noindex 1 noindex "sed -i 's#</head>#<meta name=googlebot content=\"noindex\"></head>#' about/index.html"
+expect robots-googlebot-disallow-all 1 robots-disallow-all "printf 'User-agent: *\nAllow: /\n\nUser-agent: Googlebot\nDisallow: /\nSitemap: https://example.test/sitemap.xml\n' >robots.txt"
 expect redirects-no-feed 1 redirects-missing "printf '/a /b 301\n' >_redirects"
 expect alias-stub-ignored 0 - "mkdir -p stub && printf '<meta http-equiv=refresh content=\"0; url=/\">' >stub/index.html"
 
