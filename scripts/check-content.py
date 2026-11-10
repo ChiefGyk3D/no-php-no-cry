@@ -541,8 +541,8 @@ SVG_ATTRIBUTES = {
     "gradientTransform", "fx", "fy", "preserveAspectRatio", "version",
 }
 # Structural limits, enforced while parsing: elements, nesting depth, attributes per element,
-# attributes in all, characters of text in all.
-SVG_LIMITS = (5000, 40, 20, 10000, 100000)
+# attributes in all, characters of text in all, characters in one attribute value.
+SVG_LIMITS = (5000, 40, 20, 10000, 100000, 2000)
 SVG_VALUE_BAD = re.compile(r"(?i)\b(?:javascript|vbscript|data):|https?:|//|@import|expression\s*\(|" + re.escape(chr(92)))
 SVG_URL_FUNC = re.compile(r"(?i)url\s*\(\s*([^)]*)\)")
 SVG_LOCAL_REF = re.compile(r"['\"]?#[A-Za-z_][A-Za-z0-9_.-]*['\"]?")
@@ -555,13 +555,16 @@ SVG_BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff")
 def svg_viewbox_problem(value):
     """Why a root viewBox is not four plain decimals "0 0 width height" (each at most 10000), or None."""
     parts = re.split(r"[ \t\r\n]+", value.strip(" \t\r\n"))
-    if len(parts) != 4 or not all(SVG_NUM.fullmatch(p) for p in parts):
+    if len(parts) != 4 or not all(SVG_NUM.fullmatch(p) for p in parts):  # control:viewbox-format
         return "is not four plain decimal numbers"
     x, y, w, h = (float(p) for p in parts)
-    if x != 0 or y != 0:
+    if x != 0 or y != 0:  # control:viewbox-origin
         return "does not start at 0 0"
-    if not (0 < w <= 10000 and 0 < h <= 10000):
-        return "has a width or height outside 0 to 10000"
+    if w > 10000 or h > 10000:  # control:viewbox-maximum
+        return "has a width or height over 10000"
+    # The render hook rounds half up and refuses 0, so anything under 0.5 is refused here too.
+    if w < 0.5 or h < 0.5:  # control:viewbox-minimum
+        return "has a width or height under 0.5"
     return None
 
 
@@ -610,7 +613,7 @@ def svg_tree_findings(data):
     import io
     import xml.etree.ElementTree as ET
 
-    max_el, max_depth, max_attr, max_attr_total, max_text = SVG_LIMITS
+    max_el, max_depth, max_attr, max_attr_total, max_text, max_value = SVG_LIMITS
     found = []
     depth = n = attrs = chars = 0
     try:
@@ -653,6 +656,8 @@ def svg_tree_findings(data):
             elif name not in SVG_ELEMENTS:  # control:element-allowlist
                 found.append("[svg-element] <%s> is not an allowed element" % name)
             for k, v in el.attrib.items():
+                if len(v) > max_value:  # control:limit-attribute-value
+                    return ["[svg-limit] an attribute value is longer than %d characters" % max_value]
                 if k.startswith("{"):
                     kns, _, kname = k[1:].partition("}")
                 else:

@@ -101,10 +101,11 @@ else
 fi
 
 # --- negative cases: each check must bite ---
-bites() { # bites <name> <rule> <dir>
-    local out
+bites() { # bites <name> <the complete expected list of finding codes, comma separated> <dir>
+    local out codes
     out="$(verify "$3" "$model")"
-    if grep -q "^\[$2\]" <<<"$out"; then pass "$1"; else fail "$1 (no [$2] finding; got: ${out:-nothing})"; fi
+    codes="$(sed -E -n 's/^\[([a-z-]+)\].*/\1/p' <<<"$out" | sort -u | paste -sd, -)"
+    if [[ "$codes" == "$2" ]]; then pass "$1"; else fail "$1 (codes '$codes', want '$2'; got: ${out:-nothing})"; fi
 }
 
 cp -r "$work/a" "$work/n1"
@@ -179,7 +180,7 @@ bad_rule=""
 for n in publishing reader secrets; do bad_rule+="$(svg_rule "$work/a/threat-model-$n.svg")"; done
 if [[ -z $bad_rule ]]; then pass "check-content's SVG allowlist accepts the renders"; else fail "allowlist rejects a render: $bad_rule"; fi
 sed 's|</svg>|<script>1</script></svg>|' "$work/a/threat-model-reader.svg" >"$work/tampered.svg"
-if svg_rule "$work/tampered.svg" | grep -q '^\[svg-element\]'; then pass "allowlist rejects a tampered render"; else fail "allowlist accepted a tampered render"; fi
+if [[ "$(svg_rule "$work/tampered.svg")" == "[svg-element] <script> is not an allowed element" ]]; then pass "allowlist rejects a tampered render"; else fail "allowlist accepted a tampered render"; fi
 
 # --- layout geometry (assertions on the computed layout, not the picture) ---
 geo() { # geo <mutation name or none>
@@ -216,11 +217,12 @@ PY
 }
 out="$(geo none)"
 if [[ -z $out ]]; then pass "layout: nodes inside boundaries, no segment crosses a node, chips clear and on their route"; else fail "layout: $out"; fi
-for pair in node-onto-route:segment-crosses-node chip-on-node:chip-overlap chips-overlap:chip-overlap node-outside-boundary:node-outside-boundary chip-off-route:chip-off-route; do
+for pair in node-onto-route:chip-overlap,node-outside-boundary,segment-crosses-node chip-on-node:chip-overlap chips-overlap:chip-overlap node-outside-boundary:node-outside-boundary chip-off-route:chip-off-route; do
     mut="${pair%%:*}"
     rule="${pair##*:}"
     out="$(geo "$mut")"
-    if grep -q "^\[$rule\]" <<<"$out"; then pass "layout check bites: $mut"; else fail "layout check missed $mut (got: ${out:-nothing})"; fi
+    codes="$(sed -E -n 's/^\[([a-z-]+)\].*/\1/p' <<<"$out" | sort -u | paste -sd, -)"
+    if [[ "$codes" == "$rule" ]]; then pass "layout check bites: $mut"; else fail "layout check on $mut gave '$codes', want '$rule' (got: ${out:-nothing})"; fi
 done
 
 if [[ $failures -ne 0 ]]; then

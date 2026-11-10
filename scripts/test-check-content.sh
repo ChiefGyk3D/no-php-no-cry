@@ -153,6 +153,16 @@ SVGS = {
     "svg-vb-five": vb("0 0 10 10 10"),
     "svg-vb-exp": vb("0 0 1e3 10"),
     "svg-vb-max": vb("0 0 10000 10000"),
+    "svg-vb-over-max-decimal": vb("0 0 10000.5 10"),
+    "svg-vb-w04": vb("0 0 0.4 10"),
+    "svg-vb-h04": vb("0 0 10 0.4"),
+    "svg-vb-05": vb("0 0 0.5 0.5"),
+    "svg-vb-09": vb("0 0 0.9 0.9"),
+    "svg-vb-1": vb("0 0 1 1"),
+    "svg-vb-14": vb("0 0 1.4 1.4"),
+    "svg-value-2000": svg('<g id="%s"/>' % ("a" * 2000)),
+    "svg-value-2001": svg('<g id="%s"/>' % ("a" * 2001)),
+    "svg-value-huge": svg('<g id="%s"/>' % ("a" * 4000000)),
     "svg-vb-ws": vb("  0\t0   10 \n 10 "),
     "svg-vb-single-quoted": vb("0 0 10 10", "'"),
     "svg-vb-decimals": vb("0 0 900.5 1230.25"),
@@ -640,6 +650,16 @@ svg_case viewbox-commas svg-viewbox svg-vb-comma
 svg_case viewbox-three-numbers svg-viewbox svg-vb-three
 svg_case viewbox-five-numbers svg-viewbox svg-vb-five
 svg_case viewbox-exponent svg-viewbox svg-vb-exp
+svg_case viewbox-over-maximum-decimal svg-viewbox svg-vb-over-max-decimal
+svg_case viewbox-width-0.4 svg-viewbox svg-vb-w04
+svg_case viewbox-height-0.4 svg-viewbox svg-vb-h04
+svg_case good-viewbox-0.5 - svg-vb-05
+svg_case good-viewbox-0.9 - svg-vb-09
+svg_case good-viewbox-1 - svg-vb-1
+svg_case good-viewbox-1.4 - svg-vb-14
+svg_case good-attribute-value-2000 - svg-value-2000
+svg_case limit-attribute-value-2001 svg-limit svg-value-2001
+svg_case limit-attribute-value-4-million svg-limit svg-value-huge
 svg_case utf16-with-bom svg-encoding svg-utf16
 svg_case utf16-le-no-bom svg-encoding svg-utf16le
 svg_case utf16-be-bom svg-encoding svg-utf16be-bom

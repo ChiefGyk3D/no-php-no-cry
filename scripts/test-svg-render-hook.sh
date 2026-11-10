@@ -58,13 +58,13 @@ ok_case() {
     fi
 }
 
-# bad_case <name> <root start tag>: the build must fail with a root viewBox error
+# bad_case <name> <root start tag> <expected error text>: the build must fail with exactly that hook error
 bad_case() {
-    local name="$1" tag="$2" d="$work/$1"
+    local name="$1" tag="$2" msg="$3" d="$work/$1"
     site "$d" "$tag"
     if hugo --source "$d" --destination "$d/public" >"$d/build.log" 2>&1; then
         fail "$name (build succeeded)"
-    elif grep -q 'SVG whose root' "$d/build.log"; then
+    elif grep -q "$msg" "$d/build.log"; then
         pass "$name"
     else
         fail "$name (failed for another reason: $(grep -m1 ERROR "$d/build.log"))"
@@ -86,18 +86,51 @@ ok_case maximum "<svg $NS viewBox=\"0 0 10000 10000\">" 10000 10000
 ok_case payload-in-earlier-attribute "<svg aria-label='viewBox=\"0 0 999999999999999999999 1\"' $NS viewBox=\"0 0 900 1230\">" 900 1230
 ok_case payload-in-later-attribute "<svg $NS viewBox=\"0 0 900 1230\" aria-label='viewBox=\"0 0 5 5\"'>" 900 1230
 
-bad_case payload-with-invalid-root-viewbox "<svg aria-label='viewBox=\"0 0 999999999999999999999 1\"' $NS viewBox=\"invalid\">"
-bad_case enormous-number "<svg $NS viewBox=\"0 0 999999999999999999999 1\">"
-bad_case over-maximum "<svg $NS viewBox=\"0 0 10001 10\">"
-bad_case zero-width "<svg $NS viewBox=\"0 0 0 10\">"
-bad_case repeated-decimal-point "<svg $NS viewBox=\"0 0 1.2.3 4\">"
-bad_case nonzero-origin "<svg $NS viewBox=\"1 0 10 10\">"
-bad_case negative "<svg $NS viewBox=\"-1 0 10 10\">"
-bad_case commas "<svg $NS viewBox=\"0,0,10,10\">"
-bad_case exponent "<svg $NS viewBox=\"0 0 1e3 10\">"
-bad_case no-root-viewbox "<svg $NS>"
-bad_case viewbox-only-in-child "<svg $NS><g viewBox=\"0 0 10 10\"/>"
-bad_case root-is-not-svg "<g $NS viewBox=\"0 0 10 10\">"
+bad_case payload-with-invalid-root-viewbox "<svg aria-label='viewBox=\"0 0 999999999999999999999 1\"' $NS viewBox=\"invalid\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case enormous-number "<svg $NS viewBox=\"0 0 999999999999999999999 1\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case over-maximum "<svg $NS viewBox=\"0 0 10001 10\">" "root viewBox size is outside 1 to 10000"
+bad_case zero-width "<svg $NS viewBox=\"0 0 0 10\">" "root viewBox size is outside 1 to 10000"
+bad_case repeated-decimal-point "<svg $NS viewBox=\"0 0 1.2.3 4\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case nonzero-origin "<svg $NS viewBox=\"1 0 10 10\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case negative "<svg $NS viewBox=\"-1 0 10 10\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case commas "<svg $NS viewBox=\"0,0,10,10\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case exponent "<svg $NS viewBox=\"0 0 1e3 10\">" "root viewBox is not 0 0 width height in plain decimals"
+bad_case no-root-viewbox "<svg $NS>" "root element has no viewBox"
+bad_case viewbox-only-in-child "<svg $NS><g viewBox=\"0 0 10 10\"/>" "root element has no viewBox"
+bad_case root-is-not-svg "<g $NS viewBox=\"0 0 10 10\">" "root element has no viewBox"
+
+# The gate (check-content.py) and the hook agree on small sizes: refused or accepted together,
+# and the hook rounds half up. gate_verdict <width>: "ok" or "refused" for a square viewBox.
+gate_verdict() {
+    python3 -I - "$root/scripts/check-content.py" "$1" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cc", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+v = sys.argv[2]
+svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s"/>' % (v, v)
+print("refused" if m.svg_findings(svg.encode()) else "ok")
+PY
+}
+# agree_case <width> <expected verdict> <expected img size, or - when refused>
+agree_case() {
+    local v="$1" want="$2" size="$3" gate
+    gate="$(gate_verdict "$v")"
+    if [[ "$gate" != "$want" ]]; then
+        fail "gate verdict for $v is $gate, want $want"
+        return
+    fi
+    if [[ "$want" == "ok" ]]; then
+        ok_case "agree-$v" "<svg $NS viewBox=\"0 0 $v $v\">" "$size" "$size"
+    else
+        bad_case "agree-$v" "<svg $NS viewBox=\"0 0 $v $v\">" "root viewBox size is outside 1 to 10000"
+    fi
+}
+agree_case 0.4 refused -
+agree_case 0.5 ok 1
+agree_case 0.9 ok 1
+agree_case 1 ok 1
+agree_case 1.4 ok 1
 
 if [[ $failures -ne 0 ]]; then
     echo "$failures failure(s)"
