@@ -13,7 +13,7 @@ trap 'rm -rf "$work"' EXIT
 
 failures=0
 site="$work/site"
-# The pinned hash of each allowed script (copy.js, search.js) lives in a
+# The pinned hash of each allowed script (copy.js, search.js, share.js) lives in a
 # committed <script>.sha256 file; tests use their own directory, empty unless a
 # case pins a script.
 export SCRIPT_HASH_DIR="$work/hashes"
@@ -24,7 +24,11 @@ pin_script() { printf '%s  %s\n' "$(sha256sum "$site/${1:-copy.js}" | cut -d' ' 
 put_script() {
     local name="$1" page="${2:-}"
     if [[ -z "$page" ]]; then
-        if [[ "$name" == copy.js ]]; then page=support/index.html; else page=search/index.html; fi
+        case "$name" in
+            copy.js) page=support/index.html ;;
+            share.js) page=posts/a/index.html ;;
+            *) page=search/index.html ;;
+        esac
     fi
     printf 'document.documentElement.dataset.x="%s"\n' "$name" >"$site/$name"
     printf '<script src=/%s></script>\n' "$name" >>"$site/$page"
@@ -210,10 +214,11 @@ printf '\n' >>"$site/_headers"
 expect_fail "_headers differs by one byte" headers-differ
 
 # Script files: the CSP allows 'self' scripts, so the artifact may hold exactly
-# two, /copy.js (on /support/ only) and /search.js (on /search/ only), each under
+# the pinned ones, /copy.js (on /support/ only), /search.js (on /search/ only) and
+# /share.js (posts and journal entries only), each under
 # 1 KB gzip and only when its sha256 equals the one in its committed hash file.
 # No other script file. With no hash file no script is allowed.
-for name in copy.js search.js; do
+for name in copy.js search.js share.js; do
     make_good
     put_script "$name"
     rc=0
@@ -299,16 +304,46 @@ make_good
 put_script search.js posts/a/index.html
 expect_fail "search.js referenced from a post" script-wrong-page
 
-# Both at once, each where it belongs, and a hash file with no script in the build.
+# share.js loads on posts and journal entries, one path segment under each, and nowhere else.
 make_good
-put_script copy.js
-put_script search.js
+mkdir -p "$site/journal/e"
+put_script share.js journal/e/index.html
 rc=0
 "$checker" "$site" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then
-    echo "ok: both pinned scripts on their own pages pass"
+    echo "ok: share.js on a journal entry passes"
 else
-    echo "FAIL: both pinned scripts were rejected (rc=$rc)"
+    echo "FAIL: share.js on a journal entry was rejected (rc=$rc)"
+    failures=$((failures + 1))
+fi
+for page in index.html support/index.html search/index.html; do
+    make_good
+    put_script share.js "$page"
+    expect_fail "share.js referenced from $page" script-wrong-page
+done
+make_good
+mkdir -p "$site/posts/page/2" "$site/journal"
+put_script share.js posts/page/2/index.html
+expect_fail "share.js referenced from a deeper posts path" script-wrong-page
+make_good
+mkdir -p "$site/journal"
+put_script share.js journal/index.html
+expect_fail "share.js referenced from the journal list" script-wrong-page
+make_good
+put_script copy.js posts/a/index.html
+expect_fail "copy.js referenced from a post" script-wrong-page
+
+# All three at once, each where it belongs, and a hash file with no script in the build.
+make_good
+put_script copy.js
+put_script search.js
+put_script share.js
+rc=0
+"$checker" "$site" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then
+    echo "ok: all pinned scripts on their own pages pass"
+else
+    echo "FAIL: the pinned scripts were rejected (rc=$rc)"
     failures=$((failures + 1))
 fi
 make_good
@@ -322,12 +357,12 @@ else
     failures=$((failures + 1))
 fi
 
-# Only the two names; a third script file fails even with both pinned.
+# Only the pinned names; an unlisted script file fails even with both pinned.
 make_good
 put_script copy.js
 put_script search.js
 printf 'x\n' >"$site/third.js"
-expect_fail "a third script file beside the two pinned ones" extra-script
+expect_fail "an unlisted script file beside the pinned ones" extra-script
 make_good
 printf 'x\n' >"$site/app.js"
 expect_fail "second script file" extra-script

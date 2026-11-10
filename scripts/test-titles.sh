@@ -2,8 +2,8 @@
 # Test the page titles and meta descriptions (issue 318) against the built site.
 #
 # Builds the site into the repository's gitignored tmp/ (never /tmp) and checks the
-# Home title, and the title and description of About, Search, Privacy, Support, Gear and
-# Journal: the exact strings, every title is "<title> | ChiefGyk3D" with the suffix once
+# Home title, and the title and description of About, Search, Privacy, Support, Gear, Contact
+# and Journal: the exact strings, every title is "<title> | ChiefGyk3D" with the suffix once
 # (the Home title is the one exception and carries it inside), titles and descriptions are
 # unique, and no title or description holds a dash character or the word radio.
 # Needs the pinned Hugo; a missing Hugo is a failure, not a skip.
@@ -56,6 +56,10 @@ WANT = {
     "products/index.html": (
         "Security, Homelab, and Creator Gear and Tools" + SUFFIX,
         "A practical list of security gear, privacy services, audio equipment, repair tools, and creator software. Affiliate links are disclosed.",
+    ),
+    "contact/index.html": (
+        "Contact for Business Inquiries, Discord, and Matrix" + SUFFIX,
+        "Use email for business inquiries, or Discord and Matrix for general correspondence. Chats are bridged in most rooms when working.",
     ),
     "journal/index.html": (
         "ChiefGyk3D's Technical Journal Index Page" + SUFFIX,
@@ -122,7 +126,7 @@ if fails:
     for f in fails:
         print("FAIL:", f)
     sys.exit(1)
-print("ok: home title, six inner titles and descriptions: exact, suffixed once, unique, clean")
+print("ok: home title, seven inner titles and descriptions: exact, suffixed once, unique, clean")
 PY
 
 # The journal at launch (issue 316): the seven entries are published, the synthetic

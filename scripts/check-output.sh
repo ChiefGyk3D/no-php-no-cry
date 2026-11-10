@@ -25,13 +25,13 @@
 #
 # Scripts: script-src is 'self' in static/_headers, which allows every
 # same-origin script (it cannot name one file); these checks and the hash pins of
-# /copy.js and /search.js make those two the only ones, each on ONE page. The
-# allowlist (scripts/artifact-rules.sh) maps script -> page: /copy.js on
-# /support/ and /search.js on /search/. The only script element allowed on a
+# /copy.js, /search.js and /share.js make those three the only ones, each on its own
+# page. The allowlist (scripts/artifact-rules.sh) maps script -> page: /copy.js on
+# /support/, /search.js on /search/ and /share.js on posts and journal entries. The only script element allowed on a
 # page is its own <script src=/NAME></script> (quotes optional, no other
 # attribute, no body), at most once; the same tag on any other page is
 # script-wrong-page. No other script element, no inline script, no event-handler
-# attribute, no javascript: URL. The only script files in the build are those two,
+# attribute, no javascript: URL. The only script files in the build are those three,
 # each under 1 KB gzip (docs/redesign-brief.md section 10). The search page's
 # HTML is under 40 KB gzip (search-page-budget): it is the browse list with
 # JavaScript off, and past that size the approach needs another look. The CSP

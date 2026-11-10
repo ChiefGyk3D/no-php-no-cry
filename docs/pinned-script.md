@@ -1,9 +1,9 @@
-# The two pinned scripts
+# The pinned scripts
 
 (The theme toggle script is gone: the brand is dark only. Issue 82 decided to
 keep `script-src 'self'` while a script ships; `'none'` follows if the last one is
 dropped. Issue 119 added the second script, for search, on the owner's ruling of
-2026-11-06: two pinned scripts, each on its own page only.)
+2026-11-06: each pinned script loads on its own page only.)
 
 (Issue 220 added the third, for the share links under posts, on the owner's
 ruling of 2026-11-08: it loads on posts and journal entries, which the allowlist

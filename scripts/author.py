@@ -14,16 +14,23 @@ Usage: python3 -I scripts/author.py [--root DIR] new (post|journal) TITLE [optio
   img add BUNDLE FILE --alt TEXT [--name NAME] [--featured]
                            copy a JPEG or PNG into a page bundle with every metadata block removed
                            (EXIF with GPS, XMP, IPTC, comments, thumbnails). See docs/authoring-helper.md.
-  preview [--port N] [--hugo PATH]
-                           hugo server -D bound to 127.0.0.1 only (any other --host is refused); prints
-                           the URL, opens no browser. Needs the pinned standard Hugo from .hugo-version.
-  check PATH               run scripts/check-content.py on PATH: an index.md, a bundle folder, or
-                           a slug path under content/. Prints its result and passes its exit code.
+  preview [--port N] [--no-drafts] [--hugo PATH]
+                           hugo server (drafts shown unless --no-drafts) bound to 127.0.0.1 only (any other
+                           --host is refused); prints the URL, opens no browser. Needs the pinned standard
+                           Hugo from .hugo-version.
+  check PATH [--require-published] [--build] [--hugo PATH]
+                           run the named steps on a page (an index.md, a bundle folder, or a slug path under
+                           content/): content (scripts/check-content.py), images (metadata), dashes, wording,
+                           draft state; with --build also the production build and scripts/check-output.sh.
+                           Exit 0 only if every step passes.
+  publish BUNDLE --issue N [--set-draft-false] [--dry-run] [--remote R] [--base B] [--gh PATH]
+                           check, commit the bundle on the current branch, push that branch and open a pull
+                           request through gh. Never merges, never pushes main, never forces.
 
 The slug comes from the title: ASCII letters and digits joined by single hyphens, at most 80
-characters. A new page is always draft: true (a draft is never built or announced). The helper never overwrites anything, follows no
-symlink, writes only a new folder and index.md under content/, and does no network, git or
-browser work. --root DIR names the repository root (default: this repository; tests use it).
+characters. A new page is always draft: true (a draft is never built or announced). The helper never overwrites anything and follows no
+symlink. new and img add write only under content/ and use no network, git or browser; only publish runs
+git and gh. --root DIR names the repository root (default: this repository; tests use it).
 
 Exit codes: 0 ok, 1 validation error (bad input, collision, check findings), 2 usage error.
 """
@@ -33,10 +40,12 @@ import hashlib
 import importlib.util
 import os
 import re
+import shutil
 import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import unicodedata
 import zlib
 import zoneinfo
@@ -594,7 +603,7 @@ def find_hugo(root, hugo_arg):
     return path
 
 
-def preview(root, host, port, hugo_arg):
+def preview(root, host, port, hugo_arg, drafts=True):
     if host != LOOPBACK:
         raise Refuse("preview binds %s only; refusing host %r" % (LOOPBACK, host))
     if port is not None and not 1024 <= port <= 65535:
@@ -602,8 +611,8 @@ def preview(root, host, port, hugo_arg):
     hugo = find_hugo(root, hugo_arg)
     port = port or free_port()
     url = "http://%s:%d/" % (LOOPBACK, port)
-    print("preview (drafts shown): %s  (Ctrl-C stops it; nothing else can reach it)" % url, flush=True)
-    argv = [hugo, "server", "-D", "--bind", LOOPBACK, "--port", str(port), "--baseURL", url, "--source", os.path.realpath(root)]
+    print("preview (%s): %s  (Ctrl-C stops it; nothing else can reach it)" % ("drafts shown" if drafts else "drafts hidden", url), flush=True)
+    argv = [hugo, "server"] + (["-D"] if drafts else []) + ["--bind", LOOPBACK, "--port", str(port), "--baseURL", url, "--source", os.path.realpath(root)]
     try:
         return subprocess.call(argv, stdin=subprocess.DEVNULL)
     except KeyboardInterrupt:
@@ -634,6 +643,412 @@ def resolve_target(root, arg):
     if not rel.endswith(".md"):
         raise Refuse("%s is not a Markdown file" % rel)
     return rel
+
+
+# --- check (all steps) -----------------------------------------------------------------------------
+
+PAGE_MAX = 1024 * 1024  # the content check's cap for one Markdown file
+TEMPLATE_MAX = 64 * 1024
+DASHES = {chr(0x2014): "em dash", chr(0x2013): "en dash"}
+SHORT_FORM_RE = re.compile(r"\bcry" + r"pto(?!graph|system)\b", re.IGNORECASE)  # brand/README.md, "Wording"
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+CHECK_STEPS = ("content", "images", "dashes", "wording", "draft")
+
+
+def read_page(root, rel):
+    """The text of one Markdown file, read through no symlink with a hard size cap."""
+    p = os.path.join(os.path.realpath(root), rel)
+    st = os.lstat(p)
+    if not stat.S_ISREG(st.st_mode):
+        raise Refuse("%s is not a regular file (a symlink or special file)" % rel)
+    if st.st_size > PAGE_MAX:
+        raise Refuse("%s is %d bytes; the limit for a page is %d bytes" % (rel, st.st_size, PAGE_MAX))
+    fd = os.open(p, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(fd, "rb") as f:
+        data = f.read(PAGE_MAX + 1)
+    if len(data) > PAGE_MAX:
+        raise Refuse("%s is over %d bytes" % (rel, PAGE_MAX))
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise Refuse("%s is not UTF-8" % rel) from None
+
+
+def front_matter(text):
+    """(lines, closing index, parsed dict) with the same parser as scripts/check-content.py; Refuse on anything it rejects."""
+    mod = checker()
+    try:
+        fm, _body, _n = mod.split_front_matter(text)
+        fields = mod.parse_front_matter(fm)
+    except mod.FMError as e:
+        raise Refuse("front matter: %s" % e) from None
+    return text.split("\n"), len(fm) + 1, fields
+
+
+def key_lines(lines, end, key):
+    """Indexes of the top-level `key:` lines inside the front matter."""
+    return [i for i in range(1, end) if lines[i].partition(":")[0] == key and lines[i].partition(":")[1]]
+
+
+def set_value(line, new):
+    """The line with its value replaced, keeping the quote style, the trailing comment and a CR."""
+    mod = checker()
+    cr = "\r" if line.endswith("\r") else ""
+    key, _, val = line.rstrip("\r").partition(":")
+    v = val.strip()
+    if v[:1] in ("'", '"'):
+        _value, tail = mod._quoted(v)
+        return "%s: %s%s%s%s" % (key, v[0], new, v[0], tail) + cr
+    tail = v[len(mod._strip_comment(v)):]
+    return "%s: %s%s" % (key, new, tail) + cr
+
+
+def is_draft(text):
+    """True when the front matter says draft: true (the content check's rule: only an unquoted true)."""
+    try:
+        return front_matter(text)[2].get("draft") is True
+    except Refuse:
+        return False
+
+
+def future_date(value, now):
+    """(is_future, replacement) for a date value; the replacement keeps the value's own style and offset."""
+    mod = checker()
+    m = mod.DATE_RE.match(value.strip())
+    if not m:
+        raise Refuse("date %r is not a date the content check accepts" % value[:40])
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if m.group(4) is None:
+        today = now.date()
+        return (datetime.date(y, mo, d) > today), today.isoformat()
+    v = value.strip()
+    tzm = re.search(r"\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?\s*([Zz]|[+-]\d{2}(?::?\d{2})?)?$", v)
+    sep = v[10]
+    tok = tzm.group(1) if tzm else None
+    if tok in ("Z", "z"):
+        tz = datetime.timezone.utc
+    elif tok:
+        sign = -1 if tok[0] == "-" else 1
+        digits = tok[1:].replace(":", "")
+        tz = datetime.timezone(sign * datetime.timedelta(hours=int(digits[:2]), minutes=int(digits[2:4] or 0)))
+    else:
+        tz = now.tzinfo
+    dt = datetime.datetime(y, mo, d, int(m.group(4)), int(m.group(5)), int(m.group(6) or 0), tzinfo=tz)
+    if dt <= now:
+        return False, None
+    here = now.astimezone(tz).replace(microsecond=0)
+    out = here.strftime("%Y-%m-%d") + sep + here.strftime("%H:%M:%S")
+    if tok is not None:
+        off = here.strftime("%z")
+        if tok in ("Z", "z"):
+            out += tok
+        elif len(tok) == 3:
+            out += off[:3]
+        elif ":" in tok:
+            out += off[:3] + ":" + off[3:]
+        else:
+            out += off
+    return True, out
+
+
+def publish_text(text, now):
+    """(new text, notes): draft: false on the single draft line and a future date moved to now. Refuse otherwise."""
+    lines, end, fields = front_matter(text)
+    drafts = key_lines(lines, end, "draft")
+    if len(drafts) != 1:
+        raise Refuse("expected exactly one draft: line in the front matter, found %d" % len(drafts))
+    if fields.get("draft") not in (True, False):
+        raise Refuse("the front matter has a draft value that is not an unquoted true or false")
+    notes = []
+    if fields["draft"] is True:
+        lines[drafts[0]] = set_value(lines[drafts[0]], "false")
+        notes.append("draft: true -> false")
+    dates = key_lines(lines, end, "date")
+    value = fields.get("date")
+    if len(dates) != 1 or not isinstance(value, str) or not value.strip():
+        raise Refuse("the front matter needs exactly one date: line to publish (date is missing or empty)")
+    later, new_date = future_date(value, now)
+    if later:
+        lines[dates[0]] = set_value(lines[dates[0]], new_date)
+        notes.append("date %s is in the future (Hugo omits future-dated pages in production); moved to %s" % (value.strip(), new_date))
+    new_text = "\n".join(lines)
+    _l, _e, new_fields = front_matter(new_text)
+    expect = dict(fields, draft=False)
+    if later:
+        expect["date"] = new_date
+    if new_fields != expect:
+        raise Refuse("internal check failed: the edit changed more than the draft and date lines; nothing was written")
+    return new_text, notes
+
+
+def run_tool(argv, timeout, env=None):
+    return subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout, env=env)
+
+
+def emit(proc):
+    for stream in (proc.stdout, proc.stderr):
+        if stream:
+            print(stream.rstrip("\n")[:6000])
+
+
+def check_page(root, rel, require_published=False, build=False, hugo_arg=None):
+    """Run every check step on one page, print one [ok] or [FAIL] line per step; return the failed step names."""
+    real = os.path.realpath(root)
+    failed = []
+
+    def verdict(name, good, why=""):
+        if good:
+            print("[ok] %s%s" % (name, (" (" + why + ")") if why else ""))
+        else:
+            failed.append(name)
+            print("[FAIL] %s%s" % (name, (": " + why) if why else ""))
+
+    proc = run_tool([sys.executable, "-I", CHECKER, "--root", real, rel], 120)
+    emit(proc)
+    verdict("content", proc.returncode == 0)
+
+    bundle = os.path.dirname(os.path.join(real, rel))
+    pics = sorted(n for n in os.listdir(bundle) if n.lower().endswith(IMAGE_EXTS))
+    if pics:
+        proc = run_tool([sys.executable, "-I", os.path.join(HERE, "check-image-metadata.py"), bundle], 120)
+        emit(proc)
+        verdict("images", proc.returncode == 0, "" if proc.returncode == 0 else "metadata found or unreadable image")
+    else:
+        verdict("images", True, "no images in the bundle")
+
+    text = read_page(root, rel)
+    lines = text.splitlines()
+    bad_dash = [(n, DASHES[c]) for n, line in enumerate(lines, 1) for c in line if c in DASHES]
+    for n, kind in bad_dash[:20]:
+        print("dashes: %s:%d: %s; write a comma, a colon, parentheses or a plain hyphen" % (rel, n, kind))
+    verdict("dashes", not bad_dash, "%d dash character(s)" % len(bad_dash) if bad_dash else "")
+    bad_word = [n for n, line in enumerate(lines, 1) if SHORT_FORM_RE.search(line)]
+    for n in bad_word[:20]:
+        print("wording: %s:%d: use the full word, never the short form" % (rel, n))
+    verdict("wording", not bad_word, "%d line(s)" % len(bad_word) if bad_word else "")
+
+    draft = is_draft(text)
+    if draft:
+        print("note: draft: true (the production build skips it; publish --set-draft-false makes it public)")
+    verdict("draft", not (draft and require_published), "draft: true, but a published page is required" if draft and require_published else "")
+
+    if build:
+        hugo = find_hugo(root, hugo_arg)
+        tmp = os.path.join(real, "tmp")
+        os.makedirs(tmp, exist_ok=True)
+        dest = tempfile.mkdtemp(prefix="author-build.", dir=tmp)
+        try:
+            env = {k: v for k, v in os.environ.items() if k != "HUGO_PARAMS_ENVIRONMENT"}
+            proc = run_tool([hugo, "--minify", "--gc", "--destination", dest, "--source", real], 600, env)
+            if proc.returncode != 0:
+                print((proc.stdout + proc.stderr)[-2000:].rstrip())
+            verdict("build", proc.returncode == 0, "" if proc.returncode == 0 else "hugo exited %d" % proc.returncode)
+            if proc.returncode == 0:
+                env["EXPECT_ENV"] = "production"
+                proc = run_tool(["bash", os.path.join(HERE, "check-output.sh"), dest], 600, env)
+                emit(proc)
+                verdict("check-output", proc.returncode == 0)
+        finally:
+            shutil.rmtree(dest, ignore_errors=True)
+    if failed:
+        print("check: FAILED step(s): %s" % ", ".join(failed))
+    else:
+        print("check: all steps passed")
+    return failed
+
+
+# --- publish ---------------------------------------------------------------------------------------
+
+ISSUE_RE = re.compile(r"^(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#?[1-9][0-9]{0,8}$")
+NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+BASE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,100}$")
+
+
+def git(root, *args, timeout=120):
+    env = {k: v for k, v in os.environ.items() if k not in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")}
+    env["GIT_LITERAL_PATHSPECS"] = "1"
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        return subprocess.run(["git", "-C", os.path.realpath(root)] + list(args), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout, env=env)
+    except FileNotFoundError:
+        raise Refuse("git is not installed") from None
+
+
+def git_ok(root, *args):
+    proc = git(root, *args)
+    if proc.returncode != 0:
+        raise Refuse("git %s failed: %s" % (args[0], (proc.stderr or proc.stdout).strip()[:300]))
+    return proc.stdout
+
+
+def remote_default_branch(root, remote):
+    """The remote's default branch, asked of the remote itself; Refuse when it cannot be determined."""
+    try:
+        proc = git(root, "ls-remote", "--symref", remote, "HEAD", timeout=30)
+    except subprocess.TimeoutExpired:
+        raise Refuse("could not determine the default branch of %s: the remote did not answer in 30 seconds" % remote) from None
+    m = re.search(r"(?m)^ref: refs/heads/(\S+)\tHEAD$", proc.stdout) if proc.returncode == 0 else None
+    if not m or not BASE_RE.match(m.group(1)):
+        raise Refuse("could not determine the default branch of %s (%s); nothing was changed" % (remote, ((proc.stderr or "no symbolic HEAD in the answer").strip().splitlines() or ["unknown"])[0][:160]))
+    return m.group(1)
+
+
+def pr_body(root, issue, summary):
+    ref = "Refs " + (issue if "#" in issue else "#" + issue)
+    template = os.path.join(os.path.realpath(root), ".github", "PULL_REQUEST_TEMPLATE.md")
+    text = None
+    try:
+        st = os.lstat(template)
+        if stat.S_ISREG(st.st_mode) and st.st_size <= TEMPLATE_MAX:
+            with open(template, encoding="utf-8") as f:
+                text = f.read()
+    except (OSError, UnicodeDecodeError):
+        text = None
+    if text is None:
+        return summary + "\n\n" + ref + "\n"
+    if re.search(r"(?m)^Refs #[ \t]*$", text):
+        text = re.sub(r"(?m)^Refs #[ \t]*$", lambda _m: ref, text, count=1)
+    else:
+        text = text.rstrip("\n") + "\n\n" + ref + "\n"
+    comment = "<!-- One or two sentences. -->"
+    text = text.replace(comment, summary, 1) if comment in text else summary + "\n\n" + text
+    return text
+
+
+def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_run):
+    if not ISSUE_RE.match(issue):
+        raise Refuse("issue must look like 254, #254 or owner/repo#254, got %r" % issue[:40])
+    if not NAME_RE.match(remote):
+        raise Refuse("remote name %r is not a plain remote name" % remote[:40])
+    if base is not None and not BASE_RE.match(base):
+        raise Refuse("base branch %r is not a plain branch name" % base[:40])
+    gh = gh_arg if gh_arg else shutil.which("gh")
+    if not gh or not os.path.isfile(gh) or not os.access(gh, os.X_OK):
+        raise Refuse("gh is not installed (or %s is not executable); install the GitHub CLI and sign in, or pass --gh PATH" % (gh_arg or "none was found on PATH"))
+    page = resolve_target(root, bundle_arg)
+    if not page.endswith("/index.md"):
+        raise Refuse("publish takes a page bundle (a folder with index.md), not %s" % page)
+    bundle_rel = page[: -len("/index.md")]
+    slug = bundle_rel.rsplit("/", 1)[-1]
+    if not SLUG_RE.match(slug):
+        raise Refuse("the bundle folder name %r is not a lowercase slug" % slug[:60])
+    # git state
+    top = git(root, "rev-parse", "--show-toplevel")
+    if top.returncode != 0 or os.path.realpath(top.stdout.strip()) != os.path.realpath(root):
+        raise Refuse("%s is not the top of a git work tree" % root)
+    if remote not in git_ok(root, "remote").split():
+        raise Refuse("remote %r is not configured in this repository" % remote)
+    default = remote_default_branch(root, remote)
+    base = base or default
+    if not BASE_RE.match(base):
+        raise Refuse("base branch %r is not a plain branch name" % base[:40])
+    cur = git(root, "symbolic-ref", "-q", "--short", "HEAD")
+    branch = cur.stdout.strip()
+    if cur.returncode != 0 or not branch:
+        raise Refuse("detached HEAD: switch to a branch for this change first (git switch -c post/%s)" % slug)
+    new_branch = "post/" + slug
+    if new_branch in (default, "main", "master"):
+        raise Refuse("refusing to push the branch %s: it is a default or protected branch name" % new_branch)
+    if git(root, "rev-parse", "--verify", "-q", "refs/heads/" + new_branch).returncode == 0:
+        raise Refuse("the branch %s already exists locally; delete it or pick another folder name" % new_branch)
+    listed = git(root, "ls-remote", "--heads", remote, "refs/heads/" + new_branch, timeout=120)
+    if listed.returncode != 0:
+        raise Refuse("could not ask %s about branches: %s" % (remote, (listed.stderr or listed.stdout).strip()[:200]))
+    if listed.stdout.strip():
+        raise Refuse("the branch %s already exists on %s; delete it or pick another folder name" % (new_branch, remote))
+    status = git_ok(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
+    outside = [e[3:] for e in status.split("\0") if e and not e[3:].startswith(bundle_rel + "/")]
+    if outside:
+        raise Refuse("the tree is dirty outside the bundle (%s%s); commit or stash it first" % (", ".join(outside[:5]), ", ..." if len(outside) > 5 else ""))
+    real_bundle = os.path.join(os.path.realpath(root), bundle_rel)
+    for dirpath, dirnames, filenames in os.walk(real_bundle):
+        for n in dirnames + filenames:
+            m = os.lstat(os.path.join(dirpath, n)).st_mode
+            if not (stat.S_ISREG(m) or stat.S_ISDIR(m)):
+                raise Refuse("%s/%s is a symlink or special file; the bundle may hold regular files only" % (os.path.relpath(dirpath, os.path.realpath(root)), n))
+    original = read_page(root, page)
+    print("publish %s from branch %s to a new branch %s" % (bundle_rel, branch, new_branch))
+    failed = check_page(root, page)
+    if failed:
+        raise Refuse("the check failed (%s); nothing was committed" % ", ".join(failed))
+    flipped = False
+    if set_draft_false:
+        new_text, notes = publish_text(original, eastern_now())
+        if new_text != original:
+            for n in notes:
+                print(("dry run: would change " if dry_run else "changed ") + n)
+            if not dry_run:
+                write_page(root, page, new_text)
+                flipped = True
+                failed = check_page(root, page, require_published=True)
+                if failed:
+                    write_page(root, page, original)
+                    raise Refuse("the check failed after draft: false (%s); the page was restored" % ", ".join(failed))
+    is_public = set_draft_false or not is_draft(original)
+    title = ("Publish %s" if is_public else "Add draft %s") % slug
+    summary = "Adds %s with scripts/author.py publish. Check steps passed: %s. Draft: %s." % (
+        bundle_rel, ", ".join(CHECK_STEPS), "false" if is_public else "true",
+    )
+    if dry_run:
+        print("dry run: would create branch %s, commit %s, push it to %s and open a pull request against %s (%s). Nothing was changed." % (new_branch, bundle_rel, remote, base, title))
+        return 0
+    made_branch = False
+    committed = False
+    try:
+        git_ok(root, "switch", "-q", "-c", new_branch)
+        made_branch = True
+        git_ok(root, "add", "--", bundle_rel)
+        staged = [x for x in git_ok(root, "diff", "--cached", "--name-only", "-z").split("\0") if x]
+        if not staged:
+            raise Refuse("nothing to publish: %s has no changes against HEAD (if it is already committed, push the branch and open the pull request yourself)" % bundle_rel)
+        if any(not x.startswith(bundle_rel + "/") for x in staged):
+            raise Refuse("the index holds files outside the bundle; nothing was committed")
+        git_ok(root, "commit", "-q", "-m", title)
+        committed = True
+        refspec = "refs/heads/%s:refs/heads/%s" % (new_branch, new_branch)
+        pushed = git(root, "push", remote, refspec, timeout=300)
+        if pushed.returncode != 0:
+            raise Refuse("git push failed: %s" % (pushed.stderr or pushed.stdout).strip()[:300])
+        argv = [gh, "pr", "create", "--base", base, "--head", new_branch, "--title", title, "--body", pr_body(root, issue, summary)]
+        try:
+            made = subprocess.run(argv, cwd=os.path.realpath(root), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            raise Refuse("gh timed out; the branch %s is pushed, open the pull request by hand" % new_branch) from None
+        if made.returncode != 0:
+            raise Refuse("gh failed (exit %d: %s); the branch %s is pushed, open the pull request by hand" % (made.returncode, (made.stderr or made.stdout).strip()[:200], new_branch))
+    except BaseException:
+        if made_branch:
+            if committed:
+                git(root, "reset", "-q", "--mixed", "HEAD~1")  # keep the files, drop the commit
+            else:
+                git(root, "reset", "-q", "--", bundle_rel)
+            git(root, "switch", "-q", branch)
+            git(root, "branch", "-q", "-D", new_branch)
+        if flipped:
+            write_page(root, page, original)
+        raise
+    back = git(root, "switch", "-q", branch)
+    if back.returncode != 0:
+        raise Refuse("the pull request is open, but switching back to %s failed: %s" % (branch, back.stderr.strip()[:200]))
+    print("pushed branch %s to %s and returned to %s; the helper never merges" % (new_branch, remote, branch))
+    print(made.stdout.strip())
+    return 0
+
+
+def write_page(root, rel, text):
+    """Replace a page through a temporary file in its folder; the original stays until the swap."""
+    dest = os.path.join(os.path.realpath(root), rel)
+    tmp = dest + ".new"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o644)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+        os.replace(tmp, dest)
+    except BaseException:
+        if os.path.lexists(tmp):
+            os.unlink(tmp)
+        raise
+
 
 
 def ask_description():
@@ -668,8 +1083,20 @@ def build_parser():
     pv.add_argument("--host", default=LOOPBACK)
     pv.add_argument("--port", type=int)
     pv.add_argument("--hugo", help="path to the pinned hugo binary (default: hugo on PATH)")
-    c = sub.add_parser("check", help="run the content check on a file or bundle")
+    pv.add_argument("--no-drafts", action="store_true", help="do not show drafts (default: drafts are shown)")
+    c = sub.add_parser("check", help="run every check step on a file or bundle")
     c.add_argument("path")
+    c.add_argument("--require-published", action="store_true", help="fail when the page is still a draft")
+    c.add_argument("--build", action="store_true", help="also run the production build and scripts/check-output.sh")
+    c.add_argument("--hugo", help="path to the pinned hugo binary for --build (default: hugo on PATH)")
+    pb = sub.add_parser("publish", help="commit a bundle on the current branch, push it and open a pull request")
+    pb.add_argument("bundle")
+    pb.add_argument("--issue", required=True, help="the issue to link: 254, #254 or owner/repo#254")
+    pb.add_argument("--remote", default="origin")
+    pb.add_argument("--base", help="the branch the pull request targets (default: the remote's default branch)")
+    pb.add_argument("--gh", help="path to the gh binary (default: gh on PATH)")
+    pb.add_argument("--set-draft-false", action="store_true", help="set draft: false in the front matter")
+    pb.add_argument("--dry-run", action="store_true", help="run the checks and print the plan; change nothing")
     return p
 
 
@@ -688,22 +1115,19 @@ def main(argv):
             print("next: python3 -I scripts/author.py check %s" % rel)
             return 0
         if args.cmd == "preview":
-            return preview(args.root, args.host, args.port, args.hugo)
+            return preview(args.root, args.host, args.port, args.hugo, not args.no_drafts)
         if args.cmd == "img":
             print(add_image(args.root, args.bundle, args.file, args.alt, args.name, args.featured))
             return 0
+        if args.cmd == "publish":
+            return publish(args.root, args.bundle, args.issue, args.remote, args.base, args.gh, args.set_draft_false, args.dry_run)
         rel = resolve_target(args.root, args.path)
-        proc = subprocess.run(
-            [sys.executable, "-I", CHECKER, "--root", os.path.realpath(args.root), rel],
-            stdin=subprocess.DEVNULL,
-            timeout=120,
-        )
-        return proc.returncode
+        return 1 if check_page(args.root, rel, args.require_published, args.build, args.hugo) else 0
     except Refuse as e:
         print("author: %s" % e, file=sys.stderr)
         return 1
     except subprocess.TimeoutExpired:
-        print("author: the content check timed out", file=sys.stderr)
+        print("author: a step timed out", file=sys.stderr)
         return 1
     except OSError as e:
         print("author: %s" % e, file=sys.stderr)

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Usage: scripts/pin-script.sh [--check] [script-file]
-#        (default: every pinned script, static/copy.js and static/search.js)
+#        (default: every pinned script, static/copy.js, static/search.js and static/share.js)
 #
 # Pins a script by hash. The site ships exactly the scripts on the allowlist in
-# scripts/artifact-rules.sh, copy.js (loaded by /support/ only) and search.js
-# (loaded by /search/ only). The build accepts a script only when its sha256
+# scripts/artifact-rules.sh, copy.js (loaded by /support/ only), search.js
+# (loaded by /search/ only) and share.js (loaded by posts and journal entries). The build accepts a script only when its sha256
 # equals the line in its own hash file, <name>.sha256 at the repository root
 # (override the directory with SCRIPT_HASH_DIR), so a change to a script needs a
 # reviewed change to that file in the same pull request. The hash file is named

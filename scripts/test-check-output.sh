@@ -480,7 +480,7 @@ twice() { place "$1" "$NAME" "" "<script src=/$NAME></script><script src=/$NAME>
 NAME=copy.js variant copy-script-twice-on-own-page script-count twice
 NAME=search.js variant search-script-twice script-count twice
 
-# Script files: only the two pinned ones, each under 1 KB gzip (brief section
+# Script files: only the pinned ones, each under 1 KB gzip (brief section
 # 10); a third .js, in any directory or case, is refused.
 both_pinned() {
     place "$1" copy.js

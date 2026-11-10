@@ -12,8 +12,8 @@ environments or tokens appear here, and none belong in this repository.
 
 - CSP (`static/_headers`): `default-src 'none'`, `script-src 'self'` plus the one
   Web Analytics beacon, `connect-src 'self'`, `form-action 'none'`, no `frame-src`.
-- Pinned scripts: the only scripts in a build are `/copy.js` and `/search.js`,
-  each hash-pinned and each on its own single page (`docs/pinned-script.md`,
+- Pinned scripts: the only scripts in a build are `/copy.js`, `/search.js` and `/share.js`,
+  each hash-pinned and each only on its own page or page pattern (`docs/pinned-script.md`,
   `scripts/check-output.sh`). No inline script, no third-party script.
 - Dark mode only. Tokens from `assets/css/tokens.css`; frames from the border
   system (`docs/borders.md`): one frame per region, at most one L3 per page.

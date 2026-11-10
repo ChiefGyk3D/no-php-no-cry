@@ -2,12 +2,11 @@
 
 `scripts/author.py` is a small command-line helper (Python 3, standard library only)
 that starts a post or journal entry the safe way. It is phase 1 of the local
-authoring editor (epic #237); the full check command, editor settings and the
-publish step arrive in later issues.
+authoring editor (epic #237); editor settings and the writing guide arrive in later issues.
 
-It does no git or browser work and opens no outside network connection. It writes only a new folder and `index.md`
-under `content/` (new post or journal entry) or one new image file inside an existing
-page bundle (img add). The preview command listens on loopback only.
+`new` and `img add` write only under `content/` and do no git, network or browser work.
+`preview` listens on loopback only. `publish` is the only command that runs `git` and `gh`.
+The helper never merges and never touches `main`.
 
 ## New post or journal entry
 
@@ -41,12 +40,23 @@ and changes nothing. It refuses a `content/` folder or section that is a symlink
 
 ```sh
 python3 -I scripts/author.py check content/posts/my-post-title
+python3 -I scripts/author.py check content/posts/my-post-title --require-published
+python3 -I scripts/author.py check content/posts/my-post-title --build --hugo ~/bin/hugo
 ```
 
-This runs `scripts/check-content.py` on that page (an `index.md`, or its folder) and
-prints its result and exit code. A page the helper creates passes. Publishing is a
-separate step: set `draft: false` only when the page is ready, then open a pull
-request; the CI check applies the same rules.
+`PATH` is an `index.md`, its folder, or a slug path under `content/`. Every step runs, each
+prints `[ok] name` or `[FAIL] name`, and the exit code is 0 only when all pass.
+
+| Step | What it checks |
+| --- | --- |
+| `content` | `scripts/check-content.py`: front matter fields, image alt text, links, raw HTML, placeholders, size caps. |
+| `images` | `scripts/check-image-metadata.py` on the bundle (EXIF, GPS, XMP, IPTC). Skipped when the bundle has no image. |
+| `dashes` | No em dash or en dash in the file; findings print as `dashes: path:LINE: ...`. |
+| `wording` | The short form of the coin word is not used on any line of the page. |
+| `draft` | Reports `draft: true`. With `--require-published` a draft fails this step. |
+| `build`, `check-output` | Only with `--build`: the pinned Hugo runs `--minify --gc` into a temporary folder (no drafts, production mode), then `scripts/check-output.sh` runs on it. The folder is removed afterwards. |
+
+A page the helper creates passes (as a draft). Publishing is a separate step (see `publish`).
 
 ## Add an image
 
@@ -97,15 +107,61 @@ yourself. The helper never writes the manifest, because that line records your o
 
 ```sh
 python3 -I scripts/author.py preview
+python3 -I scripts/author.py preview --port 4000 --no-drafts
 ```
 
-Runs `hugo server -D` (drafts shown) bound to `127.0.0.1` on a free port, prints the URL
-and opens no browser. Any `--host` other than `127.0.0.1` is refused, so the preview is
-never reachable from the network. `--port N` (1024 to 65535) picks the port. Press Ctrl-C to
-stop. It uses the `hugo` on your `PATH` (or `--hugo PATH`) and refuses unless that is the
-standard edition named in `.hugo-version`, using `scripts/check-hugo-version.sh`. If Hugo is
-not installed it says so and stops. Hugo is started with an argument list, never through a
-shell.
+Runs `hugo server` bound to `127.0.0.1` on a free port (or `--port N`, 1024 to 65535), prints
+the URL and opens no browser. Drafts are shown by default (the point of a preview);
+`--no-drafts` hides them. Any `--host` other than `127.0.0.1` is refused before Hugo starts, so
+the preview is never reachable from the network. Press Ctrl-C to stop. It uses the `hugo` on
+your `PATH` (or `--hugo PATH`) and refuses unless that is the standard edition named in
+`.hugo-version`, using `scripts/check-hugo-version.sh`. If Hugo is not installed it says so and
+stops. Hugo is started with an argument list, never through a shell.
+
+## Publish
+
+```sh
+python3 -I scripts/author.py publish content/posts/my-post-title --issue 254 --dry-run
+python3 -I scripts/author.py publish content/posts/my-post-title --issue 254 --set-draft-false
+```
+
+Run it from `main` or any other branch. `publish` runs the check, creates and switches to a new
+branch `post/<slug>` (the bundle folder name), commits only the bundle there, pushes only that
+branch and opens a pull request with `gh` against the remote's default branch (`--base` overrides). The default branch is asked of the
+remote itself (`git ls-remote --symref`, 30 second limit); if it cannot be determined, publish
+refuses and changes nothing. Then it switches back to
+the branch you started on and prints the pull request URL. The post now lives on the pull
+request branch, so it is no longer in your starting tree. The merge stays yours.
+
+| Option | Meaning |
+| --- | --- |
+| `BUNDLE` | A page folder under `content/`, named with a lowercase slug. |
+| `--issue N` | Required: `254`, `#254` or `owner/repo#254`. The helper puts `Refs #N` on the template's `Refs #` line (or appends it) and fills the summary line with the bundle and the passed check steps. |
+| `--set-draft-false` | Sets `draft: false`, only when this flag is given, and when the front matter date is in the future (compared in the date's own offset, or Eastern time when it has none) moves it to now in the same style and offset, because Hugo omits future-dated pages in production. A missing date is refused. The output names each change. Without the flag the draft state and date are committed as they are. The check then runs again with `--require-published` and the page is restored if it fails. |
+| `--dry-run` | Run the checks and print the plan; commit, push and `gh` are not touched. |
+| `--remote R`, `--base B`, `--gh PATH` | Remote name (default `origin`), pull request base (default: the remote's default branch), the `gh` binary. |
+
+Safety properties:
+
+- Refuses a detached HEAD, and refuses when `post/<slug>` already exists locally or on the remote.
+- Refuses a dirty tree: any change outside the bundle (staged, modified or untracked) stops it.
+  Only the bundle is committed.
+- Refuses unless every check step passes; nothing is committed on failure.
+- Never merges, never force-pushes, never pushes to `main` or the default branch: it pushes
+  exactly `refs/heads/post/<slug>:refs/heads/post/<slug>`.
+- Leaves nothing behind on failure. If the commit, the push or `gh` fails, it undoes the
+  commit (keeping your files), switches back to the starting branch, deletes the local
+  `post/<slug>` and restores the draft line, so the tree is as it was. After a `gh` failure the
+  pushed remote branch stays and the message names it; open the pull request by hand.
+- Reads the front matter with the same parser as `scripts/check-content.py`, so `check` and `publish` agree on where it ends (`---` or `...`), on trailing comments (`draft: true # keep` flips to `draft: false # keep`) and on what is valid. Only an unquoted `true` or `false` is accepted. After an edit it parses the result again and refuses unless nothing but the draft and date values changed.
+- Flips only the single `draft:` line inside the front matter. Two such lines, or a body line
+  that looks like one, cannot change which line is edited. The write goes through a temporary
+  file and a rename.
+- Refuses a bundle containing a symlink or special file, a post file over 1 MiB, a bundle name
+  that is not a lowercase slug, a path outside `content/`, and issue, remote or base text with
+  anything but plain name characters (all programs get argument lists, never a shell).
+- Stores and reads no token: authentication is whatever `git` and `gh` already have.
+- Fill in the rest of the pull request template (the checklist) yourself.
 
 ## Exit codes
 
@@ -118,11 +174,14 @@ shell.
 ## Tests
 
 `scripts/test-author.sh` builds throwaway repository layouts under `tmp/` and covers
-slugs, dates, tags, collisions, traversal, symlinks, the check on a created page and a
-mutation proof (the same page published with an unfinished description fails the check).
+slugs, dates, tags, collisions, traversal, symlinks, the check steps (with a mutation proof for
+each: the same page with an unfinished description, a dash, the short form or an image carrying
+EXIF fails) and `publish` against a temporary git repository with a bare remote and a fake `gh`
+(branch creation from `main` and from a feature branch, existing branches, restore after each
+failure, no push to `main`, draft flip, hostile names, a symlinked post, a huge file).
 The `img add` tests build tiny synthetic JPEG and PNG files in the test, with metadata blocks
 holding a fake GPS marker (never a real picture or coordinate), and cover alt text, content
 sniffing, hostile files, paths, and a mutation proof: with the stripping step replaced by a
-copy, the marker survives and `scripts/check-image-metadata.py` fails. The preview tests use a
+copy, the marker survives and `scripts/check-image-metadata.py` fails. The preview and `check --build` tests use a
 stub Hugo that records its arguments (loopback bind, refused hosts and ports, wrong version, no Hugo).
 It runs in `scripts/gate.sh` and in the `content checks` CI job.
