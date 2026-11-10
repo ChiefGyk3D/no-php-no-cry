@@ -77,7 +77,7 @@ class ReconciliationNote(unittest.TestCase):
             re.sub("(?i)fail-open", "dropped", text),
             text.replace("billing figure", "money"),
             text.replace("<!-- report-footer:start -->", ""),
-            text.replace("Global Privacy Control", "a header"),
+            re.sub(r"(?i)global\s+privacy\s+control", "a header", text),
             text + "\nBoth counters are exact.\n",
             # a cause removed from the footer only (the body still names it)
             FOOTER.sub(lambda m: re.sub(r"UTC\s+days,\s+", "", m.group(0)), text),
