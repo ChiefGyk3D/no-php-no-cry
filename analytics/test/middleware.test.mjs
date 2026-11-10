@@ -157,7 +157,7 @@ test("a bot is recorded as a bot, not dropped", async () => {
   await onRequest(context);
   await Promise.all(pending);
   assert.equal(db.calls.length, 1);
-  assert.equal(db.calls[0].args.at(-1), "a");
+  assert.equal(db.calls[0].args[8], "a");
 });
 
 test("hostile headers: huge referer, huge user agent, odd cf", async () => {

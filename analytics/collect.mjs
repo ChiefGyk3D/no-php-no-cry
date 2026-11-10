@@ -209,15 +209,17 @@ export function buildRow(request, response, env, nowMs) {
 const REFERRER_OVER_CAP = `?3 = 'r'
   AND NOT EXISTS (
     SELECT 1 FROM view_events
-    WHERE ts >= (?1 / 86400) * 86400 AND ts < ((?1 / 86400) + 1) * 86400
+    WHERE ts >= ?10 AND ts < ?11
       AND src_kind = 'r' AND src = ?4
   )
   AND ${MAX_DAILY_REFERRER_DOMAINS} <= (
     SELECT COUNT(DISTINCT src) FROM view_events
-    WHERE ts >= (?1 / 86400) * 86400 AND ts < ((?1 / 86400) + 1) * 86400
+    WHERE ts >= ?10 AND ts < ?11
       AND src_kind = 'r'
   )`;
 
+// ?10 and ?11 are the UTC day bounds, computed in JS (see dayWindow), so the
+// window never depends on how the driver types ?1.
 // One statement makes the admission check and insert atomic in SQLite. A
 // domain already admitted that UTC day stays in its bucket. New domains after
 // the cap share the closed other bucket.
@@ -228,10 +230,17 @@ SELECT ?1, ?2,
   CASE WHEN ${REFERRER_OVER_CAP} THEN 'other' ELSE ?4 END,
   ?5, ?6, ?7, ?8, ?9`;
 
+/** Whole-second UTC day bounds [start, end) containing ts (seconds). */
+export function dayWindow(ts) {
+  const start = Math.floor(ts / 86400) * 86400;
+  return { start, end: start + 86400 };
+}
+
 /** One D1 write. Rejects on any database error; the caller swallows it. */
 export async function insertRow(db, row) {
+  const day = dayWindow(row.ts);
   await db
     .prepare(INSERT_SQL)
-    .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class)
+    .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class, day.start, day.end)
     .run();
 }
