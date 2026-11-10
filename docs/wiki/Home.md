@@ -22,7 +22,7 @@ version: [README](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/README.m
 | [Share links](Share-links.md) | The Share row under a post, its targets and its one script. |
 | [Search and tags](Search-and-tags.md) | The no-JavaScript search page, its pinned script and tags. |
 | [Build checks and budgets](Build-checks-and-budgets.md) | Every check, what it fails on and the size budget. |
-| [Deploy overview](Deploy-overview.md) | CI, the deploy gate, staging versus production. |
+| [Deploy overview](Deploy-overview.md) | CI, the deploy gate, the dev deploy versus the production pipeline. |
 | [Migrating from WordPress](Migrating-from-WordPress.md) | The converter, redirects and the scrub pass. |
 | [Performance](Performance.md) | Page weight, fonts, images and the browser measurements. |
 | [Accessibility](Accessibility.md) | What is built in, what is checked and what is not proven. |
@@ -58,8 +58,8 @@ If you only have an hour, read steps 4, 6, 7 and 8: they show the whole idea
 
 ## Status
 
-The site is in alpha and runs on a staging host while it is checked against the
-old WordPress site. Features that exist only in an open pull request are marked
+The site is live at the apex since 2026-11-10 and WordPress is retired as the
+origin. This repository keeps a noindex dev host for its own deploy. Features that exist only in an open pull request are marked
 "lands with PR" on their page, and that note is removed when the pull request
 merges.
 

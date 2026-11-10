@@ -602,6 +602,17 @@
                   "description": "Many pull requests burn runner minutes or block the owner's own runs.",
                   "mitigation": "Jobs set timeout-minutes in .github/workflows/ci.yml and .github/workflows/deploy.yml; fork pull requests need approval before workflows run (a GitHub setting, not read here).",
                   "number": 11
+                },
+                {
+                  "id": "e1b8fb2a-90ad-5500-8d5e-0519b13dd691",
+                  "title": "Production build and deploy share one job",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "description": "A build step (Hugo, a script, a dependency) runs in the same job that holds the production deploy credential and can read or send it.",
+                  "mitigation": "Open. The design separates the build job (no credentials) from the deploy job (the only credential holder), as the dev deploy does in .github/workflows/deploy.yml and docs/deploy.md; the dev separation is checked by scripts/check-deploy-sparse.py and scripts/check-workflow-secrets.py. The production workflow lives in the private repository, so that separation is stated by the owner and was not read for this model. Record the review date in docs/threat-model/RISKS.md.",
+                  "number": 59
                 }
               ],
               "hasOpenThreats": true,
@@ -660,6 +671,17 @@
                   "description": "The Cloudflare API token can do more than publish a Pages project, so a leak reaches DNS, other projects or the database.",
                   "mitigation": "Open. docs/deploy.md documents the narrow scope (Pages edit; DNS write is named only for a one-time manual domain fix) and CI never touches DNS. The live token permissions exist only at Cloudflare and have not been read for this model; record the review date in docs/threat-model/RISKS.md.",
                   "number": 13
+                },
+                {
+                  "id": "1ea7bdd4-0704-5ca1-b085-b239aaace94b",
+                  "title": "Production build takes a commit nobody reviewed",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "The production site is built from a commit of this public repository that a pin file in a separate private repository names. If that pin moves to a commit that was not reviewed, or a pin change is merged without review, the live site serves unreviewed code.",
+                  "mitigation": "Open. The reviewable gate is the pin file itself: it names one commit, so a change to it is a visible diff in the private repository, and only commits that passed CI green on main (.github/workflows/ci.yml, scripts/wait-for-ci-green.sh) are meant to be pinned. Rollback is a pin revert. The pin file, its review rule and that repository's branch protection are not in this repository and were not read for this model; the owner confirms them and the date is recorded in docs/threat-model/RISKS.md.",
+                  "number": 60
                 }
               ],
               "hasOpenThreats": true,
@@ -1320,10 +1342,21 @@
                   "description": "The folder that is published is not the folder that was built and checked.",
                   "mitigation": "The build job uploads one artifact and the deploy job downloads that artifact (.github/workflows/deploy.yml), then re-runs scripts/check-site-artifact.sh on it; scripts/smoke-site.sh verifies the live bytes of the pinned scripts against their committed hash files.",
                   "number": 22
+                },
+                {
+                  "id": "778b7739-9261-56eb-b547-691298bd8f73",
+                  "title": "Production artifact carries code or routing files",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "The build output handed to the production deploy contains Pages control files, a worker, extra headers or redirects, or anything other than inert static data.",
+                  "mitigation": "Open. scripts/check-site-artifact.sh rejects Pages code and routing files, a changed _headers and unsafe _redirects lines, and scripts/test-check-site-artifact.sh tests it. The production pipeline is documented to run the same validation on the output as inert data, in a separate credential-free step before any credentialed step. That use is in the private repository and was not read for this model, so the threat stays Open for production until the owner confirms it and the date is recorded in docs/threat-model/RISKS.md.",
+                  "number": 61
                 }
               ],
               "isTrustBoundary": false,
-              "hasOpenThreats": false
+              "hasOpenThreats": true
             }
           },
           {
@@ -1805,6 +1838,17 @@
                   "description": "A flood or a viral post exhausts the host.",
                   "mitigation": "Static assets are served from Cloudflare's network, and static/_routes.json keeps assets away from the Function so a flood of asset requests cannot spend the Function allowance.",
                   "number": 29
+                },
+                {
+                  "id": "1643daef-6cc8-5ab2-baab-7e2e4ca6de63",
+                  "title": "Unchanged files keep stale headers at the edge",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "description": "After a header change such as a new Content-Security-Policy, files whose bytes did not change can keep their old cached headers at the edge, so a pinned script may be served under the previous policy until the cache is purged.",
+                  "mitigation": "Open. No automated detection: scripts/verify-live.sh and scripts/smoke-site.sh check headers on pages and the script hashes, not the headers of an unchanged script. The check and the fix are manual: purge the unchanged script URLs after a header change, then compare their headers with static/_headers (docs/cutover.md, Checking cached script headers). Observed once on staging for three unchanged scripts. No automation purges them, so the threat stays Open.",
+                  "number": 62
                 }
               ],
               "hasOpenThreats": true,
@@ -3058,9 +3102,20 @@
                   "description": "A wildcard or a pull_request subject lets a fork or a branch fetch the token.",
                   "mitigation": "docs/deploy.md requires one subject form (the immutable one this repository uses), limited to refs/heads/main, no wildcard. In .github/workflows/deploy.yml only the deploy job requests id-token.",
                   "number": 49
+                },
+                {
+                  "id": "24285dd0-5e58-50cc-a886-b486c914aa61",
+                  "title": "Production identity accepts the wrong workflow",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "description": "The production deploy identity at the secret manager accepts a token from a workflow, branch or repository other than the intended production workflow.",
+                  "mitigation": "Open. This is an owner-configured control at the provider, not one this repository enforces: each tier has its own service account and identity, and the claim rules (repository, branch or environment, no wildcard, never pull_request) are set by the owner. docs/deploy.md states the rule for the dev identity. The live claim rules were not read for this model; the owner reads them and the date is recorded in docs/threat-model/RISKS.md.",
+                  "number": 63
                 }
               ],
-              "hasOpenThreats": false,
+              "hasOpenThreats": true,
               "privilegeLevel": ""
             }
           },
@@ -3876,6 +3931,6 @@
     ],
     "diagramTop": 3,
     "reviewer": "ChiefGyk3D",
-    "threatTop": 58
+    "threatTop": 63
   }
 }

@@ -57,7 +57,7 @@ CI calls reusable workflows pinned by commit. The local gate named `CI green` wa
 
 Deployment credentials come from Doppler through OIDC instead of repository secrets. An automated check reviews the workflows and refuses forbidden secret references or credential placement.
 
-The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 58 threats: 33 Mitigated, 21 Open, 3 Accepted and 1 Not Applicable.
+The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 63 threats: 33 Mitigated, 26 Open, 3 Accepted and 1 Not Applicable.
 
 And Mitigated has a deliberately narrow meaning: the control must exist in the repository, and the threat must name its path. Provider account settings remain Open until somebody checks them and records the date. The model checker proves that the structure and cited paths exist. It does not prove the control works.
 

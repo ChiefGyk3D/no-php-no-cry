@@ -11,7 +11,7 @@ by the owner is out of scope. A mistake by the owner or a contributor is in scop
 
 ## Counts
 
-58 threats in three diagrams: 33 Mitigated, 21 Open, 3 Accepted, 1 N/A.
+63 threats in three diagrams: 33 Mitigated, 26 Open, 3 Accepted, 1 N/A.
 
 A threat counts as Mitigated only when a control is in this repository and the model names it by path.
 `scripts/check-threat-model.py` fails the build when a named path does not exist.
@@ -50,6 +50,15 @@ High severity:
 4. Syndication credentials. The job is planned (issue 11) and not in the workflows yet. Its design must keep
    the four platform tokens in Doppler only.
 5. Analytics hash secret. Not built yet; it must live in Doppler only and be rotated.
+6. The production promotion path (live at the apex since 2026-11-10). The site is built and deployed from a
+   private repository that pins a commit of this one, so most of its controls are outside what this
+   repository can show. Four threats stay Open until the owner reads them and the date is recorded here:
+   the pin file as the reviewable gate (a change to it is a visible diff, and a pin revert is the
+   rollback); the build job kept apart from the credentialed deploy job; the validation of the build
+   output as inert data in a credential-free step before any credentialed step (the validator is
+   `scripts/check-site-artifact.sh`, here and tested, but its production use is not read from here); and
+   the identity claim rules at the secret manager. The claim rules are an owner-configured control at the
+   provider, not something this repository enforces.
 
 Medium and low severity:
 
@@ -57,6 +66,11 @@ Medium and low severity:
   daily visitor code, report suppression, the outbound-domain flood cap, and an admission budget for the
   Function so a flood cannot burn the free daily allowance. Each is a numbered plan item in
   `docs/analytics-from-reach-around.md`. Nothing here is live until the analytics Function is deployed.
+- Edge cache staleness: after a header change, unchanged static files keep their old cached headers at
+  the edge until their URLs are purged (seen on staging for three unchanged scripts). The live verifier
+  `scripts/verify-live.sh` checks headers only on its page list, so it does not catch this. The detection is
+  a manual check of the three script URLs against `static/_headers` after a purge, with a copy-paste block in
+  `docs/cutover.md` ("Checking cached script headers"); no automation does it.
 - Build-step egress: the build and check jobs run the runner egress policy in audit mode, not block
   (`docs/ci-parallel.md`), so a compromised build step could send the (public) source out. Flip it to block
   once the allowed hosts are measured.
@@ -82,3 +96,4 @@ Medium and low severity:
 | 2026-11-09 | First version (issue 290). Provider-side settings not read. |
 | 2026-11-09 | Counts corrected to 33 Mitigated and 21 Open after the GitHub secret fallbacks were removed (PR 307); numbers read from the model with `scripts/check-threat-model.py`. |
 | 2026-11-09 | Counts 58 threats, 33 Mitigated, 3 Accepted: the beacon CSP entry became a path prefix (issue 318) and the model gained one threat for it, with status Accepted because its residual risk is accepted. |
+| 2026-11-10 | Production promotion path (issues 242, 323): five threats added, all Open, so 63 threats, 33 Mitigated, 26 Open, 3 Accepted, 1 N/A. None is marked Mitigated because the production pipeline and the identity claim rules live outside this repository and were not read for this model. |

@@ -73,10 +73,10 @@ content/ + data/ + layouts/ + assets/ + static/
 ## Environments
 
 One parameter, `params.environment`, switches staging and production. A build
-sets it without editing the file: `HUGO_PARAMS_ENVIRONMENT=staging`. Staging adds
+sets it without editing the file: `HUGO_PARAMS_ENVIRONMENT=staging`. Staging (the dev host) adds
 `noindex, nofollow` to every page and a `robots.txt` that disallows everything.
-`EXPECT_ENV` tells `scripts/check-output.sh` which one it should find. The apex
-cutover plan is `docs/cutover.md`.
+`EXPECT_ENV` tells `scripts/check-output.sh` which one it should find. The record of
+the apex cutover is `docs/cutover.md`.
 
 ## Security model in one paragraph
 
