@@ -29,8 +29,8 @@ the wrong environment (`env-mismatch`).
   and `EXPECT_ENV: staging` and publishes the dev host. CI builds and checks both
   environments on every run.
 - WordPress is retired as the origin. Its old addresses (feed, categories, date
-  archives, `/page/N/`, uploads, and the `support.` host) answer with redirects, listed
-  below.
+  archives, `/page/N/` and uploads) answer with redirects, listed below. The `support.`
+  host was left unchanged and is not redirected.
 - Mail records in DNS were not touched.
 
 ## What was done
@@ -215,20 +215,12 @@ checks each rule and that every upload target is a file the build publishes.
 
 ## support.chiefgyk3d.com
 
-The old support site is a separate single page. The intended handling is one 301 from
-`https://support.chiefgyk3d.com/*` to `https://chiefgyk3d.com/support/` as a
-Single Redirect rule. The `support` DNS record stays as it is and
-proxied, since a zone rule only sees traffic that passes through Cloudflare.
-`_redirects` cannot do this (it matches paths, not hosts). After the change:
-
-```sh
-curl -sSI https://support.chiefgyk3d.com/ | sed -n '1p;/^[Ll]ocation/p'
-```
-
-must show `301` and `location: https://chiefgyk3d.com/support/`. The
-`support-me` repository stays the source of the wallet addresses; the new page
-must match it before cutover. Retire the old project only after the owner
-confirms; that is a separate approved step.
+Left unchanged at cutover (owner decision, 2026-11-10). No redirect rule was added for
+this host, and its DNS record was not touched. It keeps serving its own site, a separate
+single page. The apex serves its own `/support/` page, which must keep matching the
+`support-me` repository, the source of the wallet addresses. If the owner later decides
+to fold the host into the apex, that is a new, separate approved step: one Single
+Redirect rule, because `_redirects` matches paths and not hosts.
 
 ## Post-cutover verification
 
