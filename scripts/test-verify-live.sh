@@ -138,6 +138,8 @@ expect_fail "csp: duplicated" header-duplicate "$fx" csp-dup "$rw_fx" "${fxp[@]}
 expect_fail "hsts: missing" header-missing "$fx" hsts-missing "$rw_fx" "${fxp[@]}"
 expect_fail "nosniff: wrong value" header-wrong "$fx" nosniff-wrong "$rw_fx" "${fxp[@]}"
 expect_fail "cache: immutable Cache-Control on HTML" header-unexpected "$fx" immutable-on-html "$rw_fx" "${fxp[@]}"
+expect_fail "cache: immutable as the second Cache-Control field on HTML" header-unexpected "$fx" immutable-second-field "$rw_fx" "${fxp[@]}"
+expect_fail "cache: immutable combined into one Cache-Control field on HTML" header-unexpected "$fx" immutable-combined "$rw_fx" "${fxp[@]}"
 expect_fail "cache: CSS without the immutable Cache-Control" header-missing "$fx" css-immutable-missing "$rw_fx" "${fxp[@]}"
 expect_fail "sitemap: truncated" sitemap "$fx" sitemap-bad "$rw_fx" "${fxp[@]}"
 expect_fail "sitemap: another host" sitemap "$fx" sitemap-host "$rw_fx" "${fxp[@]}"
@@ -195,7 +197,7 @@ printf '/:year/:month/ /posts/ 301\n' >"$ph_fx/_redirects"
 expect_fail "redirect: unsupported :placeholder rule" redirect "$ph_fx" good "$rw_fx" --public "$ph_fx"
 
 # --- _headers patterns the verifier cannot interpret are refused, not ignored -----------------
-for pat in '/a/*/b' '/:id/*' 'https://x.example/*' '*.css'; do
+for pat in '/a/*/b' '/:id/*' 'https://x.example/*' '*.css' '/foo*' '/*bar' '/a*/b' '/*/x' '/a?b' '/a[b]'; do
     pat_fx="$work/fixture-pattern"
     rm -rf "$pat_fx"
     cp -r "$fx" "$pat_fx"

@@ -175,7 +175,9 @@ if [[ -f "$dir/_headers" ]]; then
             exit 2
         else
             cur_pat="${line%"${line##*[![:space:]]}"}"
-            if [[ ! "$cur_pat" =~ ^/[A-Za-z0-9._~/%-]*\*?$ ]]; then
+            # Only "/*", a literal prefix ending in "/*" (/css/*), or a literal path.
+            seg='[A-Za-z0-9._~%-]+'
+            if [[ ! "$cur_pat" =~ ^(/${seg})*/\*$ && ! "$cur_pat" =~ ^(/${seg})+/?$ ]]; then
                 echo "input: unsupported path pattern in ${dir}/_headers: ${cur_pat}"
                 exit 2
             fi
@@ -249,6 +251,22 @@ header_first() { # header_first <name>: the first value of that header
         }' "$hdr"
 }
 
+# header_has_value <name> <value>: any field of that name, or any run of
+# comma-separated items inside one field, equals <value> (whitespace around
+# commas ignored).
+header_has_value() {
+    local field norm_want
+    norm_want=",$(sed -E 's/[[:space:]]*,[[:space:]]*/,/g; s/^[[:space:]]+|[[:space:]]+$//g' <<<"$2"),"
+    while IFS= read -r field; do
+        field=",$(sed -E 's/[[:space:]]*,[[:space:]]*/,/g; s/^[[:space:]]+|[[:space:]]+$//g' <<<"$field"),"
+        [[ "$field" == *"$norm_want"* ]] && return 0
+    done < <(awk -v want="${1,,}" '{ sub(/\r$/, "") }
+        index($0, ":") && tolower(substr($0, 1, index($0, ":") - 1)) == want {
+            v = substr($0, index($0, ":") + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v
+        }' "$hdr")
+    return 1
+}
+
 pattern_applies() { # pattern_applies <pattern> <path>
     case "$1" in
         /\*) return 0 ;;
@@ -267,7 +285,7 @@ check_headers() {
         want="${header_values[$i]}"
         n="$(header_count "$name")"
         if ! pattern_applies "${header_pats[$i]}" "$2"; then
-            if [[ "$n" -gt 0 && "$(header_first "$name")" == "$want" ]]; then
+            if [[ "$n" -gt 0 ]] && header_has_value "$name" "$want"; then
                 bad "header-unexpected" "$1 carries ${name}: '${want}', which belongs to ${header_pats[$i]} only"
                 failed=1
             fi

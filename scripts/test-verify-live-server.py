@@ -63,6 +63,11 @@ class H(BaseHTTPRequestHandler):
         is_css = path.startswith("/css/")
         if mode == "immutable-on-html" and not is_css:
             hs = hs + [("Cache-Control", "public, max-age=31536000, immutable")]
+        imm = "public, max-age=31536000, immutable"
+        if mode == "immutable-second-field" and not is_css:
+            hs = hs + [("Cache-Control", "no-cache"), ("Cache-Control", imm)]
+        if mode == "immutable-combined" and not is_css:
+            hs = hs + [("Cache-Control", "no-cache, " + imm)]
         if mode == "css-immutable-missing" and is_css:
             hs = [(k, v) for k, v in hs if k != "Cache-Control"]
         if mode == "csp-wrong":
