@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Author: Check current file",
+      "type": "process",
+      "command": "python3",
+      "args": ["-I", "scripts/author.py", "check", "${file}"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Author: Preview drafts",
+      "type": "process",
+      "command": "python3",
+      "args": ["-I", "scripts/author.py", "preview"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
