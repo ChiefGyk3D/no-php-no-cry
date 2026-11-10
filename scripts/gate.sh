@@ -99,6 +99,7 @@ step check-brand-assets "" 'scripts/check-brand-assets.sh'
 step test-brand "" 'scripts/test-brand.sh'
 step test-check-reach-around-drift "" 'scripts/test-check-reach-around-drift.sh'
 step test-gitleaks-config "" 'scripts/test-gitleaks-config.sh'
+step test-scrub-config "" 'scripts/test-scrub-config.sh'
 step check-budget build-production 'python3 -I scripts/check-budget.py "$T/public"'
 step test-check-budget "" 'scripts/test-check-budget.sh'
 step browser-gate build-production '"$CHROME" --version && python3 -I scripts/browser-gate.py "$T/public"'
@@ -121,7 +122,7 @@ content_steps=(check-hugo-version build-production check-output-production check
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
-docs_steps=(check-wording test-check-wording check-threat-model test-check-threat-model check-license test-check-license check-wiki test-check-wiki test-publish-wiki test-check-launch-seo check-content test-check-content test-author)
+docs_steps=(check-wording test-check-wording check-threat-model test-check-threat-model check-license test-check-license check-wiki test-check-wiki test-publish-wiki test-check-launch-seo check-content test-check-content test-author test-scrub-config)
 
 # Tools a step needs that its command line does not show (wrapper scripts call them).
 # "chrome" means the browser named by CHROME.

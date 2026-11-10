@@ -272,6 +272,12 @@ echo x >>"$repo/docs/token-drift.md"
 gate --fast --plan
 check "fast: token-drift.md plans only docs-level steps, not the build" lacks "$out" "build-production"
 reset_repo
+mkdir -p "$repo/docs"
+echo x >>"$repo/docs/scrub-terms.md"
+gate --fast --plan
+check "fast: scrub-terms.md plans test-scrub-config" grep -q '^test-scrub-config: ' <<<"$out"
+check "fast: scrub-terms.md does not plan the build" lacks "$out" "build-production"
+reset_repo
 echo new >"$repo/content/new.md"
 gate --fast --plan --with-drift
 check "fast: unrelated change with the flag skips the live check" bash -c '! grep -q "^check-reach-around-drift:" <<<"$1"' _ "$out"
