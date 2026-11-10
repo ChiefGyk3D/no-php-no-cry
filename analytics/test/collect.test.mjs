@@ -1,10 +1,6 @@
 // Unit tests for analytics/collect.mjs. Run: node --test analytics/test/
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import {
   normalizePath,
   referrerInfo,
@@ -21,7 +17,6 @@ import { HOSTING_ASNS } from "../hosting-asns.mjs";
 
 const HUMAN_UA =
   "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0";
-const here = dirname(fileURLToPath(import.meta.url));
 
 function req(url = "https://blog.example.test/posts/a/", headers = {}, cf) {
   const r = new Request(url, { headers });
@@ -78,73 +73,31 @@ test("referrerInfo reduces external hosts to a registrable domain", () => {
   });
 });
 
-function sqlite(input) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("sqlite3", [":memory:"], { stdio: ["pipe", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8").on("data", (chunk) => { stdout += chunk; });
-    child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
-    child.on("error", reject);
-    child.on("close", (status) => resolve({ status, stdout, stderr }));
-    child.stdin.end(input);
-  });
-}
-
-test("the insert caps distinct referrer domains per UTC day", async () => {
-  const migration = readFileSync(join(here, "..", "migrations", "0001_page_views.sql"), "utf8");
-  const ts = Date.UTC(2026, 10, 10, 12) / 1000;
-  const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
-  const inserts = [];
-  for (let i = 0; i < 101; i += 1) {
-    const day = dayWindow(ts);
-    const values = [ts, "/", "r", `domain-${i}.example`, "", "", "", "unknown", "h", day.start, day.end];
-    let sql = INSERT_SQL;
-    for (let n = values.length; n >= 1; n -= 1) {
-      sql = sql.replaceAll(`?${n}`, typeof values[n - 1] === "number" ? String(values[n - 1]) : quote(values[n - 1]));
-    }
-    inserts.push(`${sql};`);
-  }
-  const result = await sqlite(`${migration}\n${inserts.join("\n")}\nSELECT src_kind || ':' || src || ':' || count(*) FROM view_events GROUP BY src_kind, src ORDER BY src;\n`);
-  assert.equal(result.status, 0, result.stderr);
-  const rows = result.stdout.trim().split("\n");
-  assert.equal(rows.filter((line) => line.startsWith("r:")).length, 100);
-  assert.ok(rows.includes("o:other:1"));
-});
-
-test("the cap holds when the timestamp binds as a real, through real sqlite parameters", async () => {
-  const migration = readFileSync(join(here, "..", "migrations", "0001_page_views.sql"), "utf8");
-  const midnight = Date.UTC(2026, 10, 10) / 1000;
-  const noon = midnight + 12 * 3600;
-  const day = dayWindow(noon);
-  const insertAt = (ts, tsText, domain) => `
-.parameter clear
-.parameter set ?1 ${tsText}
-.parameter set ?2 '/'
-.parameter set ?3 'r'
-.parameter set ?4 '${domain}'
-.parameter set ?5 ''
-.parameter set ?6 ''
-.parameter set ?7 ''
-.parameter set ?8 'unknown'
-.parameter set ?9 'h'
-.parameter set ?10 ${day.start}
-.parameter set ?11 ${day.end}
-${INSERT_SQL};
-`;
-  let script = migration;
-  for (let i = 0; i < 100; i += 1) script += insertAt(midnight, String(midnight), `d${i}.example`);
-  // same UTC day, later hour, ts bound as REAL: must still land in the other bucket
-  script += insertAt(noon, `${noon}.0`, "late.example");
-  script += "SELECT src_kind || ':' || src FROM view_events WHERE ts = " + noon + " ;\n";
-  const result = await sqlite(script);
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "o:other");
+test("the insert evaluates the referrer cap check once per row", () => {
+  assert.equal(INSERT_SQL.split("COUNT(DISTINCT").length - 1, 1);
+  assert.equal(INSERT_SQL.split("NOT EXISTS").length - 1, 1);
 });
 
 test("dayWindow is whole-second UTC day bounds", () => {
   assert.deepEqual(dayWindow(1762732800), { start: 1762732800, end: 1762819200 });
   assert.deepEqual(dayWindow(1762732800 + 43200), { start: 1762732800, end: 1762819200 });
+});
+
+test("referrerInfo knows common multi-label suffixes outside the UK", () => {
+  for (const [header, host] of [
+    ["https://one.example.co.in/p", "example.co.in"],
+    ["https://a.b.example.com.cn/p", "example.com.cn"],
+    ["https://x.example.co.kr/p", "example.co.kr"],
+    ["https://x.example.co.za/p", "example.co.za"],
+    ["https://x.example.com.tr/p", "example.com.tr"],
+  ]) {
+    assert.deepEqual(referrerInfo(header, "blog.example.test"), { kind: "r", host }, header);
+  }
+  // Documented limit: a suffix not on the closed list reduces to two labels.
+  assert.deepEqual(referrerInfo("https://a.example.unlisted.test/p", "blog.example.test"), {
+    kind: "r",
+    host: "unlisted.test",
+  });
 });
 
 test("referrerInfo handles odd and hostile referrers", () => {

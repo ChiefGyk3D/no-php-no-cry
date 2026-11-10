@@ -226,6 +226,10 @@ test("guard bites: computed properties and simple aliases cannot hide calls", ()
     'globalThis["console"]["log"](request.url)',
     'globalThis["fetch"]("https://example.org")',
     "const send = fetch; send('https://example.org')",
+    "const send = globalThis.fetch; send('https://example.org')",
+    "let send = window.fetch; send('https://example.org')",
+    "var send = self . fetch; send('https://example.org')",
+    "const log = globalThis.console; log.log(1)",
     "const socket = globalThis['WebSocket']; new socket('wss://example.org')",
     "const beacon = navigator['sendBeacon']; beacon('/collect')",
   ]) {

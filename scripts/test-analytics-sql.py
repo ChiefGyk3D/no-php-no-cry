@@ -9,6 +9,7 @@ something, so it cannot silently pin nothing).
 """
 import re
 import sqlite3
+import subprocess
 import sys
 import unittest
 import warnings
@@ -79,6 +80,47 @@ def event(db, ts, page="/a/", src_kind="d", src="", country="US", region="NY", c
             "INSERT INTO view_events (ts,page,src_kind,src,country,region,city,net,bot_class) VALUES (?,?,?,?,?,?,?,?,?)",
             (ts, page, src_kind, src, country, region, city, net, bot),
         )
+
+
+def insert_sql():
+    """INSERT_SQL from analytics/collect.mjs, read with node (already required by the suite)."""
+    code = 'import { INSERT_SQL } from "./analytics/collect.mjs"; process.stdout.write(INSERT_SQL);'
+    out = subprocess.run(
+        ["node", "--input-type=module", "-e", code], cwd=ROOT, check=True, capture_output=True, text=True
+    )
+    return out.stdout
+
+
+class ReferrerCap(unittest.TestCase):
+    MIDNIGHT = 1762732800  # 2026-11-10 00:00:00 UTC
+
+    def insert(self, db, ts, domain):
+        start = self.MIDNIGHT
+        db.execute(insert_sql(), (ts, "/", "r", domain, "", "", "", "unknown", "h", start, start + DAY))
+
+    def test_cap_of_100_distinct_domains_per_utc_day(self):
+        db = fresh()
+        for i in range(101):
+            self.insert(db, self.MIDNIGHT, f"domain-{i}.example")
+        kinds = dict(db.execute("SELECT src_kind, count(*) FROM view_events GROUP BY src_kind"))
+        self.assertEqual(kinds, {"r": 100, "o": 1})
+        self.assertEqual(db.execute("SELECT src FROM view_events WHERE src_kind='o'").fetchone()[0], "other")
+
+    def test_admitted_domain_stays_admitted_and_real_ts_still_capped(self):
+        db = fresh()
+        for i in range(100):
+            self.insert(db, self.MIDNIGHT, f"d{i}.example")
+        self.insert(db, self.MIDNIGHT + 3600, "d0.example")
+        # same UTC day, later hour, ts bound as a real number
+        self.insert(db, float(self.MIDNIGHT + 12 * HOUR), "late.example")
+        got = db.execute(
+            "SELECT src_kind, src FROM view_events WHERE ts = ? ", (self.MIDNIGHT + 3600,)
+        ).fetchall()
+        self.assertEqual(got, [("r", "d0.example")])
+        got = db.execute(
+            "SELECT src_kind, src FROM view_events WHERE ts = ?", (self.MIDNIGHT + 12 * HOUR,)
+        ).fetchall()
+        self.assertEqual(got, [("o", "other")])
 
 
 class Schema(unittest.TestCase):

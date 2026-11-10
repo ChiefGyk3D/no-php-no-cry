@@ -10,8 +10,8 @@
 const FORBIDDEN = [
   ["address-header", /cf-connecting-ip|x-forwarded-for|true-client-ip|x-real-ip|x-client-ip/i],
   ["cookie-or-storage", /set-cookie|document\.cookie|localstorage|sessionstorage|indexeddb/i],
-  ["outbound-call", /\bfetch\s*\(|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*fetch\b|XMLHttpRequest|WebSocket|sendBeacon|["'](?:fetch|XMLHttpRequest|WebSocket|sendBeacon)["']/],
-  ["logging", /\bconsole\s*\.|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*console\b|["']console["']/],
+  ["outbound-call", /\bfetch\s*\(|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:(?:globalThis|window|self)\s*\.\s*)?fetch\b|XMLHttpRequest|WebSocket|sendBeacon|["'](?:fetch|XMLHttpRequest|WebSocket|sendBeacon)["']/],
+  ["logging", /\bconsole\s*\.|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:(?:globalThis|window|self)\s*\.\s*)?console\b|["']console["']/],
   ["language-header", /accept-language/i],
   ["precise-location", /\.latitude|\.longitude|\.postalCode|\.metroCode|\.timezone\b/],
   ["network-owner", /asOrganization/],
