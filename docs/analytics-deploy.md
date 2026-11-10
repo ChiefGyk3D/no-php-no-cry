@@ -14,6 +14,7 @@ later. Alpha: every default here is provisional.
 | `analytics/collect.mjs` | Pure functions: path rules, referrer host, geo, ASN class, bot class, opt-outs, the row. |
 | `analytics/hosting-asns.mjs` | The ASN list (data file, no CIDR). A starter list, to refresh before go-live. |
 | `analytics/migrations/0001_page_views.sql` | Tables, the 5-view floor (`report_*` views) and the funnel view. |
+| `analytics/migrations/0002_report_top_referrers.sql` | Replaces the report views: top 20 referrer domains per day and class, the rest folded into "other". |
 | `analytics/maintenance.sql` | Daily rollup and retention (7 days raw, 90 days aggregates). Not scheduled yet. |
 | `analytics/wrangler.toml.example` | The D1 binding template. |
 | `static/_routes.json` | Limits the Function to HTML routes: the HTML pages (including `/support/`) run it; the CSS, fonts, brand files, images and the support QR and coin SVGs (`/support/qr-*.svg`, `/support/coin-*.svg`) do not. Required in the upload; copied there by Hugo. |
@@ -130,5 +131,19 @@ DELETE FROM view_dim_daily;`.
 - City plus path at low traffic can point at a person. The 5-view floor hides
   small groups in the reports. The raw rows (7 days) hold the city and are
   readable only with the D1 token.
+- Referrer domains are not filtered when written: the Referer header is forged
+  freely, so a write-time rule would be decided by arrival order. Every domain
+  is stored, and the report view (migration 0002) lists the 20 domains with the
+  most views per day and class and folds the rest into "other". Residual risk,
+  proposed as Low and awaiting the owner's acceptance in the threat model: a
+  requester who sends more views than a real domain can still outrank it.
+  Hardening tracked in #72.
+- The egress check (`analytics/test/fixtures/egress-probe.mjs`) is a regression
+  test, not a proof. It runs the Function with outbound and logging entry points
+  trapped, driving a table of methods, paths, hosts, statuses, header names and
+  values. It cannot show that no input at all reaches an outbound call; the
+  source scan is a lint on top. Pages Functions have no platform switch that
+  removes outbound access, so review of the small collector source stays part of
+  the control.
 - Not done here: a dashboard, a per-client rate cap, a Bot Management feed
   (`cf.botManagement` is used only if the zone has it), UTM sources.

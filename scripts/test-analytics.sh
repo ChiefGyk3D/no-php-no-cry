@@ -2,7 +2,8 @@
 # Tests for the blog page-view collector (issue 84): the Pages Function and its
 # helpers (node --test, Node 20 or newer, no packages) and the SQL (python3
 # sqlite3 module: schema guard, k-threshold views, rollup, retention, and the
-# referrer cap, which reads the INSERT SQL through node). Local only; no
+# report-time referrer selection and the write path, read through node). Local
+# only; no
 # Cloudflare call is made and none is possible (the D1 binding is a fake).
 set -euo pipefail
 

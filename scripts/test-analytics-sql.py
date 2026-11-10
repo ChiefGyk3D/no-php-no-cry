@@ -82,99 +82,97 @@ def event(db, ts, page="/a/", src_kind="d", src="", country="US", region="NY", c
         )
 
 
-def insert_sql():
-    """INSERT_SQL from analytics/collect.mjs, read with node (already required by the suite)."""
-    code = 'import { INSERT_SQL } from "./analytics/collect.mjs"; process.stdout.write(INSERT_SQL);'
-    out = subprocess.run(
-        ["node", "--input-type=module", "-e", code], cwd=ROOT, check=True, capture_output=True, text=True
-    )
-    return out.stdout
+class ReferrerReport(unittest.TestCase):
+    """Referrer domains are selected at report time, never at write time.
 
-
-class ReferrerCap(unittest.TestCase):
-    """Per-hour, per-group admission of new referrer domains.
-
-    Arrival order across the day must not decide who is admitted: every UTC hour
-    keeps its own budget of new domains, and automated rows (bot_class not h)
-    have a budget of their own, so neither a burst of forged referrers nor a bot
-    run can take the capacity of a later hour or of the human group.
+    The Referer header is forged freely, so no write-time rule can tell a real
+    domain from a forged one, and any admission cutoff by arrival order can be
+    used to lock real domains out. Every referrer domain is stored as it
+    arrived; the report view keeps the TOP_N domains per day and class by
+    views, and folds the rest into the closed other bucket. Arrival order has
+    no say. Residual risk (accepted, Low): a requester who sends more views than
+    a real domain can still outrank it.
     """
 
-    MIDNIGHT = 1762732800  # 2026-11-10 00:00:00 UTC
-    PER_HOUR = 5  # HOURLY_NEW_REFERRER_DOMAINS in collect.mjs
+    DAY = "2026-11-04"
+    TOP_N = 20  # the literal in analytics/migrations/0002_report_top_referrers.sql
 
-    def insert(self, db, ts, domain, bot="h"):
-        start = self.MIDNIGHT
-        db.execute(insert_sql(), (ts, "/", "r", domain, "", "", "", "unknown", bot, start, start + DAY))
+    def put(self, db, src, views, bot="h", page="/a/", kind="r"):
+        db.execute("INSERT INTO view_daily VALUES (?,?,?,?,?,?,?)", (self.DAY, page, kind, src, "US", bot, views))
 
-    def test_new_domains_per_hour_are_limited(self):
+    def shown_domains(self, db, bot="h"):
+        return sorted(
+            r[0]
+            for r in db.execute(
+                "SELECT src FROM report_view_daily WHERE src_kind='r' AND bot_class=? AND day=?", (bot, self.DAY)
+            )
+        )
+
+    def test_only_the_top_domains_are_listed_and_the_rest_fold_into_other(self):
         db = fresh()
-        for i in range(self.PER_HOUR + 3):
-            self.insert(db, self.MIDNIGHT, f"domain-{i}.example")
-        kinds = dict(db.execute("SELECT src_kind, count(*) FROM view_events GROUP BY src_kind"))
-        self.assertEqual(kinds, {"r": self.PER_HOUR, "o": 3})
-        self.assertEqual(db.execute("SELECT DISTINCT src FROM view_events WHERE src_kind='o'").fetchone()[0], "other")
+        for i in range(self.TOP_N + 10):
+            self.put(db, f"d{i:02d}.example", 100 - i)
+        shown = self.shown_domains(db)
+        self.assertEqual(len(shown), self.TOP_N)
+        self.assertEqual(shown, sorted(f"d{i:02d}.example" for i in range(self.TOP_N)))
+        other = db.execute("SELECT views FROM report_view_daily WHERE src_kind='o'").fetchone()[0]
+        self.assertEqual(other, sum(100 - i for i in range(self.TOP_N, self.TOP_N + 10)))
 
-    def test_forged_burst_cannot_take_a_later_hours_capacity(self):
+    def test_arrival_order_does_not_decide_who_is_listed(self):
+        results = []
+        for forged_first in (True, False):
+            db = fresh()
+            forged = [(f"forged-{i}.example", 5) for i in range(60)]
+            real = [("real.example", 40), ("other-real.example", 25)]
+            for src, v in (forged + real) if forged_first else (real + forged):
+                self.put(db, src, v)
+            results.append((self.shown_domains(db), sorted(db.execute("SELECT views FROM report_view_daily"))))
+        self.assertEqual(results[0], results[1])
+        self.assertIn("real.example", results[0][0])
+        self.assertIn("other-real.example", results[0][0])
+
+    def test_ranking_is_per_class_so_bots_never_push_out_humans(self):
         db = fresh()
-        for i in range(500):
-            self.insert(db, self.MIDNIGHT, f"attacker-{i}.example")
-        self.insert(db, self.MIDNIGHT + 5 * HOUR, "legit.example")
-        got = db.execute("SELECT src_kind, src FROM view_events WHERE ts = ?", (self.MIDNIGHT + 5 * HOUR,)).fetchall()
-        self.assertEqual(got, [("r", "legit.example")])
-        distinct = db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r'").fetchone()[0]
-        self.assertLessEqual(distinct, self.PER_HOUR + 1)
+        for i in range(self.TOP_N + 30):
+            self.put(db, f"bot{i}.example", 500, bot="a")
+        self.put(db, "human.example", 5, bot="h")
+        self.assertEqual(self.shown_domains(db, "h"), ["human.example"])
+        self.assertEqual(len(self.shown_domains(db, "a")), self.TOP_N)
 
-    def test_automated_rows_never_consume_the_human_budget(self):
+    def test_ranking_counts_a_domain_across_all_its_pages(self):
         db = fresh()
-        for i in range(200):
-            self.insert(db, self.MIDNIGHT, f"bot-{i}.example", bot="a")
-        for i in range(self.PER_HOUR):
-            self.insert(db, self.MIDNIGHT, f"human-{i}.example", bot="h")
-        humans = db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r' AND bot_class='h'").fetchone()[0]
-        bots = db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r' AND bot_class='a'").fetchone()[0]
-        self.assertEqual(humans, self.PER_HOUR)
-        self.assertEqual(bots, self.PER_HOUR)
+        for p in range(10):
+            self.put(db, "wide.example", 5, page=f"/p{p}/")  # 50 views in total
+        for i in range(self.TOP_N):
+            self.put(db, f"single{i}.example", 30)
+        self.assertIn("wide.example", self.shown_domains(db))
 
-    def test_human_burst_does_not_consume_the_automated_budget(self):
+    def test_views_are_never_dropped_only_folded(self):
+        db = fresh()
+        for i in range(self.TOP_N + 15):
+            self.put(db, f"x{i}.example", 7)
+        total = db.execute("SELECT SUM(views) FROM report_view_daily").fetchone()[0]
+        self.assertEqual(total, 7 * (self.TOP_N + 15))
+
+    def test_nonreferrer_rows_are_not_ranked(self):
+        db = fresh()
+        for i in range(self.TOP_N + 5):
+            self.put(db, f"r{i}.example", 50)
+        self.put(db, "", 6, kind="d", page="/direct/")
+        self.assertEqual(
+            db.execute("SELECT views FROM report_view_daily WHERE src_kind='d'").fetchall(), [(6,)]
+        )
+
+    def test_the_write_path_has_no_admission_rule(self):
+        # Write-time admission was first-come and attacker-controlled; keep it out.
+        code = 'import { INSERT_SQL } from "./analytics/collect.mjs"; process.stdout.write(INSERT_SQL);'
+        sql = subprocess.run(
+            ["node", "--input-type=module", "-e", code], cwd=ROOT, check=True, capture_output=True, text=True
+        ).stdout
         db = fresh()
         for i in range(50):
-            self.insert(db, self.MIDNIGHT, f"h-{i}.example", bot="h")
-        self.insert(db, self.MIDNIGHT, "crawler.example", bot="a")
-        self.assertEqual(
-            db.execute("SELECT src_kind FROM view_events WHERE src = 'crawler.example'").fetchone()[0], "r"
-        )
-
-    def test_admitted_domain_stays_admitted_and_real_ts_still_capped(self):
-        db = fresh()
-        for i in range(self.PER_HOUR):
-            self.insert(db, self.MIDNIGHT, f"d{i}.example")
-        # Seen earlier the same UTC day: stays admitted even in a full hour.
-        for i in range(self.PER_HOUR):
-            self.insert(db, self.MIDNIGHT + 3600, f"e{i}.example")
-        self.insert(db, self.MIDNIGHT + 3600, "d0.example")
-        got = db.execute(
-            "SELECT src_kind, src FROM view_events WHERE ts = ? ORDER BY id DESC LIMIT 1", (self.MIDNIGHT + 3600,)
-        ).fetchall()
-        self.assertEqual(got, [("r", "d0.example")])
-        # ts bound as a real number is still capped in its own hour.
-        for i in range(self.PER_HOUR):
-            self.insert(db, float(self.MIDNIGHT + 12 * HOUR), f"f{i}.example")
-        self.insert(db, float(self.MIDNIGHT + 12 * HOUR), "late.example")
-        got = db.execute(
-            "SELECT src_kind, src FROM view_events WHERE ts = ? ORDER BY id DESC LIMIT 1", (self.MIDNIGHT + 12 * HOUR,)
-        ).fetchall()
-        self.assertEqual(got, [("o", "other")])
-
-    def test_day_boundary_resets_budget(self):
-        db = fresh()
-        for i in range(self.PER_HOUR + 2):
-            self.insert(db, self.MIDNIGHT + DAY - 3600, f"x{i}.example")
-        start = self.MIDNIGHT + DAY
-        db.execute(insert_sql(), (start, "/", "r", "next.example", "", "", "", "unknown", "h", start, start + DAY))
-        self.assertEqual(
-            db.execute("SELECT src_kind FROM view_events WHERE src='next.example'").fetchone()[0], "r"
-        )
+            db.execute(sql, (NOW_EPOCH, "/", "r", f"forged{i}.example", "", "", "", "unknown", "h"))
+        self.assertEqual(db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r'").fetchone()[0], 50)
 
 
 class Schema(unittest.TestCase):
@@ -346,10 +344,13 @@ class KThreshold(unittest.TestCase):
         )
 
     def test_the_threshold_is_five_everywhere(self):
-        text = (ROOT / "analytics" / "migrations" / "0001_page_views.sql").read_text()
-        text = text[text.index("CREATE VIEW") :]  # the report views only; CHECK (views >= 1) is a table rule
+        text = ""
+        for m in MIGRATIONS:  # the report views only; CHECK (views >= 1) is a table rule
+            t = m.read_text()
+            if "CREATE VIEW" in t:
+                text += t[t.index("CREATE VIEW") :]
         thresholds = re.findall(r"views\s*(>=|<)\s*(\d+)|SUM\(views\)\s*>=\s*(\d+)", text)
-        self.assertGreaterEqual(len(thresholds), 9)
+        self.assertGreaterEqual(len(thresholds), 12)
         for a, b, c in thresholds:
             self.assertEqual(b or c, "5")
 

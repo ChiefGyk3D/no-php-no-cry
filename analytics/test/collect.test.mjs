@@ -11,7 +11,6 @@ import {
   buildRow,
   hourBucket,
   INSERT_SQL,
-  dayWindow,
 } from "../collect.mjs";
 import { HOSTING_ASNS } from "../hosting-asns.mjs";
 
@@ -73,15 +72,9 @@ test("referrerInfo reduces external hosts to a registrable domain", () => {
   });
 });
 
-test("the insert evaluates the referrer cap check once per row", () => {
-  assert.equal(INSERT_SQL.split("COUNT(DISTINCT").length - 1, 1);
-  assert.equal(INSERT_SQL.split("AS cap").length - 1, 1, "one cap subquery");
-  assert.equal(INSERT_SQL.split("cap.over").length - 1, 2, "both columns read its result");
-});
-
-test("dayWindow is whole-second UTC day bounds", () => {
-  assert.deepEqual(dayWindow(1762732800), { start: 1762732800, end: 1762819200 });
-  assert.deepEqual(dayWindow(1762732800 + 43200), { start: 1762732800, end: 1762819200 });
+test("the insert has no write-time admission rule", () => {
+  assert.equal(INSERT_SQL.split("?").length - 1, 9, "nine plain placeholders");
+  assert.ok(!/\b(select|exists|count)\b/i.test(INSERT_SQL), "no subquery decides who is stored");
 });
 
 test("referrerInfo knows common multi-label suffixes outside the UK", () => {

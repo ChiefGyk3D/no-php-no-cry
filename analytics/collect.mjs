@@ -34,10 +34,6 @@ const MAX_SEGMENTS = 6;
 const MAX_REFERER_CHARS = 2048;
 const MAX_HOST = 80;
 const MAX_UA_CHARS = 512;
-// New referrer domains admitted per UTC hour, per group (likely human, and
-// automated). At most 24 x this many distinct domains a day per group.
-const HOURLY_NEW_REFERRER_DOMAINS = 5;
-
 // Closed list of common two-label public suffixes. All other valid names use
 // their final two labels. KNOWN LIMIT: this is not the full Public Suffix List,
 // so a suffix missing here reduces to the suffix itself, which merges unrelated
@@ -215,56 +211,20 @@ export function buildRow(request, response, env, nowMs) {
   };
 }
 
-// ?10 and ?11 are the UTC day bounds, computed in JS (see dayWindow), so the
-// window never depends on how the driver types ?1.
-// One statement makes the admission check and insert atomic in SQLite.
-// Referer is forgeable, so arrival order must not decide who is admitted:
-//   - a domain already stored that UTC day stays in its bucket;
-//   - a new domain is admitted only while its own UTC hour has room, so a burst
-//     in one hour cannot take the capacity of any later hour;
-//   - the likely-human group (bot_class h) and the automated group have separate
-//     hourly budgets, so automated rows never consume the human budget.
-// Beyond the budget, a new domain shares the closed other bucket. The check runs
-// once per row, in the cap subquery, and both CASE columns read its result.
-export const INSERT_SQL = `INSERT INTO view_events
-  (ts, page, src_kind, src, country, region, city, net, bot_class)
-SELECT ?1, ?2,
-  CASE WHEN cap.over THEN 'o' ELSE ?3 END,
-  CASE WHEN cap.over THEN 'other' ELSE ?4 END,
-  ?5, ?6, ?7, ?8, ?9
-FROM (
-  SELECT (
-    ?3 = 'r'
-    AND NOT EXISTS (
-      SELECT 1 FROM view_events
-      WHERE ts >= ?10 AND ts < ?11
-        AND src_kind = 'r' AND src = ?4
-    )
-    AND ${HOURLY_NEW_REFERRER_DOMAINS} <= (
-      SELECT COUNT(DISTINCT e.src) FROM view_events e
-      WHERE e.ts = ?1
-        AND e.src_kind = 'r'
-        AND (e.bot_class = 'h') = (?9 = 'h')
-        AND NOT EXISTS (
-          SELECT 1 FROM view_events p
-          WHERE p.ts >= ?10 AND p.ts < ?1
-            AND p.src_kind = 'r' AND p.src = e.src
-        )
-    )
-  ) AS over
-) AS cap`;
-
-/** Whole-second UTC day bounds [start, end) containing ts (seconds). */
-export function dayWindow(ts) {
-  const start = Math.floor(ts / 86400) * 86400;
-  return { start, end: start + 86400 };
-}
+// No admission rule at write time. The Referer header is forged freely, so any
+// rule that decides at write time which domains to keep is decided by arrival
+// order, which a requester controls. Every domain is stored as it arrived and
+// the report view (analytics/migrations/0002_report_top_referrers.sql) keeps
+// the top domains per day and class by views. Storage is bounded by the page
+// view rows themselves (one row per counted view, 7 day retention), not by the
+// number of distinct domains.
+export const INSERT_SQL =
+  "INSERT INTO view_events (ts, page, src_kind, src, country, region, city, net, bot_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 /** One D1 write. Rejects on any database error; the caller swallows it. */
 export async function insertRow(db, row) {
-  const day = dayWindow(row.ts);
   await db
     .prepare(INSERT_SQL)
-    .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class, day.start, day.end)
+    .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class)
     .run();
 }

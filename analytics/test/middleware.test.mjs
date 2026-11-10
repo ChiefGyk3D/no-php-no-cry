@@ -232,6 +232,26 @@ test("egress probe bites: leaking modules are caught", () => {
   }
 });
 
+test("egress probe bites on input-dependent leaks the first probe set missed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "egress-probe-"));
+  try {
+    // Each module leaks only for one header, method or path. A fixed handful of
+    // requests would not drive them; the input tables do.
+    const cases = {
+      header: 'export async function onRequest(c) { if (c.request.headers.get("x-leak")) { try { await fetch("https://example.org/"); } catch {} } return c.next(); }',
+      method: 'export async function onRequest(c) { if (c.request.method === "PATCH") { try { await fetch("https://example.org/"); } catch {} } return c.next(); }',
+      path: 'export async function onRequest(c) { if (new URL(c.request.url).pathname === "/robots.txt") { try { await fetch("https://example.org/"); } catch {} } return c.next(); }',
+    };
+    for (const [name, src] of Object.entries(cases)) {
+      const f = join(dir, `${name}.mjs`);
+      writeFileSync(f, src);
+      assert.ok(runProbe(pathToFileURL(f).href).hits.includes("fetch"), `${name}-dependent leak detected`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---- source lint (best effort, NOT a security boundary): collect loosely,
 // assert strictly, with a negative case.
 
