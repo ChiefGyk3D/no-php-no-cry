@@ -9,9 +9,10 @@ number is exact. A gap between them is expected. It is not, by itself, a bug or 
 - **Script blockers.** Cloudflare's beacon runs as a script, so it misses visitors who
   block it. The blog counter runs on the server, so it also counts visitors who block
   scripts.
-- **Crawlers, prefetches and link previews.** The blog counter counts them. Crawlers are
-  kept in their own bot class. Prefetches and link previews are not people reading the
-  page, and a reader of the blog counter should expect them in the totals.
+- **Crawlers, prefetches and link previews.** The blog counter counts crawlers in their
+  own bot class. It leaves out prefetches and link previews when the request is marked as
+  one, but an unmarked one can still be counted. Cloudflare may treat all of these
+  differently, so the two counters can disagree in either direction.
 - **Global Privacy Control and Do Not Track.** The blog counter records nothing for a
   visitor who sends either signal, so those visitors are missing from it.
 - **UTC days.** The blog counter groups by UTC day. A day in another time zone or in the
@@ -37,8 +38,9 @@ is the canonical wording; `scripts/test-analytics-reconciliation.py` checks it.
 
 <!-- report-footer:start -->
 Cloudflare Web Analytics and the blog counter will not match, and neither is exact.
-Script blockers, crawlers, prefetches and link previews, Global Privacy Control and Do
-Not Track, UTC days, the 5 view floor and fail-open drops all move the numbers. Use the
+Script blockers, crawlers, how each counter treats prefetches and link previews, Global
+Privacy Control and Do Not Track, UTC days, the 5 view floor and fail-open drops all move
+the numbers. Use the
 blog counter for pages, sources and clicks, and Cloudflare for page timing. Neither is a
 billing figure.
 <!-- report-footer:end -->

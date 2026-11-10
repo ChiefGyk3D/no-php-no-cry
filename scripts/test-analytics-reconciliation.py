@@ -50,6 +50,9 @@ def check_note(text):
         problems.append("footer block missing")
     else:
         foot = " ".join(m.group(1).lower().split())
+        for name, pat in CAUSES.items():
+            if not re.search(pat, foot):
+                problems.append("footer lacks cause: " + name)
         for pat in RULES[:3]:
             core = pat.replace("blog counter is the source for pages, sources and clicks", "blog counter for pages, sources and clicks")
             core = core.replace("cloudflare is the source for page timing", "cloudflare for page timing")
@@ -76,6 +79,8 @@ class ReconciliationNote(unittest.TestCase):
             text.replace("<!-- report-footer:start -->", ""),
             text.replace("Global Privacy Control", "a header"),
             text + "\nBoth counters are exact.\n",
+            # a cause removed from the footer only (the body still names it)
+            FOOTER.sub(lambda m: re.sub(r"UTC\s+days,\s+", "", m.group(0)), text),
         ):
             self.assertNotEqual(check_note(broken), [])
 
