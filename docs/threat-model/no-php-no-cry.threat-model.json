@@ -2966,7 +2966,7 @@
             },
             "attrs": {
               "text": {
-                "text": "Doppler (cloudflare project, prd config)"
+                "text": "Doppler (cloudflare project, dev config)"
               },
               "topLine": {
                 "stroke": "#333333",
@@ -2984,7 +2984,7 @@
             "zIndex": 6,
             "id": "7e95b890-72da-55bb-ac7a-efdb9465abdc",
             "data": {
-              "name": "Doppler (cloudflare project, prd config)",
+              "name": "Doppler (cloudflare project, dev config)",
               "description": "Holds CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, nothing else. A later project holds the analytics hash secret.",
               "type": "tm.Store",
               "isTrustBoundary": false,

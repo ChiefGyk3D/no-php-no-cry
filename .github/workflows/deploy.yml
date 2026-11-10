@@ -245,7 +245,7 @@ jobs:
         uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
         with:
           project: cloudflare
-          config: prd
+          config: dev
           identity-id: ${{ vars.DOPPLER_CLOUDFLARE_IDENTITY_ID }}
 
       # Doppler exports the two names. If it did not, fail, never skip. No
@@ -260,7 +260,7 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
           if [ -n "$missing" ]; then
-            echo "::error title=Deploy::missing:${missing}. Doppler (project cloudflare, config prd) did not supply it. See docs/deploy.md."
+            echo "::error title=Deploy::missing:${missing}. Doppler (project cloudflare, config dev) did not supply it. See docs/deploy.md."
             exit 1
           fi
           echo "Cloudflare credentials present (values not shown)."
