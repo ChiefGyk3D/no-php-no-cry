@@ -981,19 +981,21 @@ def changed_content(root, base):
                 base = "HEAD^1"
     if not base:
         raise SystemExit("check-content: no diff base (use --base REF, --all, or name files)")
-    rc, out = git(root, "diff", "--no-renames", "--name-only", "--diff-filter=d", "-z", base, "--", "content")
+    rc, out = git(root, "diff", "--no-renames", "--name-only", "-z", base, "--", "content")
     if rc != 0:
         raise SystemExit("check-content: git diff against %s failed" % base)
     names = set(out.decode("utf-8", "replace").split("\0"))
+    deleted = {name for name in names if name and not os.path.lexists(os.path.join(root, name))}
     rc, out = git(root, "ls-files", "-z", "--others", "--exclude-standard", "--", "content")
     if rc == 0:
         names |= set(out.decode("utf-8", "replace").split("\0"))
     names.discard("")
-    return sorted(names)
+    return sorted(names), deleted
 
 
 def main(argv):
     root, base, as_json, terms_file = DEFAULT_ROOT, None, False, None
+    deleted = set()
     use_all, max_image, files = False, IMAGE_MAX, []
     it = iter(argv)
     for a in it:
@@ -1035,7 +1037,7 @@ def main(argv):
     elif use_all:
         sel = all_content(root)
     else:
-        sel = changed_content(root, base)
+        sel, deleted = changed_content(root, base)
     sel = sorted({f for f in sel if f.startswith("content/") and ".." not in f.split("/")})
     if len(sel) > MAX_FILES:
         print("check-content: more than %d files" % MAX_FILES, file=sys.stderr)
@@ -1043,7 +1045,10 @@ def main(argv):
 
     ck = Checker(root, max_image, load_terms(terms_file))
     for rel in sel:
-        ck.check_file(rel)
+        if rel in deleted:
+            ck.err("deleted", rel, "content deletion requires an explicit repository rule")
+        else:
+            ck.check_file(rel)
     ck.check_unreferenced()
     ck.check_brand()
     ck.errors.sort(key=lambda e: (e["path"], e["rule"], e["message"]))

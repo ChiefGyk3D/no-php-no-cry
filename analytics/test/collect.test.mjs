@@ -10,6 +10,10 @@ import {
   shouldCount,
   buildRow,
   hourBucket,
+  INSERT_SQL,
+  REGISTER_SQL,
+  REFERRER_DAILY_CAP,
+  insertRow,
 } from "../collect.mjs";
 import { HOSTING_ASNS } from "../hosting-asns.mjs";
 
@@ -47,10 +51,10 @@ test("normalizePath drops hostile paths instead of rewriting them", () => {
   assert.equal(normalizePath("no-leading-slash"), null);
 });
 
-test("referrerInfo keeps only the host", () => {
+test("referrerInfo keeps only the registrable domain", () => {
   assert.deepEqual(
     referrerInfo("https://News.Example.ORG/a/b?q=secret#x", "blog.example.test"),
-    { kind: "r", host: "news.example.org" },
+    { kind: "r", host: "example.org" },
   );
   assert.deepEqual(referrerInfo(null, "blog.example.test"), { kind: "d", host: "" });
   assert.deepEqual(referrerInfo("", "blog.example.test"), { kind: "d", host: "" });
@@ -58,6 +62,116 @@ test("referrerInfo keeps only the host", () => {
     referrerInfo("https://blog.example.test/other/", "blog.example.test"),
     { kind: "i", host: "" },
   );
+});
+
+test("referrerInfo reduces external hosts to a registrable domain", () => {
+  assert.deepEqual(referrerInfo("https://one.two.example.org/path", "blog.example.test"), {
+    kind: "r",
+    host: "example.org",
+  });
+  assert.deepEqual(referrerInfo("https://news.example.co.uk/path", "blog.example.test"), {
+    kind: "r",
+    host: "example.co.uk",
+  });
+});
+
+test("the write path caps distinct referrer domains per day and says so", () => {
+  assert.ok(Number.isInteger(REFERRER_DAILY_CAP) && REFERRER_DAILY_CAP >= 100 && REFERRER_DAILY_CAP <= 1000);
+  assert.match(INSERT_SQL, /referrer_seen/);
+  assert.match(REGISTER_SQL, /< \?3/);
+  for (let i = 1; i <= 9; i++) assert.ok(INSERT_SQL.includes(`?${i}`), `insert binds ?${i}`);
+});
+
+// A fake D1 binding. run() applies one statement at once and keeps it even if a
+// later one fails (the old two-call write path). batch() models D1's contract:
+// the statements are one transaction, so a rejection restores the state taken
+// before the first one. failOn names a statement (REGISTER_SQL or INSERT_SQL)
+// that rejects after the earlier ones in the same call have been applied.
+function fakeD1({ failOn = null, cap = REFERRER_DAILY_CAP } = {}) {
+  const state = { registry: new Set(), events: [] };
+  const apply = (st) => {
+    if (st.sql === failOn) throw new Error("D1 timeout");
+    if (st.sql === REGISTER_SQL) {
+      if (!state.registry.has(st.args[1]) && state.registry.size < cap) state.registry.add(st.args[1]);
+    } else if (st.sql === INSERT_SQL) {
+      const [, page, kind, src] = st.args;
+      const admitted = kind !== "r" || state.registry.has(src);
+      state.events.push(admitted ? { page, kind, src } : { page, kind: "o", src: "other" });
+    }
+  };
+  return {
+    state,
+    prepare: (sql) => ({ bind: (...args) => ({ sql, args, run: async () => apply({ sql, args }) }) }),
+    async batch(stmts) {
+      const before = { registry: new Set(state.registry), events: [...state.events] };
+      try {
+        for (const st of stmts) apply(st);
+      } catch (err) {
+        state.registry = before.registry;
+        state.events = before.events;
+        throw err;
+      }
+    },
+  };
+}
+
+const rowBase = { ts: 3600, page: "/a/", src: "", country: "", region: "", city: "", net: "unknown", bot_class: "h" };
+
+test("insertRow writes a plain row alone and a referrer as one batch, register first", async () => {
+  const seen = [];
+  const db = {
+    prepare: (sql) => ({ bind: (...args) => ({ sql, args, run: async () => seen.push([sql]) }) }),
+    batch: async (stmts) => seen.push(stmts.map((s) => s.sql)),
+  };
+  await insertRow(db, { ...rowBase, src_kind: "d" });
+  assert.deepEqual(seen, [[INSERT_SQL]]);
+  seen.length = 0;
+  let registerArgs;
+  db.batch = async (stmts) => {
+    registerArgs = stmts[0].args;
+    seen.push(stmts.map((s) => s.sql));
+  };
+  await insertRow(db, { ...rowBase, src_kind: "r", src: "x.example" });
+  assert.deepEqual(seen, [[REGISTER_SQL, INSERT_SQL]]);
+  assert.deepEqual(registerArgs, [3600, "x.example", REFERRER_DAILY_CAP]);
+});
+
+test("a failed event insert leaves no registered domain behind (atomic batch)", async () => {
+  const db = fakeD1({ failOn: INSERT_SQL });
+  await assert.rejects(insertRow(db, { ...rowBase, src_kind: "r", src: "x.example" }), /D1 timeout/);
+  assert.equal(db.state.registry.size, 0, "registry must not stay reserved");
+  assert.equal(db.state.events.length, 0);
+});
+
+test("negative control: the fake keeps a registration when the two writes are separate calls", async () => {
+  const db = fakeD1({ failOn: INSERT_SQL });
+  await db.prepare(REGISTER_SQL).bind(3600, "x.example", REFERRER_DAILY_CAP).run();
+  await assert.rejects(db.prepare(INSERT_SQL).bind(3600, "/a/", "r", "x.example").run(), /D1 timeout/);
+  assert.equal(db.state.registry.size, 1);
+});
+
+test("the event value follows the registry result inside the batch (fail closed)", async () => {
+  const db = fakeD1({ cap: 1 });
+  await insertRow(db, { ...rowBase, src_kind: "r", src: "first.example" });
+  await insertRow(db, { ...rowBase, src_kind: "r", src: "second.example" });
+  assert.deepEqual(db.state.events.map((e) => [e.kind, e.src]), [["r", "first.example"], ["o", "other"]]);
+});
+
+test("referrerInfo knows common multi-label suffixes outside the UK", () => {
+  for (const [header, host] of [
+    ["https://one.example.co.in/p", "example.co.in"],
+    ["https://a.b.example.com.cn/p", "example.com.cn"],
+    ["https://x.example.co.kr/p", "example.co.kr"],
+    ["https://x.example.co.za/p", "example.co.za"],
+    ["https://x.example.com.tr/p", "example.com.tr"],
+  ]) {
+    assert.deepEqual(referrerInfo(header, "blog.example.test"), { kind: "r", host }, header);
+  }
+  // Documented limit: a suffix not on the closed list reduces to two labels.
+  assert.deepEqual(referrerInfo("https://a.example.unlisted.test/p", "blog.example.test"), {
+    kind: "r",
+    host: "unlisted.test",
+  });
 });
 
 test("referrerInfo handles odd and hostile referrers", () => {
@@ -77,7 +191,7 @@ test("referrerInfo handles odd and hostile referrers", () => {
   // user info and port never leak into the stored host
   assert.deepEqual(
     referrerInfo("https://user:pw@host.example.org:8443/p", site),
-    { kind: "r", host: "host.example.org" },
+    { kind: "r", host: "example.org" },
   );
   // an IP literal is not stored as a host name
   assert.deepEqual(referrerInfo("http://203.0.113.9/x", site), { kind: "o", host: "other" });
@@ -217,7 +331,7 @@ test("buildRow stores only the allowed fields, never the address or user agent",
   ]);
   assert.equal(row.page, "/posts/a/");
   assert.equal(row.src_kind, "r");
-  assert.equal(row.src, "social.example.org");
+  assert.equal(row.src, "example.org");
   assert.equal(row.ts % 3600, 0);
   assert.equal(row.bot_class, "h");
   const dump = JSON.stringify(row);

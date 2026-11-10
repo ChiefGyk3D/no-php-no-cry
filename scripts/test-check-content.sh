@@ -781,4 +781,11 @@ out="$(check_py --root "$d" --base HEAD~1 2>&1)" || rc=$?
 if [[ $rc -eq 1 ]] && grep -q '^file-type: content/posts/p/untracked-note.txt' <<<"$out"; then ok "an untracked new file is checked"; else bad "untracked (exit $rc): $out"; fi
 rm -f "$d/content/posts/p/untracked-note.txt"
 
+git -C "$d" rm -q content/posts/q/index.md
+rc=0
+out="$(check_py --root "$d" --base HEAD 2>&1)" || rc=$?
+if [[ $rc -eq 1 ]] && grep -q '^deleted: content/posts/q/index.md:' <<<"$out"; then
+    ok "changed mode rejects a deleted content file"
+else bad "deleted content (exit $rc): $out"; fi
+
 exit "$fail"
