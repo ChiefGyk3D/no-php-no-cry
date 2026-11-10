@@ -34,6 +34,22 @@ const MAX_SEGMENTS = 6;
 const MAX_REFERER_CHARS = 2048;
 const MAX_HOST = 80;
 const MAX_UA_CHARS = 512;
+const MAX_DAILY_REFERRER_DOMAINS = 100;
+
+// Closed list of common two-label public suffixes. All other valid names use
+// their final two labels. This is intentionally small, pinned in source and
+// requires no runtime lookup or network access.
+const TWO_LABEL_PUBLIC_SUFFIXES = new Set([
+  "ac.uk", "co.jp", "co.nz", "co.uk", "com.au", "com.br", "com.mx",
+  "edu.au", "gov.au", "gov.uk", "net.au", "net.nz", "org.au", "org.nz", "org.uk",
+]);
+
+function registrableDomain(host) {
+  const labels = host.split(".");
+  if (labels.length < 3) return host;
+  const suffix = labels.slice(-2).join(".");
+  return labels.slice(TWO_LABEL_PUBLIC_SUFFIXES.has(suffix) ? -3 : -2).join(".");
+}
 
 /** Epoch seconds of the start of the hour containing `nowMs`. */
 export function hourBucket(nowMs) {
@@ -82,7 +98,7 @@ export function referrerInfo(header, siteHost) {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(host)) {
     return direct;
   }
-  return { kind: "r", host };
+  return { kind: "r", host: registrableDomain(host) };
 }
 
 /**
@@ -190,8 +206,27 @@ export function buildRow(request, response, env, nowMs) {
   };
 }
 
-export const INSERT_SQL =
-  "INSERT INTO view_events (ts, page, src_kind, src, country, region, city, net, bot_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+const REFERRER_OVER_CAP = `?3 = 'r'
+  AND NOT EXISTS (
+    SELECT 1 FROM view_events
+    WHERE ts >= (?1 / 86400) * 86400 AND ts < ((?1 / 86400) + 1) * 86400
+      AND src_kind = 'r' AND src = ?4
+  )
+  AND ${MAX_DAILY_REFERRER_DOMAINS} <= (
+    SELECT COUNT(DISTINCT src) FROM view_events
+    WHERE ts >= (?1 / 86400) * 86400 AND ts < ((?1 / 86400) + 1) * 86400
+      AND src_kind = 'r'
+  )`;
+
+// One statement makes the admission check and insert atomic in SQLite. A
+// domain already admitted that UTC day stays in its bucket. New domains after
+// the cap share the closed other bucket.
+export const INSERT_SQL = `INSERT INTO view_events
+  (ts, page, src_kind, src, country, region, city, net, bot_class)
+SELECT ?1, ?2,
+  CASE WHEN ${REFERRER_OVER_CAP} THEN 'o' ELSE ?3 END,
+  CASE WHEN ${REFERRER_OVER_CAP} THEN 'other' ELSE ?4 END,
+  ?5, ?6, ?7, ?8, ?9`;
 
 /** One D1 write. Rejects on any database error; the caller swallows it. */
 export async function insertRow(db, row) {

@@ -221,6 +221,18 @@ test("guard bites: scanSource flags each forbidden pattern", () => {
   assert.deepEqual(scanSource("const a = 1; // nothing here"), []);
 });
 
+test("guard bites: computed properties and simple aliases cannot hide calls", () => {
+  for (const bad of [
+    'globalThis["console"]["log"](request.url)',
+    'globalThis["fetch"]("https://example.org")',
+    "const send = fetch; send('https://example.org')",
+    "const socket = globalThis['WebSocket']; new socket('wss://example.org')",
+    "const beacon = navigator['sendBeacon']; beacon('/collect')",
+  ]) {
+    assert.ok(scanSource(bad).length > 0, bad);
+  }
+});
+
 test("guard: functions/ holds only the middleware and its package.json", () => {
   const names = readdirSync(join(root, "functions")).sort();
   assert.deepEqual(names, ["_middleware.js", "package.json"]);

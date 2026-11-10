@@ -2,13 +2,16 @@
 //
 // Static guards used by the tests. Not part of the Function bundle.
 
-// Each entry: [name, pattern]. Comments in the scanned sources avoid these
-// exact words on purpose.
+// Each entry is [name, pattern]. This is an explicit closed heuristic, not a
+// JavaScript parser. Security-sensitive names are rejected in direct calls,
+// computed string properties and simple assignments. Comments in collector
+// sources avoid matching these patterns. The fixtures cover every supported
+// form so broadening JavaScript style cannot silently weaken the guard.
 const FORBIDDEN = [
   ["address-header", /cf-connecting-ip|x-forwarded-for|true-client-ip|x-real-ip|x-client-ip/i],
   ["cookie-or-storage", /set-cookie|document\.cookie|localstorage|sessionstorage|indexeddb/i],
-  ["outbound-call", /\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/],
-  ["logging", /\bconsole\s*\./],
+  ["outbound-call", /\bfetch\s*\(|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*fetch\b|XMLHttpRequest|WebSocket|sendBeacon|["'](?:fetch|XMLHttpRequest|WebSocket|sendBeacon)["']/],
+  ["logging", /\bconsole\s*\.|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*console\b|["']console["']/],
   ["language-header", /accept-language/i],
   ["precise-location", /\.latitude|\.longitude|\.postalCode|\.metroCode|\.timezone\b/],
   ["network-owner", /asOrganization/],

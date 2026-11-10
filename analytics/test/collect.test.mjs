@@ -1,6 +1,10 @@
 // Unit tests for analytics/collect.mjs. Run: node --test analytics/test/
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import {
   normalizePath,
   referrerInfo,
@@ -10,11 +14,13 @@ import {
   shouldCount,
   buildRow,
   hourBucket,
+  INSERT_SQL,
 } from "../collect.mjs";
 import { HOSTING_ASNS } from "../hosting-asns.mjs";
 
 const HUMAN_UA =
   "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0";
+const here = dirname(fileURLToPath(import.meta.url));
 
 function req(url = "https://blog.example.test/posts/a/", headers = {}, cf) {
   const r = new Request(url, { headers });
@@ -47,10 +53,10 @@ test("normalizePath drops hostile paths instead of rewriting them", () => {
   assert.equal(normalizePath("no-leading-slash"), null);
 });
 
-test("referrerInfo keeps only the host", () => {
+test("referrerInfo keeps only the registrable domain", () => {
   assert.deepEqual(
     referrerInfo("https://News.Example.ORG/a/b?q=secret#x", "blog.example.test"),
-    { kind: "r", host: "news.example.org" },
+    { kind: "r", host: "example.org" },
   );
   assert.deepEqual(referrerInfo(null, "blog.example.test"), { kind: "d", host: "" });
   assert.deepEqual(referrerInfo("", "blog.example.test"), { kind: "d", host: "" });
@@ -58,6 +64,50 @@ test("referrerInfo keeps only the host", () => {
     referrerInfo("https://blog.example.test/other/", "blog.example.test"),
     { kind: "i", host: "" },
   );
+});
+
+test("referrerInfo reduces external hosts to a registrable domain", () => {
+  assert.deepEqual(referrerInfo("https://one.two.example.org/path", "blog.example.test"), {
+    kind: "r",
+    host: "example.org",
+  });
+  assert.deepEqual(referrerInfo("https://news.example.co.uk/path", "blog.example.test"), {
+    kind: "r",
+    host: "example.co.uk",
+  });
+});
+
+function sqlite(input) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("sqlite3", [":memory:"], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => { stdout += chunk; });
+    child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+    child.stdin.end(input);
+  });
+}
+
+test("the insert caps distinct referrer domains per UTC day", async () => {
+  const migration = readFileSync(join(here, "..", "migrations", "0001_page_views.sql"), "utf8");
+  const ts = Date.UTC(2026, 10, 10, 12) / 1000;
+  const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
+  const inserts = [];
+  for (let i = 0; i < 101; i += 1) {
+    const values = [ts, "/", "r", `domain-${i}.example`, "", "", "", "unknown", "h"];
+    let sql = INSERT_SQL;
+    for (let n = values.length; n >= 1; n -= 1) {
+      sql = sql.replaceAll(`?${n}`, typeof values[n - 1] === "number" ? String(values[n - 1]) : quote(values[n - 1]));
+    }
+    inserts.push(`${sql};`);
+  }
+  const result = await sqlite(`${migration}\n${inserts.join("\n")}\nSELECT src_kind || ':' || src || ':' || count(*) FROM view_events GROUP BY src_kind, src ORDER BY src;\n`);
+  assert.equal(result.status, 0, result.stderr);
+  const rows = result.stdout.trim().split("\n");
+  assert.equal(rows.filter((line) => line.startsWith("r:")).length, 100);
+  assert.ok(rows.includes("o:other:1"));
 });
 
 test("referrerInfo handles odd and hostile referrers", () => {
@@ -77,7 +127,7 @@ test("referrerInfo handles odd and hostile referrers", () => {
   // user info and port never leak into the stored host
   assert.deepEqual(
     referrerInfo("https://user:pw@host.example.org:8443/p", site),
-    { kind: "r", host: "host.example.org" },
+    { kind: "r", host: "example.org" },
   );
   // an IP literal is not stored as a host name
   assert.deepEqual(referrerInfo("http://203.0.113.9/x", site), { kind: "o", host: "other" });
@@ -217,7 +267,7 @@ test("buildRow stores only the allowed fields, never the address or user agent",
   ]);
   assert.equal(row.page, "/posts/a/");
   assert.equal(row.src_kind, "r");
-  assert.equal(row.src, "social.example.org");
+  assert.equal(row.src, "example.org");
   assert.equal(row.ts % 3600, 0);
   assert.equal(row.bot_class, "h");
   const dump = JSON.stringify(row);
