@@ -110,7 +110,13 @@
   transform: translateX(3px) rotate(45deg);
 }
 
+/* Keyboard focus takes the hover state (amber fill, dark ticks and text) before the child rules above
+ * use the dark on-accent colors, and keeps the focus outline outside the frame. Without the fill the
+ * dark address and chevron would sit on the dark surface (issue 329 review). */
 .contact-tile:focus-visible {
+  --fill: var(--accent);
+  --tick: var(--on-accent);
+  color: var(--on-accent);
   outline: var(--rule-accent-width) solid var(--focus);
   outline-offset: 3px;
 }
@@ -123,6 +129,15 @@
   .contact-tile:hover .contact-tile-go,
   .contact-tile:focus-visible .contact-tile-go {
     transform: rotate(45deg);
+  }
+}
+
+/* The two panels side by side (48 to 64 rem) leave the tile about 250 px: the unbreakable Discord
+ * address needs the tighter padding and gap to stay inside it. */
+@media (min-width: 48rem) and (max-width: 64rem) {
+  .contact-grid .contact-tile {
+    column-gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
   }
 }
 
