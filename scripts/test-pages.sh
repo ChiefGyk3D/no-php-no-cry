@@ -964,10 +964,10 @@ if grep -q 'linkedin.com' "$pub/llms.txt" 2>/dev/null; then
 else
     pass "LinkedIn is not in llms.txt"
 fi
-if grep -q 'linkedin.com/in/moshe-g' "$pub/resume/index.html"; then
-    pass "the Resume links LinkedIn"
+if python3 -I -c 'import re,sys; h=open(sys.argv[1],encoding="utf-8").read(); m=re.search(r"Contact</h2>(.*?)(?:<h2|</article>|$)",h,re.S); sys.exit(0 if m and "linkedin" not in m.group(1).lower() else 1)' "$pub/resume/index.html"; then
+    pass "the Resume Contact section has no LinkedIn link (issue 360)"
 else
-    fail "the Resume does not link LinkedIn"
+    fail "the Resume Contact section links or mentions LinkedIn, or has no Contact section"
 fi
 # Guard: the LinkedIn-leak check bites. A head link, and a Socials tile, put in must be caught.
 for pair in 'head:s#</head>#<link rel=me href=https://www.linkedin.com/in/moshe-g></head>#' 'chip:s#<li><a class=icon-github#<li><a class=icon-linkedin href=https://www.linkedin.com/in/moshe-g>LinkedIn</a></li><li><a class=icon-github#'; do
