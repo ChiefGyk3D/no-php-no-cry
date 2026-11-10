@@ -3,7 +3,8 @@
 # X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame rules, cache
 # headers, plus status, robots and third-party checks) with a build of this commit
 # and fails on drift or a missing header. GET requests only; no credentials, no
-# repository secrets. Guarded by scripts/check-live-headers-workflow.py.
+# repository secrets. The structural guard in scripts/check-live-headers-workflow.py
+# pins the static matrix, exact verifier steps and permission boundaries.
 # It is a monitor, not a merge gate, so it is not part of `CI green`.
 name: Live headers
 
