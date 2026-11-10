@@ -245,13 +245,23 @@ export const INSERT_SQL =
   "CASE WHEN ?3 = 'r' AND NOT EXISTS (SELECT 1 FROM referrer_seen WHERE day = date(?1, 'unixepoch') AND src = ?4) THEN 'other' ELSE ?4 END, " +
   "?5, ?6, ?7, ?8, ?9";
 
-/** Up to two D1 writes. Rejects on any database error; the caller swallows it. */
+/**
+ * One D1 write for a plain row; for a referrer, the registry insert and the
+ * event insert go in a single db.batch([...]), which D1 runs as one SQL
+ * transaction that rolls back if either statement fails. A failure or timeout
+ * therefore cannot leave a domain registered without its event. Statements run
+ * in order, so the event sees the registration it just made: if the register
+ * statement won no slot (cap reached, lost race) the event reads "other".
+ * Rejects on any database error; the caller swallows it.
+ */
 export async function insertRow(db, row) {
-  if (row.src_kind === "r") {
-    await db.prepare(REGISTER_SQL).bind(row.ts, row.src, REFERRER_DAILY_CAP).run();
-  }
-  await db
+  const event = db
     .prepare(INSERT_SQL)
-    .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class)
-    .run();
+    .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class);
+  if (row.src_kind === "r") {
+    const register = db.prepare(REGISTER_SQL).bind(row.ts, row.src, REFERRER_DAILY_CAP);
+    await db.batch([register, event]);
+    return;
+  }
+  await event.run();
 }

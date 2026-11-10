@@ -50,9 +50,13 @@ const db = {
   prepare(sql) {
     return {
       bind(...args) {
-        return { run: () => (writes.push({ sql, args }), Promise.resolve({ success: true })) };
+        return { sql, args, run: () => (writes.push({ sql, args }), Promise.resolve({ success: true })) };
       },
     };
+  },
+  batch(stmts) {
+    for (const st of stmts) writes.push({ sql: st.sql, args: st.args });
+    return Promise.resolve([]);
   },
 };
 const failingDb = {

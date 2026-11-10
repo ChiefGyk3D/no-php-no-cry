@@ -82,18 +82,79 @@ test("the write path caps distinct referrer domains per day and says so", () => 
   for (let i = 1; i <= 9; i++) assert.ok(INSERT_SQL.includes(`?${i}`), `insert binds ?${i}`);
 });
 
-test("insertRow registers a referrer before the event and only a referrer", async () => {
+// A fake D1 binding. run() applies one statement at once and keeps it even if a
+// later one fails (the old two-call write path). batch() models D1's contract:
+// the statements are one transaction, so a rejection restores the state taken
+// before the first one. failOn names a statement (REGISTER_SQL or INSERT_SQL)
+// that rejects after the earlier ones in the same call have been applied.
+function fakeD1({ failOn = null, cap = REFERRER_DAILY_CAP } = {}) {
+  const state = { registry: new Set(), events: [] };
+  const apply = (st) => {
+    if (st.sql === failOn) throw new Error("D1 timeout");
+    if (st.sql === REGISTER_SQL) {
+      if (!state.registry.has(st.args[1]) && state.registry.size < cap) state.registry.add(st.args[1]);
+    } else if (st.sql === INSERT_SQL) {
+      const [, page, kind, src] = st.args;
+      const admitted = kind !== "r" || state.registry.has(src);
+      state.events.push(admitted ? { page, kind, src } : { page, kind: "o", src: "other" });
+    }
+  };
+  return {
+    state,
+    prepare: (sql) => ({ bind: (...args) => ({ sql, args, run: async () => apply({ sql, args }) }) }),
+    async batch(stmts) {
+      const before = { registry: new Set(state.registry), events: [...state.events] };
+      try {
+        for (const st of stmts) apply(st);
+      } catch (err) {
+        state.registry = before.registry;
+        state.events = before.events;
+        throw err;
+      }
+    },
+  };
+}
+
+const rowBase = { ts: 3600, page: "/a/", src: "", country: "", region: "", city: "", net: "unknown", bot_class: "h" };
+
+test("insertRow writes a plain row alone and a referrer as one batch, register first", async () => {
   const seen = [];
   const db = {
-    prepare: (sql) => ({ bind: (...args) => ({ run: async () => seen.push({ sql, args }) }) }),
+    prepare: (sql) => ({ bind: (...args) => ({ sql, args, run: async () => seen.push([sql]) }) }),
+    batch: async (stmts) => seen.push(stmts.map((s) => s.sql)),
   };
-  const base = { ts: 3600, page: "/a/", src: "", country: "", region: "", city: "", net: "unknown", bot_class: "h" };
-  await insertRow(db, { ...base, src_kind: "d" });
-  assert.deepEqual(seen.map((s) => s.sql), [INSERT_SQL]);
+  await insertRow(db, { ...rowBase, src_kind: "d" });
+  assert.deepEqual(seen, [[INSERT_SQL]]);
   seen.length = 0;
-  await insertRow(db, { ...base, src_kind: "r", src: "x.example" });
-  assert.deepEqual(seen.map((s) => s.sql), [REGISTER_SQL, INSERT_SQL]);
-  assert.deepEqual(seen[0].args, [3600, "x.example", REFERRER_DAILY_CAP]);
+  let registerArgs;
+  db.batch = async (stmts) => {
+    registerArgs = stmts[0].args;
+    seen.push(stmts.map((s) => s.sql));
+  };
+  await insertRow(db, { ...rowBase, src_kind: "r", src: "x.example" });
+  assert.deepEqual(seen, [[REGISTER_SQL, INSERT_SQL]]);
+  assert.deepEqual(registerArgs, [3600, "x.example", REFERRER_DAILY_CAP]);
+});
+
+test("a failed event insert leaves no registered domain behind (atomic batch)", async () => {
+  const db = fakeD1({ failOn: INSERT_SQL });
+  await assert.rejects(insertRow(db, { ...rowBase, src_kind: "r", src: "x.example" }), /D1 timeout/);
+  assert.equal(db.state.registry.size, 0, "registry must not stay reserved");
+  assert.equal(db.state.events.length, 0);
+});
+
+test("negative control: the fake keeps a registration when the two writes are separate calls", async () => {
+  const db = fakeD1({ failOn: INSERT_SQL });
+  await db.prepare(REGISTER_SQL).bind(3600, "x.example", REFERRER_DAILY_CAP).run();
+  await assert.rejects(db.prepare(INSERT_SQL).bind(3600, "/a/", "r", "x.example").run(), /D1 timeout/);
+  assert.equal(db.state.registry.size, 1);
+});
+
+test("the event value follows the registry result inside the batch (fail closed)", async () => {
+  const db = fakeD1({ cap: 1 });
+  await insertRow(db, { ...rowBase, src_kind: "r", src: "first.example" });
+  await insertRow(db, { ...rowBase, src_kind: "r", src: "second.example" });
+  assert.deepEqual(db.state.events.map((e) => [e.kind, e.src]), [["r", "first.example"], ["o", "other"]]);
 });
 
 test("referrerInfo knows common multi-label suffixes outside the UK", () => {

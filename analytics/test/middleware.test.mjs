@@ -23,6 +23,8 @@ function fakeDb({ fail = false, hang = false } = {}) {
       return {
         bind(...args) {
           return {
+            sql,
+            args,
             run: () => {
               calls.push({ sql, args });
               if (fail) return Promise.reject(new Error("D1 over the cap"));
@@ -32,6 +34,12 @@ function fakeDb({ fail = false, hang = false } = {}) {
           };
         },
       };
+    },
+    batch(stmts) {
+      if (fail) return Promise.reject(new Error("D1 over the cap"));
+      if (hang) return new Promise(() => {});
+      for (const st of stmts) calls.push({ sql: st.sql, args: st.args });
+      return Promise.resolve([]);
     },
   };
 }

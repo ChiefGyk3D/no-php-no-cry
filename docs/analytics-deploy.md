@@ -140,7 +140,12 @@ DELETE FROM view_dim_daily;`.
   which grow with distinct domains. It is first come within a day: a requester
   who sends 300 forged names early can make real domains that first appear
   later that day count as "other" for that day, at a cost of 300 requests a day
-  and without losing a view. (2) At report time migration 0002 lists the 20
+  and without losing a view. The registry insert and the event insert go to D1
+  as one `batch()`, which D1 runs as a single transaction (Cloudflare D1
+  `D1Database::batch` docs, read 2026-11-10), so a failure or timeout between
+  them leaves neither a registered domain without its event nor the reverse;
+  the event reads the registry in the same batch, so a lost last-slot race
+  stores "other". (2) At report time migration 0002 lists the 20
   domains with the most views per day and class and folds the rest into "other".
   Residual risk, proposed as Low and awaiting the owner's acceptance in the
   threat model: partitioning by class does not stop a forged domain from being
