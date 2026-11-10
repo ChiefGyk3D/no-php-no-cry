@@ -24,9 +24,13 @@
 #                    path (/category/verify-live-probe); other placeholders fail.
 #   status           the home page and every template page below answer 200
 #   not-found        a missing path answers 404 with the noindex 404 page
-#   header-*         on every page checked, each header in <public>/_headers
-#                    (from static/_headers) is present exactly once, equal to
-#                    the build's value; the Content-Security-Policy first
+#   header-*         on every response checked, each header of the <public>/_headers
+#                    (from static/_headers) blocks that apply to its path is present
+#                    exactly once, equal to the build's value: "/*" applies to
+#                    all, "/css/*" only under /css/ (other patterns are refused,
+#                    exit 2). A header of a block that does not apply must not
+#                    carry the build's value (header-unexpected)
+#   css-cache        the home page's stylesheet carries the immutable Cache-Control
 #   sitemap / feed   /sitemap.xml and the feed are well-formed XML of the right
 #                    kind, and name only this host; the feed carries exactly one
 #                    atom:link rel=self on this host. The feed path is read from
@@ -148,13 +152,33 @@ fi
 dir="$public_dir"
 
 # --- read the expectations from the build --------------------------------------
-header_names=() header_values=()
+# _headers is a list of blocks: a path pattern on its own line, then the
+# indented headers for it. "/*" applies to every response, "/prefix/*" to the
+# paths under that prefix, a plain "/path" to that path only. Any other pattern
+# (a placeholder, a "*" elsewhere, a host) is refused, not ignored.
+header_names=() header_values=() header_pats=()
 if [[ -f "$dir/_headers" ]]; then
+    cur_pat=""
     while IFS= read -r line; do
         line="${line%$'\r'}"
+        [[ "$line" =~ ^[[:space:]]*(#.*)?$ ]] && continue
         if [[ "$line" =~ ^[[:space:]]+([A-Za-z][A-Za-z0-9-]*):[[:space:]]*(.*[^[:space:]])[[:space:]]*$ ]]; then
+            if [[ -z "$cur_pat" ]]; then
+                echo "input: a header before any path pattern in ${dir}/_headers: ${line}"
+                exit 2
+            fi
             header_names+=("${BASH_REMATCH[1]}")
             header_values+=("${BASH_REMATCH[2]}")
+            header_pats+=("$cur_pat")
+        elif [[ "$line" =~ ^[[:space:]] ]]; then
+            echo "input: unsupported line in ${dir}/_headers: ${line}"
+            exit 2
+        else
+            cur_pat="${line%"${line##*[![:space:]]}"}"
+            if [[ ! "$cur_pat" =~ ^/[A-Za-z0-9._~/%-]*\*?$ ]]; then
+                echo "input: unsupported path pattern in ${dir}/_headers: ${cur_pat}"
+                exit 2
+            fi
         fi
     done <"$dir/_headers"
 fi
@@ -225,13 +249,31 @@ header_first() { # header_first <name>: the first value of that header
         }' "$hdr"
 }
 
-# check_headers <label>: every header the build sets is on the last response once, equal.
+pattern_applies() { # pattern_applies <pattern> <path>
+    case "$1" in
+        /\*) return 0 ;;
+        */\*) [[ "$2" == "${1%\*}"* ]] ;;
+        *) [[ "$2" == "$1" ]] ;;
+    esac
+}
+
+# check_headers <label> <path>: every header whose block applies to <path> is on
+# the last response once, equal; a header of a block that does not apply must
+# not carry the build's value (the immutable one-year cache belongs to /css/*).
 check_headers() {
-    local i name want n got failed=0
+    local i name want n got failed=0 applied=0
     for i in "${!header_names[@]}"; do
         name="${header_names[$i]}"
         want="${header_values[$i]}"
         n="$(header_count "$name")"
+        if ! pattern_applies "${header_pats[$i]}" "$2"; then
+            if [[ "$n" -gt 0 && "$(header_first "$name")" == "$want" ]]; then
+                bad "header-unexpected" "$1 carries ${name}: '${want}', which belongs to ${header_pats[$i]} only"
+                failed=1
+            fi
+            continue
+        fi
+        applied=$((applied + 1))
         if [[ "$n" -eq 0 ]]; then
             bad "header-missing" "$1 has no ${name} header"
             failed=1
@@ -246,7 +288,7 @@ check_headers() {
             fi
         fi
     done
-    [[ $failed -eq 1 ]] || ok "headers" "$1 carries all ${#header_names[@]} headers of _headers exactly"
+    [[ $failed -eq 1 ]] || ok "headers" "$1 carries all ${applied} headers of _headers that apply to it exactly"
 }
 
 # third_party <label> <mode>: reads $body with the build check's parser (mode
@@ -367,7 +409,7 @@ for page in "${pages[@]}"; do
         bad "status" "${page} answered '${code}', wanted 200"
         continue
     fi
-    check_headers "$page"
+    check_headers "$page" "$page"
     third_party "$page" html
     if [[ "$page" == / ]]; then
         home_css="$(sed -nE 's/.*href="?(\/[^" >]+\.css).*/\1/p' "$body" | head -n 1)"
@@ -392,7 +434,7 @@ if fetch "$missing_page"; then
     else
         ok "not-found" "a missing path answers 404 with the noindex page"
     fi
-    check_headers "$missing_page (404)"
+    check_headers "$missing_page (404)" "$missing_page"
     third_party "$missing_page (404)" html
 else
     bad "not-found" "${missing_page} got no response"
@@ -490,6 +532,12 @@ done
 # --- the stylesheet and the scripts --------------------------------------------------
 if [[ -n "$home_css" ]]; then
     if fetch "$home_css" && [[ "$code" == 200 ]]; then
+        check_headers "$home_css" "$home_css"
+        if [[ "$(header_first cache-control)" == *immutable* ]]; then
+            ok "css-cache" "${home_css} carries the immutable Cache-Control"
+        else
+            bad "css-cache" "${home_css} has no immutable Cache-Control (got '$(header_first cache-control)')"
+        fi
         css_hosts="$(grep -Eo '(https?:)?//[A-Za-z0-9][A-Za-z0-9.:-]*' "$body" | sed -E 's#^(https?:)?//##; s#:[0-9]*$##' | sort -u | grep -vxF "$host" || true)"
         if [[ -n "$css_hosts" ]]; then
             bad "third-party" "${home_css} references another host: $(head -n 1 <<<"$css_hosts")"

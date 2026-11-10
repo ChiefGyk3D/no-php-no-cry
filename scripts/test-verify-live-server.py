@@ -17,12 +17,32 @@ mode = os.environ.get("MODE", "good")
 rewrite_from = os.environ.get("REWRITE_FROM", "")
 portfile = os.environ["PORTFILE"]
 
-headers = []
+# _headers blocks: a path pattern on its own line, then indented headers. "/*"
+# applies to every response, "/prefix/*" to paths under the prefix, a plain
+# path to that path only (what this repo's _headers uses).
+blocks = []
 with open(os.path.join(root, "_headers")) as f:
     for line in f:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
         m = re.match(r"^\s+([A-Za-z][A-Za-z0-9-]*):\s*(.*?)\s*$", line)
         if m:
-            headers.append((m.group(1), m.group(2)))
+            blocks[-1][1].append((m.group(1), m.group(2)))
+        elif not line[0].isspace():
+            blocks.append((line.strip(), []))
+
+
+def applies(pat, path):
+    if pat == "/*":
+        return True
+    if pat.endswith("/*"):
+        return path.startswith(pat[:-1])
+    return path == pat
+
+
+def headers_for(path):
+    return [h for pat, hs in blocks if applies(pat, path) for h in hs]
+
 
 redirects = {}
 with open(os.path.join(root, "_redirects")) as f:
@@ -38,8 +58,13 @@ class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def send(self, code, body=b"", ctype="text/html", extra=()):
-        hs = list(headers)
+    def send(self, code, body=b"", ctype="text/html", extra=(), path="/"):
+        hs = headers_for(path)
+        is_css = path.startswith("/css/")
+        if mode == "immutable-on-html" and not is_css:
+            hs = hs + [("Cache-Control", "public, max-age=31536000, immutable")]
+        if mode == "css-immutable-missing" and is_css:
+            hs = [(k, v) for k, v in hs if k != "Cache-Control"]
         if mode == "csp-wrong":
             hs = [(k, v + "; img-src https://cdn.example.net" if k == "Content-Security-Policy" else v) for k, v in hs]
         if mode == "csp-missing":
@@ -67,15 +92,15 @@ class H(BaseHTTPRequestHandler):
         if path in redirects and mode != "redirect-missing":
             target, status = redirects[path]
             if mode == "redirect-wrong-status":
-                return self.send(307, extra=[("Location", target)])
+                return self.send(307, extra=[("Location", target)], path=path)
             if mode == "redirect-302-as-301" and status == 302:
-                return self.send(301, extra=[("Location", target)])
+                return self.send(301, extra=[("Location", target)], path=path)
             if mode == "redirect-wrong-location":
-                return self.send(status, extra=[("Location", "/wrong/")])
+                return self.send(status, extra=[("Location", "/wrong/")], path=path)
             if mode == "redirect-other-host":
-                return self.send(status, extra=[("Location", "https://evil.example" + target)])
+                return self.send(status, extra=[("Location", "https://evil.example" + target)], path=path)
             loc = base + target if mode == "redirect-absolute" else target
-            return self.send(status, extra=[("Location", loc)])
+            return self.send(status, extra=[("Location", loc)], path=path)
         rel = path.lstrip("/")
         if path.endswith("/"):
             rel += "index.html"
@@ -128,7 +153,7 @@ class H(BaseHTTPRequestHandler):
             ctype = "text/javascript"
         elif name.endswith(".txt"):
             ctype = "text/plain"
-        self.send(code, data, ctype)
+        self.send(code, data, ctype, path=path)
 
 
 srv = ThreadingHTTPServer(("127.0.0.1", 0), H)

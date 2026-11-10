@@ -39,7 +39,7 @@ fi
 fx="$work/fixture"
 mkdir -p "$fx/css" "$fx/about" "$fx/posts/sample-post" "$fx/posts"
 csp="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
-printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n  Strict-Transport-Security: max-age=31536000; includeSubDomains\n' "$csp" >"$fx/_headers"
+printf '/*\n  Content-Security-Policy: %s\n  X-Content-Type-Options: nosniff\n  Strict-Transport-Security: max-age=31536000; includeSubDomains\n\n/css/*\n  Cache-Control: public, max-age=31536000, immutable\n' "$csp" >"$fx/_headers"
 printf '# generated\n/old/ /posts/sample-post/ 301\n/old /posts/sample-post/ 301\n/contact /about/#contact 301\n/moved /about/ 302\n/old-tree/* /posts/ 301\n' >"$fx/_redirects"
 page='<!doctype html><html><head><meta charset=utf-8><link rel=stylesheet href=/css/site.css><link rel=alternate type=application/rss+xml href=http://FX/index.xml><meta name=robots content="noindex, nofollow"></head><body>x</body></html>'
 for p in index.html about/index.html posts/index.html posts/sample-post/index.html; do printf '%s' "$page" >"$fx/$p"; done
@@ -137,6 +137,8 @@ expect_fail "csp: missing" header-missing "$fx" csp-missing "$rw_fx" "${fxp[@]}"
 expect_fail "csp: duplicated" header-duplicate "$fx" csp-dup "$rw_fx" "${fxp[@]}"
 expect_fail "hsts: missing" header-missing "$fx" hsts-missing "$rw_fx" "${fxp[@]}"
 expect_fail "nosniff: wrong value" header-wrong "$fx" nosniff-wrong "$rw_fx" "${fxp[@]}"
+expect_fail "cache: immutable Cache-Control on HTML" header-unexpected "$fx" immutable-on-html "$rw_fx" "${fxp[@]}"
+expect_fail "cache: CSS without the immutable Cache-Control" header-missing "$fx" css-immutable-missing "$rw_fx" "${fxp[@]}"
 expect_fail "sitemap: truncated" sitemap "$fx" sitemap-bad "$rw_fx" "${fxp[@]}"
 expect_fail "sitemap: another host" sitemap "$fx" sitemap-host "$rw_fx" "${fxp[@]}"
 expect_fail "feed: truncated" feed "$fx" feed-bad "$rw_fx" "${fxp[@]}"
@@ -191,6 +193,21 @@ ph_fx="$work/fixture-placeholder"
 cp -r "$fx" "$ph_fx"
 printf '/:year/:month/ /posts/ 301\n' >"$ph_fx/_redirects"
 expect_fail "redirect: unsupported :placeholder rule" redirect "$ph_fx" good "$rw_fx" --public "$ph_fx"
+
+# --- _headers patterns the verifier cannot interpret are refused, not ignored -----------------
+for pat in '/a/*/b' '/:id/*' 'https://x.example/*' '*.css'; do
+    pat_fx="$work/fixture-pattern"
+    rm -rf "$pat_fx"
+    cp -r "$fx" "$pat_fx"
+    printf '\n%s\n  Cache-Control: no-store\n' "$pat" >>"$pat_fx/_headers"
+    rc=0
+    out="$(VERIFY_ALLOW_HTTP=1 "$verify" http://127.0.0.1:1 --public "$pat_fx" 2>&1)" || rc=$?
+    if [[ $rc -eq 2 && "$out" == *"_headers"* ]]; then
+        pass "input error: unsupported _headers pattern ${pat}"
+    else
+        fail "unsupported _headers pattern ${pat}: exit ${rc}"
+    fi
+done
 
 # --- the feed path comes from the build (alternate link) or VERIFY_FEED_PATH -----------------
 feed_fx="$work/fixture-feedpath"
