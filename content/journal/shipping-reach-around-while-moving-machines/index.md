@@ -48,7 +48,7 @@ That separation kept implementation and acceptance from becoming the same opinio
 
 Merges still went through one at a time. A watcher pinned each commit so the result being observed was the result that had actually been reviewed. Parallel work was useful before the merge queue, but parallel merges would have made the evidence harder to trust.
 
-An automated review flagged a database query that divided a bound number. The query was fragile rather than exploitable, and I fixed it by calculating the day window in code before passing the value to the query. The review was wrong about the severity and right that the construction should change.
+Security findings from automated reviews were fixed the same day; the details stay private and hardening is tracked.
 
 The same standard applied to CI. A known egress flake was rerun, not waived. And when a board audit found cards missing required fields, agents repaired the drift that day. Automation did not remove judgment. It made more places available for judgment, provided each agent had a narrow job and a result another agent could challenge.
 
