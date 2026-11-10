@@ -14,7 +14,8 @@ later. Alpha: every default here is provisional.
 | `analytics/collect.mjs` | Pure functions: path rules, referrer host, geo, ASN class, bot class, opt-outs, the row. |
 | `analytics/hosting-asns.mjs` | The ASN list (data file, no CIDR). A starter list, to refresh before go-live. |
 | `analytics/migrations/0001_page_views.sql` | Tables, the 5-view floor (`report_*` views) and the funnel view. |
-| `analytics/migrations/0002_report_top_referrers.sql` | Replaces the report views: top 20 referrer domains per day and class, the rest folded into "other". |
+| `analytics/migrations/0002_report_top_referrers.sql` | A per-day registry that caps stored referrer domains, and the replacement report views: top 20 referrer domains per day and class, the rest folded into "other". |
+| `analytics/rollback/0002_down.sql` | Rollback for 0002 (not a migration; run by hand). Restores the 0001 views and drops the registry. |
 | `analytics/maintenance.sql` | Daily rollup and retention (7 days raw, 90 days aggregates). Not scheduled yet. |
 | `analytics/wrangler.toml.example` | The D1 binding template. |
 | `static/_routes.json` | Limits the Function to HTML routes: the HTML pages (including `/support/`) run it; the CSS, fonts, brand files, images and the support QR and coin SVGs (`/support/qr-*.svg`, `/support/coin-*.svg`) do not. Required in the upload; copied there by Hugo. |
@@ -131,13 +132,44 @@ DELETE FROM view_dim_daily;`.
 - City plus path at low traffic can point at a person. The 5-view floor hides
   small groups in the reports. The raw rows (7 days) hold the city and are
   readable only with the D1 token.
-- Referrer domains are not filtered when written: the Referer header is forged
-  freely, so a write-time rule would be decided by arrival order. Every domain
-  is stored, and the report view (migration 0002) lists the 20 domains with the
-  most views per day and class and folds the rest into "other". Residual risk,
-  proposed as Low and awaiting the owner's acceptance in the threat model: a
-  requester who sends more views than a real domain can still outrank it.
+- Referrer domains: the Referer header is forged freely, so nothing can tell a
+  real domain from a forged one. Two controls. (1) At write time the collector
+  stores at most 300 distinct referrer domains per UTC day (`REFERRER_DAILY_CAP`
+  in `analytics/collect.mjs`); a later new domain is stored as "other". This
+  bounds the 90 day `view_daily` rows and the six-day maintenance recompute,
+  which grow with distinct domains. It is first come within a day: a requester
+  who sends 300 forged names early can make real domains that first appear
+  later that day count as "other" for that day, at a cost of 300 requests a day
+  and without losing a view. (2) At report time migration 0002 lists the 20
+  domains with the most views per day and class and folds the rest into "other".
+  Residual risk, proposed as Low and awaiting the owner's acceptance in the
+  threat model: partitioning by class does not stop a forged domain from being
+  classified likely human (without Bot Management an ordinary browser
+  User-Agent gets that class), so a requester who sends more views than a real
+  domain can outrank it in the listing. The test suite pins this limit.
   Hardening tracked in #72.
+- The 5-view floor is a display floor, not a privacy bound across reports. Each
+  report hides its own small cells, but the reports share totals: a total from
+  one report minus the published cells of another can reveal a suppressed cell
+  (the suite pins an example). Do not read the floor as k-anonymity across
+  reports, and treat the raw rows (7 days) and the aggregate tables as private
+  to the D1 token. Report semantics are unchanged here. Hardening tracked in #72.
+- Migration 0002 safety. Verified (Cloudflare D1 docs, read 2026-11-10):
+  `D1Database::batch` statements run as one SQL transaction that rolls back on
+  failure, and an imported SQL file must not contain BEGIN or COMMIT. Not
+  stated in the docs, so inferred and not relied on: that wrangler applies a
+  whole migration file atomically. The file therefore has no transaction of its
+  own; it creates the additive registry first, drops the funnel view before the
+  view it reads, and creates the replacements back to back. Rehearse it on a
+  local database first (`wrangler d1 migrations apply <db> --local`). If a
+  remote run stops part way, run the rollback by hand:
+  `wrangler d1 execute <db> --remote --file analytics/rollback/0002_down.sql`.
+  It restores the exact 0001 view text, drops the registry, and tolerates a
+  partial state. Deploy the pre-0002 collector before rolling back (the new
+  insert reads the registry). The test suite applies 0002, a deliberately broken
+  0002 and the rollback to an in-memory database and compares the views with
+  0001. Whether the platform leaves a failed run's earlier statements applied
+  was not tested against D1.
 - The egress check (`analytics/test/fixtures/egress-probe.mjs`) is a regression
   test, not a proof. It runs the Function with outbound and logging entry points
   trapped, driving a table of methods, paths, hosts, statuses, header names and

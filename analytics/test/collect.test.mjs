@@ -11,6 +11,9 @@ import {
   buildRow,
   hourBucket,
   INSERT_SQL,
+  REGISTER_SQL,
+  REFERRER_DAILY_CAP,
+  insertRow,
 } from "../collect.mjs";
 import { HOSTING_ASNS } from "../hosting-asns.mjs";
 
@@ -72,9 +75,25 @@ test("referrerInfo reduces external hosts to a registrable domain", () => {
   });
 });
 
-test("the insert has no write-time admission rule", () => {
-  assert.equal(INSERT_SQL.split("?").length - 1, 9, "nine plain placeholders");
-  assert.ok(!/\b(select|exists|count)\b/i.test(INSERT_SQL), "no subquery decides who is stored");
+test("the write path caps distinct referrer domains per day and says so", () => {
+  assert.ok(Number.isInteger(REFERRER_DAILY_CAP) && REFERRER_DAILY_CAP >= 100 && REFERRER_DAILY_CAP <= 1000);
+  assert.match(INSERT_SQL, /referrer_seen/);
+  assert.match(REGISTER_SQL, /< \?3/);
+  for (let i = 1; i <= 9; i++) assert.ok(INSERT_SQL.includes(`?${i}`), `insert binds ?${i}`);
+});
+
+test("insertRow registers a referrer before the event and only a referrer", async () => {
+  const seen = [];
+  const db = {
+    prepare: (sql) => ({ bind: (...args) => ({ run: async () => seen.push({ sql, args }) }) }),
+  };
+  const base = { ts: 3600, page: "/a/", src: "", country: "", region: "", city: "", net: "unknown", bot_class: "h" };
+  await insertRow(db, { ...base, src_kind: "d" });
+  assert.deepEqual(seen.map((s) => s.sql), [INSERT_SQL]);
+  seen.length = 0;
+  await insertRow(db, { ...base, src_kind: "r", src: "x.example" });
+  assert.deepEqual(seen.map((s) => s.sql), [REGISTER_SQL, INSERT_SQL]);
+  assert.deepEqual(seen[0].args, [3600, "x.example", REFERRER_DAILY_CAP]);
 });
 
 test("referrerInfo knows common multi-label suffixes outside the UK", () => {

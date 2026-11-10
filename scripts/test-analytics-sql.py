@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MIGRATIONS = sorted((ROOT / "analytics" / "migrations").glob("*.sql"))
 MAINT = ROOT / "analytics" / "maintenance.sql"
+DOWN = ROOT / "analytics" / "rollback" / "0002_down.sql"
 NOW = "2026-11-05 12:00:00"
 NOW_EPOCH = 1793880000  # 2026-11-05 12:00:00 UTC, checked in test_clock_constant
 HOUR = 3600
@@ -29,6 +30,7 @@ ALLOWED = {
     "view_daily": {"day", "page", "src_kind", "src", "country", "bot_class", "views"},
     "view_geo_daily": {"day", "country", "region", "city", "bot_class", "views"},
     "view_dim_daily": {"day", "dim", "value", "bot_class", "views"},
+    "referrer_seen": {"day", "src", "n"},
 }
 # Names that suggest something identifying. Matched on whole underscore-separated words.
 FORBIDDEN_WORDS = {
@@ -83,15 +85,14 @@ def event(db, ts, page="/a/", src_kind="d", src="", country="US", region="NY", c
 
 
 class ReferrerReport(unittest.TestCase):
-    """Referrer domains are selected at report time, never at write time.
+    """Referrer domains: a per-day write cap, then a report-time ranking.
 
-    The Referer header is forged freely, so no write-time rule can tell a real
-    domain from a forged one, and any admission cutoff by arrival order can be
-    used to lock real domains out. Every referrer domain is stored as it
-    arrived; the report view keeps the TOP_N domains per day and class by
-    views, and folds the rest into the closed other bucket. Arrival order has
-    no say. Residual risk (accepted, Low): a requester who sends more views than
-    a real domain can still outrank it.
+    The Referer header is forged freely. Writing caps the distinct domains
+    stored per UTC day (storage and maintenance volume); the report view then
+    lists the TOP_N domains per day and class by views, ties by name, and folds
+    the rest into the closed other bucket. Residual risk (proposed Low): class
+    partitioning does not stop a forged domain from being classified human, and
+    a requester who sends more views than a real domain can outrank it.
     """
 
     DAY = "2026-11-04"
@@ -153,26 +154,203 @@ class ReferrerReport(unittest.TestCase):
             self.put(db, f"x{i}.example", 7)
         total = db.execute("SELECT SUM(views) FROM report_view_daily").fetchone()[0]
         self.assertEqual(total, 7 * (self.TOP_N + 15))
+        # The old view listed all 35 domains; only the ranking folds the extra 15.
+        self.assertEqual(len(self.shown_domains(db)), self.TOP_N)
+        self.assertEqual(db.execute("SELECT views FROM report_view_daily WHERE src_kind='o'").fetchone()[0], 7 * 15)
 
     def test_nonreferrer_rows_are_not_ranked(self):
         db = fresh()
         for i in range(self.TOP_N + 5):
             self.put(db, f"r{i}.example", 50)
+        for i in range(self.TOP_N + 5):
+            self.put(db, f"/p{i}/", 10, kind="i", page=f"/p{i}/")
         self.put(db, "", 6, kind="d", page="/direct/")
+        self.assertEqual(len(self.shown_domains(db)), self.TOP_N, "referrers are capped (the old view listed 25)")
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM report_view_daily WHERE src_kind='i'").fetchone()[0], self.TOP_N + 5)
         self.assertEqual(
             db.execute("SELECT views FROM report_view_daily WHERE src_kind='d'").fetchall(), [(6,)]
         )
 
-    def test_the_write_path_has_no_admission_rule(self):
-        # Write-time admission was first-come and attacker-controlled; keep it out.
-        code = 'import { INSERT_SQL } from "./analytics/collect.mjs"; process.stdout.write(INSERT_SQL);'
-        sql = subprocess.run(
+    def test_a_forged_domain_classified_human_can_outrank_a_real_one(self):
+        # The documented limit: class partitioning does not stop a forged
+        # domain from getting the human class, so spending more views than the
+        # real domain wins the listing. Keeps the Low residual risk honest.
+        db = fresh()
+        self.put(db, "real.example", 5, bot="h")
+        for i in range(self.TOP_N):
+            self.put(db, f"forged{i}.example", 6, bot="h")
+        self.assertNotIn("real.example", self.shown_domains(db))
+        self.assertEqual(
+            db.execute("SELECT views FROM report_view_daily WHERE src_kind='o'").fetchone()[0], 5, "folded, not dropped"
+        )
+
+class ReferrerWriteCap(unittest.TestCase):
+    """The write path stores at most CAP distinct referrer domains per UTC day."""
+
+    @classmethod
+    def setUpClass(cls):
+        code = (
+            'import * as c from "./analytics/collect.mjs";'
+            "process.stdout.write(JSON.stringify([c.INSERT_SQL, c.REGISTER_SQL, c.REFERRER_DAILY_CAP]));"
+        )
+        out = subprocess.run(
             ["node", "--input-type=module", "-e", code], cwd=ROOT, check=True, capture_output=True, text=True
         ).stdout
+        import json
+
+        cls.insert_sql, cls.register_sql, cls.cap = json.loads(out)
+
+    def write(self, db, ts, src, page="/", kind="r", bot="h", register=True):
+        if kind == "r" and register:
+            db.execute(self.register_sql, (ts, src, self.cap))
+        db.execute(self.insert_sql, (ts, page, kind, src, "US", "", "", "unknown", bot))
+
+    def flood(self, db, n, ts=NOW_EPOCH, prefix="forged", **kw):
+        for i in range(n):
+            self.write(db, ts, f"{prefix}{i}.example", **kw)
+
+    def distinct_referrers(self, db, table):
+        return db.execute(f"SELECT COUNT(DISTINCT src) FROM {table} WHERE src_kind='r'").fetchone()[0]
+
+    def test_cap_is_generous_but_bounded(self):
+        self.assertGreaterEqual(self.cap, 100)
+        self.assertLessEqual(self.cap, 1000)
+
+    def test_retained_cardinality_and_maintenance_rows_are_bounded_after_a_flood(self):
         db = fresh()
-        for i in range(50):
-            db.execute(sql, (NOW_EPOCH, "/", "r", f"forged{i}.example", "", "", "", "unknown", "h"))
-        self.assertEqual(db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r'").fetchone()[0], 50)
+        n = self.cap * 5
+        self.flood(db, n)
+        self.assertEqual(self.distinct_referrers(db, "view_events"), self.cap)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM view_events").fetchone()[0], n, "no view is dropped")
+        self.assertEqual(
+            db.execute("SELECT COUNT(*) FROM view_events WHERE src_kind='o' AND src='other'").fetchone()[0], n - self.cap
+        )
+        db.executescript(maintenance_sql())
+        self.assertEqual(self.distinct_referrers(db, "view_daily"), self.cap)
+        # One page and one country: rows of the maintenance upsert are cap referrer rows plus one other row.
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM view_daily").fetchone()[0], self.cap + 1)
+        self.assertEqual(db.execute("SELECT SUM(views) FROM view_daily").fetchone()[0], n)
+
+    def test_admitted_domains_keep_counting_after_the_cap_is_hit(self):
+        db = fresh()
+        self.flood(db, self.cap)
+        self.write(db, NOW_EPOCH, "late.example")
+        self.write(db, NOW_EPOCH, "forged0.example")
+        counts = dict(db.execute("SELECT src, COUNT(*) FROM view_events WHERE src_kind='r' GROUP BY src"))
+        self.assertEqual(counts["forged0.example"], 2)
+        self.assertNotIn("late.example", counts)
+
+    def test_the_cap_is_per_utc_day(self):
+        db = fresh()
+        self.flood(db, self.cap + 20, ts=NOW_EPOCH - DAY)
+        self.write(db, NOW_EPOCH, "fresh.example")
+        self.assertEqual(
+            db.execute("SELECT COUNT(*) FROM view_events WHERE src='fresh.example' AND src_kind='r'").fetchone()[0], 1
+        )
+
+    def test_the_ranking_still_decides_what_is_listed(self):
+        db = fresh()
+        self.flood(db, self.cap + 50)  # one view each
+        for _ in range(30):
+            self.write(db, NOW_EPOCH, "forged1.example")
+        db.executescript(maintenance_sql())
+        shown = [r[0] for r in db.execute("SELECT src FROM report_view_daily WHERE src_kind='r'")]
+        self.assertIn("forged1.example", shown)
+        self.assertLessEqual(len(shown), ReferrerReport.TOP_N)
+
+    def test_a_lost_race_for_the_last_slot_fails_closed(self):
+        # Two requests that both read the same largest n: the unique (day, n)
+        # index makes the second insert a no-op, so the cap cannot overshoot.
+        db = fresh()
+        self.flood(db, self.cap - 1)
+        day = "2026-11-05"
+        db.execute("INSERT INTO referrer_seen VALUES (?, 'racer-a.example', ?)", (day, self.cap))
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO referrer_seen VALUES (?, 'racer-b.example', ?)", (day, self.cap))
+        db.execute(self.register_sql, (NOW_EPOCH, "racer-c.example", self.cap))
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM referrer_seen").fetchone()[0], self.cap)
+
+    def test_non_referrer_rows_are_unaffected(self):
+        db = fresh()
+        self.flood(db, self.cap + 10)
+        self.write(db, NOW_EPOCH, "", kind="d", page="/direct/")
+        self.write(db, NOW_EPOCH, "/x/", kind="i", page="/y/")
+        kinds = dict(db.execute("SELECT src_kind, COUNT(*) FROM view_events GROUP BY src_kind"))
+        self.assertEqual((kinds["d"], kinds["i"]), (1, 1))
+
+    def test_the_registry_is_purged_with_the_raw_rows(self):
+        db = fresh()
+        db.execute("INSERT INTO referrer_seen VALUES ('2026-10-20', 'old.example', 1)")
+        db.execute("INSERT INTO referrer_seen VALUES ('2026-11-04', 'new.example', 1)")
+        db.executescript(maintenance_sql())
+        self.assertEqual([r[0] for r in db.execute("SELECT src FROM referrer_seen")], ["new.example"])
+
+
+class MigrationSafety(unittest.TestCase):
+    """0002 replaces the report views; analytics/rollback/0002_down.sql restores 0001."""
+
+    def views(self, db):
+        return dict(db.execute("SELECT name, sql FROM sqlite_master WHERE type='view'"))
+
+    def setUp(self):
+        self.m0001 = next(m for m in MIGRATIONS if m.name.startswith("0001"))
+        self.m0002 = next(m for m in MIGRATIONS if m.name.startswith("0002"))
+        base = sqlite3.connect(":memory:")
+        base.executescript(self.m0001.read_text())
+        self.original = self.views(base)
+
+    def test_the_rollback_restores_the_0001_views_exactly(self):
+        db = fresh()
+        self.assertNotEqual(self.views(db)["report_view_daily"], self.original["report_view_daily"])
+        db.executescript(DOWN.read_text())
+        self.assertEqual(self.views(db), self.original)
+        self.assertNotIn("referrer_seen", tables(db))
+        self.assertEqual(set(tables(db)), set(ALLOWED) - {"referrer_seen"})
+
+    def test_the_rollback_runs_twice_and_the_migration_applies_again(self):
+        db = fresh()
+        db.executescript(DOWN.read_text())
+        db.executescript(DOWN.read_text())
+        db.executescript(self.m0002.read_text())
+        self.assertIn("referrer_seen", tables(db))
+
+    def test_the_rollback_repairs_a_migration_that_stopped_part_way(self):
+        # Without atomic execution a failure after the drops leaves no views.
+        db = sqlite3.connect(":memory:")
+        db.executescript(self.m0001.read_text())
+        broken = self.m0002.read_text().replace("CREATE VIEW report_funnel_daily", "CREATE VEIW report_funnel_daily")
+        self.assertNotEqual(broken, self.m0002.read_text())
+        with self.assertRaises(sqlite3.OperationalError):
+            db.executescript(broken)
+        self.assertNotIn("report_funnel_daily", self.views(db))
+        db.executescript(DOWN.read_text())
+        self.assertEqual(self.views(db), self.original)
+
+    def test_the_funnel_view_is_dropped_before_the_view_it_reads(self):
+        text = self.m0002.read_text()
+        self.assertLess(text.index("DROP VIEW report_funnel_daily"), text.index("DROP VIEW report_view_daily"))
+        text = DOWN.read_text()
+        self.assertLess(text.index("DROP VIEW IF EXISTS report_funnel_daily"), text.index("DROP VIEW IF EXISTS report_view_daily"))
+
+    def test_no_transaction_statement_in_a_migration(self):
+        # The D1 docs say BEGIN and COMMIT must be removed from imported SQL.
+        for m in MIGRATIONS:
+            self.assertNotRegex(m.read_text(), r"(?im)^\s*(BEGIN|COMMIT|ROLLBACK)\b", m.name)
+
+
+class DisplayFloor(unittest.TestCase):
+    def test_the_floor_is_not_a_bound_across_reports(self):
+        # Documented limit: the 5-view floor is applied per report. A total in
+        # one report minus a published cell in another reveals a suppressed cell.
+        db = fresh()
+        day = "2026-11-04"
+        db.execute("INSERT INTO view_daily VALUES (?, '/public/', 'd', '', 'US', 'h', 8)", (day,))
+        db.execute("INSERT INTO view_daily VALUES (?, '/sensitive/', 'd', '', 'US', 'h', 2)", (day,))
+        db.execute("INSERT INTO view_geo_daily VALUES (?, 'US', 'NY', 'New York', 'h', 10)", (day,))
+        pages = dict(db.execute("SELECT page, views FROM report_view_daily"))
+        self.assertEqual(pages, {"/public/": 8})
+        total = db.execute("SELECT SUM(views) FROM report_view_geo_daily").fetchone()[0]
+        self.assertEqual(total - pages["/public/"], 2)
 
 
 class Schema(unittest.TestCase):

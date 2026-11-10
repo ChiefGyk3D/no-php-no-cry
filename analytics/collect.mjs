@@ -211,18 +211,45 @@ export function buildRow(request, response, env, nowMs) {
   };
 }
 
-// No admission rule at write time. The Referer header is forged freely, so any
-// rule that decides at write time which domains to keep is decided by arrival
-// order, which a requester controls. Every domain is stored as it arrived and
-// the report view (analytics/migrations/0002_report_top_referrers.sql) keeps
-// the top domains per day and class by views. Storage is bounded by the page
-// view rows themselves (one row per counted view, 7 day retention), not by the
-// number of distinct domains.
-export const INSERT_SQL =
-  "INSERT INTO view_events (ts, page, src_kind, src, country, region, city, net, bot_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+// Per-UTC-day cap on distinct stored referrer domains. Cost reasoning: a real
+// blog sees tens of referrer domains a day, so 300 is generous for honest
+// traffic. The cap bounds what a forged Referer can cost: distinct referrer
+// rows in view_daily (kept 90 days) and in the six-day maintenance upserts grow
+// with distinct domains, not only with views, so without a cap one forged name
+// per view makes both as large as the view count. At most 300 names a day keeps
+// that growth to 300 times the pages and countries seen, a small multiple of
+// the honest case. Once the cap is hit, a new domain is stored as the existing
+// "other" bucket (src_kind o); domains already admitted that day keep counting.
+// What is LISTED is still chosen at report time by the ranking in
+// analytics/migrations/0002_report_top_referrers.sql. KNOWN LIMIT: admission is
+// first come within a UTC day, so a requester who sends 300 forged names early
+// can make later real domains of that day count as "other" for that day.
+export const REFERRER_DAILY_CAP = 300;
 
-/** One D1 write. Rejects on any database error; the caller swallows it. */
+// Registers the domain for the UTC day of ts when it is new and the day is not
+// full. Binds: ts, src, cap. OR IGNORE: the unique (day, n) index turns a lost
+// race into no row, and the event is then stored as "other" (fails closed).
+export const REGISTER_SQL =
+  "INSERT OR IGNORE INTO referrer_seen (day, src, n) " +
+  "SELECT date(?1, 'unixepoch'), ?2, " +
+  "COALESCE((SELECT MAX(n) FROM referrer_seen WHERE day = date(?1, 'unixepoch')), 0) + 1 " +
+  "WHERE NOT EXISTS (SELECT 1 FROM referrer_seen WHERE day = date(?1, 'unixepoch') AND src = ?2) " +
+  "AND COALESCE((SELECT MAX(n) FROM referrer_seen WHERE day = date(?1, 'unixepoch')), 0) < ?3";
+
+// A referrer whose domain is not registered for its day is stored as "other".
+// Binds, in order: ts, page, src_kind, src, country, region, city, net, bot_class.
+export const INSERT_SQL =
+  "INSERT INTO view_events (ts, page, src_kind, src, country, region, city, net, bot_class) " +
+  "SELECT ?1, ?2, " +
+  "CASE WHEN ?3 = 'r' AND NOT EXISTS (SELECT 1 FROM referrer_seen WHERE day = date(?1, 'unixepoch') AND src = ?4) THEN 'o' ELSE ?3 END, " +
+  "CASE WHEN ?3 = 'r' AND NOT EXISTS (SELECT 1 FROM referrer_seen WHERE day = date(?1, 'unixepoch') AND src = ?4) THEN 'other' ELSE ?4 END, " +
+  "?5, ?6, ?7, ?8, ?9";
+
+/** Up to two D1 writes. Rejects on any database error; the caller swallows it. */
 export async function insertRow(db, row) {
+  if (row.src_kind === "r") {
+    await db.prepare(REGISTER_SQL).bind(row.ts, row.src, REFERRER_DAILY_CAP).run();
+  }
   await db
     .prepare(INSERT_SQL)
     .bind(row.ts, row.page, row.src_kind, row.src, row.country, row.region, row.city, row.net, row.bot_class)
