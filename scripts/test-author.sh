@@ -749,6 +749,94 @@ gitc add -A
 gitc commit -q -m already
 pubrefuse "a bundle already committed with no change is refused" "nothing" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
 
+# --- review round: remote default branch, "..." fence, trailing comments, future dates -------------------
+pubfile() { gitc show "post/pub-post:content/posts/pub-post/index.md" >"$work/pub-file.md"; }
+setfm() { sed -i -e "$1" "$r/content/posts/pub-post/index.md"; }
+# a remote whose default is trunk, with no refs/remotes/origin/HEAD locally
+grepo
+trunk="$work/trunk$gn.git"
+git init -q --bare -b trunk "$trunk"
+gitc push -q "$trunk" main:trunk
+gitc remote set-url origin "$trunk"
+gitc symbolic-ref -q refs/remotes/origin/HEAD >/dev/null 2>&1 && gitc remote set-head origin -d >/dev/null 2>&1
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+[[ $rc -eq 0 ]] && grep -qx "trunk" "$GH_ARGS" && ! grep -qx "main" "$GH_ARGS" && git --git-dir="$trunk" rev-parse -q --verify refs/heads/post/pub-post >/dev/null && ok "the remote's default branch (trunk) is found from the remote and used as the PR base" || bad "trunk default (rc $rc): $out $(cat "$GH_ARGS" 2>/dev/null)"
+# the default branch cannot be determined: refuse, nothing happens
+grepo
+gitc remote set-url origin "$work/no-such-remote.git"
+pubrefuse "an unreachable remote refuses (default branch unknown)" "default branch" content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+
+# "..." closes the front matter for check-content, so for the helper too
+grepo
+awk 'BEGIN{n=0} /^---$/ {n++; if (n==2) {print "..."; next}} {print}' "$r/content/posts/pub-post/index.md" >"$work/dots.md"
+cp "$work/dots.md" "$r/content/posts/pub-post/index.md"
+printf '\n---\ndraft: true\n' >>"$r/content/posts/pub-post/index.md"
+au check content/posts/pub-post
+[[ $rc -eq 0 ]] && grep -q '^note: draft: true' <<<"$out" && ok "a ... closed front matter passes check and is seen as a draft" || bad "dots check (rc $rc): $out"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "draft: false" "$work/pub-file.md" && grep -qx "\.\.\." "$work/pub-file.md" && [[ "$(grep -c '^draft: true$' "$work/pub-file.md")" == "1" ]] && ok "publish flips the draft of a ... closed page and leaves the body alone" || bad "dots publish (rc $rc): $out"
+
+# trailing YAML comments on draft
+grepo
+setfm 's/^draft: true$/draft: true # keep while editing/'
+au check content/posts/pub-post --require-published
+[[ $rc -eq 1 ]] && grep -q '^\[FAIL\] draft' <<<"$out" && ok "draft: true with a comment is a draft for --require-published" || bad "comment draft (rc $rc): $out"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "draft: false # keep while editing" "$work/pub-file.md" && ok "the flip keeps the trailing comment" || bad "comment flip (rc $rc): $out"
+grepo
+setfm 's/^draft: true$/draft: false # ready/'
+au check content/posts/pub-post --require-published
+[[ $rc -eq 0 ]] && ok "draft: false with a comment passes --require-published" || bad "false comment (rc $rc): $out"
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "draft: false # ready" "$work/pub-file.md" && ok "draft already false stays as written" || bad "already false (rc $rc): $out"
+grepo
+setfm 's/^draft: true$/draft: "true"/'
+pubrefuse "a quoted draft value is refused" "draft" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+setfm "s/^draft: true\$/draft: 'false'/"
+pubrefuse "a single-quoted draft value is refused" "draft" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+setfm 's/^draft: true$/draft: true # a\ndraft: true # b/'
+pubrefuse "two draft lines with comments are still refused" "draft" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+
+# a future date moves to now with --set-draft-false, in the file's own offset style
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh"
+pubfile
+grep -qx "date: 2099-01-01T09:00:00-05:00" "$work/pub-file.md" && ok "a future date is untouched without --set-draft-false" || bad "date moved without the flag"
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qE '^date: 20(2[6-9]|[3-8][0-9])-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}-05:00$' "$work/pub-file.md" && grep -qi "date" <<<"$out" && grep -q "moved" <<<"$out" && ok "a future datetime moves to now, keeping the -05:00 offset style, and says so" || bad "future move (rc $rc): $out / $(grep '^date' "$work/pub-file.md")"
+[[ "$(diff <(sed -e 's/^draft: true$/draft: false/' -e 's/^date: .*/date: X/' "$r/content/posts/pub-post/index.md" 2>/dev/null) <(sed 's/^date: .*/date: X/' "$work/pub-file.md") | wc -l)" == "0" || ! -e "$r/content/posts/pub-post/index.md" ]] && ok "only the date and draft lines differ" || bad "extra changes"
+grepo
+setfm 's/^date: .*/date: 2099-01-01/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qE '^date: 20(2[6-9]|[3-8][0-9])-[0-9]{2}-[0-9]{2}$' "$work/pub-file.md" && ok "a future date-only value moves to today as a date" || bad "future date-only (rc $rc): $(grep '^date' "$work/pub-file.md")"
+grepo
+setfm 's/^date: .*/date: 2020-01-01T09:00:00-05:00 # old/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+[[ $rc -eq 0 ]] && grep -qx "date: 2020-01-01T09:00:00-05:00 # old" "$work/pub-file.md" && ! grep -q "moved" <<<"$out" && ok "a past date is untouched" || bad "past date (rc $rc): $out"
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00 # later/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+pubfile
+grep -qE '^date: .*-05:00 # later$' "$work/pub-file.md" && ! grep -q '2099' "$work/pub-file.md" && ok "the date comment survives the move" || bad "date comment: $(grep '^date' "$work/pub-file.md")"
+grepo
+setfm '/^date: /d'
+pubrefuse "a missing date is refused with a clear message" "date" content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false
+grepo
+setfm 's/^date: .*/date: 2099-01-01T09:00:00-05:00/'
+au publish content/posts/pub-post --issue 254 --gh "$stubdir/gh" --set-draft-false --dry-run
+[[ $rc -eq 0 ]] && grep -q "would change date" <<<"$out" && grep -q '^date: 2099' "$r/content/posts/pub-post/index.md" && ok "--dry-run reports the date move and changes nothing" || bad "dry run date (rc $rc): $out"
+
 # dry run, gh failure, usage
 grepo
 head_before="$(gitc rev-parse HEAD)"

@@ -674,45 +674,111 @@ def read_page(root, rel):
         raise Refuse("%s is not UTF-8" % rel) from None
 
 
-def front_matter_end(lines):
-    """Index of the closing --- line of the front matter, or None when there is no front matter."""
-    if not lines or lines[0].rstrip("\r\n") != "---":
-        return None
-    for i in range(1, len(lines)):
-        if lines[i].rstrip("\r\n") == "---":
-            return i
-    return None
+def front_matter(text):
+    """(lines, closing index, parsed dict) with the same parser as scripts/check-content.py; Refuse on anything it rejects."""
+    mod = checker()
+    try:
+        fm, _body, _n = mod.split_front_matter(text)
+        fields = mod.parse_front_matter(fm)
+    except mod.FMError as e:
+        raise Refuse("front matter: %s" % e) from None
+    return text.split("\n"), len(fm) + 1, fields
 
 
-def draft_lines(lines):
-    """(index, value) of every draft: line inside the front matter."""
-    end = front_matter_end(lines)
-    if end is None:
-        return []
-    out = []
-    for i in range(1, end):
-        m = re.match(r"^draft:[ \t]*(\S*)[ \t]*$", lines[i].rstrip("\r\n"))
-        if m:
-            out.append((i, m.group(1).strip("\"'")))
-        elif lines[i].startswith("draft:"):
-            out.append((i, "?"))
-    return out
+def key_lines(lines, end, key):
+    """Indexes of the top-level `key:` lines inside the front matter."""
+    return [i for i in range(1, end) if lines[i].partition(":")[0] == key and lines[i].partition(":")[1]]
 
 
-def flip_draft(text):
-    """The text with the front matter's single draft: true line set to draft: false; Refuse otherwise."""
-    lines = text.splitlines(keepends=True)
-    found = draft_lines(lines)
-    if len(found) != 1:
-        raise Refuse("expected exactly one draft: line in the front matter, found %d" % len(found))
-    i, value = found[0]
-    if value == "false":
-        return text
-    if value != "true":
-        raise Refuse("the front matter has draft: %s; --set-draft-false only flips draft: true" % (value or "(empty)"))
-    ending = lines[i][len(lines[i].rstrip("\r\n")):]
-    lines[i] = "draft: false" + ending
-    return "".join(lines)
+def set_value(line, new):
+    """The line with its value replaced, keeping the quote style, the trailing comment and a CR."""
+    mod = checker()
+    cr = "\r" if line.endswith("\r") else ""
+    key, _, val = line.rstrip("\r").partition(":")
+    v = val.strip()
+    if v[:1] in ("'", '"'):
+        _value, tail = mod._quoted(v)
+        return "%s: %s%s%s%s" % (key, v[0], new, v[0], tail) + cr
+    tail = v[len(mod._strip_comment(v)):]
+    return "%s: %s%s" % (key, new, tail) + cr
+
+
+def is_draft(text):
+    """True when the front matter says draft: true (the content check's rule: only an unquoted true)."""
+    try:
+        return front_matter(text)[2].get("draft") is True
+    except Refuse:
+        return False
+
+
+def future_date(value, now):
+    """(is_future, replacement) for a date value; the replacement keeps the value's own style and offset."""
+    mod = checker()
+    m = mod.DATE_RE.match(value.strip())
+    if not m:
+        raise Refuse("date %r is not a date the content check accepts" % value[:40])
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if m.group(4) is None:
+        today = now.date()
+        return (datetime.date(y, mo, d) > today), today.isoformat()
+    v = value.strip()
+    tzm = re.search(r"\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?\s*([Zz]|[+-]\d{2}(?::?\d{2})?)?$", v)
+    sep = v[10]
+    tok = tzm.group(1) if tzm else None
+    if tok in ("Z", "z"):
+        tz = datetime.timezone.utc
+    elif tok:
+        sign = -1 if tok[0] == "-" else 1
+        digits = tok[1:].replace(":", "")
+        tz = datetime.timezone(sign * datetime.timedelta(hours=int(digits[:2]), minutes=int(digits[2:4] or 0)))
+    else:
+        tz = now.tzinfo
+    dt = datetime.datetime(y, mo, d, int(m.group(4)), int(m.group(5)), int(m.group(6) or 0), tzinfo=tz)
+    if dt <= now:
+        return False, None
+    here = now.astimezone(tz).replace(microsecond=0)
+    out = here.strftime("%Y-%m-%d") + sep + here.strftime("%H:%M:%S")
+    if tok is not None:
+        off = here.strftime("%z")
+        if tok in ("Z", "z"):
+            out += tok
+        elif len(tok) == 3:
+            out += off[:3]
+        elif ":" in tok:
+            out += off[:3] + ":" + off[3:]
+        else:
+            out += off
+    return True, out
+
+
+def publish_text(text, now):
+    """(new text, notes): draft: false on the single draft line and a future date moved to now. Refuse otherwise."""
+    lines, end, fields = front_matter(text)
+    drafts = key_lines(lines, end, "draft")
+    if len(drafts) != 1:
+        raise Refuse("expected exactly one draft: line in the front matter, found %d" % len(drafts))
+    if fields.get("draft") not in (True, False):
+        raise Refuse("the front matter has a draft value that is not an unquoted true or false")
+    notes = []
+    if fields["draft"] is True:
+        lines[drafts[0]] = set_value(lines[drafts[0]], "false")
+        notes.append("draft: true -> false")
+    dates = key_lines(lines, end, "date")
+    value = fields.get("date")
+    if len(dates) != 1 or not isinstance(value, str) or not value.strip():
+        raise Refuse("the front matter needs exactly one date: line to publish (date is missing or empty)")
+    later, new_date = future_date(value, now)
+    if later:
+        lines[dates[0]] = set_value(lines[dates[0]], new_date)
+        notes.append("date %s is in the future (Hugo omits future-dated pages in production); moved to %s" % (value.strip(), new_date))
+    new_text = "\n".join(lines)
+    _l, _e, new_fields = front_matter(new_text)
+    expect = dict(fields, draft=False)
+    if later:
+        expect["date"] = new_date
+    if new_fields != expect:
+        raise Refuse("internal check failed: the edit changed more than the draft and date lines; nothing was written")
+    return new_text, notes
 
 
 def run_tool(argv, timeout, env=None):
@@ -761,11 +827,10 @@ def check_page(root, rel, require_published=False, build=False, hugo_arg=None):
         print("wording: %s:%d: use the full word, never the short form" % (rel, n))
     verdict("wording", not bad_word, "%d line(s)" % len(bad_word) if bad_word else "")
 
-    drafts = draft_lines(text.splitlines(keepends=True))
-    is_draft = any(v != "false" for _, v in drafts)
-    if is_draft:
+    draft = is_draft(text)
+    if draft:
         print("note: draft: true (the production build skips it; publish --set-draft-false makes it public)")
-    verdict("draft", not (is_draft and require_published), "draft: true, but a published page is required" if is_draft and require_published else "")
+    verdict("draft", not (draft and require_published), "draft: true, but a published page is required" if draft and require_published else "")
 
     if build:
         hugo = find_hugo(root, hugo_arg)
@@ -816,6 +881,18 @@ def git_ok(root, *args):
     return proc.stdout
 
 
+def remote_default_branch(root, remote):
+    """The remote's default branch, asked of the remote itself; Refuse when it cannot be determined."""
+    try:
+        proc = git(root, "ls-remote", "--symref", remote, "HEAD", timeout=30)
+    except subprocess.TimeoutExpired:
+        raise Refuse("could not determine the default branch of %s: the remote did not answer in 30 seconds" % remote) from None
+    m = re.search(r"(?m)^ref: refs/heads/(\S+)\tHEAD$", proc.stdout) if proc.returncode == 0 else None
+    if not m or not BASE_RE.match(m.group(1)):
+        raise Refuse("could not determine the default branch of %s (%s); nothing was changed" % (remote, ((proc.stderr or "no symbolic HEAD in the answer").strip().splitlines() or ["unknown"])[0][:160]))
+    return m.group(1)
+
+
 def pr_body(root, issue, summary):
     ref = "Refs " + (issue if "#" in issue else "#" + issue)
     template = os.path.join(os.path.realpath(root), ".github", "PULL_REQUEST_TEMPLATE.md")
@@ -843,7 +920,7 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
         raise Refuse("issue must look like 254, #254 or owner/repo#254, got %r" % issue[:40])
     if not NAME_RE.match(remote):
         raise Refuse("remote name %r is not a plain remote name" % remote[:40])
-    if not BASE_RE.match(base):
+    if base is not None and not BASE_RE.match(base):
         raise Refuse("base branch %r is not a plain branch name" % base[:40])
     gh = gh_arg if gh_arg else shutil.which("gh")
     if not gh or not os.path.isfile(gh) or not os.access(gh, os.X_OK):
@@ -861,11 +938,17 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
         raise Refuse("%s is not the top of a git work tree" % root)
     if remote not in git_ok(root, "remote").split():
         raise Refuse("remote %r is not configured in this repository" % remote)
+    default = remote_default_branch(root, remote)
+    base = base or default
+    if not BASE_RE.match(base):
+        raise Refuse("base branch %r is not a plain branch name" % base[:40])
     cur = git(root, "symbolic-ref", "-q", "--short", "HEAD")
     branch = cur.stdout.strip()
     if cur.returncode != 0 or not branch:
         raise Refuse("detached HEAD: switch to a branch for this change first (git switch -c post/%s)" % slug)
     new_branch = "post/" + slug
+    if new_branch in (default, "main", "master"):
+        raise Refuse("refusing to push the branch %s: it is a default or protected branch name" % new_branch)
     if git(root, "rev-parse", "--verify", "-q", "refs/heads/" + new_branch).returncode == 0:
         raise Refuse("the branch %s already exists locally; delete it or pick another folder name" % new_branch)
     listed = git(root, "ls-remote", "--heads", remote, "refs/heads/" + new_branch, timeout=120)
@@ -890,18 +973,18 @@ def publish(root, bundle_arg, issue, remote, base, gh_arg, set_draft_false, dry_
         raise Refuse("the check failed (%s); nothing was committed" % ", ".join(failed))
     flipped = False
     if set_draft_false:
-        new_text = flip_draft(original)
+        new_text, notes = publish_text(original, eastern_now())
         if new_text != original:
-            if dry_run:
-                print("dry run: would set draft: false")
-            else:
+            for n in notes:
+                print(("dry run: would change " if dry_run else "changed ") + n)
+            if not dry_run:
                 write_page(root, page, new_text)
                 flipped = True
                 failed = check_page(root, page, require_published=True)
                 if failed:
                     write_page(root, page, original)
                     raise Refuse("the check failed after draft: false (%s); the page was restored" % ", ".join(failed))
-    is_public = set_draft_false or not any(v != "false" for _, v in draft_lines(original.splitlines(keepends=True)))
+    is_public = set_draft_false or not is_draft(original)
     title = ("Publish %s" if is_public else "Add draft %s") % slug
     summary = "Adds %s with scripts/author.py publish. Check steps passed: %s. Draft: %s." % (
         bundle_rel, ", ".join(CHECK_STEPS), "false" if is_public else "true",
@@ -1010,7 +1093,7 @@ def build_parser():
     pb.add_argument("bundle")
     pb.add_argument("--issue", required=True, help="the issue to link: 254, #254 or owner/repo#254")
     pb.add_argument("--remote", default="origin")
-    pb.add_argument("--base", default="main", help="the branch the pull request targets (default: main)")
+    pb.add_argument("--base", help="the branch the pull request targets (default: the remote's default branch)")
     pb.add_argument("--gh", help="path to the gh binary (default: gh on PATH)")
     pb.add_argument("--set-draft-false", action="store_true", help="set draft: false in the front matter")
     pb.add_argument("--dry-run", action="store_true", help="run the checks and print the plan; change nothing")

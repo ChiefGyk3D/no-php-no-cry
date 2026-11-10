@@ -127,7 +127,9 @@ python3 -I scripts/author.py publish content/posts/my-post-title --issue 254 --s
 
 Run it from `main` or any other branch. `publish` runs the check, creates and switches to a new
 branch `post/<slug>` (the bundle folder name), commits only the bundle there, pushes only that
-branch and opens a pull request with `gh` against `main` (`--base`). Then it switches back to
+branch and opens a pull request with `gh` against the remote's default branch (`--base` overrides). The default branch is asked of the
+remote itself (`git ls-remote --symref`, 30 second limit); if it cannot be determined, publish
+refuses and changes nothing. Then it switches back to
 the branch you started on and prints the pull request URL. The post now lives on the pull
 request branch, so it is no longer in your starting tree. The merge stays yours.
 
@@ -135,9 +137,9 @@ request branch, so it is no longer in your starting tree. The merge stays yours.
 | --- | --- |
 | `BUNDLE` | A page folder under `content/`, named with a lowercase slug. |
 | `--issue N` | Required: `254`, `#254` or `owner/repo#254`. The helper puts `Refs #N` on the template's `Refs #` line (or appends it) and fills the summary line with the bundle and the passed check steps. |
-| `--set-draft-false` | Sets `draft: false`, only when this flag is given. Without it the draft state is committed as it is. The check then runs again with `--require-published` and the page is restored if it fails. |
+| `--set-draft-false` | Sets `draft: false`, only when this flag is given, and when the front matter date is in the future (compared in the date's own offset, or Eastern time when it has none) moves it to now in the same style and offset, because Hugo omits future-dated pages in production. A missing date is refused. The output names each change. Without the flag the draft state and date are committed as they are. The check then runs again with `--require-published` and the page is restored if it fails. |
 | `--dry-run` | Run the checks and print the plan; commit, push and `gh` are not touched. |
-| `--remote R`, `--base B`, `--gh PATH` | Remote name (default `origin`), target branch (default `main`), the `gh` binary. |
+| `--remote R`, `--base B`, `--gh PATH` | Remote name (default `origin`), pull request base (default: the remote's default branch), the `gh` binary. |
 
 Safety properties:
 
@@ -151,6 +153,7 @@ Safety properties:
   commit (keeping your files), switches back to the starting branch, deletes the local
   `post/<slug>` and restores the draft line, so the tree is as it was. After a `gh` failure the
   pushed remote branch stays and the message names it; open the pull request by hand.
+- Reads the front matter with the same parser as `scripts/check-content.py`, so `check` and `publish` agree on where it ends (`---` or `...`), on trailing comments (`draft: true # keep` flips to `draft: false # keep`) and on what is valid. Only an unquoted `true` or `false` is accepted. After an edit it parses the result again and refuses unless nothing but the draft and date values changed.
 - Flips only the single `draft:` line inside the front matter. Two such lines, or a body line
   that looks like one, cannot change which line is edited. The write goes through a temporary
   file and a rename.
