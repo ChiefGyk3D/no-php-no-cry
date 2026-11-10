@@ -59,7 +59,7 @@ WANT = {
     ),
     "journal/index.html": (
         "ChiefGyk3D's Technical Journal Index Page" + SUFFIX,
-        "The technical journal currently contains one synthetic sample entry and is set up for short notes on builds, tests, and troubleshooting.",
+        "I share seven journal entries with build notes, design choices, and lessons from creating and launching this personal tech site.",
     ),
 }
 
@@ -124,3 +124,34 @@ if fails:
     sys.exit(1)
 print("ok: home title, six inner titles and descriptions: exact, suffixed once, unique, clean")
 PY
+
+# The journal at launch (issue 316): the seven entries are published, the synthetic
+# sample entry is gone, and nothing in the repository still points at it.
+expected="a-database-rollout-on-a-test-environment a-threat-model-for-a-static-site borders-and-the-brand-look collectors-and-credential-handling privacy-engineering-for-analytics running-a-fleet-of-ai-agents support-share-and-post-layouts"
+journal_fail=0
+for slug in $expected; do
+    if [[ ! -f "$work/public/journal/$slug/index.html" ]]; then
+        echo "FAIL: journal entry $slug is not published"
+        journal_fail=1
+    fi
+done
+actual="$(find "$work/public/journal" -mindepth 2 -maxdepth 2 -name index.html -printf '%h\n' | sed 's#.*/##' | sort | tr '\n' ' ')"
+want="$(printf '%s\n' $expected | sort | tr '\n' ' ')"
+if [[ "$actual" != "$want" ]]; then
+    echo "FAIL: journal entries built are '$actual', want '$want'"
+    journal_fail=1
+fi
+if [[ ! -f "$work/public/posts/new-site-no-php/index.html" ]]; then
+    echo "FAIL: the announcement /posts/new-site-no-php/ is not published"
+    journal_fail=1
+fi
+if [[ -e "$root/content/journal/sample-entry" ]]; then
+    echo "FAIL: content/journal/sample-entry still exists"
+    journal_fail=1
+fi
+if git -C "$root" grep -n -I -e 'sample-entry' -e 'Sample journal entry' -- . ':!scripts/test-titles.sh' | grep .; then
+    echo "FAIL: a reference to the sample journal entry remains"
+    journal_fail=1
+fi
+[[ "$journal_fail" -eq 0 ]] || exit 1
+echo "ok: seven journal entries and the announcement are published, no sample entry remains"

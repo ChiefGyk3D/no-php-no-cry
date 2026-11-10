@@ -1082,8 +1082,8 @@ fi
 if [[ -e "$pub/support.js" ]]; then
     fail "support.js shipped: the only scripts are the pinned /copy.js and /search.js"
 fi
-# Only /support/ loads the copy script.
-if grep -rl --include=index.html --include=404.html '/copy.js' "$pub" | grep -v '^'"$pub"'/support/index.html$' | grep -q .; then
+# Only /support/ loads the copy script (a script tag; a page may name it in text).
+if grep -rlE --include=index.html --include=404.html '<script[^>]*src=[^>]*/copy\.js' "$pub" | grep -v '^'"$pub"'/support/index.html$' | grep -q .; then
     fail "a page other than /support/ loads /copy.js"
 else
     pass "only /support/ loads /copy.js"
@@ -1275,7 +1275,7 @@ else
 fi
 if [[ ! -f "$pub/search.js" ]]; then
     fail "search.js is not in the build"
-elif grep -rl --include=index.html --include=404.html '/search.js' "$pub" | grep -v '^'"$pub"'/search/index.html$' | grep -q .; then
+elif grep -rlE --include=index.html --include=404.html '<script[^>]*src=[^>]*/search\.js' "$pub" | grep -v '^'"$pub"'/search/index.html$' | grep -q .; then
     fail "a page other than /search/ loads /search.js"
 else
     pass "only /search/ loads /search.js"

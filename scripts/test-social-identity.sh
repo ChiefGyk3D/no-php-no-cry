@@ -48,7 +48,7 @@ PY
 }
 
 post="$(find "$pub/posts" -mindepth 2 -name index.html | head -n 1)"
-entry="$pub/journal/sample-entry/index.html"
+entry="$pub/journal/a-threat-model-for-a-static-site/index.html"
 for f in "$post" "$entry"; do
     got="$(creators "$f")"
     if [[ "$got" == "$CREATOR" ]]; then pass "exactly one fediverse:creator ($CREATOR) on ${f#"$pub"/}"; else fail "fediverse:creator on ${f#"$pub"/} is '$got', want '$CREATOR'"; fi

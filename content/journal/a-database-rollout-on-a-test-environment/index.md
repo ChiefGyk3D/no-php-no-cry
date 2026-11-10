@@ -1,7 +1,6 @@
 ---
 title: "A database rollout on a test environment"
 date: 2026-11-09T22:00:00-05:00
-draft: true
 description: "I rolled several pending migrations onto a non-production Cloudflare D1 database, with exports, verification and a restore drill around the risky parts."
 slug: "a-database-rollout-on-a-test-environment"
 categories: ["Journal"]
@@ -25,7 +24,7 @@ The browser test added another wrinkle. Browsers that block the HTML `ping` attr
 
 ## The credential was stale
 
-The credential already stored for deployment was stale. Its replacement was scoped to one account and one zone with an expiry.
+The credential already stored for deployment was stale. Its replacement had limited access and an expiry.
 
 This was also a good reminder not to paste a command while it still contains placeholders. A placeholder is useful in documentation because publishing real identifiers would be worse. In an operational shell, it is an unfinished command. Fill it in, inspect the complete command, then run it.
 

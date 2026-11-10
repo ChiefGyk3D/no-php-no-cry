@@ -1,7 +1,6 @@
 ---
 title: "Support, share and post layouts"
 date: 2026-11-08T23:00:00-05:00
-draft: true
 description: "I rebuilt the blog’s support cards, sharing controls and post layout around safer copying, progressive enhancement and measured dimensions."
 slug: "support-share-and-post-layouts"
 categories: ["Journal"]

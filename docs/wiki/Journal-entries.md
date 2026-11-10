@@ -32,9 +32,7 @@ checks in [Writing a post](Writing-a-post.md) and open a pull request.
 ## The Journal link in the menu
 
 The main navigation shows a Journal link only when the section has at least one
-published entry. With none, the link is not rendered. The repository ships one
-synthetic entry, `content/journal/sample-entry/`, so the section is never empty
-in a fresh clone; delete it when you add your own.
+published entry. With none, the link is not rendered.
 
 ## Good journal entries
 

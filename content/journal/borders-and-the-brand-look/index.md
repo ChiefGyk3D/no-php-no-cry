@@ -1,7 +1,6 @@
 ---
 title: "Borders and the brand look"
 date: 2026-11-08T21:00:00-05:00
-draft: true
 description: "A green build shipped the wrong visual treatment. Fixing it meant checking the render myself, limiting where frames belong, and testing the viewport I actually use."
 slug: "borders-and-the-brand-look"
 categories: ["Journal"]

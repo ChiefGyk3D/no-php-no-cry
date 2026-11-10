@@ -1,7 +1,6 @@
 ---
 title: "A threat model for a static site"
 date: 2026-11-07T20:00:00-05:00
-draft: true
 description: "A static Hugo site still has a publishing pipeline, credentials, third parties, and readers to protect. I put those risks into an OWASP Threat Dragon model and made CI keep the model tied to controls that actually exist."
 slug: "a-threat-model-for-a-static-site"
 categories: ["Journal"]
@@ -25,13 +24,13 @@ The adversary in this model is a public visitor or somebody reading a released r
 
 ## Counts with rules behind them
 
-The model currently contains 57 threats. Of those, 33 are mitigated, 21 remain open, 2 are accepted, and 1 is not applicable.
+The model currently contains 58 threats. Of those, 33 are mitigated, 21 remain open, 3 are accepted, and 1 is not applicable.
 
 Those statuses have a deliberately strict meaning. I only mark a threat mitigated when the repository contains a visible control and the mitigation text names it. Provider-side settings stay open until somebody checks them and records the result. Planned features stay open because a design document is not an implemented control.
 
-The plain-language risk summary currently says 32 mitigated and 22 open. The model itself has already moved to 33 and 21, which means the summary needs to catch up. That is exactly the sort of drift a living threat model has to expose instead of hiding behind a polished document.
+The plain-language risk summary once lagged the model by one mitigated and one open threat. That is exactly the sort of drift a living threat model has to expose instead of hiding behind a polished document.
 
-The checker verifies the JSON structure, required fields, identifiers, STRIDE types, statuses, severities, trust boundaries, and flow references. It also requires every mitigated threat to cite at least one repository path and fails when a cited path does not exist. The current model passes that check with all three diagrams and the current 57-threat count.
+The checker verifies the JSON structure, required fields, identifiers, STRIDE types, statuses, severities, trust boundaries, and flow references. It also requires every mitigated threat to cite at least one repository path and fails when a cited path does not exist. The current model passes that check with all three diagrams and the current 58-threat count.
 
 That still does not prove a control works. It proves the model is well formed and points at something real. The control needs its own test or review.
 
