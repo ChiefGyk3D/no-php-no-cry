@@ -33,7 +33,7 @@ Rules:
   bad-path         a path-like word in a mitigation or description names a file or folder
                    that does not exist
   em-dash          an em dash anywhere in the file (house style)
-  counts-doc       a count stated in RISKS.md (beside the model), or in the journal entry and the
+  counts-doc       a count in RISKS.md (beside the model), or in the journal entry and the
                    announcement post (default model only), differs from the model's own count
 
 A path-like word has a slash and starts with a top-level folder or file of the repository,
@@ -304,10 +304,10 @@ def count_model(model):
     return counts
 
 
-# Statements of the counts in prose. Each pattern captures total, Mitigated, Open, Accepted, N/A.
+# Count statements. Each pattern captures total, Mitigated, Open, Accepted, NotApplicable.
 COUNT_FILES = (
     (os.path.join("docs", "threat-model", "RISKS.md"), re.compile(
-        r"(\d+) threats in three diagrams: (\d+) Mitigated, (\d+) Open, (\d+) Accepted, (\d+) N/A")),
+        r"\| All diagrams \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \|")),
     (os.path.join("content", "posts", "new-site-no-php", "index.md"), re.compile(
         r"contains (\d+) threats: (\d+) Mitigated, (\d+) Open, (\d+) Accepted and (\d+) Not Applicable")),
     (os.path.join("content", "journal", "a-threat-model-for-a-static-site", "index.md"), re.compile(

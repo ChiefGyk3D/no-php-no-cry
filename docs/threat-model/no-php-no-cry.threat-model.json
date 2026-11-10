@@ -229,7 +229,7 @@
               "threats": [
                 {
                   "id": "8c9b796d-2b50-5fb1-b7eb-60b6a22ee0d4",
-                  "title": "Owner account or session taken over",
+                  "title": "Protect the owner account and session",
                   "status": "Open",
                   "severity": "High",
                   "type": "Spoofing",
@@ -276,7 +276,7 @@
               "threats": [
                 {
                   "id": "48a686d9-6f21-58e7-9d66-7525020f1a9b",
-                  "title": "Contributor impersonates a trusted author",
+                  "title": "Verify the contributor's identity",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Spoofing",
@@ -358,7 +358,7 @@
               "threats": [
                 {
                   "id": "03851e24-8ca6-5e53-8238-926756d84de2",
-                  "title": "Compromised editor, extension or helper script alters content",
+                  "title": "Prevent the editor from altering content",
                   "status": "Open",
                   "severity": "High",
                   "type": "Tampering",
@@ -369,7 +369,7 @@
                 },
                 {
                   "id": "b56e7642-d642-5744-bda3-b7347082738a",
-                  "title": "Draft or private detail published by accident",
+                  "title": "Prevent accidental publication of private details",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Information disclosure",
@@ -416,7 +416,7 @@
               "threats": [
                 {
                   "id": "ff5e2a80-d4f7-5a4a-a6e9-2c4a4ceaf492",
-                  "title": "Web edit skips local checks",
+                  "title": "Run checks on web edits",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Tampering",
@@ -463,18 +463,18 @@
               "threats": [
                 {
                   "id": "b2313e8c-fb5b-5110-8fbe-9fb9cb68afb7",
-                  "title": "Pull request changes a workflow to reach a credential",
+                  "title": "Keep pull requests away from deployment credentials",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
                   "description": "A contributor edits CI or deploy files so that a run exposes a secret or deploys unreviewed code.",
-                  "mitigation": ".github/workflows/deploy.yml never runs on pull_request, only on push to main or by hand. The credentialed job checks out only two scripts (scripts/check-deploy-sparse.py enforces the list) and the Doppler OIDC identity is limited to refs/heads/main (docs/deploy.md). Workflow permissions are contents: read by default in .github/workflows/ci.yml.",
+                  "mitigation": ".github/workflows/deploy.yml never runs on pull request events, only on push to main or by hand. The credentialed job checks out only two scripts (scripts/check-deploy-sparse.py enforces the list) and the Doppler OIDC identity is limited to the protected publishing branch (docs/deploy.md). Workflow permissions are contents: read by default in .github/workflows/ci.yml.",
                   "number": 6
                 },
                 {
                   "id": "6fd51659-0dcb-5c27-babe-ed3be15e120e",
-                  "title": "Who changed what cannot be shown",
+                  "title": "Preserve change attribution",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Repudiation",
@@ -526,7 +526,7 @@
               "threats": [
                 {
                   "id": "7d829b09-353b-5034-b3f8-c7ba87878de5",
-                  "title": "History rewritten or main altered without review",
+                  "title": "Protect reviewed history",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -537,7 +537,7 @@
                 },
                 {
                   "id": "fe932167-00e1-5c3c-bd45-ce15a3ff5c54",
-                  "title": "Repository wiped or locked out",
+                  "title": "Preserve repository access and content",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Denial of service",
@@ -583,18 +583,18 @@
               "threats": [
                 {
                   "id": "0220acf0-d1aa-5b3a-91c0-12a31615e7c9",
-                  "title": "Build step reaches out and leaks source or tokens",
+                  "title": "Stop build steps from leaking source or credentials",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "A compromised step sends repository contents or a token to an outside host.",
-                  "mitigation": "Open. Partly handled: the credentialed deploy job and the security and shell jobs set the runner egress policy to block (.github/workflows/deploy.yml, .github/workflows/ci.yml), and CI build jobs hold no cloud credential and have read-only permissions. The build and check jobs run with egress-policy-secretless set to audit (.github/workflows/ci.yml, documented in docs/ci-parallel.md), so a compromised build step can still send source over the network. Source is public, so the loss is limited, but the claim stays Open until that policy is flipped to block.",
+                  "mitigation": "Open. Partly handled: the credentialed deploy job and the security and shell jobs set the runner egress policy to block (.github/workflows/deploy.yml, .github/workflows/ci.yml), and CI build jobs hold no cloud credential and have read-only permissions. The build and check jobs run with the egress control set to audit (.github/workflows/ci.yml, documented in docs/ci-parallel.md), so a compromised build step can still send source over the network. Source is public, so the loss is limited, but the claim stays Open until that policy is flipped to block.",
                   "number": 10
                 },
                 {
                   "id": "7b22a66d-cc89-59d2-b2b1-6b22965f0335",
-                  "title": "Pull request floods CI",
+                  "title": "Limit pull request use of CI",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Denial of service",
@@ -605,7 +605,7 @@
                 },
                 {
                   "id": "e1b8fb2a-90ad-5500-8d5e-0519b13dd691",
-                  "title": "Production build and deploy share one job",
+                  "title": "Separate production build and deployment jobs",
                   "status": "Open",
                   "severity": "High",
                   "type": "Elevation of privilege",
@@ -652,7 +652,7 @@
               "threats": [
                 {
                   "id": "9264ee67-4089-57aa-ba78-7f25d448c7cd",
-                  "title": "Deploy runs for a commit that did not pass CI",
+                  "title": "Deploy only commits that passed CI",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Spoofing",
@@ -663,18 +663,18 @@
                 },
                 {
                   "id": "d4a1136d-aefa-5606-8cad-c26bfaa98220",
-                  "title": "Token over-scoped for what deploy needs",
+                  "title": "Limit deployment credential permissions",
                   "status": "Open",
                   "severity": "High",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
-                  "description": "The Cloudflare API token can do more than publish a Pages project, so a leak reaches DNS, other projects or the database.",
-                  "mitigation": "Open. docs/deploy.md documents the narrow scope (Pages edit; DNS write is named only for a one-time manual domain fix) and CI never touches DNS. The live token permissions exist only at Cloudflare and have not been read for this model; record the review date in docs/threat-model/RISKS.md.",
+                  "description": "A deployment credential with unnecessary permissions could affect services beyond this site.",
+                  "mitigation": "Open. docs/deploy.md documents the least privilege (the minimum deployment permissions) and CI never touches DNS. The live credential permissions exist only at Cloudflare and have not been read for this model; record the review date in docs/threat-model/RISKS.md.",
                   "number": 13
                 },
                 {
                   "id": "1ea7bdd4-0704-5ca1-b085-b239aaace94b",
-                  "title": "Production build takes a commit nobody reviewed",
+                  "title": "Require review of production commits",
                   "status": "Open",
                   "severity": "High",
                   "type": "Tampering",
@@ -721,7 +721,7 @@
               "threats": [
                 {
                   "id": "7e9c6da6-5956-539a-a03d-015d780e3306",
-                  "title": "A merged pull request makes the job post attacker-chosen text",
+                  "title": "Prevent syndication of attacker-chosen text",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -732,7 +732,7 @@
                 },
                 {
                   "id": "b3873b31-ed5c-54c2-b779-31352bd3770b",
-                  "title": "Duplicate or runaway announcements",
+                  "title": "Prevent duplicate or runaway announcements",
                   "status": "Open",
                   "severity": "Low",
                   "type": "Denial of service",
@@ -743,7 +743,7 @@
                 },
                 {
                   "id": "eed1444c-bc45-5009-bc67-3b0df99d6075",
-                  "title": "Platform tokens exposed through the job",
+                  "title": "Protect syndication credentials",
                   "status": "Open",
                   "severity": "High",
                   "type": "Information disclosure",
@@ -825,7 +825,7 @@
               "threats": [
                 {
                   "id": "ce590d0b-2a60-5929-838c-48558f76d613",
-                  "title": "Credential used to publish something other than the reviewed build",
+                  "title": "Publish only the reviewed build",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Tampering",
@@ -987,7 +987,7 @@
               "threats": [
                 {
                   "id": "e869d145-74f9-5586-8126-f0dce8ddb653",
-                  "title": "Content changed in transit to GitHub",
+                  "title": "Protect content in transit to the repository",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Tampering",
@@ -1099,7 +1099,7 @@
               "threats": [
                 {
                   "id": "957fb914-7763-5d42-8ee1-23b35a886960",
-                  "title": "Hostile content or script in a pull request",
+                  "title": "Reject hostile pull request content",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Tampering",
@@ -1110,7 +1110,7 @@
                 },
                 {
                   "id": "b017492d-8eeb-566b-97a1-80a3b4263c69",
-                  "title": "Pull request floods the owner with review work",
+                  "title": "Limit pull request review floods",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Denial of service",
@@ -1272,7 +1272,7 @@
               "threats": [
                 {
                   "id": "55aa4ce5-f90a-5e79-92ce-f5edf2163009",
-                  "title": "Malicious or compromised upstream component",
+                  "title": "Prevent upstream components from altering the site",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Tampering",
@@ -1334,7 +1334,7 @@
               "threats": [
                 {
                   "id": "24bbddd9-b87d-576d-b308-c1a6e7699c57",
-                  "title": "Artifact swapped between build and deploy",
+                  "title": "Protect artifacts between build and deployment",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Tampering",
@@ -1345,7 +1345,7 @@
                 },
                 {
                   "id": "778b7739-9261-56eb-b547-691298bd8f73",
-                  "title": "Production artifact carries code or routing files",
+                  "title": "Reject active content from production artifacts",
                   "status": "Open",
                   "severity": "High",
                   "type": "Tampering",
@@ -1383,7 +1383,7 @@
                 "position": 0.5,
                 "attrs": {
                   "label": {
-                    "text": "Publish folder with API token"
+                    "text": "Publish folder with deployment credential"
                   }
                 }
               }
@@ -1396,7 +1396,7 @@
             },
             "data": {
               "type": "tm.Flow",
-              "name": "Publish folder with API token",
+              "name": "Publish folder with deployment credential",
               "description": "",
               "outOfScope": false,
               "reasonOutOfScope": "",
@@ -1692,7 +1692,7 @@
               "threats": [
                 {
                   "id": "fc3109c5-0924-5316-8c62-73229a654118",
-                  "title": "Visitor fed a look-alike site",
+                  "title": "Help visitors recognize look-alike sites",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Spoofing",
@@ -1739,7 +1739,7 @@
               "threats": [
                 {
                   "id": "a735a9c6-3481-555d-954c-cb28778b0527",
-                  "title": "Instance picker input steers the share link",
+                  "title": "Keep instance input from redirecting share links",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -1750,7 +1750,7 @@
                 },
                 {
                   "id": "f29c0c0c-6f88-534f-bb9f-7deb207d203f",
-                  "title": "Share intent leaks page details to the target",
+                  "title": "Limit details shared with external targets",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Information disclosure",
@@ -1797,7 +1797,7 @@
               "threats": [
                 {
                   "id": "9f589113-1b0e-5f6f-81a6-8ab4db06427e",
-                  "title": "Script injection or CSP bypass through content",
+                  "title": "Block script injection and policy bypass",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Elevation of privilege",
@@ -1808,7 +1808,7 @@
                 },
                 {
                   "id": "63c27a0f-2f30-57cf-baaa-7920a402720f",
-                  "title": "Hostname or domain taken over",
+                  "title": "Protect the site domain",
                   "status": "Open",
                   "severity": "High",
                   "type": "Spoofing",
@@ -1819,7 +1819,7 @@
                 },
                 {
                   "id": "c07ee602-959a-5ed4-a4e6-b89cae542b84",
-                  "title": "Redirect rules abused to send readers elsewhere",
+                  "title": "Keep redirects on this site",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -1830,7 +1830,7 @@
                 },
                 {
                   "id": "ab88efdb-2a10-5328-a360-bf65b64932ad",
-                  "title": "Traffic spike takes the site down",
+                  "title": "Keep the site available during traffic spikes",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Denial of service",
@@ -1841,7 +1841,7 @@
                 },
                 {
                   "id": "1643daef-6cc8-5ab2-baab-7e2e4ca6de63",
-                  "title": "Unchanged files keep stale headers at the edge",
+                  "title": "Refresh stale security headers at the edge",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -1888,7 +1888,7 @@
               "threats": [
                 {
                   "id": "074bcdb2-9b2c-55e4-8415-a6ec5d6a01d4",
-                  "title": "Flood against the Function burns the free daily allowance",
+                  "title": "Limit request floods against analytics",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Denial of service",
@@ -1899,13 +1899,13 @@
                 },
                 {
                   "id": "c96bb6cd-8a47-5a04-89c0-8e1858587021",
-                  "title": "Handler logs or stores a visitor's address or user agent",
+                  "title": "Keep visitor details out of logs and storage",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "A bug writes an address, a user agent or a fingerprint to a table or a log.",
-                  "mitigation": "analytics/source-guard.mjs forbids address headers, cookie and storage use, outbound calls, logging and precise location in the bundle sources; analytics/collect.mjs honors Do Not Track and Global Privacy Control; scripts/test-analytics.sh and analytics/test run in CI. docs/privacy-with-analytics.md holds the draft privacy text that must ship with go-live.",
+                  "mitigation": "The analytics source excludes address headers, cookies, storage, outbound calls, logging and precise location; analytics/collect.mjs honors Do Not Track and Global Privacy Control; scripts/test-analytics.sh and analytics/test run in CI. docs/privacy-with-analytics.md holds the draft privacy text that must ship with go-live.",
                   "number": 31
                 }
               ],
@@ -1946,7 +1946,7 @@
               "threats": [
                 {
                   "id": "e78ad721-9184-5b22-a47d-3302e1aeaea0",
-                  "title": "Third-party script runs on every page",
+                  "title": "Limit third-party scripts on every page",
                   "status": "Accepted",
                   "severity": "Medium",
                   "type": "Elevation of privilege",
@@ -1957,7 +1957,7 @@
                 },
                 {
                   "id": "bc25203c-fef4-4d14-9cc7-d596d5fabbef",
-                  "title": "Path prefix lets the host serve any script under the beacon path",
+                  "title": "Limit scripts allowed by the beacon path",
                   "status": "Accepted",
                   "severity": "Low",
                   "type": "Tampering",
@@ -2009,7 +2009,7 @@
               "threats": [
                 {
                   "id": "af6e2fb1-637c-5bd8-9fc8-39aa8ee97305",
-                  "title": "Small-town re-identification from place counts",
+                  "title": "Prevent re-identification from location counts",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Information disclosure",
@@ -2020,7 +2020,7 @@
                 },
                 {
                   "id": "0b570f61-5463-5881-bfb4-c396d178cefd",
-                  "title": "Daily visitor code linked across days or to a person",
+                  "title": "Prevent linking visitor codes across days",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Information disclosure",
@@ -2031,7 +2031,7 @@
                 },
                 {
                   "id": "6632d91b-71bf-5126-b81f-528836761bba",
-                  "title": "Counts inflated or poisoned by any client",
+                  "title": "Treat client-provided counts as estimates",
                   "status": "Accepted",
                   "severity": "Low",
                   "type": "Tampering",
@@ -2077,7 +2077,7 @@
               "threats": [
                 {
                   "id": "05ea24b8-6af3-5111-acde-d80407721665",
-                  "title": "Report reveals a suppressed value by subtraction",
+                  "title": "Prevent reports from revealing suppressed values",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Information disclosure",
@@ -2088,7 +2088,7 @@
                 },
                 {
                   "id": "3ffd8a22-3457-5a8b-960f-6187579d0bb7",
-                  "title": "Destination domain flood grows the click table",
+                  "title": "Limit destination growth in click reports",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Denial of service",
@@ -2135,7 +2135,7 @@
               "threats": [
                 {
                   "id": "8d2ac2b8-07b9-50f7-ac9b-6e4855017e88",
-                  "title": "Report attributed to the wrong period or source",
+                  "title": "Label report periods and sources",
                   "status": "Open",
                   "severity": "Low",
                   "type": "Repudiation",
@@ -2182,7 +2182,7 @@
               "threats": [
                 {
                   "id": "cee762c6-2e52-5fe3-870e-8b9499d5b07d",
-                  "title": "Link target tracks or phishes the reader",
+                  "title": "Warn readers about external link tracking",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Spoofing",
@@ -2229,7 +2229,7 @@
               "threats": [
                 {
                   "id": "28bd1834-b4f4-5bbc-9315-451c80aae4a6",
-                  "title": "Embed adds third-party script, cookies or tracking",
+                  "title": "Keep third-party embeds off the site",
                   "status": "NotApplicable",
                   "severity": "Medium",
                   "type": "Elevation of privilege",
@@ -2291,7 +2291,7 @@
               "threats": [
                 {
                   "id": "35624842-5039-5e6f-a30d-07a95b5f13b8",
-                  "title": "Eavesdropping or downgrade on the way to the site",
+                  "title": "Protect page requests in transit",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Information disclosure",
@@ -2353,7 +2353,7 @@
               "threats": [
                 {
                   "id": "3a76cf51-1775-5bc1-b8ed-8ba0afadaccb",
-                  "title": "Poisoned cache serves altered pages",
+                  "title": "Prevent altered pages from entering the cache",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -2364,7 +2364,7 @@
                 },
                 {
                   "id": "96cf5876-4be8-5499-a9e2-743d5ac53dc5",
-                  "title": "Feed item identifiers change and readers see duplicates or gaps",
+                  "title": "Keep feed identifiers stable",
                   "status": "Open",
                   "severity": "Low",
                   "type": "Tampering",
@@ -2426,7 +2426,7 @@
               "threats": [
                 {
                   "id": "634bf3be-f9f0-5df2-9a31-055efff4d2f7",
-                  "title": "Link text hides a different destination",
+                  "title": "Make external link destinations clear",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Tampering",
@@ -2588,7 +2588,7 @@
               "threats": [
                 {
                   "id": "b43388f1-9767-5f58-ae14-aef52e4f4972",
-                  "title": "Function runs on routes that should stay static",
+                  "title": "Keep static routes away from the function",
                   "status": "Mitigated",
                   "severity": "Low",
                   "type": "Tampering",
@@ -2985,13 +2985,13 @@
               "threats": [
                 {
                   "id": "d8ffcce5-886e-5298-bfef-8b387bd32c44",
-                  "title": "Fork run reads a secret",
+                  "title": "Keep secrets out of forked pull requests",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Spoofing",
                   "modelType": "STRIDE",
                   "description": "A pull request workflow tries to read a secret or the OIDC token.",
-                  "mitigation": ".github/workflows/deploy.yml runs only on main; the credentialed job alone holds id-token write; the Doppler identity subject is limited to refs/heads/main with no wildcard and never pull_request (docs/deploy.md). Actual identity settings live at Doppler and are the owner's to confirm.",
+                  "mitigation": ".github/workflows/deploy.yml runs only on main; the credentialed job alone holds id-token write; the Doppler identity subject is limited to the protected publishing branch with no wildcard and never pull request events (docs/deploy.md). Actual identity settings live at Doppler and are the owner's to confirm.",
                   "number": 46
                 }
               ],
@@ -3029,7 +3029,7 @@
             "id": "7e95b890-72da-55bb-ac7a-efdb9465abdc",
             "data": {
               "name": "Doppler (product project, dev environment config)",
-              "description": "Holds CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables. A later project holds the analytics hash secret.",
+              "description": "Holds two deployment credential values for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables. A later project holds the analytics hash secret.",
               "type": "tm.Store",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -3037,7 +3037,7 @@
               "threats": [
                 {
                   "id": "01f79c9e-bf50-52ac-a77b-23c5cc642a08",
-                  "title": "Secret store account taken over",
+                  "title": "Protect the secret store account",
                   "status": "Open",
                   "severity": "High",
                   "type": "Tampering",
@@ -3048,7 +3048,7 @@
                 },
                 {
                   "id": "fba1c2b4-1a80-522f-b256-3b5f420617f6",
-                  "title": "Whole config visible to every later step",
+                  "title": "Limit credentials available to later steps",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Information disclosure",
@@ -3086,7 +3086,7 @@
             "id": "e889ccc2-fb9f-58f5-a0b0-89faca02df0d",
             "data": {
               "name": "Doppler OIDC identity (main only)",
-              "description": "Exchanges the GitHub OIDC token for the two values. Subject: this repository, ref main.",
+              "description": "Exchanges the Workload identity credential for the two values. Subject: this repository, ref main.",
               "type": "tm.Process",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -3094,24 +3094,24 @@
               "threats": [
                 {
                   "id": "f649432b-eb77-524e-992d-a675b6aaefd9",
-                  "title": "Identity subject too broad",
+                  "title": "Restrict the workload identity",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
-                  "description": "A wildcard or a pull_request subject lets a fork or a branch fetch the token.",
-                  "mitigation": "docs/deploy.md requires one subject form (the immutable one this repository uses), limited to refs/heads/main, no wildcard. In .github/workflows/deploy.yml only the deploy job requests id-token.",
+                  "description": "A wildcard or a pull request events subject lets a fork or a branch fetch the token.",
+                  "mitigation": "docs/deploy.md requires one subject form (the immutable one this repository uses), limited to the protected publishing branch, no wildcard. In .github/workflows/deploy.yml only the deploy job requests id-token.",
                   "number": 49
                 },
                 {
                   "id": "24285dd0-5e58-50cc-a886-b486c914aa61",
-                  "title": "Production identity accepts the wrong workflow",
+                  "title": "Restrict the production workload identity",
                   "status": "Open",
                   "severity": "High",
                   "type": "Spoofing",
                   "modelType": "STRIDE",
                   "description": "The production deploy identity at the secret manager accepts a token from a workflow, branch or repository other than the intended production workflow.",
-                  "mitigation": "Open. This is an owner-configured control at the provider, not one this repository enforces: each tier has its own service account and identity, and the claim rules (repository, branch or environment, no wildcard, never pull_request) are set by the owner. docs/deploy.md states the rule for the dev identity. The live claim rules were not read for this model; the owner reads them and the date is recorded in docs/threat-model/RISKS.md.",
+                  "mitigation": "Open. This is an owner-configured control at the provider, not one this repository enforces: each tier has its own service account and identity, and the identity restrictions (repository, branch or environment, no wildcard, never pull request events) are set by the owner. docs/deploy.md states the rule for the dev identity. The live identity restrictions were not read for this model; the owner reads them and the date is recorded in docs/threat-model/RISKS.md.",
                   "number": 63
                 }
               ],
@@ -3157,13 +3157,13 @@
               "threats": [
                 {
                   "id": "6f4a59d1-e8b0-5b4e-8c24-3782837f8895",
-                  "title": "Secret placed in GitHub because a fallback exists",
+                  "title": "Keep deployment credentials out of repository settings",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "A deploy fallback or a document could put a long-lived credential in GitHub secrets, against the policy that credentials live in Doppler only.",
-                  "mitigation": "The fallback expressions and the Doppler service token input were removed from .github/workflows/deploy.yml; docs/deploy.md, docs/cutover.md and docs/wiki/Deploy-overview.md say credentials come from Doppler only. scripts/check-workflow-secrets.py fails CI on any repository secret read other than the per-run GITHUB_TOKEN (and on the whole context, wildcards and inherit), run in the content checks job of .github/workflows/ci.yml and covered by scripts/test-check-workflow-secrets.sh. The owner still deletes any leftover repository secrets by hand.",
+                  "mitigation": "Legacy credential fallbacks were removed from .github/workflows/deploy.yml; docs/deploy.md, docs/cutover.md and docs/wiki/Deploy-overview.md say credentials come from Doppler only. scripts/check-workflow-secrets.py fails CI on any repository secret read other than the platform-provided per-run credential (and on the whole context, wildcards and inherit), run in the content checks job of .github/workflows/ci.yml and covered by scripts/test-check-workflow-secrets.sh. The owner still deletes any leftover repository secrets by hand.",
                   "number": 50
                 }
               ],
@@ -3203,7 +3203,7 @@
               "threats": [
                 {
                   "id": "1eed75fa-4b95-56ae-b818-51b70b928265",
-                  "title": "Token printed or passed on a command line",
+                  "title": "Keep credentials out of logs and process arguments",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Information disclosure",
@@ -3228,7 +3228,7 @@
             },
             "attrs": {
               "text": {
-                "text": "Cloudflare API token and account id"
+                "text": "Hosting deployment credentials"
               },
               "topLine": {
                 "stroke": "#333333",
@@ -3246,7 +3246,7 @@
             "zIndex": 10,
             "id": "4fe84394-4656-50aa-8dcf-865e96062294",
             "data": {
-              "name": "Cloudflare API token and account id",
+              "name": "Hosting deployment credentials",
               "description": "Scoped token used only by the deploy job. Account id is not secret on its own but is kept out of the repository.",
               "type": "tm.Store",
               "isTrustBoundary": false,
@@ -3255,13 +3255,13 @@
               "threats": [
                 {
                   "id": "0c67fbd1-d955-5d43-a5b9-d594135c9673",
-                  "title": "Token scope wider than the job needs",
+                  "title": "Limit deployment credential permissions",
                   "status": "Open",
                   "severity": "High",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "Same concern as in the publishing diagram, seen from the store: the permissions on the live token.",
-                  "mitigation": "Open. Documented least scope in docs/deploy.md; the live token permissions were not read for this model. Re-read at Cloudflare, record the date in docs/threat-model/RISKS.md, and drop any extra scope after the analytics database work (docs/analytics-from-reach-around.md, owner-only steps).",
+                  "mitigation": "Open. docs/deploy.md documents least privilege; the live credential permissions were not read for this model. Review them at the provider, record the date in docs/threat-model/RISKS.md, and remove unneeded access after the analytics database work described in docs/analytics-from-reach-around.md.",
                   "number": 52
                 }
               ],
@@ -3301,7 +3301,7 @@
               "threats": [
                 {
                   "id": "ee6088ba-b433-5b10-8f56-315a72bde968",
-                  "title": "Account compromise publishes arbitrary content",
+                  "title": "Protect the hosting account",
                   "status": "Open",
                   "severity": "High",
                   "type": "Spoofing",
@@ -3353,13 +3353,13 @@
               "threats": [
                 {
                   "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
-                  "title": "Hash key exposed",
+                  "title": "Protect the analytics hashing secret",
                   "status": "Open",
                   "severity": "High",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "A leaked key lets someone test guesses against the daily codes.",
-                  "mitigation": "Open (not built). docs/analytics-from-reach-around.md section 5.3 requires Doppler only, no logging in the handler (analytics/source-guard.mjs) and scheduled rotation; commands that set it must discard output.",
+                  "mitigation": "Open (not built). docs/analytics-from-reach-around.md requires secret-manager storage, no handler logging, and scheduled rotation; scripts/test-analytics.sh verifies the analytics source rules.",
                   "number": 54
                 }
               ],
@@ -3404,12 +3404,12 @@
               "threats": [
                 {
                   "id": "1a03e65d-919a-5f2c-8e50-caa24fb9ae27",
-                  "title": "Secret or personal data committed",
+                  "title": "Keep secrets and personal data out of commits",
                   "status": "Mitigated",
                   "severity": "High",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
-                  "description": "A token, an account id, a hostname or a personal identifier lands in a commit.",
+                  "description": "A credential, infrastructure identifier or personal identifier lands in a public commit.",
                   "mitigation": ".gitleaks.toml with scripts/test-gitleaks-config.sh; the shared security workflow in .github/workflows/ci.yml; the content scrub list (docs/scrub-terms.md, scripts/check-content.py); the PR checklist in .github/PULL_REQUEST_TEMPLATE.md. A secret found in history must be rotated, not just removed.",
                   "number": 55
                 }
@@ -3442,7 +3442,7 @@
             "id": "48f06a9c-79ca-5df7-9300-c6f1fb55b73b",
             "data": {
               "name": "Analytics database maintenance job (planned)",
-              "description": "Applies migrations and the daily roll-up and purge with a database edit scope.",
+              "description": "Applies migrations and the daily roll-up and purge with a temporary database access.",
               "type": "tm.Process",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -3450,13 +3450,13 @@
               "threats": [
                 {
                   "id": "eff23fdc-5cb1-5967-aadf-fae00d2111b3",
-                  "title": "Maintenance credential kept after the work",
+                  "title": "Remove maintenance access after use",
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
-                  "description": "A database edit scope outlives the one-time setup.",
-                  "mitigation": "Open (not built). The access table in docs/analytics-deploy.md lists the scope; the plan is to drop write scopes after the work and card the removal.",
+                  "description": "A temporary database access outlives the one-time setup.",
+                  "mitigation": "Open (not built). The access table in docs/analytics-deploy.md lists the temporary access; the plan is to remove write access after the work and record the removal.",
                   "number": 56
                 }
               ],
@@ -3488,7 +3488,7 @@
                 "position": 0.5,
                 "attrs": {
                   "label": {
-                    "text": "GitHub OIDC token"
+                    "text": "Workload identity credential"
                   }
                 }
               }
@@ -3501,7 +3501,7 @@
             },
             "data": {
               "type": "tm.Flow",
-              "name": "GitHub OIDC token",
+              "name": "Workload identity credential",
               "description": "",
               "outOfScope": false,
               "reasonOutOfScope": "",
@@ -3538,7 +3538,7 @@
                 "position": 0.5,
                 "attrs": {
                   "label": {
-                    "text": "Two Cloudflare values"
+                    "text": "Deployment credential values"
                   }
                 }
               }
@@ -3551,7 +3551,7 @@
             },
             "data": {
               "type": "tm.Flow",
-              "name": "Two Cloudflare values",
+              "name": "Deployment credential values",
               "description": "",
               "outOfScope": false,
               "reasonOutOfScope": "",
@@ -3562,7 +3562,7 @@
               "threats": [
                 {
                   "id": "aeb16eba-6473-5227-9525-f5fa8943ea3d",
-                  "title": "Values intercepted between Doppler and the runner",
+                  "title": "Protect credentials between the secret store and runner",
                   "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Information disclosure",
@@ -3650,7 +3650,7 @@
                 "position": 0.5,
                 "attrs": {
                   "label": {
-                    "text": "Publish with token"
+                    "text": "Publish with deployment credential"
                   }
                 }
               }
@@ -3663,7 +3663,7 @@
             },
             "data": {
               "type": "tm.Flow",
-              "name": "Publish with token",
+              "name": "Publish with deployment credential",
               "description": "",
               "outOfScope": false,
               "reasonOutOfScope": "",
