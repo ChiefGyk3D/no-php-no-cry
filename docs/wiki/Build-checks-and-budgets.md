@@ -42,7 +42,7 @@ It reads the built files, not the sources. Among its rules:
   the one `/css/*` long-cache block, a missing `nosniff`, a missing long-cache block,
   and a file under `/css/` that is not named by its own sha256.
 - A file of a type that is not on the allowlist (including one with no
-  extension), and a `copy.js` or `search.js` whose sha256 differs from its
+  extension), and a `copy.js`, `search.js` or `share.js` whose sha256 differs from its
   committed `.sha256` file.
 - A feed, sitemap or `*.xml` that does not parse; a missing `_redirects`.
 - Any alias in the build without its 301 line. The checker derives the alias

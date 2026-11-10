@@ -16,16 +16,17 @@
 #     file would leave nothing limiting execution to HTML routes), that is not
 #     the strict routing shape (routes_policy_ok) or differs byte for byte from
 #     the repository's static/_routes.json (ROUTES_FILE overrides the path)
-#   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js and
-#     /search.js, and a pinned script that is 1 KB gzip (1024 bytes) or more
+#   - any script file (.js, .mjs, .cjs, any depth) other than /copy.js,
+#     /search.js and /share.js, and a pinned script that is 1 KB gzip (1024 bytes) or more
 #   - a page that loads a pinned script other than its own: /copy.js belongs to
-#     /support/ and /search.js to /search/ (scripts/artifact-rules.sh)
+#     /support/, /search.js to /search/ and /share.js to posts and journal entries
+#     (scripts/artifact-rules.sh)
 #   - any file of a type not on the list (html css svg xml txt png jpg jpeg gif
 #     webp avif ico woff woff2 ttf webmanifest asc (the public PGP key), plus _headers and _redirects at the root),
 #     whatever its content or name: script-src 'self' authorizes every
 #     same-origin response, so there must be no file a script could load
 #   - a pinned script whose sha256 is not the one in its committed hash file,
-#     copy.js.sha256 or search.js.sha256 at the repository root (SCRIPT_HASH_DIR
+#     copy.js.sha256, search.js.sha256 or share.js.sha256 at the repository root (SCRIPT_HASH_DIR
 #     overrides the directory); with no such file that script is not allowed
 #   - a _headers that is not exactly one "/*" block, or has a removal directive
 #   - an SVG with a script element, event handler or javascript: URL

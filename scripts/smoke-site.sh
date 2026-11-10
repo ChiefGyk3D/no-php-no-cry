@@ -23,11 +23,11 @@
 #                 (application/xml, text/xml or a +xml type); the build must
 #                 hold feed/index.xml (else exit 2). It is also checked like
 #                 every page (policy, nosniff, markup).
-#   script-hash    for each pinned script the build has (copy.js, search.js), the
-#                 deployed /copy.js or /search.js has the sha256 pinned in its
-#                 hash file, copy.js.sha256 or search.js.sha256 (SCRIPT_HASH_DIR
-#                 overrides the directory). The page that loads it (/support/
-#                 or /search/, from the allowlist in scripts/artifact-rules.sh)
+#   script-hash    for each pinned script the build has (copy.js, search.js, share.js), the
+#                 deployed /copy.js, /search.js or /share.js has the sha256 pinned in its
+#                 hash file, copy.js.sha256, search.js.sha256 or share.js.sha256 (SCRIPT_HASH_DIR
+#                 overrides the directory). The page that loads it (/support/,
+#                 /search/ or a post, from the allowlist in scripts/artifact-rules.sh)
 #                 is checked too.
 #   script-wrong-page / script-not-allowed / script-count / event-handler / javascript-url /
 #   external-asset / http-reference / base-element
@@ -35,7 +35,9 @@
 #                 are read with scripts/scan-markup.py, the build check's parser:
 #                 no script element other than the page's own pinned script, once
 #                 (<script src=/copy.js></script> on /support/, /search.js on
-#                 /search/; the same tag on another page is script-wrong-page;
+#                 /search/, /share.js on each post and journal entry, one path
+#                 segment under /posts/ or /journal/; the same tag on another
+#                 page is script-wrong-page;
 #                 none at all without a pinned script), no handler, no
 #                 javascript: URL. It reads the served page only; it does not
 #                 fetch or inspect any other script file (the build checks do).

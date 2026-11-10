@@ -2,7 +2,7 @@
 # frame-src is added per embed provider later, one provider at a time, with
 # the matching cookie-free embed. script-src 'self' allows every same-origin
 # script; it cannot name one file. The build checks and the hash pin of
-# /copy.js and /search.js (copy.js.sha256, search.js.sha256), each on its own page only, make sure these are the only scripts: no inline
+# /copy.js, /search.js and /share.js (copy.js.sha256, search.js.sha256, share.js.sha256), each on its own page only, make sure these are the only scripts: no inline
 # script, no other script, no third-party source (scripts/check-output.sh and
 # check-site-artifact.sh).
 #
@@ -17,7 +17,7 @@
 # (CSP3 section 6.7.2.12) and nothing else on that host. Checked in Chrome,
 # docs/performance.md. The injected tag carries an integrity attribute; the
 # browser checks it separately from the policy. The build checks still reject any
-# <script> element that is not one of the two pinned scripts.
+# <script> element that is not one of the three pinned scripts.
 /*
   Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'
   X-Content-Type-Options: nosniff
