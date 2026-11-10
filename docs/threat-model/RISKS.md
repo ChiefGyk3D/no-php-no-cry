@@ -8,10 +8,10 @@ and STRIDE categories.
 <!-- threat-summary:start -->
 | Diagram | Total | Mitigated | Open | Accepted | NotApplicable |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| All diagrams | 63 | 35 | 22 | 3 | 3 |
-| 1 Publishing path | 25 | 17 | 8 | 0 | 0 |
-| 2 Reader path | 25 | 11 | 9 | 3 | 2 |
-| 3 Data stores and secrets | 13 | 7 | 5 | 0 | 1 |
+| All diagrams | 63 | 33 | 24 | 3 | 3 |
+| 1 Publishing path | 25 | 15 | 10 | 0 | 0 |
+| 2 Reader path | 26 | 11 | 9 | 3 | 3 |
+| 3 Data stores and secrets | 12 | 7 | 5 | 0 | 0 |
 <!-- threat-summary:end -->
 
 The summary is generated from the JSON model by `scripts/render-threat-summary.py`. The status vocabulary
@@ -73,7 +73,7 @@ that contains their center. Data flows without a position appear under `Boundary
 - Open: Prevent syndication of attacker-chosen text
 - Open: Prevent duplicate or runaway announcements
 - Open: Protect syndication credentials
-- Mitigated: Separate production build and deployment jobs
+- Open: Separate production build and deployment jobs
 
 ### TB3 Deploy job (the only credential holder)
 
@@ -92,7 +92,7 @@ that contains their center. Data flows without a position appear under `Boundary
 - Mitigated: Limit pull request review floods
 - Mitigated: Prevent upstream components from altering the site
 - Mitigated: Protect artifacts between build and deployment
-- Mitigated: Reject active content from production artifacts
+- Open: Reject active content from production artifacts
 
 ### Outside named boundaries
 
@@ -118,6 +118,7 @@ that contains their center. Data flows without a position appear under `Boundary
 - Open: Prevent re-identification from location counts
 - NotApplicable: Prevent linking visitor codes across days
 - Accepted: Treat client-provided counts as estimates
+- NotApplicable: Protect the analytics hashing secret
 - Accepted: Limit scripts allowed by the beacon path
 - Open: Refresh stale security headers at the edge
 
@@ -147,7 +148,6 @@ that contains their center. Data flows without a position appear under `Boundary
 - Open: Protect the secret store account
 - Mitigated: Limit credentials available to later steps
 - Mitigated: Restrict the workload identity
-- NotApplicable: Protect the analytics hashing secret
 - Open: Restrict the production workload identity
 
 ### TB11 GitHub Actions (build and deploy)

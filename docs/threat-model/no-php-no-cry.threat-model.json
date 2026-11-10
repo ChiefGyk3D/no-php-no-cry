@@ -606,12 +606,12 @@
                 {
                   "id": "e1b8fb2a-90ad-5500-8d5e-0519b13dd691",
                   "title": "Separate production build and deployment jobs",
-                  "status": "Mitigated",
+                  "status": "Open",
                   "severity": "High",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
                   "description": "A build step (Hugo, a script, a dependency) runs in the same job that holds the production deploy credential and can read or send it.",
-                  "mitigation": "The design separates the build job (no credentials) from the deploy job (the only credential holder), as the dev deploy does in .github/workflows/deploy.yml and docs/deploy.md; the dev separation is checked by scripts/check-deploy-sparse.py and scripts/check-workflow-secrets.py. Reviewed 2026-11-10 against the private production workflow.",
+                  "mitigation": "Open. The design separates the build job (no credentials) from the deploy job (the only credential holder), as the dev deploy does in .github/workflows/deploy.yml and docs/deploy.md; the dev separation is checked by scripts/check-deploy-sparse.py and scripts/check-workflow-secrets.py. The production workflow lives in the private repository, so that separation is stated by the owner and was not read for this model. Record the review date in docs/threat-model/RISKS.md.",
                   "number": 59
                 }
               ],
@@ -1346,17 +1346,17 @@
                 {
                   "id": "778b7739-9261-56eb-b547-691298bd8f73",
                   "title": "Reject active content from production artifacts",
-                  "status": "Mitigated",
+                  "status": "Open",
                   "severity": "High",
                   "type": "Tampering",
                   "modelType": "STRIDE",
                   "description": "The build output handed to the production deploy contains Pages control files, a worker, extra headers or redirects, or anything other than inert static data.",
-                  "mitigation": "scripts/check-site-artifact.sh rejects Pages code and routing files, a changed _headers and unsafe _redirects lines, and scripts/test-check-site-artifact.sh tests it. Reviewed 2026-11-10 against the private production workflow.",
+                  "mitigation": "Open. scripts/check-site-artifact.sh rejects Pages code and routing files, a changed _headers and unsafe _redirects lines, and scripts/test-check-site-artifact.sh tests it. The production pipeline is documented to run the same validation on the output as inert data, in a separate credential-free step before any credentialed step. That use is in the private repository and was not read for this model, so the threat stays Open for production until the owner confirms it and the date is recorded in docs/threat-model/RISKS.md.",
                   "number": 61
                 }
               ],
               "isTrustBoundary": false,
-              "hasOpenThreats": false
+              "hasOpenThreats": true
             }
           },
           {
@@ -2028,6 +2028,17 @@
                   "description": "The daily keyed hash (decision Q6) could be linked if the key leaks or rows are kept past the day.",
                   "mitigation": "The unique-visitor hash was removed, so no visitor codes exist to link. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address. The feature was dropped, not deferred.",
                   "number": 34
+                },
+                {
+                  "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
+                  "title": "Protect the analytics hashing secret",
+                  "status": "NotApplicable",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A leaked key lets someone test guesses against the daily codes.",
+                  "mitigation": "The unique-visitor hash was removed, so no hashing secret exists. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address.",
+                  "number": 54
                 },
                 {
                   "id": "6632d91b-71bf-5126-b81f-528836761bba",
@@ -3317,57 +3328,6 @@
           },
           {
             "position": {
-              "x": 300,
-              "y": 270
-            },
-            "size": {
-              "width": 200,
-              "height": 90
-            },
-            "attrs": {
-              "text": {
-                "text": "Analytics hash secret (planned)"
-              },
-              "topLine": {
-                "stroke": "#333333",
-                "strokeWidth": 1,
-                "strokeDasharray": null
-              },
-              "bottomLine": {
-                "stroke": "#333333",
-                "strokeWidth": 1,
-                "strokeDasharray": null
-              }
-            },
-            "visible": true,
-            "shape": "store",
-            "zIndex": 12,
-            "id": "4fd66311-d399-5400-8551-216eea17113f",
-            "data": {
-              "name": "Analytics hash secret (planned)",
-              "description": "VIEW_HASH_SECRET: key for the daily visitor code. Name only here; the value lives in Doppler.",
-              "type": "tm.Store",
-              "isTrustBoundary": false,
-              "outOfScope": false,
-              "reasonOutOfScope": "",
-              "threats": [
-                {
-                  "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
-                  "title": "Protect the analytics hashing secret",
-                  "status": "NotApplicable",
-                  "severity": "High",
-                  "type": "Information disclosure",
-                  "modelType": "STRIDE",
-                  "description": "A leaked key lets someone test guesses against the daily codes.",
-                  "mitigation": "The unique-visitor hash was removed, so no hashing secret exists. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address.",
-                  "number": 54
-                }
-              ],
-              "hasOpenThreats": false
-            }
-          },
-          {
-            "position": {
               "x": 640,
               "y": 270
             },
@@ -3870,56 +3830,6 @@
               "protocol": "HTTPS",
               "isEncrypted": true,
               "isPublicNetwork": true,
-              "isBidirectional": false,
-              "threats": [],
-              "isTrustBoundary": false,
-              "hasOpenThreats": false
-            }
-          },
-          {
-            "shape": "flow",
-            "attrs": {
-              "line": {
-                "stroke": "#333333",
-                "strokeWidth": 1,
-                "targetMarker": {
-                  "name": "block"
-                },
-                "sourceMarker": "",
-                "strokeDasharray": null
-              }
-            },
-            "width": 200,
-            "height": 100,
-            "zIndex": 123,
-            "connector": "smooth",
-            "id": "62140dc9-c253-5e6e-a33a-e2ba224cab18",
-            "visible": true,
-            "labels": [
-              {
-                "position": 0.5,
-                "attrs": {
-                  "label": {
-                    "text": "Key for the daily code"
-                  }
-                }
-              }
-            ],
-            "source": {
-              "cell": "4fd66311-d399-5400-8551-216eea17113f"
-            },
-            "target": {
-              "cell": "48f06a9c-79ca-5df7-9300-c6f1fb55b73b"
-            },
-            "data": {
-              "type": "tm.Flow",
-              "name": "Key for the daily code",
-              "description": "",
-              "outOfScope": false,
-              "reasonOutOfScope": "",
-              "protocol": "internal",
-              "isEncrypted": true,
-              "isPublicNetwork": false,
               "isBidirectional": false,
               "threats": [],
               "isTrustBoundary": false,

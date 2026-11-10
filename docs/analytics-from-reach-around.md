@@ -40,11 +40,12 @@ Placeholders: `blog.example.test` is the blog host, `links.example.test` the lin
 | Q3 | B: keep Cloudflare Web Analytics and describe both counters on the privacy page | section 5.4 |
 | Q4 | B: every external link counted by registrable domain (open vocabulary) | section 5.2 |
 | Q5 | A: closed `s` label list, referrer host as the fallback | sections 2.2, 2.3 |
-| Q6 | B: a daily keyed hash for unique visitors, as issue 84 first described | section 5.3 |
+| Q6 | Superseded: the blog dropped unique-visitor hashing and keeps page views only | section 5.3 |
 
-Q2 C, Q4 B and Q6 B are less private than the first recommendations and Q3 B keeps two
+Q2 C and Q4 B are less private than the first recommendations and Q3 B keeps two
 counters. They are accepted; this page does not reopen them and lists what must be true
-for them to be safe.
+for them to be safe. The former Q6 B decision is retained below only as superseded design
+history.
 
 ## 1. What Reach Around has that the blog can reuse
 
@@ -67,10 +68,9 @@ What does not fit a static blog:
   to the allowlist, hash files and checks).
 - The fixed `PAGE_IDS` list. Hugo emits many paths; the design's answer is `html-200`
   with a path-shape rule (design 3.2).
-- Unique-visitor hashing. The blog's built collector leaves it out today, and the owner
-  decision of 2026-11-08 said no unique or returning visitors for the funnel report
-  (design 6.2). For the blog only, the owner reversed that on 2026-11-09 (decision Q6);
-  section 5.3 sets the guardrails and the blog collector gains the hash.
+- Unique-visitor hashing. The blog's built collector leaves it out, as
+  `analytics/collect.mjs` states. The 2026-11-09 Q6 decision to add it was later dropped.
+  Section 5.3 keeps that design history clearly labeled as superseded.
 - Window-size letter. It needs a script; edge mode has none.
 
 Important finding (VERIFIED, blog repo `docs/analytics-deploy.md`, read 2026-11-09): the
@@ -333,40 +333,18 @@ Required:
 - Privacy page: outbound clicks are counted by the destination's site name only, never the
   full address, and the count is a floor because some browsers do not send the ping.
 
-### 5.3 Q6 B: a daily keyed hash for unique visitors
+### 5.3 Q6: unique-visitor hashing was dropped
 
-This reverses the 2026-11-08 funnel decision (design 6.2: no unique or returning visitors)
-for the blog only. The design decision D-A4 (no cross-site unique count) stays in force.
-Reach Around's link page keeps the earlier decision. The reversal is recorded in section
-8 and by the issue in the plan.
+Current decision: the blog records page-view counts without a unique-visitor hash. As
+the existing finding above states, "The blog's built collector leaves it out," and
+`analytics/collect.mjs` explicitly implements no unique-visitor hash or secret. There is
+no `VIEW_HASH_SECRET`, daily visitor code, or `visitor_seen` table to create, retain,
+export, rotate, or purge.
 
-Required:
-- Derivation (the shared function in the converge module): HMAC-SHA-256 of the canonical
-  address (IPv6 cut to /64, spelling variants merged) under a key derived from a secret,
-  the UTC date and the site id `blog`, truncated to 64 bits. The address is a local of one
-  function and is dropped at once. The site id in the derivation means the blog's code
-  cannot be matched to any other site's.
-- Secret: held in Doppler, name only in this page (`VIEW_HASH_SECRET`; the owner picks the
-  project and config), never in a committed file, an argument or a log. If it is missing,
-  the Function records no unique flag (the view is still counted); the issue confirms
-  fail-open versus fail-closed, since Reach Around's Worker fails closed.
-- Rotation and daily salt: the per-day key changes at UTC midnight, so a code cannot link
-  two days. The master secret is rotated on a schedule (proposed every 90 days) and on any
-  suspicion; rotation costs one day of slightly wrong uniques.
-- Storage: a `visitor_seen` table of `(day, code)` only, no time finer than the day, no
-  other column, no shared column with the view rows. Purged at the end of its UTC day by
-  the maintenance job, with next-day purge as the outer bound, whatever the rollup state.
-  Bots are not added.
-- Exposure: the code is never returned, exported, logged or shown in any report. Reports
-  carry counts only: unique per day per page group, subject to the same floor as other
-  cells (a unique count under the floor is withheld). No "returning visitor" figure and no
-  multi-day unique count (a code cannot span days, so that is impossible by design).
-- Privacy page: a code made from your address, mixed with a secret that changes daily, is
-  kept until the end of the day to count each visitor once; it cannot be turned back into
-  your address; it differs between my sites; it is deleted at the end of the day; no
-  deletion on request is possible because nothing identifies a person.
-- Honest limit: a keyed hash of an address can count as personal data under some laws
-  while it exists. The page says so in plain words; the lifetime is hours, not days.
+Superseded design history: Q6 B briefly proposed a daily keyed hash for unique visitors,
+with a secret and a short-lived table. That proposal was never implemented and is not
+scheduled. It remains summarized here so the decision change is visible instead of
+silently deleting the earlier design.
 
 ### 5.4 Q3 B: two counters
 
@@ -410,8 +388,8 @@ readers of released reports. The owner is a trusted operator on his own machine
 | Small-place re-identification (city in aggregates, Q2) | Reader of a report or D1 | Per-granularity floor, roll up to region then country, complementary suppression, city in its own marginal table | Small-cell test per granularity |
 | Profile built from the network class (hosting, VPN or proxy, Tor) | D1 read access | Class lives only in its own marginal table | Schema guard |
 | Report leaks a suppressed value by subtraction | Reader of released reports | Marginal pairs only; remainder row; joint suppression with totals; applies to unique counts too | Matrix test (issue 408) |
-| Daily code linked across days or to a person (Q6) | Read access to `visitor_seen`, or the secret | Per-day, per-site key from a Doppler secret; no shared column with views; purge at end of UTC day; never in any report or export; scheduled secret rotation | Code differs per day and per site; purge test; export scan |
-| Hash key leak | Repo, log or argument exposure | Doppler only, name in docs only; no logging in the handler; sentinel test | Secret scan; sentinel test |
+| Visitor code linked across days or to a person (superseded Q6) | A unique-visitor hash exists | Not applicable: the blog dropped visitor hashing, and `analytics/collect.mjs` creates no visitor code or secret | Collector and schema review |
+| Hash key leak (superseded Q6) | A visitor hashing key exists | Not applicable: the blog has no visitor hashing secret | Collector and configuration review |
 | Two counters disagree and get misread as a bug or a leak | Reader of both | Reconciliation note in docs and report footer | Doc test |
 | Raw address or user agent reaches a table or log | Code bug | Locals of one function; no logging in the handler; sentinel test on every route | Sentinel test |
 | Collector exposed as a public data API or with permissive CORS | Knowing the route | Write-only, uniform empty answer, no `Access-Control-Allow-*`, no GET that returns rows | Header test |
@@ -429,16 +407,16 @@ the board before work starts (this PR files nothing).
 
 | # | Phase | Issue to file | Epic | Kind | Size |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 0 Decide | Record decisions Q1 to Q6 and the reversal of the 2026-11-08 unique-visitor decision for the blog (board and docs) | #1 | Task | XS |
+| 1 | 0 Decide | Record decisions Q1 to Q5 and the superseded Q6 unique-visitor proposal (board and docs) | #1 | Task | XS |
 | 2 | 1 Spike | Close the UNVERIFIED items on a preview deployment: city in `request.cf`, cached HTML invoking the Function, `ping` support and CSP, bundle size with the ASN list and the suffix list | #1 | Task | S |
 | 3 | 2 Views live | Turn the existing Function on: bind the database, privacy page swap, test update, ASN refresh, daily maintenance job from the GYST pattern (existing no-php-no-cry#84, #189) | #1 | Feature | M |
 | 4 | 2 Views live | City in aggregates with per-granularity floor, roll-up to region then country, complementary suppression and the small-cell test (Q2) | #1 | Feature | M |
-| 5 | 2 Views live | Daily keyed hash for uniques: shared derivation, `visitor_seen` with purge, floored unique counts, Doppler secret handling and rotation runbook, tests (Q6) | #1 | Feature | M |
-| 6 | 2 Views live | Reach-Around: threat model entries for the blog site, with the Q2, Q4 and Q6 rows (extends Reach-Around#333) | R#325 | Task | S |
+| 5 | 2 Views live | Superseded: no work. The blog dropped unique-visitor hashing and has no visitor table or hashing secret | #1 | Feature | M |
+| 6 | 2 Views live | Reach-Around: threat model entries for the blog site, with the Q2 and Q4 rows and the dropped Q6 proposal recorded (extends Reach-Around#333) | R#325 | Task | S |
 | 7 | 3 Clicks | Open-vocabulary outbound click ping: render hook with eTLD+1 reduction, built-site domain list, POST route, cap and `other` fold, pinned Public Suffix List with refresh job, tests (Q4) | #1 | Feature | L |
 | 8 | 3 Clicks | Closed `s` source label list with referrer-host fallback on blog pages (Q5) | #1 | Feature | S |
 | 9 | 3 Clicks | Guardrail tests for the blog: sentinel, schema guard, small-cell, forged domain (reuses Reach-Around#408) | #1 | Task | M |
-| 10 | 3 Privacy | Privacy page rewrite covering both counters, city, the daily code, domain clicks, floors and the reconciliation sentence, with the test change in the same PR | #1 | Feature | S |
+| 10 | 3 Privacy | Privacy page rewrite covering both counters, city, domain clicks, floors and the reconciliation sentence, with the test change in the same PR | #1 | Feature | S |
 | 11 | 3 Privacy | Cloudflare Web Analytics kept: update docs and CSP notes; close or relabel no-php-no-cry#241 and Reach-Around#405 for the blog (Q3) | #1 | Task | XS |
 | 12 | 3 Docs | Counter reconciliation note and report footer wording (Q3) | #1 | Task | XS |
 | 13 | 4 Converge | Extract the shared rules (path, referrer, bot, derivation, closed vocabularies) into one module used by both sites (Q1) | R#325 | Feature | M |
@@ -460,10 +438,8 @@ UNVERIFIED; dashboard paths can change, so re-read before use.
 
 | Step | Why | Wording / source |
 | --- | --- | --- |
-| Create a D1 database for the blog (preview and production) | Holds the counter tables and `visitor_seen` | `wrangler d1 create ...` per `docs/analytics-deploy.md` step 1 (D1 docs not re-read here, UNVERIFIED) |
+| Create a D1 database for the blog (preview and production) | Holds the page-view counter tables; no visitor hash table is planned | `wrangler d1 create ...` per `docs/analytics-deploy.md` step 1 (D1 docs not re-read here, UNVERIFIED) |
 | Bind it to the Pages project: Workers & Pages > project > Settings > Bindings > Add > D1 database > pick it > redeploy | The Function sees `env.DB` | VERIFIED: `/pages/functions/bindings/#d1-databases` |
-| Create the Doppler secret `VIEW_HASH_SECRET` (name only; the owner picks project and config) and deliver it to the Pages project as an encrypted variable; any command that sets it must end with `> /dev/null` | Key for the daily hash (Q6) | How Pages receives a secret: UNVERIFIED, read the Pages environment variables docs first. Never a GitHub secret. |
-| Schedule secret rotation (proposed every 90 days) | Limits the blast radius of a leak | Owner decision on the interval; not a Cloudflare feature |
 | Token scope for D1 edit (the deploy token or a second token used only by the maintenance job) | Apply migrations, run the daily roll-up and purge | `docs/analytics-deploy.md` access table; drop the scope after the work. Scope names UNVERIFIED against the token docs |
 | Keep Cloudflare Web Analytics enabled for the Pages project; check the beacon after each deploy (Q3) | Second counter, kept by choice | Dashboard wording not read, UNVERIFIED; the CSP entries are in `static/_headers` |
 | Review Settings > Runtime > Fail open / closed; keep "fail open" | A spent free daily allowance must not take pages down | VERIFIED: `/pages/functions/routing/` |
@@ -477,7 +453,7 @@ UNVERIFIED; dashboard paths can change, so re-read before use.
 2. Name both counters, keeping the dated Cloudflare quote.
 3. Views: hour, path, referrer host, country, region and city (rough, can be wrong), a network class (hosting provider, VPN or proxy, Tor, or unknown; a rough guess from a list of network numbers), a bot class.
 4. Places under 5 visits are merged into the larger area.
-5. Daily code: how made, lifetime until the end of the UTC day, not reversible, different per site, no deletion on request.
+5. Unique visitors: state that the blog does not create a visitor hash or daily code.
 6. Clicks: outbound links counted by destination site name only; a floor, not a total; optional `s` label.
 7. What is not collected (the table in 2.4); retention in numbers from config.
 8. Global Privacy Control and Do Not Track honored by the blog counter.
@@ -493,8 +469,6 @@ Recorded from the owner's answers in PR #287.
 - Q3 B: keep Cloudflare Web Analytics and describe both counters (5.4).
 - Q4 B: every external link by registrable domain (5.2).
 - Q5 A: closed `s` label list, referrer host as the fallback.
-- Q6 B: daily keyed hash for unique visitors (5.3). This reverses the 2026-11-08 funnel
-  decision (no unique or returning visitors) for the blog only. Reach Around's link page,
-  the cross-site rule (no cross-site unique count, D-A4) and the absence of a "returning
-  visitor" figure stay as they were. The exception is recorded in Reach Around's design
-  decision list and on the board when plan item 1 is filed.
+- Q6 B was a daily keyed hash proposal for unique visitors. It was later dropped for the
+  blog and never implemented. The current collector has no unique or returning visitor
+  figure, visitor code, visitor table, or hashing secret (5.3).
