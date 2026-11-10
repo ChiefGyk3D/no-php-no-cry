@@ -117,6 +117,17 @@ expect "contributor that is not an object" 1 detail "$(mutate bad-contrib 'm["de
 expect "Mitigated with no repository path" 1 mitigated-path "$(mutate no-control 'th["mitigation"] = "We are careful about this."')"
 expect "em dash" 1 em-dash "$(mutate em-dash 'th["description"] = th["description"] + " — note"')"
 
+# counts stated in RISKS.md beside the model must equal the model's own counts
+expect "counts-doc: the committed RISKS.md agrees" 0 "" "$model"
+mkdir -p "$work/cd"
+cp "$model" "$work/cd/model.json"
+sed 's/^[0-9]* threats in three diagrams/999 threats in three diagrams/' "$root/docs/threat-model/RISKS.md" >"$work/cd/RISKS.md"
+expect "counts-doc: a wrong total in RISKS.md" 1 counts-doc "$work/cd/model.json"
+sed 's/^\(.*threats in three diagrams: [0-9]* Mitigated, \)[0-9]* Open/\10 Open/' "$root/docs/threat-model/RISKS.md" >"$work/cd/RISKS.md"
+expect "counts-doc: a wrong Open count in RISKS.md" 1 counts-doc "$work/cd/model.json"
+printf 'no counts here\n' >"$work/cd/RISKS.md"
+expect "counts-doc: RISKS.md that states no count" 1 counts-doc "$work/cd/model.json"
+
 # usage error
 rc=0
 python3 -I "$check" --bogus >/dev/null 2>&1 || rc=$?

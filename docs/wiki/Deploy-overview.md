@@ -52,13 +52,19 @@ The deploy job is skipped until the repository variable `DEPLOY_ENABLED` is
 `true`; until then pushes build but do not deploy. After that it never skips
 silently.
 
-## Staging versus production
+## Dev deploy versus production
 
-While the site lives on a staging host, the build sets
+The workflow above is this repository's dev deploy. Its build sets
 `HUGO_PARAMS_ENVIRONMENT=staging`: every page is noindex and `robots.txt`
 disallows everything. CI builds and checks both environments on every run.
-`scripts/verify-live.sh` checks a deployed host read-only (GET requests only).
-The apex cutover plan, gates and rollback are in
+
+The production site at the apex (live since 2026-11-10) is built and deployed from a
+private repository. It pins one commit of this repository, validates the build output as
+inert data in a separate step with no credentials, and only then runs a credentialed step
+to its own Pages project. The production tier has its own identity and credentials. Rolling
+back is a revert of the pin. `scripts/verify-live.sh` checks a deployed host read-only
+(GET requests only). After a header change, purge the cached URLs of unchanged files. The
+cutover record, lessons and rollback are in
 [docs/cutover.md](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/docs/cutover.md).
 
 ## Credentials
@@ -72,7 +78,7 @@ repository, in an issue or in a log. If you fork, change the OIDC subject and
 
 ## Roll back
 
-Roll back in the Cloudflare dashboard (the project's Deployments list), or revert
+On the dev deploy, roll back in the Cloudflare dashboard (the project's Deployments list), or revert
 the change on `main` and let the workflow redeploy.
 
 ## Related

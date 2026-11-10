@@ -33,6 +33,8 @@ Rules:
   bad-path         a path-like word in a mitigation or description names a file or folder
                    that does not exist
   em-dash          an em dash anywhere in the file (house style)
+  counts-doc       a count stated in RISKS.md (beside the model), or in the journal entry and the
+                   announcement post (default model only), differs from the model's own count
 
 A path-like word has a slash and starts with a top-level folder or file of the repository,
 or is a bare file name with a known extension that exists nowhere in the tree.
@@ -293,6 +295,51 @@ def check_model(model, root, f):
         f.add("detail", "detail", "threatTop %d is below the highest threat number %d" % (threat_top, max(threat_numbers)))
 
 
+def count_model(model):
+    counts = {}
+    for dg in model["detail"]["diagrams"]:
+        for c in dg["cells"]:
+            for t in c.get("data", {}).get("threats", []):
+                counts[t["status"]] = counts.get(t["status"], 0) + 1
+    return counts
+
+
+# Statements of the counts in prose. Each pattern captures total, Mitigated, Open, Accepted, N/A.
+COUNT_FILES = (
+    (os.path.join("docs", "threat-model", "RISKS.md"), re.compile(
+        r"(\d+) threats in three diagrams: (\d+) Mitigated, (\d+) Open, (\d+) Accepted, (\d+) N/A")),
+    (os.path.join("content", "posts", "new-site-no-php", "index.md"), re.compile(
+        r"contains (\d+) threats: (\d+) Mitigated, (\d+) Open, (\d+) Accepted and (\d+) Not Applicable")),
+    (os.path.join("content", "journal", "a-threat-model-for-a-static-site", "index.md"), re.compile(
+        r"contains (\d+) threats\. Of those, (\d+) are mitigated, (\d+) remain open, (\d+) are accepted, "
+        r"and (\d+) is not applicable")),
+)
+
+
+def check_counts_docs(counts, root, model_path, default_model, f):
+    want = (sum(counts.values()), counts.get("Mitigated", 0), counts.get("Open", 0),
+            counts.get("Accepted", 0), counts.get("NotApplicable", 0))
+    for rel, pat in COUNT_FILES:
+        if rel.startswith("docs"):
+            path = os.path.join(os.path.dirname(os.path.abspath(model_path)), "RISKS.md")
+        elif default_model:
+            path = os.path.join(root, rel)
+        else:
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError:
+            continue
+        found = pat.findall(text)
+        if not found:
+            f.add("counts-doc", rel, "states no count in the expected form")
+        for g in found:
+            if tuple(int(x) for x in g) != want:
+                f.add("counts-doc", rel, "says %s, the model has %s (total, Mitigated, Open, Accepted, N/A)"
+                      % (",".join(g), ",".join(str(x) for x in want)))
+
+
 def main(argv):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = None
@@ -308,6 +355,7 @@ def main(argv):
         else:
             sys.stderr.write(__doc__.split("\n\n")[0] + "\n")
             return 2
+    default_model = model_path is None
     if model_path is None:
         model_path = os.path.join(root, DEFAULT_MODEL)
     try:
@@ -329,16 +377,14 @@ def main(argv):
             f.add("top-level", "model", "is not an object")
         else:
             check_model(model, root, f)
+            if not f.items:
+                check_counts_docs(count_model(model), root, model_path, default_model, f)
     if f.items:
         for line in f.items:
             print(line)
         print("check-threat-model: %d finding(s)" % len(f.items))
         return 1
-    counts = {}
-    for dg in model["detail"]["diagrams"]:
-        for c in dg["cells"]:
-            for t in c.get("data", {}).get("threats", []):
-                counts[t["status"]] = counts.get(t["status"], 0) + 1
+    counts = count_model(model)
     print("check-threat-model: ok, %d diagrams, %s" % (
         len(model["detail"]["diagrams"]), ", ".join("%d %s" % (v, k) for k, v in sorted(counts.items()))))
     return 0

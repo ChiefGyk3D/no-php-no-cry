@@ -1,6 +1,12 @@
 # Deploying to Cloudflare Pages
 
-`.github/workflows/deploy.yml` publishes the site to Cloudflare Pages. It runs
+There are two deploys. This repository's own workflow (`.github/workflows/deploy.yml`,
+described below) publishes the dev host, `test-blog.chiefgyk3d.com`. The production site
+at the apex, live since 2026-11-10, is built and deployed from a separate private
+repository. See "Dev deploy versus the production pipeline" at the end of this page for how
+they differ. The rest of this page describes the dev deploy.
+
+`.github/workflows/deploy.yml` publishes the dev site to Cloudflare Pages. It runs
 on a push to `main` and on a manual run, never on a pull request. It is not a
 required check: `CI green` stays the only gate, and a pull request never needs
 a secret.
@@ -198,6 +204,29 @@ the OIDC subject and `SITE_URL` to match.
   `allowed-endpoints` (space-separated, no wildcards, a newline-separated list
   matches nothing), commit, and re-run. The other jobs stay in audit because
   the artifact storage host varies per run. Tracked in issue #10.
+
+## Dev deploy versus the production pipeline
+
+| | Dev deploy (this repository) | Production pipeline (private repository) |
+|---|---|---|
+| Host | `test-blog.chiefgyk3d.com`, noindex | the apex, indexable |
+| Source | the commit pushed to `main` here | one commit of this repository, named by a pin file |
+| Trigger | push to `main`, or by hand | a change to the pin, reviewed as a diff in that repository |
+| Gate | `CI green` on the exact commit (`scripts/wait-for-ci-green.sh`) | the pin names a commit that passed CI here |
+| Build and validate | `build` job, no credentials, then re-check in `deploy` before secrets | build with no credentials, then validate the output as inert data in a separate step that holds no credentials |
+| Deploy | the credentialed `deploy` job | a credentialed step after validation, to its own Pages project |
+| Credentials | dev config of this product's secrets project, own service account and identity | the production tier has its own service account and identity; none is shared with dev |
+| Rollback | dashboard rollback, or revert on `main` | revert the pin |
+
+The same checks run on both: `scripts/check-output.sh` and `scripts/check-site-artifact.sh`
+are this repository's scripts, so the production pipeline gets the same rules by pinning a
+commit. What this repository cannot show is how the private side is configured (job layout,
+who reviews a pin, the identity claim rules). Those are owner-configured controls and are
+listed as Open in `docs/threat-model/RISKS.md` until read and dated.
+
+After a header change (for example a new Content-Security-Policy), unchanged static files
+keep their cached headers at the edge. Purge those URLs, then run
+`scripts/verify-live.sh` again (`docs/cutover.md`, "Lessons").
 
 ## Owner cleanup after agent-assisted Cloudflare work
 

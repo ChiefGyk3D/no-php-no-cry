@@ -7,8 +7,10 @@ host adds its own analytics beacon at the edge, described on the Privacy page). 
 published as a worked example: a small static site with strict build checks, in
 the open, that you can read, copy and adapt.
 
-Staging runs at `test-blog.chiefgyk3d.com` until the site replaces the apex
-domain. It deploys to Cloudflare Pages.
+The site is live at the apex, `chiefgyk3d.com`, since 2026-11-10, on Cloudflare Pages.
+WordPress is retired as the origin and its old addresses redirect. Production is built
+and deployed from a private repository that pins a commit of this one. This repository
+keeps its own dev host, `test-blog.chiefgyk3d.com` (noindex), and its own dev deploy.
 
 ## Why this exists
 
