@@ -183,9 +183,6 @@
   <section aria-labelledby="r-contact">
     <h2 id="r-contact" class="hud-heading">Contact</h2>
     <p>{{ .contact }} <a href="{{ .contact_url | relURL }}">{{ .contact_link_text }}</a>.</p>
-    {{- with .linkedin_url }}
-    <p>Find me online: <a href="{{ . }}" rel="noopener">LinkedIn</a></p>
-    {{- end }}
   </section>
 </article>
 {{- end }}
