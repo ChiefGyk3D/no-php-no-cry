@@ -1,8 +1,10 @@
-# Contact form options (issue 329, proposal only, nothing here is built)
+# Contact form options (issue 329, proposal only, the form is not built)
 
-The old WordPress site had a contact form at `/contact/`. Today `/contact/` is a
-301 to `/about/#contact`, which lists Matrix, Discord, the business email and a
-PGP key. This page compares ways to bring a form back. Read 2026-11-09 from
+The old WordPress site had a contact form at `/contact/`. Decision (2026-11-09,
+issue 329): `/contact/` is now a real page that lists email, Discord and Matrix,
+and the form is deferred; it moves to the Reach Around media kit later, gated for
+business inquiries. Before issue 329 `/contact/` was a 301 to `/about/#contact`.
+Nothing below is built. This page compares ways to bring a form back. Read 2026-11-09 from
 Cloudflare's docs unless marked INFERRED; no account ids, hostnames of private
 environments or tokens appear here, and none belong in this repository.
 
