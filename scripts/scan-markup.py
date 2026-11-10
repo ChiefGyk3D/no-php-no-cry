@@ -1,6 +1,6 @@
 """Reads a page, svg or xml file the way a browser reads its tags.
 
-Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] <site-host> <file>
+Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] [--cloudflare-beacon] <site-host> <file>
 
 Prints one rule name per line, never page content. Attributes are read from real
 attributes by a quote-aware parser (a ">" or "=" inside a quoted value is just
@@ -26,11 +26,15 @@ A <script type="application/ld+json"> data block (that one attribute, nothing
 else) is not a script in either mode: a browser never runs it and script-src
 does not apply. Its body is judged by scripts/check-seo.py. In --markup mode
 every script element is still refused.
+--cloudflare-beacon requires exactly one Cloudflare Web Analytics tag with a
+versioned Insights URL and a nonempty public token. It permits only that remote
+script; every other script rule remains active.
 --allow-email ADDRESS (HTML mode) exempts that one address, as page text and as a
 mailto: link to exactly that address, from email-shaped-text. The caller passes it
 only for the page that publishes the owner-approved business address (About);
 any other address on that page, or on any other page, is still a finding.
 """
+import json
 import re
 import sys
 from urllib.parse import unquote
@@ -77,11 +81,13 @@ def share_mailto_ok(v):
 
 
 class Scan(HTMLParser):
-    def __init__(self, host, markup, scripts, known=(), allow="", allow_email=""):
+    def __init__(self, host, markup, scripts, known=(), allow="", allow_email="", cloudflare_beacon=False):
         super().__init__(convert_charrefs=True)
         self.allow_email = allow_email.lower()
         self.host, self.markup, self.scripts = host, markup, scripts
         self.known, self.allow = set(known), allow
+        self.cloudflare_beacon = cloudflare_beacon
+        self.cloudflare_beacons = 0
         self.found = set()
         self.pinned_tags = 0
         self.in_script = False
@@ -106,10 +112,31 @@ class Scan(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
+        is_cloudflare_beacon = False
         if tag == "style":
             self.in_style = True
         if tag == "script":
-            if not self.markup and [(n.lower(), clean(v).lower()) for n, v in attrs] == [("type", "application/ld+json")]:
+            plain = [(n.lower(), clean(v)) for n, v in attrs]
+            names = [n for n, _ in plain]
+            values = dict(plain)
+            beacon_src = values.get("src", "")
+            beacon_data = values.get("data-cf-beacon", "")
+            try:
+                beacon_config = json.loads(beacon_data)
+            except (json.JSONDecodeError, TypeError):
+                beacon_config = {}
+            if (self.cloudflare_beacon and not self.markup
+                    and len(names) == len(set(names))
+                    and set(names) <= {"defer", "src", "integrity", "data-cf-beacon", "crossorigin"}
+                    and re.fullmatch(r"https://static\.cloudflareinsights\.com/beacon\.min\.js/v[A-Za-z0-9._-]+", beacon_src)
+                    and isinstance(beacon_config, dict) and isinstance(beacon_config.get("token"), str)
+                    and beacon_config["token"]):
+                is_cloudflare_beacon = True
+                self.cloudflare_beacons += 1
+                self.in_script = True
+                if self.cloudflare_beacons > 1:
+                    self.found.add("script-count")
+            elif not self.markup and [(n.lower(), clean(v).lower()) for n, v in attrs] == [("type", "application/ld+json")]:
                 # A JSON-LD data block: never run, not subject to script-src.
                 # Its body is judged by scripts/check-seo.py.
                 self.in_script = False
@@ -117,7 +144,6 @@ class Scan(HTMLParser):
                 self.found.add("script-not-allowed")
             elif self.scripts == "pinned":
                 self.in_script = True
-                plain = [(n.lower(), clean(v)) for n, v in attrs]
                 if len(plain) == 1 and plain[0][0] == "src" and plain[0][1] in self.known:
                     if plain[0][1] != self.allow:
                         self.found.add("script-wrong-page")
@@ -140,6 +166,8 @@ class Scan(HTMLParser):
                 self.found.add("javascript-url")
             if self.markup or tag not in LOADS:
                 continue
+            if is_cloudflare_beacon and name == "src":
+                continue
             # <link rel=me> is an identity claim (Mastodon, GitHub read it); nothing is fetched.
             if tag == "link" and clean(dict(attrs).get("rel")).lower().split() == ["me"]:
                 continue
@@ -157,12 +185,14 @@ class Scan(HTMLParser):
 
 
 def main(argv):
-    markup, scripts, known, allow, allow_email = False, "", [], "", ""
+    markup, scripts, known, allow, allow_email, cloudflare_beacon = False, "", [], "", "", False
     args = list(argv)
     while args and args[0].startswith("--"):
         opt = args.pop(0)
         if opt == "--markup":
             markup = True
+        elif opt == "--cloudflare-beacon":
+            cloudflare_beacon = True
         elif opt == "--scripts" and args:
             scripts = args.pop(0)
         elif opt == "--known" and args:
@@ -176,13 +206,15 @@ def main(argv):
     if len(args) != 2:
         return 2
     host, path = args[0].lower(), args[1]
-    scan = Scan(host, markup, scripts, known, allow, allow_email)
+    scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon)
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             scan.feed(f.read())
         scan.close()
     except Exception:
         scan.found.add("unparseable-html")
+    if cloudflare_beacon and scan.cloudflare_beacons == 0:
+        scan.found.add("missing-beacon")
     for rule in sorted(scan.found):
         print(rule)
     return 0

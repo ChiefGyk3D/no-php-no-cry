@@ -41,6 +41,8 @@
 #                 none at all without a pinned script), no handler, no
 #                 javascript: URL. It reads the served page only; it does not
 #                 fetch or inspect any other script file (the build checks do).
+#   missing-beacon  the home page carries exactly one edge-injected Cloudflare
+#                 Web Analytics beacon with a nonempty public site token.
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
 # category page, the feeds (/index.xml and /feed/index.xml) and the 404 page (asked for as
@@ -295,6 +297,7 @@ check_page() {
             opts=(--scripts pinned --known "$known_csv" --allow "$allow")
         fi
         [[ "$path" == *.xml ]] && opts=(--markup)
+        [[ "$path" == / ]] && opts+=(--cloudflare-beacon)
         if [[ "$path" == /about/ ]]; then
             about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
             [[ -n "$about_email" ]] && opts+=(--allow-email "$about_email")

@@ -115,6 +115,8 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             return
         body = b"ok"
+        if self.path == "/" and mode != "missing-beacon":
+            body = b"<html><script defer src=\"https://static.cloudflareinsights.com/beacon.min.js/vTEST\" integrity=\"sha512-test\" data-cf-beacon=\"{&quot;token&quot;:&quot;public-test-token&quot;}\"></script></html>"
         pages = {
             "inlinescript": b"<html><script>x()</script></html>",
             "extrascript": b"<html><script src=/other.js></script></html>",
@@ -218,6 +220,7 @@ expect() {
 }
 
 expect good pass good
+expect "Cloudflare beacon missing after deploy" "missing-beacon: /" missing-beacon
 expect bad-status status bad-status
 expect no-csp missing-csp no-csp
 expect weak-csp wrong-csp weak-csp
