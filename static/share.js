@@ -1,7 +1,8 @@
 (function () {
   var r = document.querySelector(".share"), q = function (s) { return r.querySelector(s); }, st = q(".share-status"), p = q(".share-picker"),
     h = q(".share-host"), m = q(".share-rem"), u = q(".share-url"), c, t;
-  function say(x) { st.textContent = x; clearTimeout(t); t = setTimeout(function () { st.textContent = ""; }, 5000); }
+  function z() { st.textContent = ""; }
+  function say(x) { st.textContent = x; clearTimeout(t); t = setTimeout(z, 5000); }
   function good(v) { try { return /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,}|xn--[a-z0-9-]+)$/.test(v) && new URL("https://" + v).host === v; } catch (e) { return false; } }
   function a(n) { return c.getAttribute(n); }
   function shut() { p.hidden = true; c.focus(); }
@@ -24,10 +25,11 @@
     if (s == "copy") copy(b); else if (s == "go") go(); else if (s == "x") shut();
     else if (s) {
       c = b; p.hidden = false; q(".share-name").textContent = a("data-name");
-      try { v = localStorage.getItem(s + "Server") || ""; } catch (x) {}
+      try { v = localStorage.getItem(s + "Server"); } catch (x) {}
       h.value = good(v) ? v : ""; m.checked = !!h.value; h.focus();
     }
   });
+  r.addEventListener("input", z);
   r.addEventListener("keydown", function (e) {
     if (e.key == "Escape" && !p.hidden) shut(); else if (e.key == "Enter" && e.target == h) go();
   });

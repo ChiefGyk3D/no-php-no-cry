@@ -466,6 +466,12 @@ r.rem.checked = false; r.fire("rem-change"); r.click(r.x);
 if (r.store.has("mastodonServer")) bad.push("unticking Remember then Cancel left the stored host");
 r.click(r.mast);
 if (r.host.value !== "") bad.push("the unticked host was prefilled again");
+// A host error clears as soon as the visitor edits the host field (issue 311), and the picker stays open.
+r = mk(); r.click(r.mast); r.host.value = "bad host"; r.click(r.go);
+if (!r.status.textContent) bad.push("setup: a bad host should show the error");
+r.host.value = "good.example"; r.fire("input");
+if (r.status.textContent !== "") bad.push("the host error stayed after the host was corrected: " + JSON.stringify(r.status.textContent));
+if (r.picker.hidden) bad.push("correcting the host closed the picker");
 // Picker behavior: label text, focus into the field, Escape closes and returns focus, Enter submits, Cancel closes.
 r = mk(); r.click(r.lem);
 if (r.name.textContent !== "Lemmy" || r.picker.hidden || r.focused[r.focused.length - 1] !== r.host) bad.push("picker did not open on the host field");
@@ -514,6 +520,7 @@ if command -v node >/dev/null 2>&1; then
     }
     gg trusting 's#^  function good\(v\) \{.*#  function good(v) { return !!v; }#'
     gg no-copied 's#"Link copied"#""#'
+    gg no-clear-on-input 's#^  r\.addEventListener\("input".*##'
     gg no-escape 's#e\.key == "Escape" && ##'
     gg no-untick-remove 's#^  m\.addEventListener.*##'
     gg always-store 's#m\.checked \? localStorage#true ? localStorage#'
