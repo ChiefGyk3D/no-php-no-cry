@@ -181,7 +181,7 @@ build_good() {
 RED
     cat >"$dir/_headers" <<'HDR'
 /*
-  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js; connect-src 'self'; require-trusted-types-for 'script'
+  Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'self'; manifest-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; connect-src 'self'; require-trusted-types-for 'script'
   X-Content-Type-Options: nosniff
   Cross-Origin-Opener-Policy: same-origin
 /css/*
@@ -610,13 +610,36 @@ csp_wide_connect() { sed -i "s#connect-src 'self'#connect-src 'self' https:#" "$
 variant csp-wide-connect-src weak-csp csp_wide_connect
 csp_connect_other() { sed -i "s#connect-src 'self'#connect-src https://cloudflareinsights.com#" "$1/_headers"; }
 variant csp-other-connect-src weak-csp csp_connect_other
-csp_beacon_origin() { sed -i "s#static.cloudflareinsights.com/beacon.min.js#static.cloudflareinsights.com#" "$1/_headers"; }
+csp_beacon_origin() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#static.cloudflareinsights.com#" "$1/_headers"; }
 variant csp-beacon-origin-only weak-csp csp_beacon_origin
-csp_beacon_wild() { sed -i "s#static.cloudflareinsights.com/beacon.min.js#*.cloudflareinsights.com/beacon.min.js#" "$1/_headers"; }
+csp_beacon_wild() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#*.cloudflareinsights.com/beacon.min.js#" "$1/_headers"; }
 variant csp-beacon-wildcard weak-csp csp_beacon_wild
-csp_beacon_twice() { sed -i "s#script-src 'self' \(https://static.cloudflareinsights.com/beacon.min.js\)#script-src 'self' \1 \1#" "$1/_headers"; }
+csp_beacon_twice() { sed -i "s#script-src 'self' \(https://static.cloudflareinsights.com/beacon.min.js/\)#script-src 'self' \1 \1#" "$1/_headers"; }
 variant csp-beacon-twice weak-csp csp_beacon_twice
-APPEND='<script src=https://static.cloudflareinsights.com/beacon.min.js></script>' variant beacon-script-in-html script-not-allowed append_html
+csp_beacon_bare() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#static.cloudflareinsights.com/beacon.min.js#" "$1/_headers"; }
+variant csp-beacon-bare-path weak-csp csp_beacon_bare
+csp_x_default() { sed -i "s#default-src 'none'#x-default-src 'none'#" "$1/_headers"; }
+variant csp-misspelled-default-src weak-csp csp_x_default
+csp_x_manifest() { sed -i "s#manifest-src 'self'#x-manifest-src 'self'#" "$1/_headers"; }
+variant csp-misspelled-manifest-src weak-csp csp_x_manifest
+csp_default_wide() { sed -i "s#default-src 'none'#default-src 'none' https:#" "$1/_headers"; }
+variant csp-default-src-not-exact weak-csp csp_default_wide
+csp_manifest_wide() { sed -i "s#manifest-src 'self'#manifest-src 'self' https:#" "$1/_headers"; }
+variant csp-manifest-src-not-exact weak-csp csp_manifest_wide
+csp_default_twice() { sed -i "s#default-src 'none'#default-src 'none'; default-src 'none'#" "$1/_headers"; }
+variant csp-default-src-twice weak-csp csp_default_twice
+csp_manifest_twice() { sed -i "s#manifest-src 'self'#manifest-src 'self'; manifest-src 'self'#" "$1/_headers"; }
+variant csp-manifest-src-twice weak-csp csp_manifest_twice
+# The only policy sits in a commented line: Cloudflare ignores it, so it is missing.
+csp_commented_only() { sed -i 's#^  Content-Security-Policy:#  \# Content-Security-Policy:#; s#^\s*Content-Security-Policy:#\# &#' "$1/_headers"; }
+variant csp-only-in-comment weak-csp csp_commented_only
+csp_beacon_deeper() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#static.cloudflareinsights.com/beacon.min.js/v1/#" "$1/_headers"; }
+variant csp-beacon-deeper-path weak-csp csp_beacon_deeper
+csp_beacon_otherhost() { sed -i "s#static.cloudflareinsights.com/beacon.min.js/#example.net/beacon.min.js/#" "$1/_headers"; }
+variant csp-beacon-other-host weak-csp csp_beacon_otherhost
+csp_beacon_plus_host() { sed -i "s#script-src 'self' \(https://static.cloudflareinsights.com/beacon.min.js/\)#script-src 'self' \1 https://cdn.example.net/#" "$1/_headers"; }
+variant csp-second-third-party-source weak-csp csp_beacon_plus_host
+APPEND='<script src=https://static.cloudflareinsights.com/beacon.min.js/vTEST></script>' variant beacon-script-in-html script-not-allowed append_html
 csp_no_manifest_src() { sed -i "s#manifest-src 'self'; ##" "$1/_headers"; }
 variant csp-without-manifest-src weak-csp csp_no_manifest_src
 csp_no_tt() { sed -i "s#; require-trusted-types-for 'script'##" "$1/_headers"; }

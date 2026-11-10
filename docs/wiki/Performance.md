@@ -82,8 +82,8 @@ points between runs were noise. The pass fixed the About mascot, which was drawn
 wider than its file, by adding a `srcset`, and added an `image` rule to the
 browser gate that fails any visible raster image drawn wider than the file the
 browser chose. The public staging site scores SEO 69 by design (`noindex`) and
-Best Practices 92 because of a blocked analytics beacon request; those are
-owner decisions listed in `docs/performance.md`.
+Best Practices 92 before issue 318 because of a blocked analytics beacon request (fixed by the
+CSP path entry, re-measured after the deploy); the details are in `docs/performance.md`.
 
 ## Tips for authors
 
