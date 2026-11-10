@@ -26,7 +26,8 @@ Fails (exit 1) on any of, printed as "[rule] page@width detail":
   scale       issue 358: at 1920x930 the root font is the user's 16 px; at 2560x1440, 3440x1440
               and 3840x2160 the root font and the content column are at least 1.25 times
               (1.9 at 3840) their 1920 size, the page does not scroll sideways, and a short
-              page still fits a 2560x1300 viewport
+              page still fits a 2560x1300 viewport, and a bordered box's frame art (.bx.l2, .bx.l3, scaled
+              by --s) grows by the same factor as the root font
   hero        issue 308: at 1878x930 (the owner's real window) and 1366x768 the
               buttons of a .hero-actions row share one line, and the page has no
               sideways scroll
@@ -127,7 +128,10 @@ JS_SCALE = """(() => {
   const d = document.documentElement;
   const col = document.querySelector('.wrap') || document.querySelector('main');
   const cs = getComputedStyle(col);
+  // The traced frame art is drawn at --s of its 1332 px original; its side padding is 130 * --s px.
+  const bx = document.querySelector('.bx.l2, .bx.l3');
   return {font: parseFloat(getComputedStyle(d).fontSize), col: col.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+          bx: bx ? parseFloat(getComputedStyle(bx).paddingLeft) / 130 : null,
           sw: d.scrollWidth, cw: d.clientWidth, sh: d.scrollHeight, ch: d.clientHeight};
 })()"""
 JS_LAYOUT = """(() => {
@@ -715,6 +719,8 @@ def scale_one(cdp, base, name, url, fit, fails):
                 fails.append("[scale] %s the root font is %.1f px, under %.2f times %.1f px" % (label, m["font"], least, b["font"]))
             if m["col"] < b["col"] * least - 1:
                 fails.append("[scale] %s the content column is %.0f px, under %.2f times %.0f px" % (label, m["col"], least, b["col"]))
+            if b["bx"] and m["bx"] and abs(m["bx"] / b["bx"] - m["font"] / b["font"]) > 0.02 * m["font"] / b["font"]:
+                fails.append("[scale] %s the frame art scale grew %.3f times but the root font %.3f times (--k does not follow the rem scale)" % (label, m["bx"] / b["bx"], m["font"] / b["font"]))
             if m["sw"] > m["cw"]:
                 fails.append("[scale] %s the page scrolls sideways: %d > %d" % (label, m["sw"], m["cw"]))
         if fit:
