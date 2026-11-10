@@ -1,14 +1,14 @@
 ---
 title: "About"
-description: "About ChiefGyk3D: background, current projects, skills, and where to reach me."
+seoTitle: "About ChiefGyk3D: Security and Open-Source Work"
+description: "Background, skills, current projects, homelab hardware, and contact details for ChiefGyk3D, a cybersecurity engineer and open-source builder."
 date: 2026-11-04
 draft: false
 syndicate: false
 aliases:
   - /contact/
 # The old /contact/ page redirects to the #contact section. The 301 line in
-# _redirects (layouts/home.redirects) carries the fragment. TODO: check on
-# staging that the host keeps the fragment; if it does not, drop this key and
-# the redirect goes to /about/.
+# _redirects (layouts/home.redirects) carries the fragment. If the host drops
+# the fragment, drop this key and the redirect goes to /about/.
 alias_fragment: contact
 ---
