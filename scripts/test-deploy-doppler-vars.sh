@@ -77,12 +77,14 @@ claims_ok() {
 if claims_ok "$wf" "$root/docs/deploy.md" "$root/docs/threat-model/no-php-no-cry.threat-model.json" >"$work/claims.out"; then
     echo "ok: no text claims the fetch is limited to the two names"
 else
-    echo "FAIL: text claims the fetch is limited:"; cat "$work/claims.out"
+    echo "FAIL: text claims the fetch is limited:"
+    cat "$work/claims.out"
     failures=$((failures + 1))
 fi
 printf 'names limits the fetch to two\n' >"$work/bad-claim.txt"
 if claims_ok "$work/bad-claim.txt" >/dev/null; then
-    echo "FAIL: a fetch-limited claim is not detected"; failures=$((failures + 1))
+    echo "FAIL: a fetch-limited claim is not detected"
+    failures=$((failures + 1))
 else
     echo "ok: a fetch-limited claim is detected"
 fi
