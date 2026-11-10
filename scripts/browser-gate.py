@@ -23,6 +23,12 @@ Fails (exit 1) on any of, printed as "[rule] page@width detail":
               of its box: a handle or name that does not wrap (issue 170)
   target      a control under 44 x 44 CSS px (links inside running text are
               exempt, WCAG 2.5.8 inline exception)
+  hero        issue 308: at 1878x930 (the owner's real window) and 1366x768 the
+              buttons of a .hero-actions row share one line, and the page has no
+              sideways scroll
+  boxtext     issue 308: at those viewports the widest text line of a bordered box
+              (.panel, .skill-group, .about-contact) with a wrapping paragraph ends
+              within 25 percent of the box's content width of its right edge
   fit         standing rule (issue 123): a short page must fit a 1920x1080 browser
               (a 1920x930 viewport) with no vertical scroll, scrollHeight <= viewport
               height; pages in FIT_ALLOW are exempt, each with a stated reason
@@ -88,6 +94,7 @@ PAGES = [
     ("resume", "/resume/"),
     ("search", "/search/"),
     ("privacy", "/privacy/"),
+    ("contact", "/contact/"),
     ("404", "/no-such-page-gate/"),
 ]
 # Standing rule (issue 123): in a 1920x1080 browser the content viewport is about
@@ -103,6 +110,44 @@ FIT_ALLOW = {
     "resume": "long-form career history",
     "search": "an A to Z list of every post and journal entry, it grows with the site",
 }
+# Issue 308: the owner browses a 1920x1080 screen with the window not full screen, so the real
+# viewport is about 1878x930. The hero row must hold one line from 1366 wide up.
+LAYOUT_VIEWPORTS = [(1878, 930), (1366, 768)]
+BOX_DEAD_MAX = 0.25
+JS_LAYOUT = """(() => {
+  const out = [];
+  const d = document.documentElement;
+  if (d.scrollWidth > d.clientWidth) out.push(['hero', 'the page scrolls sideways: ' + d.scrollWidth + ' > ' + d.clientWidth]);
+  document.querySelectorAll('.hero-actions').forEach((row) => {
+    const tops = new Set([...row.querySelectorAll('a, button')].map((b) => Math.round(b.getBoundingClientRect().top)));
+    if (tops.size > 1) out.push(['hero', 'the hero buttons wrap onto ' + tops.size + ' rows']);
+  });
+  document.querySelectorAll('.panel, .skill-group, .about-contact').forEach((el) => {
+    const b = el.getBoundingClientRect();
+    if (b.width < 500) return;
+    const cs = getComputedStyle(el);
+    const inner = b.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    let wraps = false;
+    el.querySelectorAll('p, li, dd').forEach((p) => {
+      const lh = parseFloat(getComputedStyle(p).lineHeight) || 24;
+      if (p.getBoundingClientRect().height > 1.6 * lh && p.textContent.length > 120) wraps = true;
+    });
+    if (!wraps) return;
+    let maxR = 0;
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      if (!n.textContent.trim()) continue;
+      const r = document.createRange();
+      r.selectNodeContents(n);
+      for (const q of r.getClientRects()) if (q.width > 0) maxR = Math.max(maxR, q.right);
+    }
+    const dead = (b.right - parseFloat(cs.paddingRight) - maxR) / inner;
+    if (dead > %s) out.push(['boxtext', (el.className || el.tagName) + ' leaves ' + Math.round(dead * 100) + ' percent of its width empty on the right']);
+  });
+  return out;
+})()""" % BOX_DEAD_MAX
+
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
 
 OBSERVERS = """
@@ -607,6 +652,26 @@ def fit_one(cdp, base, name, url, fails, rows):
         pg.close()
 
 
+def layout_one(cdp, base, name, url, w, h, fails):
+    """Issue 308: the hero row is one line, the page does not scroll sideways, and box text uses the box."""
+    label = "%s@%dx%d" % (name, w, h)
+    pg = Page(cdp)
+    try:
+        pg.call("Page.enable")
+        pg.call("Network.enable")
+        pg.call("Network.setCacheDisabled", {"cacheDisabled": True})
+        pg.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": h, "deviceScaleFactor": 1, "mobile": False})
+        pg.call("Page.navigate", {"url": base + url})
+        cdp.wait_event("Page.loadEventFired", pg.s, 60)
+        pg.js("document.fonts.ready.then(() => new Promise(r => setTimeout(r, 700)))")
+        for rule, detail in pg.js(JS_LAYOUT):
+            fails.append("[%s] %s %s" % (rule, label, detail))
+    except (TimeoutError, RuntimeError) as err:
+        fails.append("[setup] %s browser run failed: %s" % (label, err))
+    finally:
+        pg.close()
+
+
 def first_post(site):
     d = os.path.join(site, "posts")
     if os.path.isdir(d):
@@ -672,6 +737,8 @@ def main():
         for name, url in pages:
             for w in widths:
                 run_one(cdp, base, name, url, w, 900 if w > 500 else PHONE_HEIGHTS.get(w, 844), 1, w <= 500, True, axe_src, has_theme, a.shots, fails, rows)
+            for lw, lh in LAYOUT_VIEWPORTS:
+                layout_one(cdp, base, name, url, lw, lh, fails)
             if name not in allow:
                 fit_one(cdp, base, name, url, fails, rows)
             if not a.no_zoom:

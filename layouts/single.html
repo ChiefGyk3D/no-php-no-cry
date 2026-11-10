@@ -19,12 +19,12 @@
   </aside>
   {{- end }}
   {{- end }}
-  {{- /* Headline image above the title (issue 217); nothing when the post has none. */}}
-  {{ partial "featured-image.html" (dict "page" . "mode" "hero") }}
   <div class="title-block bx l2">
     {{- partial "frame.html" (dict "level" 2) }}
     <h1>{{ .Title }}</h1>
   </div>
+  {{- /* Headline image below the title plate (issue 310, was above it in issue 217); nothing when the post has none. */}}
+  {{ partial "featured-image.html" (dict "page" . "mode" "hero") }}
   <div class="meta">
     <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
     <span aria-hidden="true">&middot;</span>

@@ -36,7 +36,9 @@
 # HTML is under 40 KB gzip (search-page-budget): it is the browse list with
 # JavaScript off, and past that size the approach needs another look. The CSP
 # must carry exactly one script-src, and it must be 'self' plus the one
-# Cloudflare Web Analytics beacon URL (injected at the edge; never in built HTML).
+# Cloudflare Web Analytics beacon path (injected at the edge; never in built HTML). The entry ends in a slash
+# on purpose: the injected tag loads /beacon.min.js/v<version>, and a CSP path ending in / matches by prefix
+# (CSP3 section 6.7.2.12), where the bare /beacon.min.js entry matches only that exact path.
 #
 # 'self' authorizes every same-origin response, so also: every file in the build
 # is of a listed non-script type (unexpected-file; see scripts/artifact-rules.sh),
@@ -137,7 +139,7 @@ has_redirect() {
 # that is 'self', and no script-src-elem or script-src-attr (either would
 # override script-src).
 csp_scripts_ok() {
-    awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js" '
+    awk -v beacon="https://static.cloudflareinsights.com/beacon.min.js/" '
         { sub(/^[^:]*:/, ""); n = split($0, d, ";"); count = 0; cs = 0; ok = 1
           for (i = 1; i <= n; i++) {
               gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
@@ -147,6 +149,23 @@ csp_scripts_ok() {
               if (name == "script-src-elem" || name == "script-src-attr") ok = 0
           }
           if (count != 1 || cs != 1 || !ok) bad = 1; seen = 1 }
+        END { exit (bad || !seen) }'
+}
+
+# csp_base_ok: reads Content-Security-Policy header lines on stdin. Succeeds
+# when every policy has default-src exactly 'none' and manifest-src exactly
+# 'self', each once, as real directive names (a misspelling such as
+# x-default-src is a different directive and does not count).
+csp_base_ok() {
+    awk '
+        { sub(/^[^:]*:/, ""); n = split($0, d, ";"); df = 0; ms = 0
+          for (i = 1; i <= n; i++) {
+              gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+              name = tolower(d[i]); sub(/[ \t].*/, "", name)
+              if (name == "default-src") { df++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'none'"'"'") bad = 1 }
+              if (name == "manifest-src") { ms++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+          }
+          if (df != 1 || ms != 1) bad = 1; seen = 1 }
         END { exit (bad || !seen) }'
 }
 
@@ -281,9 +300,9 @@ while IFS= read -r -d '' f; do
     fi
 
     # The one owner-approved business address (data/about.yaml) may appear on the
-    # About page only, as text and as a mailto: link to exactly that address.
+    # Contact page only, as text and as a mailto: link to exactly that address.
     email_opts=()
-    if [[ "$rel" == about/index.html ]]; then
+    if [[ "$rel" == contact/index.html ]]; then
         about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
         [[ -n "$about_email" ]] && email_opts=(--allow-email "$about_email")
     fi
@@ -553,16 +572,14 @@ fi
 if [[ ! -s "$dir/_headers" ]]; then
     report missing-headers "_headers"
 else
-    csp="$(grep -i 'Content-Security-Policy:' "$dir/_headers" || true)"
-    if [[ -z "$csp" ]] || ! grep -qF "default-src 'none'" <<<"$csp" ||
-        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js/}"; then
+    csp="$(grep -iE '^[[:space:]]*Content-Security-Policy:' "$dir/_headers" || true)"
+    if [[ -z "$csp" ]] || ! csp_base_ok <<<"$csp" ||
+        grep -qE "unsafe-inline|unsafe-eval|script-src[^;]*(\*|https?:)" <<<"${csp//https:\/\/static.cloudflareinsights.com\/beacon.min.js\//}"; then
         report weak-csp "_headers"
     elif ! csp_scripts_ok <<<"$csp"; then
         report weak-csp "_headers (script-src must be exactly 'self' plus the Cloudflare beacon URL, once, connect-src exactly 'self', no script-src-elem or script-src-attr)"
     elif ! tt_required_ok <<<"$csp"; then
         report weak-csp "_headers (require-trusted-types-for 'script' is required exactly once; no trusted-types directive: no pinned script may need a policy, issue 259)"
-    elif ! grep -qF "manifest-src 'self'" <<<"$csp"; then
-        report weak-csp "_headers (manifest-src 'self' is required: default-src 'none' blocks the web app manifest every page links)"
     fi
 fi
 

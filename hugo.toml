@@ -75,13 +75,21 @@ timeZone = "America/New_York"
   guessSyntax = false
 
 [params]
-  description = "Hands-on cybersecurity, Linux, homelabs, and open source, from ChiefGyk3D."
+  description = "Hands-on cybersecurity, Linux, homelabs, and open-source projects. I write about what I build, test, and learn."
+  # The home page <title>, Open Graph and Twitter title. Inner pages render "<title> | ChiefGyk3D"; the home page has no suffix, so its full title lives here.
+  homeTitle = "ChiefGyk3D | Cybersecurity, Linux, and Open Source"
   # "production" or "staging". Staging adds <meta name="robots" content="noindex,
   # nofollow"> to every page and a robots.txt that disallows everything. A build
   # sets it without editing this file: HUGO_PARAMS_ENVIRONMENT=staging hugo ...
   # The deploy workflow's build job does this while the site lives on test-blog;
   # docs/cutover.md has the steps for the apex.
   environment = "production"
+
+  # The About page shows the business email as text. true shows it as an image
+  # instead (assets/contact/email-address.png; the link's accessible name is a
+  # fixed alt text, never the address). One build: HUGO_PARAMS_EMAILASIMAGE=true
+  # hugo ... Issue 329; scripts/check-about-email.sh --mode image checks it.
+  emailAsImage = false
 
   # Default Open Graph image, a path under static/. Use only a file listed in
   # brand/approved-assets.txt (star-free).

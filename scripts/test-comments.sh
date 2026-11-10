@@ -4,8 +4,9 @@
 # Each post that has a data/comments/<slug>.json file shows "Comments from the
 # old site" under the post: the quoted text, the display name only, and the
 # original date. Builds into the repository's gitignored tmp/ (never /tmp).
-# The migrated posts are drafts, so the build uses --buildDrafts; a normal build
-# must show none of it. Asserts with Python's stdlib HTML parser, checks the
+# The three posts with comments are published (issue 322), so a normal build and a
+# --buildDrafts build must both show them; the drafts build also covers any post
+# that is still a draft. Asserts with Python's stdlib HTML parser, checks the
 # data files carry only author, date and content, that no raw HTML or commenter
 # metadata (email, IP, URL) reaches the page, that the published output holds no
 # comment data file, and that scripts/check-output.sh stays green on the drafts
@@ -187,7 +188,7 @@ else
     fail "data/comments: $data_check"
 fi
 
-# 2. A drafts build shows the comments; a normal build shows none of it.
+# 2. A normal build and a drafts build both show the comments of the published posts.
 hugo --minify --buildDrafts --destination "$work/drafts" >"$work/drafts.log" 2>&1 || {
     cat "$work/drafts.log"
     fail "hugo --buildDrafts failed"
@@ -209,10 +210,13 @@ for e in "${EXPECTED[@]}"; do
     else
         fail "$slug: $out"
     fi
-    if [[ -f "$work/normal/posts/$slug/index.html" ]]; then
-        fail "$slug: a draft was built without --buildDrafts"
+    npage="$work/normal/posts/$slug/index.html"
+    if [[ ! -f "$npage" ]]; then
+        fail "$slug: a published post was not built in a normal build"
+    elif out="$(python3 -I "$asserter" present "$npage" "$names")"; then
+        pass "$slug: published, comments by $names rendered in a normal build"
     else
-        pass "$slug: not built (draft) without --buildDrafts"
+        fail "$slug (normal build): $out"
     fi
 done
 # Posts without comments show no section.
@@ -241,6 +245,12 @@ if EXPECT_ENV=production "$root/scripts/check-output.sh" "$work/drafts" >"$work/
 else
     cat "$work/co.log"
     fail "check-output.sh failed on the drafts build"
+fi
+if EXPECT_ENV=production "$root/scripts/check-output.sh" "$work/normal" >"$work/con.log" 2>&1; then
+    pass "check-output.sh is green on the normal build"
+else
+    cat "$work/con.log"
+    fail "check-output.sh failed on the normal build"
 fi
 
 # 4. Guard self-test: the asserter bites.

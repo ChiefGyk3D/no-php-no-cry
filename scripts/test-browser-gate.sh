@@ -54,7 +54,7 @@ mutate() {
 make_site "$work/good"
 rc=0
 out="$(run_gate "$work/good")" || rc=$?
-if [[ $rc -eq 0 && "$out" == *"browser gate: ok (2 runs"* ]]; then pass "good fixture passes (one width run plus the 1920x930 fit run)"; else fail "good fixture: exit $rc: $out"; fi
+if [[ $rc -eq 0 && "$out" == *"browser gate: ok (2 runs"* ]]; then pass "good fixture passes (one width run plus the 1920x930 fit run; the layout runs add no rows)"; else fail "good fixture: exit $rc: $out"; fi
 
 mutate overflow overflow overflow
 mutate tile-overflow tile tile-overflow
@@ -86,6 +86,17 @@ print(all(k in names and v.strip() for k, v in m.FIT_ALLOW.items()) and not {"ho
 PY
 )"
 if [[ "$allow_ok" == "True" ]]; then pass "FIT_ALLOW names real templates with reasons and leaves Home, Social, Support, Privacy and 404 checked"; else fail "FIT_ALLOW is stale or exempts a page that must fit"; fi
+
+# Issue 308: the hero row and the text width inside boxes, at 1878x930 and 1366x768.
+mutate hero-wrap hero hero-wrap
+mutate box-dead boxtext box-dead
+for ok in hero-ok box-ok; do
+    cp -r "$work/good" "$work/m-$ok"
+    python3 -I "$root/scripts/fixture-site.py" "$work/m-$ok" "$ok"
+    rc=0
+    out="$(run_gate "$work/m-$ok")" || rc=$?
+    if [[ $rc -eq 0 ]]; then pass "$ok fixture passes the layout rules"; else fail "$ok fixture: exit $rc: $out"; fi
+done
 
 # The iPhone 15 viewport (issue 123): 393 x 852 is its own run. A page that overflows
 # only at that size passes at 390 x 844 and fails at 393 x 852 and in the default run.

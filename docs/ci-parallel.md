@@ -76,6 +76,7 @@ Setup and build run in the `ci / Build` job (`setup-command`, `build-command`).
 | Check the brand asset manifest | C |
 | Check README and wiki links and paths (`scripts/check-wiki.py`, issue 234) | C |
 | Test the README and wiki check | S |
+| Test the launch SEO check (`scripts/test-check-launch-seo.sh`, issue 318) | C |
 | Size budget | B |
 | Browser gate | G |
 

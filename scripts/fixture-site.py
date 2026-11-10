@@ -111,6 +111,17 @@ def mutate(d, m):
     elif m == "tall":
         edit(d, "site.css", "main{", ".tall{height:2000px}main{")  # a class, not a style attribute: the CSP forbids inline style
         edit(d, "index.html", "<footer>", '<div class="tall"></div><footer>')
+    elif m in ("hero-wrap", "hero-ok"):
+        # Issue 308: three wide hero buttons wrap at 1878 and 1366; narrow ones share a row.
+        width = "700px" if m == "hero-wrap" else "100px"
+        edit(d, "site.css", "main{", ".hero-actions{display:flex;flex-wrap:wrap;gap:8px}.hero-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;width:%s}main{" % width)
+        edit(d, "index.html", "</main>", '<p class="hero-actions"><a href="/x/">One</a><a href="/y/">Two</a><a href="/z/">Three</a></p></main>')
+    elif m in ("box-dead", "box-ok"):
+        # Issue 308: a wide bordered box whose text keeps a narrow column leaves its right side empty.
+        mx = "40ch" if m == "box-dead" else "none"
+        edit(d, "site.css", "main{", ".panel{border:1px solid #888;padding:16px}.panel p{max-width:%s}main{" % mx)
+        text = "Long running text that wraps over several lines inside a wide box. " * 6
+        edit(d, "index.html", "</main>", '<div class="panel"><p>%s</p></div></main>' % text)
     elif m == "toggle-missing":
         write(d, "theme.js", "document.title = 'x';")
         edit(d, "index.html", "</head>", '<script src="/theme.js"></script></head>')

@@ -359,7 +359,7 @@ else
 fi
 
 # The CSP is unchanged: script-src names 'self' and the Cloudflare beacon, nothing else.
-if grep -q "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js;" "$root/static/_headers"; then
+if grep -q "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/;" "$root/static/_headers"; then
     pass "CSP script-src is unchanged"
 else
     fail "static/_headers script-src changed"

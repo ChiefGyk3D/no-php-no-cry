@@ -1,6 +1,7 @@
 ---
 title: "Privacy"
-description: "How this site is hosted, what its analytics collect, and what this page does not cover."
+seoTitle: "How This Site Handles Privacy and Analytics"
+description: "Read how this static site handles cookies, local storage, share tools, clipboard access, hosting, and Cloudflare Web Analytics."
 date: 2026-11-04
 draft: false
 syndicate: false

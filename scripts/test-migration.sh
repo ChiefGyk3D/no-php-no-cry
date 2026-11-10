@@ -88,8 +88,8 @@ if build_site "$work/plain" "$conv/drafts"; then
     else
         fail "a draft-all page was built"
     fi
-    # What remains is the fixed set of legacy WordPress rules (feed, uncategorized
-    # category, paging): no alias, date archive or category line of a draft.
+    # What remains is the fixed set of legacy WordPress rules (feed, sitemap,
+    # uncategorized category, paging): no alias, date archive or category line of a draft.
     cat >"$work/legacy-baseline" <<'RULES'
 /category/uncategorized /posts/ 301
 /category/uncategorized/ /posts/ 301
@@ -99,6 +99,7 @@ if build_site "$work/plain" "$conv/drafts"; then
 /feed/ /feed/index.xml 301
 /feed/atom /feed/index.xml 301
 /feed/atom/ /feed/index.xml 301
+/wp-sitemap.xml /sitemap.xml 301
 /category/* /posts/ 301
 /page/* /posts/ 301
 RULES
@@ -125,8 +126,8 @@ if build_site "$work/drafts" "$conv/drafts" --buildDrafts; then
         fi
     done
     # Alias rules are every line that is not a legacy WordPress rule (feeds,
-    # categories, tags, paging, date archives).
-    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/category/|/tag/|/page/)' "$r" || true)"
+    # sitemap, categories, tags, paging, date archives).
+    aliases_only="$(grep -vE '^(#|/[0-9]{4}(/[0-9]{2})?/? /posts/ 301$|/feed|/comments/feed|/wp-sitemap\.xml |/category/|/tag/|/page/)' "$r" || true)"
     if [[ "$(grep -c '' <<<"$aliases_only")" == "3" ]] && out="$(check_lines "$r" 2>&1)"; then
         pass "exactly three alias rules for the two aliased posts, all well formed"
     else
@@ -178,12 +179,12 @@ else
 fi
 
 # --- the legacy WordPress URLs that are not posts are redirected by the site ---
-# 10 posts (once their drafts are published) plus these five make the 15 aliases
-# of docs/redesign-brief.md section 12 item 16.
+# 10 post aliases (once their drafts are published) plus these four (/blog, /support-me, /social-media, /sample-page) make 14
+# aliases. docs/redesign-brief.md section 12 item 16 counted 15 when /contact/ was a redirect; since issue 329 /contact/ is a
+# real page, not an alias, so it is no longer in the count.
 if hugo --quiet --source "$root" --destination "$work/real" >"$work/real.log" 2>&1; then
     for want in \
         "/blog /posts/ 301" "/blog/ /posts/ 301" \
-        "/contact /about/#contact 301" "/contact/ /about/#contact 301" \
         "/support-me /support/ 301" "/support-me/ /support/ 301" \
         "/social-media /social/ 301" "/social-media/ /social/ 301" \
         "/sample-page / 301" "/sample-page/ / 301"; do

@@ -1,0 +1,54 @@
+{{- /*
+  /contact/ (issue 329). No form and no script: two panels. General correspondence goes to Discord or
+  Matrix (links from data/socials.yaml, by name, https only); business inquiries go by email, with the PGP
+  fingerprint and key link. The address, fingerprint and key link come from data/about.yaml (contact:) and
+  are published only when all three are set (layouts/_partials/contact-complete.html, the same rule as
+  before the move from /about/). The address sits between email_off markers so the host's Email Address
+  Obfuscation leaves it alone (scripts/check-about-email.sh pins this); params.emailAsImage swaps the text
+  for the image whose accessible name is a fixed alt text, never the address. Copy: data/contact.yaml.
+  Frames (docs/borders.md): the title plate is the one L2, each panel an L1, no L3.
+*/ -}}
+{{ define "main" }}
+{{- $t := site.Data.contact }}
+{{- $c := site.Data.about.contact | default dict }}
+{{- $complete := partial "contact-complete.html" . }}
+<article class="page-contact">
+  <div class="title-block bx l2">
+    {{- partial "frame.html" (dict "level" 2) }}
+    <h1>{{ .Title }}</h1>
+  </div>
+  <p class="lede contact-lede">{{ $t.intro }}</p>
+  <div class="contact-grid">
+    <section class="panel contact-general" aria-labelledby="general">
+      <h2 id="general" class="hud-heading">{{ $t.general_title }}</h2>
+      <p>{{ $t.general_text }}</p>
+      <ul class="contact-links">
+        {{- range slice "Discord" "Matrix" }}
+        {{- $n := . }}
+        {{- $hit := where site.Data.socials "name" $n }}
+        {{- if ne (len $hit) 1 }}{{ errorf "contact page: %q is not exactly one entry in data/socials.yaml" $n }}{{ end }}
+        {{- with index $hit 0 }}
+        {{- if not (strings.HasPrefix .url "https://") }}{{ errorf "contact page: the %s link is not https" $n }}{{ end }}
+        <li><a class="tile contact-tile" href="{{ .url }}" target="_blank" rel="noopener"><strong>{{ .name }}</strong><span class="meta"> {{ .handle }}</span><span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        {{- end }}
+        {{- end }}
+      </ul>
+    </section>
+    <section class="panel contact-business" aria-labelledby="business">
+      <h2 id="business" class="hud-heading">{{ $t.business_title }}</h2>
+      <p>{{ $t.business_text }}{{ if not $complete }} {{ $t.business_soon }}{{ end }}</p>
+      {{- if $complete }}
+      {{ "<!--email_off-->" | safeHTML }}<p class="contact-email">Email: {{ if site.Params.emailAsImage -}}
+      {{- $img := resources.Get "contact/email-address.png" | fingerprint -}}
+      <a class="email-image-link" href="mailto:{{ $c.email }}"><img class="email-image" src="{{ $img.RelPermalink }}" width="{{ div $img.Width 2 }}" height="{{ div $img.Height 2 }}" alt="email address image, open your mail client to write to me"></a>
+      {{- else -}}
+      <a href="mailto:{{ $c.email }}">{{ $c.email }}</a>
+      {{- end }}</p>{{ "<!--/email_off-->" | safeHTML }}
+      <p>{{ $t.pgp_text }}</p>
+      <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
+      <p class="pgp-key-link"><a href="{{ $c.pgp_url | relURL }}">PGP public key</a></p>
+      {{- end }}
+    </section>
+  </div>
+</article>
+{{ end }}

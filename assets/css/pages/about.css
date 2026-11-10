@@ -195,6 +195,18 @@
   user-select: all;
 }
 
+/* The optional email image (params.emailAsImage, issue 329): sits on the text line, link tap height kept. */
+.email-image-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+.email-image {
+  max-width: 100%;
+  height: auto;
+}
+
 .pgp-key-link a {
   display: inline-flex;
   align-items: center;
@@ -247,6 +259,12 @@
 
 .skill-group:last-child {
   border-color: var(--accent-deep);
+}
+
+/* The closing block spans the whole row: its short text uses the full box width (issue 308),
+ * so a last orphan line does not leave the right side empty. */
+.skill-group:last-child p {
+  max-width: none;
 }
 
 @media (min-width: 40rem) {

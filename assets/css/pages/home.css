@@ -43,6 +43,12 @@
   margin: 0;
 }
 
+/* Hero buttons (issue 308): a nowrap-friendly pair of paddings so Read the latest, See my
+ * projects and Support my work share one row from 1366 wide; still --tap tall. */
+.hero-actions .btn {
+  padding-inline: var(--space-4);
+}
+
 .home-panel {
   margin: var(--space-5) 0;
 }
@@ -196,9 +202,10 @@
     --per: var(--per-desk, 6);
   }
 
-  /* Equal columns: the three hero buttons then fit one row. */
+  /* Hero column a little wider than the latest posts (6fr 5fr, issue 308): the three hero
+   * buttons sit on one row at 1366 wide and up, including the 1878x930 real window. */
   .home-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
   }
 
   .home-grid .hero-mascot {

@@ -55,9 +55,14 @@ step test-social-products "" 'scripts/test-social-products.sh'
 step test-share "" 'scripts/test-share.sh'
 step test-borders "" 'scripts/test-borders.sh'
 step test-resume "" 'scripts/test-resume.sh'
+step test-layout "" 'scripts/test-layout.sh'
 step test-check-site-artifact "" 'scripts/test-check-site-artifact.sh'
 step test-deploy-sparse "" 'scripts/test-deploy-sparse.sh'
 step test-pages "" 'scripts/test-pages.sh'
+step test-titles "" 'scripts/test-titles.sh'
+step test-social-identity "" 'scripts/test-social-identity.sh'
+step test-about-email "" 'scripts/test-about-email.sh'
+step test-contact-page "" 'scripts/test-contact-page.sh'
 step test-comments "" 'scripts/test-comments.sh'
 step test-redirects "" 'scripts/test-redirects.sh'
 step gen-support-qr "" 'scripts/gen-support-qr.sh --check --decode'
@@ -70,6 +75,7 @@ step test-check-license "" 'scripts/test-check-license.sh'
 step check-wiki "" 'python3 -I scripts/check-wiki.py'
 step test-check-wiki "" 'scripts/test-check-wiki.sh'
 step test-publish-wiki "" 'scripts/test-publish-wiki.sh'
+step test-check-launch-seo "" 'scripts/test-check-launch-seo.sh'
 step check-content "" 'python3 -I scripts/check-content.py'
 step test-check-content "" 'scripts/test-check-content.sh'
 step test-author "" 'scripts/test-author.sh'
@@ -110,12 +116,12 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume
-    test-pages test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-threat-model test-check-threat-model check-wiki test-check-wiki test-publish-wiki
+    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume test-layout
+    test-pages test-titles test-about-email test-social-identity test-contact-page test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-threat-model test-check-threat-model check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
     test-check-budget browser-gate test-browser-gate)
-docs_steps=(check-wording test-check-wording check-threat-model test-check-threat-model check-license test-check-license check-wiki test-check-wiki test-publish-wiki check-content test-check-content test-author)
+docs_steps=(check-wording test-check-wording check-threat-model test-check-threat-model check-license test-check-license check-wiki test-check-wiki test-publish-wiki test-check-launch-seo check-content test-check-content test-author)
 
 # Tools a step needs that its command line does not show (wrapper scripts call them).
 # "chrome" means the browser named by CHROME.

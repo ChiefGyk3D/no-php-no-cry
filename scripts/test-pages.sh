@@ -3,7 +3,7 @@
 #
 # Builds the site into the repository's gitignored tmp/ (never /tmp) and asserts,
 # with Python's stdlib HTML parser, the approved layout and wording of /support/,
-# /about/ and /privacy/, the /contact/ redirect, the wallet addresses and their
+# /about/, /privacy/ and /contact/, the wallet addresses and their
 # pre-generated QR files, and that the CSP gained no frame-src. Needs the pinned
 # Hugo; a missing Hugo is a failure, not a skip. A guard self-test feeds the
 # asserter a page that breaks each rule and requires a failure.
@@ -79,11 +79,14 @@ BUILT_START = "PHP2Shell made me take another look at how I build for the web"
 CREATOR_START = "I am a content creator with over 500,000 followers across platforms"
 CLOSING = "You’re not dead until you stop learning. Happy hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
-CONTACT = ("There's no contact form. If you want to chat as part of the community, use the Matrix room "
-           "or the Discord server. The two are bridged.")
+ABOUT_POINTER = "Email, Discord, and Matrix are on the contact page."
+CONTACT_INTRO = "Use email for business inquiries. For general correspondence, find me on Discord or Matrix."
+CONTACT_GENERAL = ("Use Discord or Matrix for general correspondence. They are bridged, so you can read chats "
+                   "from the other side in most rooms unless there is an issue with a bridge.")
+CONTACT_BUSINESS = "The email address here is primarily for business inquiries."
 SPEAKING = ("In 2026, I spoke at BSides Dayton and COISSA. I also volunteer with the "
             "Call Center Village.")
-CONTACT_SOON = " Business inquiries go by email, and the address will be listed here soon."
+CONTACT_SOON = "The address will be listed here soon."
 
 
 def contact_data():
@@ -561,17 +564,12 @@ def about(p, errs, repo):
         errs.append("no mascot image with alt text")
     if p.ids.get("contact") not in ("h2", "h3", "section"):
         errs.append("no #contact heading or section")
-    cd = contact_data()
-    # One rule (layouts/_partials/contact-complete.html): the address is published only
-    # when the email, the fingerprint and the key link are ALL set.
-    email_set = bool(cd["email"] and cd["pgp_fingerprint"] and cd["pgp_url"])
-    if CONTACT not in flat:
-        errs.append("contact sentence missing")
-    if email_set == (CONTACT_SOON.strip() in flat):
-        errs.append("the 'address will be listed soon' sentence must show exactly while no email is set")
+    if ABOUT_POINTER not in flat:
+        errs.append("the About page must point to the contact page")
     hrefs = [a.get("href") for a, _ in p.links]
-    for h in ("https://discord.chiefgyk3d.com", "https://matrix.to/#/#renegade-penguin:chiefgyk3d.com",
-              "https://github.com/ChiefGyk3D/Stream-Daemon", "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"):
+    if "/contact/" not in hrefs:
+        errs.append("the About contact pointer must link /contact/")
+    for h in ("https://github.com/ChiefGyk3D/Stream-Daemon", "https://github.com/ChiefGyk3D/Clouds-Against-Humanity"):
         if h not in hrefs:
             errs.append("missing link %s" % h)
     if not any((h or "").startswith("https://github.com/ChiefGyk3D/") and "Reach" in (h or "") for h in hrefs):
@@ -580,55 +578,80 @@ def about(p, errs, repo):
     if "/resume/" not in hrefs:
         errs.append("the About body must link to /resume/")
     mailtos = [h for h in hrefs if (h or "").startswith("mailto:")]
+    if mailtos or "chief@" in flat or "PGP" in flat:
+        errs.append("the email and PGP details moved to /contact/ and must not be on About")
+    stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat))
+    if stray:
+        errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
+    m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
+    if not m:
+        errs.append("the contact pointer section was not found")
+    if "TODO" in repo["html"]:
+        errs.append("the page carries a TODO")
+
+
+def contact(p, errs, repo):
+    common(p, errs)
+    if p.h1 != ["Contact"]:
+        errs.append("h1 is %r" % p.h1)
+    flat = p.flat()
+    cd = contact_data()
+    # One rule (layouts/_partials/contact-complete.html): the address is published only
+    # when the email, the fingerprint and the key link are ALL set.
+    email_set = bool(cd["email"] and cd["pgp_fingerprint"] and cd["pgp_url"])
+    for want in (CONTACT_INTRO, CONTACT_GENERAL, CONTACT_BUSINESS):
+        if want not in flat:
+            errs.append("contact copy missing: %s" % want[:40])
+    if email_set == (CONTACT_SOON in flat):
+        errs.append("the 'address will be listed soon' sentence must show exactly while no email is set")
+    hrefs = [a.get("href") for a, _ in p.links]
+    for h in ("https://discord.chiefgyk3d.com", "https://matrix.to/#/#renegade-penguin:chiefgyk3d.com"):
+        if h not in hrefs:
+            errs.append("missing link %s" % h)
+    for a, _ in p.links:
+        if (a.get("href") or "").startswith("https://") and (a.get("href") or "") != cd["pgp_url"] and not external_ok(a):
+            errs.append("an external link without target=_blank and rel=noopener: %s" % a.get("href"))
+    if p.count("h2") != 2:
+        errs.append("expected two h2 panels (general correspondence, business inquiries)")
+    if repo["html"].count("l3") and "bx l3" in repo["html"]:
+        errs.append("the page must carry no L3 frame")
+    if repo["html"].count("bx l2") != 1:
+        errs.append("expected exactly one L2 title plate")
+    mailtos = [h for h in hrefs if (h or "").startswith("mailto:")]
     if not email_set and mailtos:
         errs.append("the contact config is incomplete, so the page must not link an email")
     if email_set:
         if mailtos != ["mailto:" + cd["email"]]:
             errs.append("expected exactly one mailto link, to the data email; found %r" % mailtos)
-        if "Email, for business inquiries only: %s" % cd["email"] not in flat:
-            errs.append("business email sentence missing")
-        # Issue 224: email, fingerprint and key link are three separate elements, in this order,
-        # each alone in its own paragraph.
         paras = [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", x))).strip()
                  for x in re.findall(r"<p[^>]*>(.*?)</p>", repo["html"], re.S)]
         fp_line = "PGP fingerprint: %s" % cd["pgp_fingerprint"]
-        lines = [x for x in paras if x.startswith("Email, for business inquiries only") or x.startswith("PGP fingerprint") or x.startswith("PGP public key")]
-        want = ["Email, for business inquiries only: %s" % cd["email"], fp_line, "PGP public key"]
+        lines = [x for x in paras if x.startswith("Email:") or x.startswith("PGP fingerprint") or x.startswith("PGP public key")]
+        want = ["Email: %s" % cd["email"], fp_line, "PGP public key"]
         if [re.sub(r"\s*\(opens in a new tab\)", "", x).rstrip(".") for x in lines] != want:
             errs.append("the email, fingerprint and key link must be three separate lines; found %r" % lines)
         if not re.search(r"<p[^>]*>\s*PGP fingerprint:\s*<code[^>]*>%s</code>\s*</p>" % re.escape(cd["pgp_fingerprint"]), repo["html"]):
             errs.append("the fingerprint line must be 'PGP fingerprint: <code>...</code>'")
-        if not re.search(r"<p[^>]*>\s*Email, for business inquiries only: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
-            errs.append("the email line must be 'Email, for business inquiries only: <a mailto>...</a>'")
-        if "keys.openpgp.org" in repo["html"]:
-            errs.append("the About page must not point at keys.openpgp.org (issue 224)")
-        if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "").endswith(cd["pgp_url"])]:
-            errs.append("the PGP key link text must be 'PGP public key'")
-        if not any((h or "").endswith(cd["pgp_url"]) and cd["pgp_url"] for h in hrefs) or not cd["pgp_url"]:
-            errs.append("PGP key link missing")
-        else:
-            keyfile = os.path.join(os.path.dirname(os.path.dirname(os.environ["ABOUT_DATA"])), "static", cd["pgp_url"].lstrip("/"))
-            if not os.path.isfile(keyfile):
-                errs.append("the PGP key file %s is not in static/" % cd["pgp_url"])
-            else:
-                key = open(keyfile, encoding="ascii").read()
-                if "PRIVATE" in key or not key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----"):
-                    errs.append("the key file is not a public key block only")
-                want_fp = key_fingerprint(keyfile)
-                if want_fp is not None and want_fp != cd["pgp_fingerprint"].replace(" ", "").upper():
-                    errs.append("page fingerprint %s differs from the key file's %s" % (cd["pgp_fingerprint"], want_fp))
+        if not re.search(r"<p[^>]*>\s*Email: <a[^>]*href=[\"']?mailto:%s[\"']?[^>]*>%s</a>\s*</p>" % (re.escape(cd["email"]), re.escape(cd["email"])), repo["html"]):
+            errs.append("the email line must be 'Email: <a mailto>...</a>'")
+        # Issue 329 (owner correction 2026-11-09, supersedes the 224 key choice for now): the key in
+        # use is the one on keys.openpgp.org, so the key link must be that keyserver's
+        # by-fingerprint URL of the PUBLISHED fingerprint, and the unused key file kept in static/
+        # (static/chiefgyk3d.asc) must not be linked or named on the page.
+        ks_ok = "https://keys.openpgp.org/vks/v1/by-fingerprint/" + re.sub(r"\s+", "", cd["pgp_fingerprint"]).upper()
+        if cd["pgp_url"] != ks_ok:
+            errs.append("pgp_url must be %s (the by-fingerprint URL of the published fingerprint); found %r" % (ks_ok, cd["pgp_url"]))
+        if "chiefgyk3d.asc" in repo["html"]:
+            errs.append("the Contact page must not link the unused local key file")
+        if "PGP public key" not in [t for a, t in p.links if (a.get("href") or "") == cd["pgp_url"]]:
+            errs.append("the PGP key link text must be 'PGP public key' and its href the data pgp_url")
     stray = set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", flat)) - ({cd["email"]} if email_set else set())
     if stray:
-        errs.append("unexpected email-shaped text on About: %r" % sorted(stray))
-    # The email ban is for the contact section; the Skills text legitimately says "email security".
-    m = re.search(r"<section[^>]*about-contact.*?</section>", repo["html"], re.S)
-    contact = re.sub(r"<[^>]+>", " ", m.group(0)).lower() if m else ""
-    if not contact:
-        errs.append("the contact section was not found")
+        errs.append("unexpected email-shaped text on Contact: %r" % sorted(stray))
+    if not email_set and ("pgp" in flat.lower() and "fingerprint" in flat.lower()):
+        errs.append("an empty email and PGP entry must render no fingerprint")
     if "TODO" in repo["html"]:
         errs.append("the page carries a TODO")
-    if not email_set and ("pgp" in contact or "@" in contact or "mailto" in contact):
-        errs.append("an empty email and PGP entry must render nothing")
 
 
 def privacy(p, errs, repo):
@@ -643,7 +666,7 @@ def privacy(p, errs, repo):
             errs.append("privacy page makes an unsupported claim: %r" % phrase)
 
 
-KINDS = {"support": support, "about": about, "privacy": privacy}
+KINDS = {"support": support, "about": about, "privacy": privacy, "contact": contact}
 
 if __name__ == "__main__":
     kind, path = sys.argv[1], sys.argv[2]
@@ -716,7 +739,7 @@ assert() {
     fi
 }
 
-for kind in support about privacy; do
+for kind in support about privacy contact; do
     if [[ ! -f "$pub/$kind/index.html" ]]; then
         fail "$kind/index.html is not built"
     fi
@@ -809,25 +832,26 @@ fi
 # email, fingerprint and key link on three separate lines, the fingerprint equal to the key file's), and each
 # break must fail. Then a copy of the repository with the email and PGP entries
 # emptied must build a page that renders none of them.
-if [[ -f "$pub/about/index.html" ]]; then
-    mutate "$work/about-fp.html" "98B2 D533 1A9F 17AC" "98B2 D533 1A9F 17AD"
-    mutate "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
-    mutate "$work/about-nokey.html" "/chiefgyk3d.asc" "/other.asc"
+if [[ -f "$pub/contact/index.html" ]]; then
+    mutate_c() { python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a, b = sys.argv[3], sys.argv[4]; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, b, 1))' "$pub/contact/index.html" "$@"; }
+    mutate_c "$work/about-fp.html" "70EA A2B2 49A3 50E7" "70EA A2B2 49A3 50E8"
+    mutate_c "$work/about-addr.html" "mailto:chief@chiefgyk3d.com" "mailto:other@example.org"
+    mutate_c "$work/about-nokey.html" "by-fingerprint/5AFF" "by-fingerprint/5AFE"
     # Issue 224 guard: the three lines merged into one paragraph must fail.
-    python3 -I - "$work/about-merged.html" "$pub/about/index.html" <<'PYEOF'
+    python3 -I - "$work/about-merged.html" "$pub/contact/index.html" <<'PYEOF'
 import re, sys
 t = open(sys.argv[2], encoding="utf-8").read()
-t = re.sub(r"</p>\s*<p[^>]*>(?=PGP fingerprint:)", ". ", t, count=1)
+t = re.sub(r"</p>\s*(?:<!--/email_off-->)?\s*<p[^>]*>(?=PGP fingerprint:)", ". ", t, count=1)
 open(sys.argv[1], "w", encoding="utf-8").write(t)
 PYEOF
-    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-merged.html" >/dev/null 2>&1; then
-        fail "guard: an About page with the email and fingerprint on one line passed"
-    else pass "guard: an About page with the email and fingerprint on one line fails"; fi
+    if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" contact "$work/about-merged.html" >/dev/null 2>&1; then
+        fail "guard: a Contact page with the email and fingerprint on one line passed"
+    else pass "guard: a Contact page with the email and fingerprint on one line fails"; fi
     for v in fp addr nokey; do
-        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" about "$work/about-$v.html" >/dev/null 2>&1; then
-            fail "guard: an About page with a broken contact ($v) passed"
+        if ABOUT_DATA="$root/data/about.yaml" python3 -I "$asserter" contact "$work/about-$v.html" >/dev/null 2>&1; then
+            fail "guard: a Contact page with a broken contact ($v) passed"
         else
-            pass "guard: an About page with a broken contact ($v) fails"
+            pass "guard: a Contact page with a broken contact ($v) fails"
         fi
     done
     # Fail closed: only a COMPLETE contact config (email, fingerprint and key link) publishes the
@@ -847,20 +871,20 @@ PYEOF
             fail "contact case $name did not build"
             return
         fi
-        local page="$work/contact-public-$name/about/index.html" has_mail=0
+        local page="$work/contact-public-$name/contact/index.html" has_mail=0
         grep -q "mailto:" "$page" && has_mail=1
         if [[ "$5" == complete && $has_mail -eq 0 ]] || [[ "$5" == incomplete && $has_mail -eq 1 ]]; then
             fail "contact case $name: wrong exposure of the address (mailto present: $has_mail)"
         elif grep -q "chief@chiefgyk3d.com" "$page" && [[ "$5" == incomplete ]]; then
             fail "contact case $name: the address is on the page although the config is incomplete"
-        elif ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" about "$page" >/dev/null 2>&1; then
-            pass "contact case $name ($5): the About page matches the rule"
+        elif ABOUT_DATA="$croot/data/about.yaml" python3 -I "$asserter" contact "$page" >/dev/null 2>&1; then
+            pass "contact case $name ($5): the Contact page matches the rule"
         else
-            fail "contact case $name ($5): the About asserter rejected the page"
+            fail "contact case $name ($5): the Contact asserter rejected the page"
         fi
     }
-    FP="93C4 0D71 BE65 0FBA C233 8682 98B2 D533 1A9F 17AC"
-    KEYURL="/chiefgyk3d.asc"
+    FP="5AFF B5C1 C37A 63AB DB93 07C1 70EA A2B2 49A3 50E7"
+    KEYURL="https://keys.openpgp.org/vks/v1/by-fingerprint/5AFFB5C1C37A63ABDB9307C170EAA2B249A350E7"
     build_contact_case neither "" "" "" incomplete
     build_contact_case email-only "chief@chiefgyk3d.com" "" "" incomplete
     build_contact_case key-only "" "$FP" "$KEYURL" incomplete
@@ -868,11 +892,11 @@ PYEOF
     build_contact_case email-and-url "chief@chiefgyk3d.com" "" "$KEYURL" incomplete
     build_contact_case both "chief@chiefgyk3d.com" "$FP" "$KEYURL" complete
     # The checker bites: an address injected into an incomplete page is rejected.
-    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Business inquiries go by email"; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Business inquiries go by <a href=mailto:chief@chiefgyk3d.com>email</a>", 1))' "$work/contact-public-email-only/about/index.html" "$work/about-mail.html"
-    if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" about "$work/about-mail.html" >/dev/null 2>&1; then
-        fail "guard: an About page linking an email with an incomplete config passed"
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "The email address here is primarily for business inquiries."; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "The email address here is <a href=mailto:chief@chiefgyk3d.com>primarily</a> for business inquiries.", 1))' "$work/contact-public-email-only/contact/index.html" "$work/about-mail.html"
+    if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" contact "$work/about-mail.html" >/dev/null 2>&1; then
+        fail "guard: a Contact page linking an email with an incomplete config passed"
     else
-        pass "guard: an About page linking an email with an incomplete config fails"
+        pass "guard: a Contact page linking an email with an incomplete config fails"
     fi
 fi
 # Guard (issue 233): the credit link bites. A wrong href and a duplicated LLC name must fail.
@@ -966,17 +990,21 @@ if [[ -f "$pub/about/index.html" ]]; then
     fi
 fi
 [[ -f "$pub/privacy/index.html" ]] && assert privacy "$pub/privacy/index.html"
+[[ -f "$pub/contact/index.html" ]] && assert contact "$pub/contact/index.html"
 
-# /contact/ is a 301 to /about/#contact, in both slash forms.
+# /contact/ is a page of its own since issue 329, not a redirect to /about/#contact: no _redirects
+# line for it, and no refresh stub in its place.
 for src in /contact /contact/; do
-    if awk -v s="$src" '$1 == s && $2 == "/about/#contact" && $3 == "301" { f = 1 } END { exit !f }' "$pub/_redirects"; then
-        pass "_redirects: $src -> /about/#contact"
+    if awk -v s="$src" '$1 == s { f = 1 } END { exit f }' "$pub/_redirects"; then
+        pass "_redirects: no rule for $src (it is a page)"
     else
-        fail "_redirects has no 301 from $src to /about/#contact"
+        fail "_redirects still redirects $src"
     fi
 done
-if [[ -d "$pub/contact" ]] && ! grep -q 'http-equiv=refresh\|http-equiv="refresh"' "$pub/contact/index.html"; then
-    fail "/contact/ is a page, not a redirect"
+if [[ -f "$pub/contact/index.html" ]] && ! grep -q 'http-equiv=refresh\|http-equiv="refresh"' "$pub/contact/index.html"; then
+    pass "/contact/ is a page, not a redirect"
+else
+    fail "/contact/ is missing or is a redirect stub"
 fi
 
 # QR files: pre-generated static SVGs whose <desc> carries the encoded text,

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+  <title>{{ if .IsHome }}{{ site.Params.homeTitle | default site.Title }}{{ else if eq .Kind "term" }}{{ (.Data.Singular | default "term") | humanize }}: {{ .Title }} | {{ site.Title }}{{ else }}{{ .Params.seoTitle | default .Title }} | {{ site.Title }}{{ end }}</title>
   {{- partial "head-meta.html" . }}
   {{- if eq (partial "environment.html" .) "staging" }}
   <meta name="robots" content="noindex, nofollow">
@@ -63,7 +63,7 @@
     <div class="wrap">
       <ul class="footer-row" aria-label="Footer">
         <li><a href="{{ "/about/" | relURL }}">About</a></li>
-        <li><a href="{{ "/about/#contact" | relURL }}">Contact</a></li>
+        <li><a href="{{ "/contact/" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
         <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>

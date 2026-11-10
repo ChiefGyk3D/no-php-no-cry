@@ -43,6 +43,9 @@ EXPECTED = {
     ("property", "og:url"), ("property", "og:image"),
     ("property", "article:published_time"), ("property", "article:modified_time"),
     ("property", "og:image:width"), ("property", "og:image:height"),
+    ("property", "og:locale"), ("name", "twitter:title"), ("name", "twitter:description"),
+    ("property", "og:image:alt"), ("name", "twitter:image:alt"),
+    ("name", "fediverse:creator"),
 }
 
 
@@ -147,6 +150,7 @@ if __name__ == "__main__":
     sys.exit(main(sys.argv[1], sys.argv[2], sys.argv[3], me))
 PY
 
+home_title="$(sed -n 's/^  homeTitle = "\(.*\)"$/\1/p' "$root/hugo.toml")"
 site_desc="$(sed -n 's/^  description = "\(.*\)"$/\1/p' "$root/hugo.toml")"
 [[ -n "$site_desc" ]] || {
     echo "FAIL: hugo.toml has no params.description"
@@ -232,7 +236,7 @@ else
     fail "plain page: $out"
 fi
 
-if out="$(run_asserter "$site/public/index.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
+if out="$(run_asserter "$site/public/index.html" "$site_desc" "$home_title" "https://data.example/@one|https://social.example/@name" 2>&1)"; then
     pass "rel=me renders: head links from data/socials.yaml, then params.me; the javascript: link is not emitted"
 else
     fail "home page: $out"
@@ -240,7 +244,7 @@ fi
 
 # Guard: the rel=me check bites. A page without the head link must fail.
 sed 's|<link rel="me"[^>]*>||g' "$site/public/index.html" >"$work/home-nome.html"
-if run_asserter "$work/home-nome.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
+if run_asserter "$work/home-nome.html" "$site_desc" "$home_title" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
     fail "guard: a home page without the head rel=me links passed"
 else
     pass "guard: a home page without the head rel=me links fails"
@@ -253,7 +257,7 @@ grep -q 'footer.example' "$work/home-footer-me.html" || {
     echo "FAIL: could not inject the footer rel=me anchor"
     exit 1
 }
-if run_asserter "$work/home-footer-me.html" "$site_desc" "ChiefGyk3D" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
+if run_asserter "$work/home-footer-me.html" "$site_desc" "$home_title" "https://data.example/@one|https://social.example/@name" >/dev/null 2>&1; then
     fail "guard: a rel=me anchor in the footer passed"
 else
     pass "guard: a rel=me anchor in the footer fails"
@@ -318,6 +322,7 @@ fi
 seo_py="$work/assert_seo.py"
 cat >"$seo_py" <<'PY'
 import json
+import os
 import sys
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
@@ -404,6 +409,20 @@ def cmd_page(path, permalink, og_image, kind, sameas_file):
         bad.append("og:image / twitter:image are not %s" % og_image)
     if meta(p, "name", "twitter:card") != ["summary_large_image"]:
         bad.append("twitter:card is not summary_large_image")
+    if meta(p, "property", "og:locale") != ["en_US"]:
+        bad.append("og:locale is not en_US")
+    if meta(p, "name", "twitter:title") != meta(p, "property", "og:title"):
+        bad.append("twitter:title is not og:title")
+    if meta(p, "name", "twitter:description") != meta(p, "property", "og:description"):
+        bad.append("twitter:description is not og:description")
+    # Issue 329: the Mastodon author attribution tag, from data/socials.yaml fediverse_creator,
+    # on posts and journal entries only (kind "article"); never on any other page type. X is
+    # not one of the owner's networks, so no twitter:site or twitter:creator anywhere.
+    want_creator = [os.environ["FEDI_WANT"]] if kind == "article" and os.environ.get("FEDI_WANT") else []
+    if meta(p, "name", "fediverse:creator") != want_creator:
+        bad.append("fediverse:creator is %r, want %r on a %s page" % (meta(p, "name", "fediverse:creator"), want_creator, kind))
+    if meta(p, "name", "twitter:site") or meta(p, "name", "twitter:creator"):
+        bad.append("twitter:site or twitter:creator is present")
     robots = meta(p, "name", "robots")
     if kind == "404":
         if len(robots) != 1 or "noindex" not in robots[0]:
@@ -441,9 +460,23 @@ def cmd_page(path, permalink, og_image, kind, sameas_file):
                 bad.append("Article author name is not ChiefGyk3D")
             if not a.get("image", "").startswith("https://"):
                 bad.append("Article image is not absolute")
+        crumbs = [n for n in ns if n.get("@type") == "BreadcrumbList"]
+        if len(crumbs) != 1:
+            bad.append("post needs exactly one BreadcrumbList, has %d" % len(crumbs))
+        else:
+            items = crumbs[0].get("itemListElement") or []
+            site_root = permalink[:permalink.index("/", len("https://")) + 1]
+            if [i.get("position") for i in items] != [1, 2, 3]:
+                bad.append("BreadcrumbList positions are not 1, 2, 3")
+            elif items[-1].get("item") != permalink or items[0].get("item") != site_root:
+                bad.append("BreadcrumbList does not run from the home page to the post")
+            elif not all(i.get("name") for i in items):
+                bad.append("BreadcrumbList item without a name")
     else:
         if arts:
             bad.append("%s page carries an Article" % kind)
+        if [n for n in ns if n.get("@type") == "BreadcrumbList"]:
+            bad.append("%s page carries a BreadcrumbList (posts and journal entries only)" % kind)
     for n in persons:
         if n.get("name") != "ChiefGyk3D":
             bad.append("a Person is named %r" % n.get("name"))
@@ -521,8 +554,39 @@ def cmd_rss(path, host, needle, absent):
     return 1 if bad else 0
 
 
+def cmd_alt(path, want):
+    p = load(path)
+    a = meta(p, "property", "og:image:alt")
+    b = meta(p, "name", "twitter:image:alt")
+    exp = [want] if want else []
+    if a != exp or b != exp:
+        print("card alt text is %r / %r, want %r" % (a, b, exp))
+        return 1
+    return 0
+
+
+def cmd_titles(*pairs):
+    import re
+    bad = []
+    for path, want in zip(pairs[0::2], pairs[1::2]):
+        try:
+            m = re.search(r"<title>([^<]*)</title>", open(path, encoding="utf-8").read())
+        except OSError:
+            bad.append("%s: not built" % path)
+            continue
+        if not m or m.group(1) != want:
+            bad.append("%s: title is %r, want %r" % (path, m and m.group(1), want))
+    for b in bad:
+        print(b)
+    return 1 if bad else 0
+
+
 if __name__ == "__main__":
     c, a = sys.argv[1], sys.argv[2:]
+    if c == "alt":
+        sys.exit(cmd_alt(*a))
+    if c == "titles":
+        sys.exit(cmd_titles(*a))
     if c == "page":
         sys.exit(cmd_page(*a))
     if c == "descs":
@@ -537,7 +601,7 @@ PY
 run_seo() { python3 -I "$seo_py" "$@"; }
 
 site2="$work/site2"
-mkdir -p "$site2/content/posts/a" "$site2/content/posts/b" "$site2/content/about" "$site2/content/social"
+mkdir -p "$site2/content/posts/a" "$site2/content/posts/b" "$site2/content/journal/j" "$site2/content/about" "$site2/content/social"
 cp -r "$root/layouts" "$root/assets" "$root/static" "$root/data" "$site2/"
 sed 's/^  minifyOutput = true/  minifyOutput = false/' "$root/hugo.toml" >"$site2/hugo.toml"
 host="$(sed -n 's#^baseURL = "https://\([^/"]*\)/".*#\1#p' "$root/hugo.toml")"
@@ -570,11 +634,15 @@ title: "Post B"
 date: 2024-06-06T07:08:09-04:00
 description: "Post B has its own description."
 image: "/brand/penguin-color.png"
+imageAlt: "Alt text for B."
 tags: ["alpha"]
+categories: ["alpha"]
 ---
 
 Body B.
 MD
+printf -- '---\ntitle: "Journal"\n---\n' >"$site2/content/journal/_index.md"
+printf -- '---\ntitle: "Entry J"\ndate: 2024-07-06T07:08:09-04:00\ndescription: "Journal entry J."\n---\n\nBody J.\n' >"$site2/content/journal/j/index.md"
 (cd "$site2" && hugo --quiet --destination "$site2/public") || {
     echo "FAIL: hugo could not build the SEO test site"
     exit 1
@@ -582,6 +650,8 @@ MD
 pub="$site2/public"
 sameas="$work/sameas.txt"
 # footer_only entries (LinkedIn, issue 195) are in the footer icon row only: not in sameAs.
+FEDI_WANT="$(sed -n 's/^  fediverse_creator: "\(.*\)"$/\1/p' "$root/data/socials.yaml" | head -n 1)"
+export FEDI_WANT
 awk '/^- name:/ { if (url != "" && fo != "true") print url; url = ""; fo = "" } $1 == "url:" && $2 ~ /^https:\/\// { url = $2 } $1 == "footer_only:" { fo = $2 } END { if (url != "" && fo != "true") print url }' "$root/data/socials.yaml" >"$sameas"
 [[ -s "$sameas" ]] || {
     echo "FAIL: data/socials.yaml has no https url"
@@ -596,9 +666,13 @@ seo_ok() { # seo_ok <label> <args...>
 }
 seo_ok "home: canonical, card, Person JSON-LD with the public sameAs links" page "$pub/index.html" "https://$host/" "$card" home "$sameas"
 seo_ok "post: canonical, default OG card, Article JSON-LD" page "$pub/posts/a/index.html" "https://$host/posts/a/" "$card" article "$sameas"
+seo_ok "journal entry: canonical, default OG card, Article and BreadcrumbList JSON-LD" page "$pub/journal/j/index.html" "https://$host/journal/j/" "$card" article "$sameas"
 seo_ok "post with an image: its own image and Article JSON-LD" page "$pub/posts/b/index.html" "https://$host/posts/b/" "https://$host/brand/penguin-color.png" article "$sameas"
 seo_ok "about page: no Article, no robots meta" page "$pub/about/index.html" "https://$host/about/" "$card" page "$sameas"
 seo_ok "404 page: noindex, canonical, card" page "$pub/404.html" "https://$host/404.html" "$card" 404 "$sameas"
+seo_ok "post with an image: og:image:alt and twitter:image:alt from imageAlt" alt "$pub/posts/b/index.html" "Alt text for B."
+seo_ok "post without an image: no card alt text" alt "$pub/posts/a/index.html" ""
+seo_ok "term pages: the title names the kind, so /tags/x/ and /categories/x/ differ" titles "$pub/tags/alpha/index.html" "Tag: Alpha | ChiefGyk3D" "$pub/categories/alpha/index.html" "Category: Alpha | ChiefGyk3D"
 seo_ok "every indexable page has its own description" descs "$pub/index.html" "$pub/posts/index.html" "$pub/posts/a/index.html" "$pub/posts/b/index.html" "$pub/about/index.html" "$pub/tags/alpha/index.html"
 seo_ok "sitemap: lastmod on every url, no alias, no 404" sitemap "$pub/sitemap.xml" "$host" /posts/a/ /posts/b/ /about/ /social/ / -- /old-post-a/ /404.html /contact/
 seo_ok "feed: atom self link and the full post body" rss "$pub/index.xml" "$host" FULLBODYMARKER "<script"
@@ -621,6 +695,12 @@ if run_seo page "$work/g.html" "https://$host/posts/a/" "$card" article "$sameas
     fail "guard: a wrong author name was accepted"
 else
     pass "guard: a wrong author name is rejected"
+fi
+sed 's#"position":3#"position":4#' "$pub/posts/a/index.html" >"$work/gb.html"
+if run_seo page "$work/gb.html" "https://$host/posts/a/" "$card" article "$sameas" >/dev/null 2>&1; then
+    fail "guard: a broken BreadcrumbList was accepted"
+else
+    pass "guard: a broken BreadcrumbList is rejected"
 fi
 cp "$pub/404.html" "$work/g404.html"
 sed -i 's#noindex#index#g' "$work/g404.html"
