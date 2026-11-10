@@ -55,13 +55,13 @@ The Content Security Policy begins with `default-src 'none'`. Images, styles, fo
 
 CI calls reusable workflows pinned by commit. The local gate named `CI green` waits for them and is the single required check. Deployment proceeds from `main` only after that gate passes for the same commit.
 
-Deployment credentials come from Doppler through OIDC instead of repository secrets. `scripts/check-workflow-secrets.py` checks the workflows and refuses forbidden secret references or credential placement.
+Deployment credentials come from Doppler through OIDC instead of repository secrets. An automated check reviews the workflows and refuses forbidden secret references or credential placement.
 
 The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 58 threats: 33 Mitigated, 21 Open, 3 Accepted and 1 Not Applicable.
 
 And Mitigated has a deliberately narrow meaning: the control must exist in the repository, and the threat must name its path. Provider account settings remain Open until somebody checks them and records the date. The model checker proves that the structure and cited paths exist. It does not prove the control works.
 
-Open items include owner account or machine takeover, live token scopes, provider account and domain controls, build-step egress that still runs in audit mode, and controls for planned analytics and syndication work. Changes to architecture, data flow, secrets or third parties require the threat model to be updated in the same pull request.
+Open items include account and machine security, provider controls, build-step egress, and controls for planned analytics and syndication work. Changes to architecture, data flow, secrets or third parties require the threat model to be updated in the same pull request.
 
 ## Accessibility has limits
 
