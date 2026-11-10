@@ -34,7 +34,9 @@ const MAX_SEGMENTS = 6;
 const MAX_REFERER_CHARS = 2048;
 const MAX_HOST = 80;
 const MAX_UA_CHARS = 512;
-const MAX_DAILY_REFERRER_DOMAINS = 100;
+// New referrer domains admitted per UTC hour, per group (likely human, and
+// automated). At most 24 x this many distinct domains a day per group.
+const HOURLY_NEW_REFERRER_DOMAINS = 5;
 
 // Closed list of common two-label public suffixes. All other valid names use
 // their final two labels. KNOWN LIMIT: this is not the full Public Suffix List,
@@ -215,10 +217,15 @@ export function buildRow(request, response, env, nowMs) {
 
 // ?10 and ?11 are the UTC day bounds, computed in JS (see dayWindow), so the
 // window never depends on how the driver types ?1.
-// One statement makes the admission check and insert atomic in SQLite. A
-// domain already admitted that UTC day stays in its bucket. New domains after
-// the cap share the closed other bucket. The cap check runs once per row, in
-// the cap subquery, and both CASE columns read its result.
+// One statement makes the admission check and insert atomic in SQLite.
+// Referer is forgeable, so arrival order must not decide who is admitted:
+//   - a domain already stored that UTC day stays in its bucket;
+//   - a new domain is admitted only while its own UTC hour has room, so a burst
+//     in one hour cannot take the capacity of any later hour;
+//   - the likely-human group (bot_class h) and the automated group have separate
+//     hourly budgets, so automated rows never consume the human budget.
+// Beyond the budget, a new domain shares the closed other bucket. The check runs
+// once per row, in the cap subquery, and both CASE columns read its result.
 export const INSERT_SQL = `INSERT INTO view_events
   (ts, page, src_kind, src, country, region, city, net, bot_class)
 SELECT ?1, ?2,
@@ -233,10 +240,16 @@ FROM (
       WHERE ts >= ?10 AND ts < ?11
         AND src_kind = 'r' AND src = ?4
     )
-    AND ${MAX_DAILY_REFERRER_DOMAINS} <= (
-      SELECT COUNT(DISTINCT src) FROM view_events
-      WHERE ts >= ?10 AND ts < ?11
-        AND src_kind = 'r'
+    AND ${HOURLY_NEW_REFERRER_DOMAINS} <= (
+      SELECT COUNT(DISTINCT e.src) FROM view_events e
+      WHERE e.ts = ?1
+        AND e.src_kind = 'r'
+        AND (e.bot_class = 'h') = (?9 = 'h')
+        AND NOT EXISTS (
+          SELECT 1 FROM view_events p
+          WHERE p.ts >= ?10 AND p.ts < ?1
+            AND p.src_kind = 'r' AND p.src = e.src
+        )
     )
   ) AS over
 ) AS cap`;

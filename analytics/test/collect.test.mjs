@@ -75,7 +75,8 @@ test("referrerInfo reduces external hosts to a registrable domain", () => {
 
 test("the insert evaluates the referrer cap check once per row", () => {
   assert.equal(INSERT_SQL.split("COUNT(DISTINCT").length - 1, 1);
-  assert.equal(INSERT_SQL.split("NOT EXISTS").length - 1, 1);
+  assert.equal(INSERT_SQL.split("AS cap").length - 1, 1, "one cap subquery");
+  assert.equal(INSERT_SQL.split("cap.over").length - 1, 2, "both columns read its result");
 });
 
 test("dayWindow is whole-second UTC day bounds", () => {

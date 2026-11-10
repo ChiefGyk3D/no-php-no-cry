@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Static guards used by the tests. Not part of the Function bundle.
-
-// Each entry is [name, pattern]. This is an explicit closed heuristic, not a
-// JavaScript parser. Security-sensitive names are rejected in direct calls,
-// computed string properties and simple assignments. Comments in collector
-// sources avoid matching these patterns. The fixtures cover every supported
-// form so broadening JavaScript style cannot silently weaken the guard.
+// Static lint used by the tests. Not part of the Function bundle.
+//
+// BEST-EFFORT LINT, NOT A SECURITY BOUNDARY. These are regular expressions over
+// source text, not a JavaScript parser (the repository has none and adds no
+// dependency), so equivalent spellings of a call can evade them. They catch
+// honest mistakes and keep review easy. The enforced egress boundary is the
+// behavioral probe in analytics/test/fixtures/egress-probe.mjs (run by
+// middleware.test.mjs), which traps every outbound and logging entry point
+// before the Function loads. Do not extend these patterns to chase new spellings.
+// Comments in collector sources avoid matching these patterns.
 const FORBIDDEN = [
   ["address-header", /cf-connecting-ip|x-forwarded-for|true-client-ip|x-real-ip|x-client-ip/i],
   ["cookie-or-storage", /set-cookie|document\.cookie|localstorage|sessionstorage|indexeddb/i],

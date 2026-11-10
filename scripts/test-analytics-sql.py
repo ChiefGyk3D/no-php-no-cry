@@ -92,35 +92,89 @@ def insert_sql():
 
 
 class ReferrerCap(unittest.TestCase):
+    """Per-hour, per-group admission of new referrer domains.
+
+    Arrival order across the day must not decide who is admitted: every UTC hour
+    keeps its own budget of new domains, and automated rows (bot_class not h)
+    have a budget of their own, so neither a burst of forged referrers nor a bot
+    run can take the capacity of a later hour or of the human group.
+    """
+
     MIDNIGHT = 1762732800  # 2026-11-10 00:00:00 UTC
+    PER_HOUR = 5  # HOURLY_NEW_REFERRER_DOMAINS in collect.mjs
 
-    def insert(self, db, ts, domain):
+    def insert(self, db, ts, domain, bot="h"):
         start = self.MIDNIGHT
-        db.execute(insert_sql(), (ts, "/", "r", domain, "", "", "", "unknown", "h", start, start + DAY))
+        db.execute(insert_sql(), (ts, "/", "r", domain, "", "", "", "unknown", bot, start, start + DAY))
 
-    def test_cap_of_100_distinct_domains_per_utc_day(self):
+    def test_new_domains_per_hour_are_limited(self):
         db = fresh()
-        for i in range(101):
+        for i in range(self.PER_HOUR + 3):
             self.insert(db, self.MIDNIGHT, f"domain-{i}.example")
         kinds = dict(db.execute("SELECT src_kind, count(*) FROM view_events GROUP BY src_kind"))
-        self.assertEqual(kinds, {"r": 100, "o": 1})
-        self.assertEqual(db.execute("SELECT src FROM view_events WHERE src_kind='o'").fetchone()[0], "other")
+        self.assertEqual(kinds, {"r": self.PER_HOUR, "o": 3})
+        self.assertEqual(db.execute("SELECT DISTINCT src FROM view_events WHERE src_kind='o'").fetchone()[0], "other")
+
+    def test_forged_burst_cannot_take_a_later_hours_capacity(self):
+        db = fresh()
+        for i in range(500):
+            self.insert(db, self.MIDNIGHT, f"attacker-{i}.example")
+        self.insert(db, self.MIDNIGHT + 5 * HOUR, "legit.example")
+        got = db.execute("SELECT src_kind, src FROM view_events WHERE ts = ?", (self.MIDNIGHT + 5 * HOUR,)).fetchall()
+        self.assertEqual(got, [("r", "legit.example")])
+        distinct = db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r'").fetchone()[0]
+        self.assertLessEqual(distinct, self.PER_HOUR + 1)
+
+    def test_automated_rows_never_consume_the_human_budget(self):
+        db = fresh()
+        for i in range(200):
+            self.insert(db, self.MIDNIGHT, f"bot-{i}.example", bot="a")
+        for i in range(self.PER_HOUR):
+            self.insert(db, self.MIDNIGHT, f"human-{i}.example", bot="h")
+        humans = db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r' AND bot_class='h'").fetchone()[0]
+        bots = db.execute("SELECT COUNT(DISTINCT src) FROM view_events WHERE src_kind='r' AND bot_class='a'").fetchone()[0]
+        self.assertEqual(humans, self.PER_HOUR)
+        self.assertEqual(bots, self.PER_HOUR)
+
+    def test_human_burst_does_not_consume_the_automated_budget(self):
+        db = fresh()
+        for i in range(50):
+            self.insert(db, self.MIDNIGHT, f"h-{i}.example", bot="h")
+        self.insert(db, self.MIDNIGHT, "crawler.example", bot="a")
+        self.assertEqual(
+            db.execute("SELECT src_kind FROM view_events WHERE src = 'crawler.example'").fetchone()[0], "r"
+        )
 
     def test_admitted_domain_stays_admitted_and_real_ts_still_capped(self):
         db = fresh()
-        for i in range(100):
+        for i in range(self.PER_HOUR):
             self.insert(db, self.MIDNIGHT, f"d{i}.example")
+        # Seen earlier the same UTC day: stays admitted even in a full hour.
+        for i in range(self.PER_HOUR):
+            self.insert(db, self.MIDNIGHT + 3600, f"e{i}.example")
         self.insert(db, self.MIDNIGHT + 3600, "d0.example")
-        # same UTC day, later hour, ts bound as a real number
-        self.insert(db, float(self.MIDNIGHT + 12 * HOUR), "late.example")
         got = db.execute(
-            "SELECT src_kind, src FROM view_events WHERE ts = ? ", (self.MIDNIGHT + 3600,)
+            "SELECT src_kind, src FROM view_events WHERE ts = ? ORDER BY id DESC LIMIT 1", (self.MIDNIGHT + 3600,)
         ).fetchall()
         self.assertEqual(got, [("r", "d0.example")])
+        # ts bound as a real number is still capped in its own hour.
+        for i in range(self.PER_HOUR):
+            self.insert(db, float(self.MIDNIGHT + 12 * HOUR), f"f{i}.example")
+        self.insert(db, float(self.MIDNIGHT + 12 * HOUR), "late.example")
         got = db.execute(
-            "SELECT src_kind, src FROM view_events WHERE ts = ?", (self.MIDNIGHT + 12 * HOUR,)
+            "SELECT src_kind, src FROM view_events WHERE ts = ? ORDER BY id DESC LIMIT 1", (self.MIDNIGHT + 12 * HOUR,)
         ).fetchall()
         self.assertEqual(got, [("o", "other")])
+
+    def test_day_boundary_resets_budget(self):
+        db = fresh()
+        for i in range(self.PER_HOUR + 2):
+            self.insert(db, self.MIDNIGHT + DAY - 3600, f"x{i}.example")
+        start = self.MIDNIGHT + DAY
+        db.execute(insert_sql(), (start, "/", "r", "next.example", "", "", "", "unknown", "h", start, start + DAY))
+        self.assertEqual(
+            db.execute("SELECT src_kind FROM view_events WHERE src='next.example'").fetchone()[0], "r"
+        )
 
 
 class Schema(unittest.TestCase):
