@@ -82,8 +82,8 @@ expect /temp/ "FAIL status 302 on /temp/"
 expect /category/anything/deep/ "ok redirect -> /posts/"
 expect /feed/index.xml "ok served"
 expect /posts/hello/ "ok served"
-if grep -qx 'crosscheck: ok 7, gap 1, fail 4' "$res"; then
-    pass "counts: ok 7, gap 1, fail 4"
+if grep -qx 'crosscheck: ok 7, gap 1, fail 4, unsafe 0' "$res"; then
+    pass "counts: ok 7, gap 1, fail 4, unsafe 0"
 else
     fail "counts: $(tail -n 1 "$res")"
 fi
@@ -101,6 +101,34 @@ printf '/old-post/\n/about/\n' >"$work/clean.txt"
 rc=0
 "$tool" "$work/clean.txt" "$out" >/dev/null 2>&1 || rc=$?
 if [[ $rc -eq 0 ]]; then pass "an all-ok list exits 0 (a rule wins over a file)"; else fail "clean exit code was $rc"; fi
+
+# Unsafe paths: dot segments, encoded dots, backslashes, double slashes and a
+# symlink out of the tree are rejected, never reported ok.
+mkdir -p "$work/secret" "$out/a.b" "$out/trap"
+echo 'secret' >"$work/secret/passwd"
+echo '<html>c</html>' >"$out/a.b/c"
+ln -s "$work/secret/passwd" "$out/trap/leak"
+ln -s "$work/secret" "$out/trapdir"
+unsafe="$work/unsafe.txt"
+{
+    printf '%s\n' /../../etc/passwd /a/../../etc/passwd /%2e%2e/%2e%2e/etc/passwd '/%2E%2E/etc/passwd' '/a/./b'
+    printf '%s\n' '/a\..\etc\passwd' '//etc/passwd' '/a//b' /trap/leak /trapdir/passwd '/x%00y' '/%252e%252e/etc'
+} >"$unsafe"
+res2="$work/res2.txt"
+rc=0
+"$tool" "$unsafe" "$out" >"$res2" 2>&1 || rc=$?
+while IFS= read -r p; do
+    expect_unsafe=$(printf '%s\t%s' "$p" "REJECTED unsafe path")
+    if grep -qxF "$expect_unsafe" "$res2"; then pass "unsafe $p rejected"; else fail "unsafe $p not rejected; got: $(grep -F "$p" "$res2" || echo none)"; fi
+done <"$unsafe"
+if [[ $rc -eq 1 ]]; then pass "unsafe paths exit 1"; else fail "unsafe exit code was $rc"; fi
+rc=0
+"$tool" --allow-gaps "$unsafe" "$out" >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then pass "--allow-gaps tolerates unsafe paths"; else fail "--allow-gaps unsafe exit code was $rc"; fi
+printf '/feed/index.xml\n/a.b/c\n' >"$work/dots.txt"
+rc=0
+"$tool" "$work/dots.txt" "$out" >"$work/dots.res" 2>&1 || rc=$?
+if [[ $rc -eq 0 ]] && grep -qxF "$(printf '/a.b/c\tok served')" "$work/dots.res"; then pass "legit dotted names still pass"; else fail "dotted names: rc $rc $(cat "$work/dots.res")"; fi
 
 # Usage errors exit 2.
 rc=0

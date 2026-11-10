@@ -15,9 +15,12 @@
 #   ok    alias      no rule, but an alias stub page (meta refresh) whose target exists
 #   FAIL  <detail>   a rule or stub whose target is missing, a loop, or a bad status
 #   GAP   no rule    no rule and no file: the path would be a 404
+#   REJECTED unsafe path   a dot or '..' segment (also percent-encoded), a backslash,
+#                    NUL, a double slash, or a file that resolves (through a symlink)
+#                    outside <output-dir>; never looked up, never reported ok
 #
-# Exit 0 when nothing failed and there is no gap (--allow-gaps tolerates gaps),
-# 1 otherwise, 2 for a usage error. It makes no network calls and writes nothing.
+# Exit 0 when nothing failed and there is no gap or unsafe path (--allow-gaps
+# tolerates gaps and unsafe paths, but not failures), 1 otherwise, 2 for a usage error. It makes no network calls and writes nothing.
 set -uo pipefail
 
 allow_gaps=0
@@ -43,6 +46,8 @@ if [[ ! -f "$out/_redirects" ]]; then
     echo "crosscheck: $out/_redirects is missing (is this a built site?)" >&2
     exit 2
 fi
+
+out_real="$(realpath -e -- "$out")"
 
 # The rules, in file order: from, to, status.
 rf=()
@@ -70,6 +75,39 @@ decode() {
         fi
     done
     printf '%s' "$r$s"
+}
+
+# safe_path <path>: succeed only for a path that stays inside the build. Rejects
+# dot segments (also percent-encoded, even double-encoded), backslashes, NUL,
+# double slashes, and any existing candidate that resolves outside the output dir
+# (a symlink out of the tree, or a dangling one).
+safe_path() {
+    local raw="${1%%#*}" p seg c r
+    shopt -s nocasematch
+    if [[ "$raw" == *%00* || "$raw" == *%5c* || "$raw" == *%2f%2f* ]]; then
+        shopt -u nocasematch
+        return 1
+    fi
+    shopt -u nocasematch
+    p="$(decode "$raw")"
+    case "$p" in
+        *\\* | *'//'*) return 1 ;;
+    esac
+    # A leftover encoded dot or backslash means double encoding: refuse it.
+    if [[ "${p,,}" == *%2e* || "${p,,}" == *%5c* || "${p,,}" == *%00* ]]; then return 1; fi
+    local IFS=/
+    for seg in $p; do
+        [[ "$seg" == . || "$seg" == .. ]] && return 1
+    done
+    unset IFS
+    for c in "$out$p" "${out}${p%/}/index.html"; do
+        if [[ -L "$c" && ! -e "$c" ]]; then return 1; fi
+        if [[ -e "$c" ]]; then
+            r="$(realpath -e -- "$c")" || return 1
+            [[ "$r" == "$out_real"/* ]] || return 1
+        fi
+    done
+    return 0
 }
 
 # file_for <path>: the file in the build that serves this URL path, if any.
@@ -117,6 +155,7 @@ stub_target() {
 ok=0
 gap=0
 fail=0
+unsafe=0
 while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%$'\r'}"
     [[ -z "$line" || "$line" == \#* ]] && continue
@@ -132,6 +171,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     hops=0
     verdict=""
     while :; do
+        if ! safe_path "$cur"; then
+            verdict="REJECTED unsafe path"
+            break
+        fi
         if match "$cur"; then
             if [[ "$m_status" != 301 ]]; then
                 verdict="FAIL status $m_status on $cur"
@@ -156,6 +199,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             tgt="$(stub_target "$f")"
             if [[ -z "$tgt" ]]; then
                 verdict="ok served"
+            elif ! safe_path "$tgt"; then
+                verdict="REJECTED unsafe path"
             elif file_for "$tgt" >/dev/null; then
                 verdict="ok alias -> $tgt"
             else
@@ -169,12 +214,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     case "$verdict" in
         ok*) ok=$((ok + 1)) ;;
         GAP*) gap=$((gap + 1)) ;;
+        REJECTED*) unsafe=$((unsafe + 1)) ;;
         *) fail=$((fail + 1)) ;;
     esac
     printf '%s\t%s\n' "$p" "$verdict"
 done <"$list"
 
-echo "crosscheck: ok $ok, gap $gap, fail $fail"
+echo "crosscheck: ok $ok, gap $gap, fail $fail, unsafe $unsafe"
 if [[ $fail -gt 0 ]]; then exit 1; fi
-if [[ $gap -gt 0 && $allow_gaps -eq 0 ]]; then exit 1; fi
+if [[ $((gap + unsafe)) -gt 0 && $allow_gaps -eq 0 ]]; then exit 1; fi
 exit 0
