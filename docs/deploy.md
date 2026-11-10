@@ -129,18 +129,17 @@ The owner, not an agent, does all of the following. An agent never creates the
 Doppler service account, the identity, or any token.
 
 1. The Cloudflare values live in their own Doppler project, `cloudflare`,
-   config `dev`, apart from the `ci` project, so repositories and jobs that do
+   config `prd`, apart from the `ci` project, so repositories and jobs that do
    not deploy never hold a Cloudflare credential. Set the two secrets from a
    checkout of ChiefGyk3D/git-your-ship-together, one at a time:
-   `DOPPLER_CI_CONFIG=dev scripts/doppler-ci-set.sh CLOUDFLARE_API_TOKEN cloudflare`
+   `DOPPLER_CI_CONFIG=prd scripts/doppler-ci-set.sh CLOUDFLARE_API_TOKEN cloudflare`
    and the same with `CLOUDFLARE_ACCOUNT_ID`. The config must hold only these
    two. The Doppler action exports the whole config, so every secret in it is
    visible to every later step in the job and to post-run hooks. Until the
    scoped mode lands (tracking:
    ChiefGyk3D/git-your-ship-together#207) keep exactly these two values in it.
 2. Create one Doppler service account, `gha-cloudflare-pages`, with the Viewer
-   role on project `cloudflare`, environment `dev` only (access is granted per
-   environment; the environment's root config is `dev`).
+   role on project `cloudflare`, config `prd` only.
 3. On that service account add one OIDC identity (Service Account Identities):
    issuer `https://token.actions.githubusercontent.com`, audience as Doppler
    shows it. GitHub emits only the one subject form that the repository's OIDC
