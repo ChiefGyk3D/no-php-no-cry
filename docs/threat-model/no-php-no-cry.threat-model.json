@@ -606,12 +606,12 @@
                 {
                   "id": "e1b8fb2a-90ad-5500-8d5e-0519b13dd691",
                   "title": "Separate production build and deployment jobs",
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "High",
                   "type": "Elevation of privilege",
                   "modelType": "STRIDE",
                   "description": "A build step (Hugo, a script, a dependency) runs in the same job that holds the production deploy credential and can read or send it.",
-                  "mitigation": "Open. The design separates the build job (no credentials) from the deploy job (the only credential holder), as the dev deploy does in .github/workflows/deploy.yml and docs/deploy.md; the dev separation is checked by scripts/check-deploy-sparse.py and scripts/check-workflow-secrets.py. The production workflow lives in the private repository, so that separation is stated by the owner and was not read for this model. Record the review date in docs/threat-model/RISKS.md.",
+                  "mitigation": "The design separates the build job (no credentials) from the deploy job (the only credential holder), as the dev deploy does in .github/workflows/deploy.yml and docs/deploy.md; the dev separation is checked by scripts/check-deploy-sparse.py and scripts/check-workflow-secrets.py. Reviewed 2026-11-10 against the private production workflow.",
                   "number": 59
                 }
               ],
@@ -1346,17 +1346,17 @@
                 {
                   "id": "778b7739-9261-56eb-b547-691298bd8f73",
                   "title": "Reject active content from production artifacts",
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "High",
                   "type": "Tampering",
                   "modelType": "STRIDE",
                   "description": "The build output handed to the production deploy contains Pages control files, a worker, extra headers or redirects, or anything other than inert static data.",
-                  "mitigation": "Open. scripts/check-site-artifact.sh rejects Pages code and routing files, a changed _headers and unsafe _redirects lines, and scripts/test-check-site-artifact.sh tests it. The production pipeline is documented to run the same validation on the output as inert data, in a separate credential-free step before any credentialed step. That use is in the private repository and was not read for this model, so the threat stays Open for production until the owner confirms it and the date is recorded in docs/threat-model/RISKS.md.",
+                  "mitigation": "scripts/check-site-artifact.sh rejects Pages code and routing files, a changed _headers and unsafe _redirects lines, and scripts/test-check-site-artifact.sh tests it. Reviewed 2026-11-10 against the private production workflow.",
                   "number": 61
                 }
               ],
               "isTrustBoundary": false,
-              "hasOpenThreats": true
+              "hasOpenThreats": false
             }
           },
           {
@@ -2021,12 +2021,12 @@
                 {
                   "id": "0b570f61-5463-5881-bfb4-c396d178cefd",
                   "title": "Prevent linking visitor codes across days",
-                  "status": "Open",
+                  "status": "NotApplicable",
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "The daily keyed hash (decision Q6) could be linked if the key leaks or rows are kept past the day.",
-                  "mitigation": "Open (not built). Design in docs/analytics-from-reach-around.md section 5.3: key from a Doppler secret, per-day and per-site derivation, purge at the end of the UTC day, never in a report.",
+                  "mitigation": "The unique-visitor hash was removed, so no visitor codes exist to link. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address. The feature was dropped, not deferred.",
                   "number": 34
                 },
                 {
@@ -3354,16 +3354,16 @@
                 {
                   "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
                   "title": "Protect the analytics hashing secret",
-                  "status": "Open",
+                  "status": "NotApplicable",
                   "severity": "High",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "A leaked key lets someone test guesses against the daily codes.",
-                  "mitigation": "Open (not built). docs/analytics-from-reach-around.md requires secret-manager storage, no handler logging, and scheduled rotation; scripts/test-analytics.sh verifies the analytics source rules.",
+                  "mitigation": "The unique-visitor hash was removed, so no hashing secret exists. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address.",
                   "number": 54
                 }
               ],
-              "hasOpenThreats": true
+              "hasOpenThreats": false
             }
           },
           {
