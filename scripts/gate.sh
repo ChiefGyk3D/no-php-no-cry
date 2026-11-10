@@ -51,6 +51,7 @@ step check-site-artifact-staging build-staging 'scripts/check-site-artifact.sh "
 step test-check-output "" 'scripts/test-check-output.sh'
 step test-head "" 'scripts/test-head.sh'
 step test-featured-image "" 'scripts/test-featured-image.sh'
+step test-svg-render-hook "" 'scripts/test-svg-render-hook.sh'
 step test-social-products "" 'scripts/test-social-products.sh'
 step test-share "" 'scripts/test-share.sh'
 step test-borders "" 'scripts/test-borders.sh'
@@ -125,7 +126,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-social-products test-share test-borders test-resume test-layout
+    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-svg-render-hook test-social-products test-share test-borders test-resume test-layout
     test-pages test-titles test-about-email check-email-image test-check-email-image test-social-identity test-contact-page test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model check-threat-diagrams test-render-threat-diagram check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget

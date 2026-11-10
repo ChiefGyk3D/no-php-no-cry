@@ -60,38 +60,75 @@ def svg(inner="", head='viewBox="0 0 10 10"', pre=""):
     return (pre + '<svg %s %s><title>t</title>%s</svg>\n' % (NS, head, inner)).encode()
 
 R = '<rect width="5" height="5"%s/>'
+ATTS = ["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "width", "height", "opacity", "fill", "stroke", "offset", "fx", "fy", "id", "version"]
+
+def nested(depth):
+    return ('<svg %s viewBox="0 0 10 10">' % NS + "<g>" * (depth - 1) + "</g>" * (depth - 1) + "</svg>").encode()
+
+def flat(count):
+    return ('<svg %s viewBox="0 0 10 10">' % NS + "<g/>" * (count - 1) + "</svg>").encode()
+
+def attrs(count):
+    return svg("<g " + " ".join('%s="1"' % a for a in ATTS[:count]) + "/>")
+
+def attr_total(extra):
+    # root has one attribute; 4998 plain two-attribute elements, then one element with 2 + extra
+    body = '<g id="a" x="1"/>' * 4998 + "<g " + " ".join('%s="1"' % a for a in ATTS[: 2 + extra]) + "/>"
+    return ('<svg %s viewBox="0 0 10 10">' % NS + body + "</svg>").encode()
+
+def vb(value, quote='"'):
+    return ('<svg %s viewBox=%s%s%s/>' % (NS, quote, value, quote)).encode()
+
 SVGS = {
     "svg": svg(R % ""),
     "svg-xmldecl": svg(R % "", pre='<?xml version="1.0" encoding="UTF-8"?>\n'),
-    "svg-style-local": svg(R % ' style="fill:url(#g)"'),
     "svg-marker": svg('<defs><marker id="m" markerWidth="2" markerHeight="2"><path d="M0 0L1 1"/></marker></defs><path d="M0 0L5 5" marker-end="url(#m)"/>'),
+    "svg-style-image-set": svg(R % " style=\"fill:image-set('probe.png' 1x)\""),
+    "svg-style-webkit-image-set": svg(R % " style=\"background:-webkit-image-set('probe.png' 1x)\""),
+    "svg-style-var": svg(R % ' style="fill:var(--x)"'),
+    "svg-style-plain": svg(R % ' style="fill:red"'),
+    "svg-style-local-url": svg(R % ' style="fill:url(#g)"'),
+    "svg-style-external-url": svg(R % ' style="fill:url(https://example.invalid/x)"'),
+    "svg-el-5000": flat(5000),
+    "svg-el-5001": flat(5001),
+    "svg-depth-40": nested(40),
+    "svg-depth-41": nested(41),
+    "svg-attr-20": attrs(20),
+    "svg-attr-21": attrs(21),
+    "svg-attr-total-10000": attr_total(1),
+    "svg-attr-total-10001": attr_total(2),
+    "svg-text-100000": svg("<text>" + "a" * 99999 + "</text>"),
+    "svg-text-100001": svg("<text>" + "a" * 100000 + "</text>"),
+    "svg-huge-nested": nested(300000),
+    "svg-huge-flat": flat(1000000),
     "svg-script": svg("<script>1</script>"),
     "svg-script-upper": svg("<SCRIPT>1</SCRIPT>"),
     "svg-script-mixed": svg("<ScRiPt>1</ScRiPt>"),
     "svg-script-prefixed": svg('<s:script xmlns:s="http://www.w3.org/2000/svg">1</s:script>'),
     "svg-script-xhtml": svg('<h:script xmlns:h="http://www.w3.org/1999/xhtml">1</h:script>'),
-    "svg-script-noprefix-ns": ('<svg %s viewBox="0 0 1 1"><script xmlns="http://www.w3.org/1999/xhtml">1</script></svg>' % NS).encode(),
+    "svg-script-xhtml-default": ('<svg %s viewBox="0 0 1 1"><script xmlns="http://www.w3.org/1999/xhtml">1</script></svg>' % NS).encode(),
     "svg-foreign": svg("<foreignObject/>"),
+    "svg-animate-bare": svg("<animate/>"),
+    "svg-set-bare": svg("<set/>"),
     "svg-animate": svg((R % "") + '<animate attributeName="x" to="9"/>'),
     "svg-set": svg('<set attributeName="href" to="javascript:alert(1)"/>'),
-    "svg-use": svg('<use x="1"/>'),
+    "svg-use": svg('<use/>'),
     "svg-href": svg(R % ' href="#x"'),
     "svg-href-upper": svg(R % ' HREF="#x"'),
     "svg-xlink-href": svg(R % ' xlink:href="#x"').replace(b"<svg ", b'<svg xmlns:xlink="http://www.w3.org/1999/xlink" '),
+    "svg-xml-id": svg(R % ' xml:id="a"'),
     "svg-onclick": svg(R % ' onclick="1"'),
     "svg-onclick-case": svg(R % ' OnClick="1"'),
     "svg-onload-root": svg("", 'viewBox="0 0 1 1" onload="1"'),
     "svg-unknown-attr": svg(R % ' data-x="1"'),
     "svg-fill-url": svg(R % ' fill="url(https://example.invalid/x)"'),
     "svg-fill-url-rel": svg(R % ' fill="url(other.svg#a)"'),
-    "svg-style-url": svg(R % ' style="fill:url(https://example.invalid/x)"'),
-    "svg-style-import": svg(R % ' style="@import url(#a)"'),
-    "svg-style-escape": svg(R % ' style="fill:\\75rl(x)"'),
     "svg-js-attr": svg(R % ' fill="JaVaScRiPt:alert(1)"'),
     "svg-text-url": svg("<text>see https://example.invalid/x</text>"),
     "svg-text-scheme": svg("<text>JaVaScRiPt:alert(1)</text>"),
     "svg-text-protorel": svg("<text>//example.invalid/x</text>"),
-    "svg-title-url": svg("<desc>http://example.invalid</desc>"),
+    "svg-desc-url": svg("<desc>http://example.invalid</desc>"),
+    "svg-tail-url": svg("<text>a</text> see https://example.invalid/x"),
     "svg-pi-stylesheet": svg("", pre='<?xml-stylesheet href="a.css"?>'),
     "svg-pi-wrapped": svg('<?foo <script>alert(1)</script> ?>'),
     "svg-pi-late": svg('<?php echo 1; ?>' + R % ""),
@@ -101,7 +138,24 @@ SVGS = {
     "svg-doctype-lower": ('<!doctype svg [<!entity a "b">]><svg %s viewBox="0 0 1 1"/>' % NS).encode(),
     "svg-ns-other": svg("", 'viewBox="0 0 1 1" xmlns:x="http://example.invalid/ns"'),
     "svg-no-ns": b'<svg viewBox="0 0 1 1"/>',
+    "svg-root-g": ('<g %s viewBox="0 0 1 1"/>' % NS).encode(),
     "svg-novb": svg("", ""),
+    "svg-vb-invalid": svg("", 'viewBox="invalid"'),
+    "svg-vb-payload": svg("", "aria-label='viewBox=\"0 0 999999999999999999999 1\"' viewBox=\"invalid\""),
+    "svg-vb-huge": vb("0 0 999999999999999999999 1"),
+    "svg-vb-negative": vb("-1 0 10 10"),
+    "svg-vb-origin": vb("1 0 10 10"),
+    "svg-vb-zero": vb("0 0 0 10"),
+    "svg-vb-big": vb("0 0 10001 10"),
+    "svg-vb-dots": vb("0 0 1.2.3 4"),
+    "svg-vb-comma": vb("0,0,10,10"),
+    "svg-vb-three": vb("0 0 10"),
+    "svg-vb-five": vb("0 0 10 10 10"),
+    "svg-vb-exp": vb("0 0 1e3 10"),
+    "svg-vb-max": vb("0 0 10000 10000"),
+    "svg-vb-ws": vb("  0\t0   10 \n 10 "),
+    "svg-vb-single-quoted": vb("0 0 10 10", "'"),
+    "svg-vb-decimals": vb("0 0 900.5 1230.25"),
     "svg-utf16": svg(R % "").decode().encode("utf-16"),
     "svg-utf16le": svg(R % "").decode().encode("utf-16-le"),
     "svg-utf16be-bom": b"\xfe\xff" + svg(R % "").decode().encode("utf-16-be"),
@@ -483,72 +537,117 @@ img_case exif-webp 1 image-metadata webp-exif pic.webp
 img_case uppercase-name 1 image-name png Pic.png
 img_case space-name 1 image-name png 'my pic.png'
 img_case leading-dot-name 1 image-name png .hidden.png
-# svg_case <name> <exit> <code or -> <fixture kind>: the finding carries the [svg-...] code
+# svg_case <name> <expected codes, comma separated, or -> <fixture kind>: the complete list of
+# [svg-...] codes the checker reports must equal the expected list, and nothing else may be reported.
+# Every case runs under a memory ceiling and a timeout.
 svg_case() {
-    local name="$1" want="$2" code="$3" kind="$4" d out rc=0
+    local name="$1" want="$2" kind="$3" d out rc=0 codes other
     d="$(put "svg-$name" "$good_fm$body
 ![A test image used by the fixture.](<pic.svg>)
 ")"
     python3 -I "$mk" "$kind" "$d/content/posts/p/pic.svg"
     printf 'content/posts/p/pic.svg | %s | test | looked at\n' "$(sha256sum "$d/content/posts/p/pic.svg" | cut -d' ' -f1)" >>"$d/brand/approved-assets.txt"
-    out="$(check_py --root "$d" content/posts/p/pic.svg 2>&1)" || rc=$?
-    if [[ $rc -ne "$want" ]]; then
-        bad "svg $name (exit $rc, want $want): $out"
-    elif [[ "$code" != "-" ]] && ! grep -q "^image-svg: content/posts/p/pic.svg: \[$code\]" <<<"$out"; then
-        bad "svg $name (code $code not reported): $out"
+    out="$( (
+        ulimit -v 1500000
+        check_py --root "$d" content/posts/p/pic.svg
+    ) 2>&1)" || rc=$?
+    codes="$(grep '^image-svg: ' <<<"$out" | sed -E 's/^image-svg: [^ ]+ \[([a-z-]+)\].*/\1/' | sort | paste -sd, - || true)"
+    other="$(grep -v '^image-svg: \|^check-content: ' <<<"$out" || true)"
+    [[ -n "$codes" ]] || codes="-"
+    if [[ -n "$other" ]]; then
+        bad "svg $name (unexpected output): $other"
+    elif [[ "$want" == "-" && $rc -ne 0 ]] || [[ "$want" != "-" && $rc -ne 1 ]]; then
+        bad "svg $name (exit $rc): $out"
+    elif [[ "$codes" != "$want" ]]; then
+        bad "svg $name (codes '$codes', want '$want')"
     else
         ok "svg $name"
     fi
 }
-svg_case good-svg 0 - svg
-svg_case good-svg-xml-declaration 0 - svg-xmldecl
-svg_case good-svg-local-style-url 0 - svg-style-local
-svg_case good-svg-local-marker-url 0 - svg-marker
-svg_case script 1 svg-element svg-script
-svg_case script-upper-case 1 svg-element svg-script-upper
-svg_case script-mixed-case 1 svg-element svg-script-mixed
-svg_case script-with-svg-prefix 1 svg-element svg-script-prefixed
-svg_case script-in-xhtml-namespace 1 svg-namespace svg-script-xhtml
-svg_case script-xhtml-default-namespace 1 svg-namespace svg-script-noprefix-ns
-svg_case foreignObject 1 svg-element svg-foreign
-svg_case animate 1 svg-element svg-animate
-svg_case set 1 svg-element svg-set
-svg_case use 1 svg-element svg-use
-svg_case href 1 svg-href svg-href
-svg_case href-upper-case 1 svg-href svg-href-upper
-svg_case xlink-href 1 svg-namespace svg-xlink-href
-svg_case onclick 1 svg-event-handler svg-onclick
-svg_case onclick-case 1 svg-event-handler svg-onclick-case
-svg_case onload-on-root 1 svg-event-handler svg-onload-root
-svg_case unknown-attribute 1 svg-attribute svg-unknown-attr
-svg_case fill-external-url 1 svg-external-ref svg-fill-url
-svg_case fill-relative-url 1 svg-external-ref svg-fill-url-rel
-svg_case style-external-url 1 svg-external-ref svg-style-url
-svg_case style-import 1 svg-external-ref svg-style-import
-svg_case style-css-escape 1 svg-external-ref svg-style-escape
-svg_case javascript-scheme-in-attribute 1 svg-external-ref svg-js-attr
-svg_case url-in-text 1 svg-external-ref svg-text-url
-svg_case scheme-in-text 1 svg-external-ref svg-text-scheme
-svg_case protocol-relative-in-text 1 svg-external-ref svg-text-protorel
-svg_case url-in-desc 1 svg-external-ref svg-title-url
-svg_case pi-stylesheet 1 svg-pi svg-pi-stylesheet
-svg_case pi-wrapped-payload 1 svg-pi svg-pi-wrapped
-svg_case pi-before-content 1 svg-pi svg-pi-late
-svg_case comment 1 svg-comment svg-comment
-svg_case cdata 1 svg-cdata svg-cdata
-svg_case doctype 1 svg-doctype svg-doctype
-svg_case doctype-entity-lower-case 1 svg-doctype svg-doctype-lower
-svg_case foreign-namespace-declaration 1 svg-namespace svg-ns-other
-svg_case no-namespace 1 svg-namespace svg-no-ns
-svg_case no-viewbox 1 svg-viewbox svg-novb
-svg_case utf16-with-bom 1 svg-encoding svg-utf16
-svg_case utf16-le-no-bom 1 svg-encoding svg-utf16le
-svg_case utf16-be-bom 1 svg-encoding svg-utf16be-bom
-svg_case utf32 1 svg-encoding svg-utf32
-svg_case utf8-bom 1 svg-encoding svg-utf8-bom
-svg_case latin1-bytes 1 svg-encoding svg-latin1
-svg_case declared-latin1 1 svg-encoding svg-declared-latin1
-svg_case malformed 1 svg-parse svg-malformed
+svg_case good-svg - svg
+svg_case good-xml-declaration - svg-xmldecl
+svg_case good-local-marker-url - svg-marker
+svg_case good-5000-elements - svg-el-5000
+svg_case good-depth-40 - svg-depth-40
+svg_case good-20-attributes - svg-attr-20
+svg_case good-10000-attributes-total - svg-attr-total-10000
+svg_case good-100000-text-characters - svg-text-100000
+svg_case good-viewbox-max - svg-vb-max
+svg_case good-viewbox-whitespace - svg-vb-ws
+svg_case good-viewbox-single-quoted - svg-vb-single-quoted
+svg_case good-viewbox-decimals - svg-vb-decimals
+svg_case style-image-set svg-attribute svg-style-image-set
+svg_case style-webkit-image-set svg-attribute svg-style-webkit-image-set
+svg_case style-custom-property svg-attribute svg-style-var
+svg_case style-plain-color svg-attribute svg-style-plain
+svg_case style-local-url svg-attribute svg-style-local-url
+svg_case style-external-url svg-attribute,svg-external-ref,svg-external-ref svg-style-external-url
+svg_case limit-5001-elements svg-limit svg-el-5001
+svg_case limit-depth-41 svg-limit svg-depth-41
+svg_case limit-21-attributes svg-limit svg-attr-21
+svg_case limit-10001-attributes-total svg-limit svg-attr-total-10001
+svg_case limit-100001-text-characters svg-limit svg-text-100001
+svg_case limit-300000-nested svg-limit svg-huge-nested
+svg_case limit-1000000-flat svg-limit svg-huge-flat
+svg_case script svg-element svg-script
+svg_case script-upper-case svg-element svg-script-upper
+svg_case script-mixed-case svg-element svg-script-mixed
+svg_case script-with-svg-prefix svg-element svg-script-prefixed
+svg_case script-in-xhtml-namespace svg-namespace svg-script-xhtml
+svg_case script-xhtml-default-namespace svg-namespace svg-script-xhtml-default
+svg_case foreignObject svg-element svg-foreign
+svg_case animate-bare svg-element svg-animate-bare
+svg_case set-bare svg-element svg-set-bare
+svg_case use svg-element svg-use
+svg_case animate-with-attributes svg-attribute,svg-attribute,svg-element svg-animate
+svg_case set-with-javascript svg-attribute,svg-attribute,svg-element,svg-external-ref svg-set
+svg_case href svg-href svg-href
+svg_case href-upper-case svg-href svg-href-upper
+svg_case xlink-href svg-namespace svg-xlink-href
+svg_case xml-namespaced-attribute svg-attribute svg-xml-id
+svg_case onclick svg-event-handler svg-onclick
+svg_case onclick-case svg-event-handler svg-onclick-case
+svg_case onload-on-root svg-event-handler svg-onload-root
+svg_case unknown-attribute svg-attribute svg-unknown-attr
+svg_case fill-external-url svg-external-ref,svg-external-ref svg-fill-url
+svg_case fill-relative-url svg-external-ref svg-fill-url-rel
+svg_case javascript-scheme-in-attribute svg-external-ref svg-js-attr
+svg_case url-in-text svg-external-ref svg-text-url
+svg_case scheme-in-text svg-external-ref svg-text-scheme
+svg_case protocol-relative-in-text svg-external-ref svg-text-protorel
+svg_case url-in-desc svg-external-ref svg-desc-url
+svg_case url-in-tail-text svg-external-ref svg-tail-url
+svg_case pi-stylesheet svg-pi svg-pi-stylesheet
+svg_case pi-wrapped-payload svg-pi svg-pi-wrapped
+svg_case pi-before-content svg-pi svg-pi-late
+svg_case comment svg-comment svg-comment
+svg_case cdata svg-cdata svg-cdata
+svg_case doctype svg-doctype svg-doctype
+svg_case doctype-entity-lower-case svg-doctype svg-doctype-lower
+svg_case foreign-namespace-declaration svg-namespace svg-ns-other
+svg_case no-namespace svg-element,svg-namespace svg-no-ns
+svg_case root-not-svg svg-element svg-root-g
+svg_case no-viewbox svg-viewbox svg-novb
+svg_case viewbox-invalid svg-viewbox svg-vb-invalid
+svg_case viewbox-payload-in-aria-label svg-viewbox svg-vb-payload
+svg_case viewbox-huge-number svg-viewbox svg-vb-huge
+svg_case viewbox-negative svg-viewbox svg-vb-negative
+svg_case viewbox-origin-not-zero svg-viewbox svg-vb-origin
+svg_case viewbox-zero-width svg-viewbox svg-vb-zero
+svg_case viewbox-over-maximum svg-viewbox svg-vb-big
+svg_case viewbox-repeated-decimal-point svg-viewbox svg-vb-dots
+svg_case viewbox-commas svg-viewbox svg-vb-comma
+svg_case viewbox-three-numbers svg-viewbox svg-vb-three
+svg_case viewbox-five-numbers svg-viewbox svg-vb-five
+svg_case viewbox-exponent svg-viewbox svg-vb-exp
+svg_case utf16-with-bom svg-encoding svg-utf16
+svg_case utf16-le-no-bom svg-encoding svg-utf16le
+svg_case utf16-be-bom svg-encoding svg-utf16be-bom
+svg_case utf32 svg-encoding svg-utf32
+svg_case utf8-bom svg-encoding svg-utf8-bom
+svg_case latin1-bytes svg-encoding svg-latin1
+svg_case declared-latin1 svg-encoding svg-declared-latin1
+svg_case malformed svg-parse svg-malformed
 img_case wrong-type-gif 1 image-type png pic.gif
 img_case too-big 1 image-size png pic.png 6000000
 img_case unlisted 1 brand-asset png pic.png 0 no
