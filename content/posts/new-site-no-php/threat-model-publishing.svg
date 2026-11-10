@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1880" width="900" height="1880" role="img" aria-labelledby="t d">
+<title id="t">1 Publishing path</title>
+<desc id="d">Data flow diagram with 5 trust boundaries (dashed boxes): TB1 Owner machine and accounts (trusted operator); TB2 GitHub (public repository, untrusted input); TB3 Deploy job (the only credential holder); TB4 Cloudflare (third-party operated); TB5 Social platforms (third-party operated). Elements: Owner (trusted operator); Local editor and author helper; GitHub web editor; Repository and pull request review; Git history and content; CI build and checks (no credentials); Syndication job (planned, issue 11); Contributor via pull request; Supply chain (actions, dependencies, Hugo, fonts); Deploy job (credentialed); Cloudflare Pages (published site); Social platforms (Bluesky, Mastodon, Discord, Matrix). Flows: Owner (trusted operator) to Local editor and author helper, Author files; Owner (trusted operator) to GitHub web editor, Edit in browser; Local editor and author helper to Repository and pull request review, git push, pull request; GitHub web editor to Repository and pull request review, Commit from web editor; Contributor via pull request to Repository and pull request review, Pull request from a fork; Repository and pull request review to Git history and content, Merge to main; Repository and pull request review to CI build and checks (no credentials), Run checks; Supply chain (actions, dependencies, Hugo, fonts) to CI build and checks (no credentials), Actions, packages, Hugo, fonts; CI build and checks (no credentials) to Deploy job (credentialed), Build artifact after CI green; Deploy job (credentialed) to Cloudflare Pages (published site), Publish folder with deployment credential; Git history and content to Syndication job (planned, issue 11), New post with syndicate true; Syndication job (planned, issue 11) to Social platforms (Bluesky, Mastodon, Discord, Matrix), Announce once.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a5b0c0"/></marker>
+</defs>
+<rect width="900" height="1880" fill="#12141a"/>
+<g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="17">
+<text x="20" y="34" fill="#eceff4" font-size="22" font-weight="bold">1 Publishing path</text>
+<rect x="20" y="70" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="92" fill="#fbbf24" font-weight="bold">TB1 Owner machine and accounts (trusted operator)</text>
+<rect x="20" y="320" width="860" height="590" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="342" fill="#fbbf24" font-weight="bold">TB2 GitHub (public repository, untrusted input)</text>
+<rect x="20" y="1180" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="1202" fill="#fbbf24" font-weight="bold">TB3 Deploy job (the only credential holder)</text>
+<rect x="20" y="1430" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="1452" fill="#fbbf24" font-weight="bold">TB4 Cloudflare (third-party operated)</text>
+<rect x="20" y="1680" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="1702" fill="#fbbf24" font-weight="bold">TB5 Social platforms (third-party operated)</text>
+<path d="M350 145 L550 145" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 185 L485 185 L485 395 L350 395" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M605 210 L605 370" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 415 L550 415" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M295 1000 L295 695 L525 695 L525 435 L550 435" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M550 395 L495 395 L495 605 L350 605" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M605 460 L605 580" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M605 1000 L605 670" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M800 645 L825 645 L825 1255 L570 1255" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M445 1320 L445 1480" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 645 L375 645 L375 790" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M515 880 L515 1205 L595 1205 L595 1755 L570 1755" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="100" y="120" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="225" y="171" fill="#eceff4" text-anchor="middle">Owner (trusted operator)</text>
+<rect x="550" y="120" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="160.5" fill="#eceff4" text-anchor="middle">Local editor and author</text>
+<text x="675" y="181.5" fill="#eceff4" text-anchor="middle">helper</text>
+<rect x="100" y="370" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="225" y="421" fill="#eceff4" text-anchor="middle">GitHub web editor</text>
+<rect x="550" y="370" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="410.5" fill="#eceff4" text-anchor="middle">Repository and pull</text>
+<text x="675" y="431.5" fill="#eceff4" text-anchor="middle">request review</text>
+<rect x="100" y="580" width="250" height="90" fill="#1e232d" stroke="none"/>
+<path d="M100 580H350 M100 670H350" stroke="#e0a8ff" stroke-width="2" fill="none"/>
+<text x="225" y="631" fill="#eceff4" text-anchor="middle">Git history and content</text>
+<rect x="550" y="580" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="620.5" fill="#eceff4" text-anchor="middle">CI build and checks (no</text>
+<text x="675" y="641.5" fill="#eceff4" text-anchor="middle">credentials)</text>
+<rect x="320" y="790" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="445" y="830.5" fill="#eceff4" text-anchor="middle">Syndication job (planned,</text>
+<text x="445" y="851.5" fill="#eceff4" text-anchor="middle">issue 11)</text>
+<rect x="100" y="1000" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="225" y="1040.5" fill="#eceff4" text-anchor="middle">Contributor via pull</text>
+<text x="225" y="1061.5" fill="#eceff4" text-anchor="middle">request</text>
+<rect x="550" y="1000" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="675" y="1030" fill="#eceff4" text-anchor="middle">Supply chain (actions,</text>
+<text x="675" y="1051" fill="#eceff4" text-anchor="middle">dependencies, Hugo,</text>
+<text x="675" y="1072" fill="#eceff4" text-anchor="middle">fonts)</text>
+<rect x="320" y="1230" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="445" y="1281" fill="#eceff4" text-anchor="middle">Deploy job (credentialed)</text>
+<rect x="320" y="1480" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="445" y="1520.5" fill="#eceff4" text-anchor="middle">Cloudflare Pages</text>
+<text x="445" y="1541.5" fill="#eceff4" text-anchor="middle">(published site)</text>
+<rect x="320" y="1730" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="445" y="1760" fill="#eceff4" text-anchor="middle">Social platforms</text>
+<text x="445" y="1781" fill="#eceff4" text-anchor="middle">(Bluesky, Mastodon,</text>
+<text x="445" y="1802" fill="#eceff4" text-anchor="middle">Discord, Matrix)</text>
+<rect x="386.9" y="131.5" width="126.2" height="27" rx="4" fill="#12141a"/>
+<text x="450" y="149.5" fill="#eceff4" text-anchor="middle">Author files</text>
+<rect x="407.9" y="276.5" width="154.2" height="27" rx="4" fill="#12141a"/>
+<text x="485" y="294.5" fill="#eceff4" text-anchor="middle">Edit in browser</text>
+<rect x="495.1" y="244.5" width="219.7" height="27" rx="4" fill="#12141a"/>
+<text x="605" y="262.5" fill="#eceff4" text-anchor="middle">git push, pull request</text>
+<rect x="372.9" y="391" width="154.2" height="48" rx="4" fill="#12141a"/>
+<text x="450" y="409" fill="#eceff4" text-anchor="middle">Commit from web</text>
+<text x="450" y="430" fill="#eceff4" text-anchor="middle">editor</text>
+<rect x="199.2" y="884.5" width="191.7" height="48" rx="4" fill="#12141a"/>
+<text x="295" y="902.5" fill="#eceff4" text-anchor="middle">Pull request from a</text>
+<text x="295" y="923.5" fill="#eceff4" text-anchor="middle">fork</text>
+<rect x="376.5" y="591.5" width="135.6" height="27" rx="4" fill="#12141a"/>
+<text x="444.2" y="609.5" fill="#eceff4" text-anchor="middle">Merge to main</text>
+<rect x="551.2" y="506.5" width="107.5" height="27" rx="4" fill="#12141a"/>
+<text x="605" y="524.5" fill="#eceff4" text-anchor="middle">Run checks</text>
+<rect x="513.9" y="728.5" width="182.3" height="48" rx="4" fill="#12141a"/>
+<text x="605" y="746.5" fill="#eceff4" text-anchor="middle">Actions, packages,</text>
+<text x="605" y="767.5" fill="#eceff4" text-anchor="middle">Hugo, fonts</text>
+<rect x="595.7" y="1231" width="229.1" height="48" rx="4" fill="#12141a"/>
+<text x="710.2" y="1249" fill="#eceff4" text-anchor="middle">Build artifact after CI</text>
+<text x="710.2" y="1270" fill="#eceff4" text-anchor="middle">green</text>
+<rect x="339.8" y="1376" width="210.4" height="48" rx="4" fill="#12141a"/>
+<text x="445" y="1394" fill="#eceff4" text-anchor="middle">Publish folder with</text>
+<text x="445" y="1415" fill="#eceff4" text-anchor="middle">deployment credential</text>
+<rect x="302.6" y="700.8" width="144.9" height="48" rx="4" fill="#12141a"/>
+<text x="375" y="718.8" fill="#eceff4" text-anchor="middle">New post with</text>
+<text x="375" y="739.8" fill="#eceff4" text-anchor="middle">syndicate true</text>
+<rect x="527.2" y="1439" width="135.6" height="27" rx="4" fill="#12141a"/>
+<text x="595" y="1457" fill="#eceff4" text-anchor="middle">Announce once</text>
+</g>
+</svg>

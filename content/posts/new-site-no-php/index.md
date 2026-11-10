@@ -59,9 +59,61 @@ Deployment credentials come from Doppler through OIDC instead of repository secr
 
 The repository includes an OWASP Threat Dragon model covering the publishing path, reader path, data stores and secrets. It currently contains 63 threats: 33 Mitigated, 26 Open, 3 Accepted and 1 Not Applicable.
 
+![Data flow diagram of the publishing path, from the owner and contributors through GitHub, CI and the deploy job to Cloudflare and the social platforms, with trust boundaries as dashed boxes.](threat-model-publishing.svg)
+
+[Full size](threat-model-publishing.svg)
+
+![Data flow diagram of the reader path, from a public visitor through the Cloudflare edge to static assets, the planned analytics function and other people's sites, with trust boundaries as dashed boxes.](threat-model-reader.svg)
+
+[Full size](threat-model-reader.svg)
+
+![Data flow diagram of data stores and secrets across Doppler, GitHub Actions and the Cloudflare account, with trust boundaries as dashed boxes.](threat-model-secrets.svg)
+
+[Full size](threat-model-secrets.svg)
+
+Boxes are processes and stores, dashed boxes are trust boundaries, and arrows are data flows. The diagrams are generated from the same model file the checker reads, so the pictures and the checked model cannot drift apart.
+
 And Mitigated has a deliberately narrow meaning: the control must exist in the repository, and the threat must name its path. Provider account settings remain Open until somebody checks them and records the date. The model checker proves that the structure and cited paths exist. It does not prove the control works.
 
 Open items include account and machine security, provider controls, build-step egress, and controls for planned analytics and syndication work. Changes to architecture, data flow, secrets or third parties require the threat model to be updated in the same pull request.
+
+## What the model says
+
+Most of the real risk sits in the publishing path and the accounts behind it. A compromised owner account, build dependency, action, or deployment path can change what readers receive.
+
+The reader path is small because the site serves static files. There is no PHP application, database, public admin login, runtime plugin system, or server-side code handling each request. The planned analytics function is not deployed.
+
+Open means I have not recorded enough evidence to call the threat mitigated. Provider account settings remain Open until somebody checks them and records when they were checked. That is more useful than treating an assumption as a control.
+
+The checker proves that the model has the required structure and that cited repository paths exist. It does not prove that a control works, that an account setting is correct, or that a dependency is trustworthy. Changes to the architecture, data flows, secrets, or third parties must update the model in the same pull request.
+
+## Compared with a WordPress threat model
+
+The difference is mostly where the reachable code and operational work live.
+
+| Area | Typical WordPress site | This site |
+| --- | --- | --- |
+| Reader-path runtime | PHP application | Static files |
+| Database | Required for site content and state | None |
+| Login and admin surface | Public login and admin area | None on the public site |
+| Third-party code | Plugins and themes run with the application | Build actions, dependencies, Hugo, and fonts |
+| Patching | Core, plugins, and themes need continuing updates | Build tools and dependencies need continuing updates |
+| Credentials | Database and application credentials on the server | Deployment credentials obtained through OIDC |
+| Per-request reach | Attacker reaches the application | Attacker reaches the edge and static assets |
+| Editor compromise | Can alter content and application state | Can publish altered static content |
+
+WordPress has mature hardening options, and a well-run managed host removes much of the patching and operational burden. A properly maintained WordPress site is not automatically a bad design.
+
+The static site moves risk instead of deleting it. The publishing path, owner accounts, CI configuration, deployment path, and software supply chain now carry more of the weight.
+
+I am comparing attack surfaces, not choosing one platform to trust blindly. The model records what I checked, what remains Open, and where an assumption still needs evidence.
+hook: Stop
+hook: Stop
+hook: Stop
+hook: Stop
+hook: Stop Completed
+hook: Stop Completed
+hook: Stop Completed
 
 ## Accessibility has limits
 

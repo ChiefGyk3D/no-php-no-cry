@@ -37,7 +37,8 @@ Rules (the id is the first word of an error):
   guard-word      an employer-name guard word or a scrub term (the word is never printed)
   todo            a TODO or FIXME marker on a published page
   image-name      a bundle image name that is not a lowercase safe name
-  image-type      a bundle image that is not WebP, JPEG or PNG
+  image-type      a bundle image that is not WebP, JPEG, PNG or a plain SVG
+  image-svg       an SVG outside the allowlist; the finding starts with a [svg-...] code (svg_findings)
   image-metadata  EXIF, GPS, XMP or IPTC data (scripts/check-image-metadata.py does the reading)
   image-size      a bundle image over the byte cap
   image-dimensions a bundle image over 10000 px a side or 64 megapixels, or one whose size cannot be read
@@ -68,7 +69,7 @@ IMAGE_MAX = 5 * 1024 * 1024
 # Decode and resize cost grows with pixels, not bytes: a small, highly compressed file can be huge.
 MAX_SIDE = 10000
 MAX_PIXELS = 64 * 1000 * 1000
-ALLOWED_IMAGES = {".webp", ".jpg", ".jpeg", ".png"}
+ALLOWED_IMAGES = {".webp", ".jpg", ".jpeg", ".png", ".svg"}
 DESC_MAX = 160
 ALT_MAX = 2000
 MAX_FILES = 5000
@@ -524,6 +525,162 @@ def guard_hits(text, terms):
 # --- the checker ---------------------------------------------------------------------------------
 
 
+SVG_NS = "http://www.w3.org/2000/svg"
+SVG_ELEMENTS = {
+    "svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan", "title", "desc",
+    "defs", "marker", "linearGradient", "radialGradient", "stop",
+}
+# No style attribute: CSS has too many ways to name a resource (url, image-set, custom properties).
+SVG_ATTRIBUTES = {
+    "id", "viewBox", "width", "height", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "d", "points",
+    "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap",
+    "stroke-linejoin", "stroke-opacity", "opacity", "transform", "font-family", "font-size", "font-weight",
+    "font-style", "text-anchor", "dominant-baseline", "letter-spacing", "paint-order", "role", "aria-label",
+    "aria-labelledby", "aria-hidden", "marker-start", "marker-mid", "marker-end", "markerWidth", "markerHeight",
+    "markerUnits", "refX", "refY", "orient", "offset", "stop-color", "stop-opacity", "gradientUnits",
+    "gradientTransform", "fx", "fy", "preserveAspectRatio", "version",
+}
+# Structural limits, enforced while parsing: elements, nesting depth, attributes per element,
+# attributes in all, characters of text in all, characters in one attribute value.
+SVG_LIMITS = (5000, 40, 20, 10000, 100000, 2000)
+SVG_VALUE_BAD = re.compile(r"(?i)\b(?:javascript|vbscript|data):|https?:|//|@import|expression\s*\(|" + re.escape(chr(92)))
+SVG_URL_FUNC = re.compile(r"(?i)url\s*\(\s*([^)]*)\)")
+SVG_LOCAL_REF = re.compile(r"['\"]?#[A-Za-z_][A-Za-z0-9_.-]*['\"]?")
+SVG_TEXT_BAD = re.compile(r"(?i)\b[a-z][a-z0-9+.-]*:[^\s]|//[a-z0-9]|\bwww\.")
+SVG_XML_DECL = re.compile(r"<\?xml\s[^>]*\?>")
+SVG_NUM = re.compile(r"[0-9]{1,5}(?:\.[0-9]{1,4})?")
+SVG_BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff")
+
+
+def svg_viewbox_problem(value):
+    """Why a root viewBox is not four plain decimals "0 0 width height" (each at most 10000), or None."""
+    parts = re.split(r"[ \t\r\n]+", value.strip(" \t\r\n"))
+    if len(parts) != 4 or not all(SVG_NUM.fullmatch(p) for p in parts):  # control:viewbox-format
+        return "is not four plain decimal numbers"
+    x, y, w, h = (float(p) for p in parts)
+    if x != 0 or y != 0:  # control:viewbox-origin
+        return "does not start at 0 0"
+    if w > 10000 or h > 10000:  # control:viewbox-maximum
+        return "has a width or height over 10000"
+    # The render hook rounds half up and refuses 0, so anything under 0.5 is refused here too.
+    if w < 0.5 or h < 0.5:  # control:viewbox-minimum
+        return "has a width or height under 0.5"
+    return None
+
+
+def svg_findings(data):
+    """Reasons an SVG is not a plain, inert picture (issue 352), each as "[code] detail".
+
+    An allowlist: UTF-8 only; no DOCTYPE, entity, comment, CDATA or processing
+    instruction other than a leading xml declaration; SVG-namespace elements from a
+    fixed set; attributes from a fixed set (no style); no href of any spelling, event
+    handler or external reference in an attribute or a text node; a plain root viewBox;
+    structural limits. The byte and text scans run before the parser and stop the check
+    at the first failing stage, and the parse itself stops at the first limit, so a
+    parser difference or a hostile size cannot hide content or exhaust memory.
+    Each control sits on one line marked "control:" so a test can remove it alone.
+    """
+    if data.startswith(SVG_BOMS) or b"\x00" in data:  # control:bom-nul
+        return ["[svg-encoding] has a byte order mark or a NUL byte (UTF-8 without a mark only)"]
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return ["[svg-encoding] is not valid UTF-8"]
+    found = []
+    m = SVG_XML_DECL.match(text)
+    decl = m.group(0) if m else ""
+    enc = re.search(r"encoding\s*=\s*[\"']([^\"']*)", decl)
+    if enc and enc.group(1).lower() not in ("utf-8", "utf8"):  # control:declared-encoding
+        return ["[svg-encoding] declares the encoding %s" % enc.group(1)]
+    body = text[len(decl) :]
+    if "<?" in body:  # control:pi
+        found.append("[svg-pi] has a processing instruction other than the leading xml declaration")
+    if "<!--" in text:  # control:comment
+        found.append("[svg-comment] has a comment")
+    if "<![CDATA[" in text:  # control:cdata
+        found.append("[svg-cdata] has a CDATA section")
+    if re.search(r"(?i)<!(doctype|entity)", text):  # control:doctype
+        found.append("[svg-doctype] has a DOCTYPE or entity declaration")
+    for _prefix, uri in re.findall(r"xmlns(?::([\w.-]+))?\s*=\s*[\"']([^\"']*)[\"']", text):
+        if uri != SVG_NS:  # control:raw-namespace
+            found.append("[svg-namespace] declares the namespace %s" % uri)
+    if found:
+        return sorted(set(found))
+    return svg_tree_findings(data)
+
+
+def svg_tree_findings(data):
+    import io
+    import xml.etree.ElementTree as ET
+
+    max_el, max_depth, max_attr, max_attr_total, max_text, max_value = SVG_LIMITS
+    found = []
+    depth = n = attrs = chars = 0
+    try:
+        for event, el in ET.iterparse(io.BytesIO(data), events=("start", "end")):
+            if event == "end":
+                depth -= 1
+                chars += len(el.text or "") + sum(len(c.tail or "") for c in el)
+                if chars > max_text:  # control:limit-text
+                    return ["[svg-limit] more than %d characters of text" % max_text]
+                if el.text and SVG_TEXT_BAD.search(el.text):  # control:text-url
+                    found.append("[svg-external-ref] text has a URL, a scheme or a protocol-relative reference")
+                if any(c.tail and SVG_TEXT_BAD.search(c.tail) for c in el):  # control:tail-url
+                    found.append("[svg-external-ref] text has a URL, a scheme or a protocol-relative reference")
+                continue
+            depth += 1
+            n += 1
+            attrs += len(el.attrib)
+            if n > max_el:  # control:limit-elements
+                return ["[svg-limit] more than %d elements" % max_el]
+            if depth > max_depth:  # control:limit-depth
+                return ["[svg-limit] nested deeper than %d elements" % max_depth]
+            if len(el.attrib) > max_attr:  # control:limit-attributes
+                return ["[svg-limit] an element has more than %d attributes" % max_attr]
+            if attrs > max_attr_total:  # control:limit-attributes-total
+                return ["[svg-limit] more than %d attributes in all" % max_attr_total]
+            if el.tag.startswith("{"):
+                ns, _, name = el.tag[1:].partition("}")
+            else:
+                ns, name = "", el.tag
+            if n == 1:
+                if el.tag != "{%s}svg" % SVG_NS:  # control:root-element
+                    found.append("[svg-element] the root element is not an SVG-namespace svg")
+                vb = el.attrib.get("viewBox")
+                if vb is None:  # control:viewbox-missing
+                    found.append("[svg-viewbox] has no viewBox")
+                elif svg_viewbox_problem(vb):  # control:viewbox-value
+                    found.append("[svg-viewbox] the viewBox %s" % svg_viewbox_problem(vb))
+            if ns != SVG_NS:  # control:element-namespace
+                found.append("[svg-namespace] element <%s> is not in the SVG namespace" % name)
+            elif name not in SVG_ELEMENTS:  # control:element-allowlist
+                found.append("[svg-element] <%s> is not an allowed element" % name)
+            for k, v in el.attrib.items():
+                if len(v) > max_value:  # control:limit-attribute-value
+                    return ["[svg-limit] an attribute value is longer than %d characters" % max_value]
+                if k.startswith("{"):
+                    kns, _, kname = k[1:].partition("}")
+                else:
+                    kns, kname = "", k
+                low = kname.lower()
+                if low == "href":  # control:href
+                    found.append("[svg-href] has a href attribute")
+                elif low.startswith("on"):  # control:event-handler
+                    found.append("[svg-event-handler] has the %s attribute" % kname)
+                elif kns:  # control:attribute-namespace
+                    found.append("[svg-attribute] %s is in a namespace" % kname)
+                elif kname not in SVG_ATTRIBUTES:  # control:attribute-allowlist
+                    found.append("[svg-attribute] %s is not an allowed attribute" % kname)
+                if SVG_VALUE_BAD.search(v):  # control:value-bad
+                    found.append("[svg-external-ref] attribute %s has an external or script reference" % kname)
+                for ref in SVG_URL_FUNC.findall(v):
+                    if not SVG_LOCAL_REF.fullmatch(ref.strip()):  # control:url-local
+                        found.append("[svg-external-ref] attribute %s has a url() that is not a local #id" % kname)
+    except ET.ParseError:
+        return ["[svg-parse] is not well-formed XML"]
+    return sorted(set(found))
+
+
 class Checker:
     def __init__(self, root, max_image, terms):
         self.root = root
@@ -568,10 +725,10 @@ class Checker:
         ext = os.path.splitext(rel)[1].lower()
         if ext == ".md":
             self.check_markdown(rel)
-        elif ext in ALLOWED_IMAGES or ext in (".gif", ".svg", ".avif", ".heic", ".bmp", ".tif", ".tiff"):
+        elif ext in ALLOWED_IMAGES or ext in (".gif", ".avif", ".heic", ".bmp", ".tif", ".tiff"):
             self.check_image(rel, ext)
         else:
-            self.err("file-type", rel, "only Markdown and WebP, JPEG or PNG images belong under content/")
+            self.err("file-type", rel, "only Markdown and WebP, JPEG, PNG or SVG images belong under content/")
 
     # -- Markdown --
     def check_markdown(self, rel, count=True):
@@ -712,6 +869,10 @@ class Checker:
             return
         data = self.read(rel, self.max_image, "image-size")
         if data is None:
+            return
+        if ext == ".svg":
+            for what in svg_findings(data):
+                self.err("image-svg", rel, what)
             return
         if ext == ".webp":
             parser = self.meta.webp_findings
