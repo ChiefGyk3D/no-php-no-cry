@@ -78,7 +78,7 @@ fi
 # The build's policy must allow scripts from 'self' only (the copy script): one
 # script-src, exactly 'self'. 'none' would mean the header and the copy script
 # drifted apart; anything looser is a weaker site than the one reviewed.
-if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com/beacon.min.js" 'BEGIN {
+if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com/beacon.min.js/" 'BEGIN {
         n = split(csp, d, ";")
         for (i = 1; i <= n; i++) {
             gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
@@ -90,6 +90,22 @@ if ! awk -v csp="$csp_expected" -v beacon="https://static.cloudflareinsights.com
         exit (bad || count != 1 || cs != 1)
     }'; then
     echo "input: the Content-Security-Policy in ${dir}/_headers must have script-src exactly 'self' plus the Cloudflare beacon URL, and connect-src exactly 'self'"
+    exit 2
+fi
+
+# Likewise default-src exactly 'none' and manifest-src exactly 'self', once
+# each, as real directive names (x-default-src is not default-src).
+if ! awk -v csp="$csp_expected" 'BEGIN {
+        n = split(csp, d, ";")
+        for (i = 1; i <= n; i++) {
+            gsub(/^[ \t]+|[ \t\r]+$/, "", d[i])
+            name = tolower(d[i]); sub(/[ \t].*/, "", name)
+            if (name == "default-src") { df++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'none'"'"'") bad = 1 }
+            if (name == "manifest-src") { ms++; v = d[i]; sub(/^[^ \t]+[ \t]*/, "", v); if (v != "'"'"'self'"'"'") bad = 1 }
+        }
+        exit (bad || df != 1 || ms != 1)
+    }'; then
+    echo "input: the Content-Security-Policy in ${dir}/_headers must have default-src exactly 'none' and manifest-src exactly 'self', once each"
     exit 2
 fi
 

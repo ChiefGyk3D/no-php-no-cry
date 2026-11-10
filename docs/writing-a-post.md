@@ -41,7 +41,7 @@ Delete the comments you do not need before you open the pull request.
 | `tags` | no | A few specific words. They show as `#tag` links under the title. |
 | `syndicate` | yes | `true` lets the deploy job announce the post once it is live. The archetype sets `false`. A journal entry is not announced unless you say so. |
 | `syndicated` | no | A map of announcement links (`bluesky`, `mastodon`, `discord`, `matrix`), written by the syndication step. Do not write it by hand for a new post. The map is kept as data and not rendered: the old "Discuss on ..." links did not work and were replaced by share links (`docs/share-links.md`). |
-| `image` | no | The headline image: the name of a file in the post's folder, for example `featured.jpg` (section 3). Shown above the title, as a small thumbnail on the Posts and Home cards, and as the social card. No `image` means no hero and the default brand card. |
+| `image` | no | The headline image: the name of a file in the post's folder, for example `featured.jpg` (section 3). Shown below the title plate, as a small thumbnail on the Posts and Home cards, and as the social card. No `image` means no hero and the default brand card. |
 | `imageAlt` | yes, with `image` | What the headline image shows, in one sentence. The build fails without it. |
 | `build` | with a large `image` | Set `publishResources: false` under `build:` when the headline image file is over 300 KB (section 3). |
 | `affiliate` | no | A reminder for you and the reviewer. The build does not read it. Set `true` when the post has affiliate links. |
@@ -70,8 +70,8 @@ A headline image is optional. To add one:
      publishResources: false
    ```
 
-3. The page shows it above the title (not lazy loaded, it is the first thing a
-   reader sees), makes a small thumbnail of it for the Posts and Home cards, and
+3. The page shows it below the title plate (not lazy loaded, it is
+   the first image a reader sees), makes a small thumbnail of it for the Posts and Home cards, and
    uses a 1200 by 630 JPEG copy as the social card. A post with no `image` shows
    none of that and uses the default brand card.
 

@@ -1,7 +1,7 @@
 # Headline images
 
 A headline (featured) image is optional. When a post has one, the site uses it
-three ways from a single file: a hero above the title, a small thumbnail on the
+three ways from a single file: a hero below the title, a small thumbnail on the
 Posts and Home cards, and the social card for sharing. A post without one shows
 none of that and uses the default brand card.
 
@@ -21,13 +21,13 @@ chosen in `layouts/_partials/head-meta.html` from the same front matter.
      publishResources: false
    ```
 
-3. Build. The page now shows the hero above the title.
+3. Build. The page now shows the hero below the title.
 
 ## What the site makes from it
 
 | Use | How |
 | --- | --- |
-| Hero on the post | Resized WebP copies (480 and 800 pixels wide, quality 70) with `width`, `height`, `fetchpriority="high"` and no lazy loading, because it is the first thing a reader sees. The original file is never served. |
+| Hero on the post | Resized WebP copies (480 and 800 pixels wide, quality 70) with `width`, `height`, `fetchpriority="high"` and no lazy loading, because it is the first image a reader sees. The original file is never served. |
 | Card thumbnail | A 96 by 64 pixel crop (and a 192 by 128 copy for sharp screens), lazy loaded, with empty alt text. The title link beside it carries the meaning. |
 | Social card | A JPEG of at most 1200 by 630 pixels, with its real size declared in the Open Graph tags. A transparent logo is flattened onto the site background color. |
 
@@ -53,7 +53,7 @@ chosen in `layouts/_partials/head-meta.html` from the same front matter.
 ## Tests
 
 `scripts/test-featured-image.sh` builds throwaway sites and asserts: a post with
-`image` and `imageAlt` gets a hero above the title (not lazy, with dimensions and
+`image` and `imageAlt` gets a hero below the title (not lazy, with dimensions and
 alt), a thumbnail on the list page and its own social card; a post without one
 gets none of those and the default card; and the build fails for a missing
 `imageAlt`, a placeholder `imageAlt` and an image that is not in the bundle.
