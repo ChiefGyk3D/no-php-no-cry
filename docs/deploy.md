@@ -60,7 +60,9 @@ Repository variables (Settings, Secrets and variables, Actions, Variables):
 | `CLOUDFLARE_PAGES_PROJECT` | `no-php-no-cry` | Pages project name |
 | `DEPLOY_ENABLED` | unset (deploy skipped) | Set to `true` once credentials and the Pages project exist; until then pushes build but do not deploy |
 | `SITE_URL` | `https://test-blog.chiefgyk3d.com` | URL the smoke test checks |
-| `DOPPLER_CLOUDFLARE_IDENTITY_ID` | none | Doppler OIDC identity UUID for the Cloudflare project (not a secret). Separate from `DOPPLER_IDENTITY_ID`, which the CI callers use |
+| `DOPPLER_PROJECT` | none (required) | Secrets project holding the deploy credentials (not a secret). Empty fails the deploy job |
+| `DOPPLER_CONFIG` | none (required) | Config inside that project (not a secret). Empty fails the deploy job |
+| `DOPPLER_CLOUDFLARE_IDENTITY_ID` | none | Doppler OIDC identity UUID for the deploy service account (not a secret). Separate from `DOPPLER_IDENTITY_ID`, which the CI callers use |
 
 The deploy job needs two values: `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID`. It takes them from Doppler only, over OIDC. No
@@ -128,19 +130,20 @@ long-lived Doppler credential sits in GitHub.
 The owner, not an agent, does all of the following. An agent never creates the
 Doppler service account, the identity, or any token.
 
-1. The Cloudflare values live in their own Doppler project, `cloudflare`,
-   config `dev`, apart from the `ci` project, so repositories and jobs that do
-   not deploy never hold a Cloudflare credential. Set the two secrets from a
-   checkout of ChiefGyk3D/git-your-ship-together, one at a time:
-   `DOPPLER_CI_CONFIG=dev scripts/doppler-ci-set.sh CLOUDFLARE_API_TOKEN cloudflare`
-   and the same with `CLOUDFLARE_ACCOUNT_ID`. The config must hold only these
-   two. The Doppler action exports the whole config, so every secret in it is
-   visible to every later step in the job and to post-run hooks. Until the
-   scoped mode lands (tracking:
-   ChiefGyk3D/git-your-ship-together#207) keep exactly these two values in it.
+1. The Cloudflare values live in this product's own secrets project, in a
+   config of the `dev` environment (one project per product, with `dev` and
+   `prd` environments; the project is not shared with other products). Put the
+   two deploy secrets there, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`,
+   one at a time, reading each value from a prompt or standard input, never
+   from a command line. The workflow fetches only those two names (an
+   allow-list): any other secret in the config is not exported, and a missing
+   one fails the job. Keep the config to what CI needs anyway.
+   Then set the repository variables `DOPPLER_PROJECT` (the project name) and
+   `DOPPLER_CONFIG` (the config name). The workflow has no default for either:
+   an empty one fails the job with a clear error before anything is fetched.
 2. Create one Doppler service account, `gha-cloudflare-pages`, with the Viewer
-   role on project `cloudflare`, environment `dev` only (access is granted per
-   environment; the environment's root config is `dev`).
+   role on the product's project, environment `dev` only (access is granted per
+   environment and config, least privilege).
 3. On that service account add one OIDC identity (Service Account Identities):
    issuer `https://token.actions.githubusercontent.com`, audience as Doppler
    shows it. GitHub emits only the one subject form that the repository's OIDC

@@ -241,12 +241,32 @@ jobs:
       - name: Check the build for Pages control files
         run: scripts/check-site-artifact.sh site static/_headers
 
+      # The project and config come from repository variables, never a default:
+      # an empty one fails here, before anything is fetched (docs/deploy.md).
+      - name: Require the secrets project and config variables
+        env:
+          DOPPLER_PROJECT: ${{ vars.DOPPLER_PROJECT }}
+          DOPPLER_CONFIG: ${{ vars.DOPPLER_CONFIG }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${DOPPLER_PROJECT:-}" ] || missing="$missing DOPPLER_PROJECT"
+          [ -n "${DOPPLER_CONFIG:-}" ] || missing="$missing DOPPLER_CONFIG"
+          if [ -z "${DOPPLER_PROJECT:-}" ] || [ -z "${DOPPLER_CONFIG:-}" ]; then
+            echo "::error title=Deploy::repository variable(s) not set:${missing}. See docs/deploy.md."
+            exit 1
+          fi
+          echo "secrets project and config variables are set."
+
+      # names limits the fetch to the two deploy credentials; any other secret
+      # in the config is not exported, and a missing one fails the step.
       - name: Fetch Cloudflare credentials from Doppler
         uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
         with:
-          project: cloudflare
-          config: dev
+          project: ${{ vars.DOPPLER_PROJECT }}
+          config: ${{ vars.DOPPLER_CONFIG }}
           identity-id: ${{ vars.DOPPLER_CLOUDFLARE_IDENTITY_ID }}
+          names: CLOUDFLARE_API_TOKEN,CLOUDFLARE_ACCOUNT_ID
 
       # Doppler exports the two names. If it did not, fail, never skip. No
       # GitHub secret is read anywhere in this workflow.
@@ -260,7 +280,7 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
           if [ -n "$missing" ]; then
-            echo "::error title=Deploy::missing:${missing}. Doppler (project cloudflare, config dev) did not supply it. See docs/deploy.md."
+            echo "::error title=Deploy::missing:${missing}. Doppler (the project and config named by the repository variables) did not supply it. See docs/deploy.md."
             exit 1
           fi
           echo "Cloudflare credentials present (values not shown)."
