@@ -38,7 +38,7 @@ Rules (the id is the first word of an error):
   todo            a TODO or FIXME marker on a published page
   image-name      a bundle image name that is not a lowercase safe name
   image-type      a bundle image that is not WebP, JPEG, PNG or a plain SVG
-  image-svg       an SVG with a script, link, event handler, external URL, entity or style import, or no viewBox
+  image-svg       an SVG outside the allowlist; the finding starts with a [svg-...] code (svg_findings)
   image-metadata  EXIF, GPS, XMP or IPTC data (scripts/check-image-metadata.py does the reading)
   image-size      a bundle image over the byte cap
   image-dimensions a bundle image over 10000 px a side or 64 megapixels, or one whose size cannot be read
@@ -525,32 +525,103 @@ def guard_hits(text, terms):
 # --- the checker ---------------------------------------------------------------------------------
 
 
+SVG_NS = "http://www.w3.org/2000/svg"
+SVG_ELEMENTS = {
+    "svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan", "title", "desc",
+    "defs", "marker", "linearGradient", "radialGradient", "stop",
+}
+SVG_ATTRIBUTES = {
+    "id", "viewBox", "width", "height", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "d", "points",
+    "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap",
+    "stroke-linejoin", "stroke-opacity", "opacity", "transform", "font-family", "font-size", "font-weight",
+    "font-style", "text-anchor", "dominant-baseline", "letter-spacing", "paint-order", "role", "aria-label",
+    "aria-labelledby", "aria-hidden", "marker-start", "marker-mid", "marker-end", "markerWidth", "markerHeight",
+    "markerUnits", "refX", "refY", "orient", "offset", "stop-color", "stop-opacity", "gradientUnits",
+    "gradientTransform", "fx", "fy", "preserveAspectRatio", "style", "version",
+}
+SVG_VALUE_BAD = re.compile(r"(?i)\b(?:javascript|vbscript|data):|https?:|//|@import|expression\s*\(|" + re.escape(chr(92)))
+SVG_URL_FUNC = re.compile(r"(?i)url\s*\(\s*([^)]*)\)")
+SVG_LOCAL_REF = re.compile(r"^['\"]?#[A-Za-z_][A-Za-z0-9_.-]*['\"]?$")
+SVG_TEXT_BAD = re.compile(r"(?i)\b[a-z][a-z0-9+.-]*:[^\s]|//[a-z0-9]|\bwww\.")
+SVG_XML_DECL = re.compile(r"^<\?xml\s[^>]*\?>")
+SVG_BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff")
+
+
 def svg_findings(data):
-    """Reasons an SVG is not a plain, inert picture (issue 352). Entities and DTDs are refused before parsing."""
+    """Reasons an SVG is not a plain, inert picture (issue 352), each as "[code] detail".
+
+    An allowlist: UTF-8 only; no DOCTYPE, entity, comment, CDATA or processing
+    instruction other than a leading xml declaration; SVG-namespace elements from a
+    fixed set; attributes from a fixed set; no href of any spelling, event handler or
+    external reference in an attribute, a style or a text node. The byte and text scans
+    run before the parser, and stop the check at the first failing stage, so a parser
+    difference cannot hide content from them.
+    """
     import xml.etree.ElementTree as ET
 
-    low = data.lower()
-    if b"<!doctype" in low or b"<!entity" in low:
-        return ["has a DOCTYPE or entity declaration"]
+    if data.startswith(SVG_BOMS) or b"\x00" in data:
+        return ["[svg-encoding] has a byte order mark or a NUL byte (UTF-8 without a mark only)"]
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return ["[svg-encoding] is not valid UTF-8"]
+    found = []
+    m = SVG_XML_DECL.match(text)
+    decl = m.group(0) if m else ""
+    enc = re.search(r"encoding\s*=\s*[\"']([^\"']*)", decl)
+    if enc and enc.group(1).lower() not in ("utf-8", "utf8"):
+        return ["[svg-encoding] declares the encoding %s" % enc.group(1)]
+    body = text[len(decl) :]
+    if "<?" in body:
+        found.append("[svg-pi] has a processing instruction other than the leading xml declaration")
+    if "<!--" in text:
+        found.append("[svg-comment] has a comment")
+    if "<![CDATA[" in text:
+        found.append("[svg-cdata] has a CDATA section")
+    if re.search(r"(?i)<!(doctype|entity)", text):
+        found.append("[svg-doctype] has a DOCTYPE or entity declaration")
+    for _prefix, uri in re.findall(r"xmlns(?::([\w.-]+))?\s*=\s*[\"']([^\"']*)[\"']", text):
+        if uri != SVG_NS:
+            found.append("[svg-namespace] declares the namespace %s" % uri)
+    if found:
+        return sorted(set(found))
     try:
         root = ET.fromstring(data)
     except ET.ParseError:
-        return ["is not well-formed XML"]
-    found = []
-    if not root.tag.endswith("}svg") and root.tag != "svg":
-        found.append("root element is not svg")
+        return ["[svg-parse] is not well-formed XML"]
+    if root.tag != "{%s}svg" % SVG_NS:
+        found.append("[svg-element] the root element is not an SVG-namespace svg")
     for el in root.iter():
-        tag = el.tag.split("}")[-1].lower()
-        if tag in ("script", "foreignobject", "style", "a", "image", "use", "iframe", "object", "embed"):
-            found.append("has a <%s> element" % tag)
+        if el.tag.startswith("{"):
+            ns, _, name = el.tag[1:].partition("}")
+        else:
+            ns, name = "", el.tag
+        if ns != SVG_NS:
+            found.append("[svg-namespace] element <%s> is not in the SVG namespace" % name)
+        elif name not in SVG_ELEMENTS:
+            found.append("[svg-element] <%s> is not an allowed element" % name)
         for k, v in el.attrib.items():
-            key = k.split("}")[-1].lower()
-            if key == "href" or key.startswith("on"):
-                found.append("has a %s attribute" % key)
-            if re.search(r"https?:|//|@import|javascript:", v, re.I):
-                found.append("has an external reference in %s" % key)
+            if k.startswith("{"):
+                kns, _, kname = k[1:].partition("}")
+            else:
+                kns, kname = "", k
+            low = kname.lower()
+            if low == "href":
+                found.append("[svg-href] has a href attribute")
+            elif low.startswith("on"):
+                found.append("[svg-event-handler] has the %s attribute" % kname)
+            elif kns or kname not in SVG_ATTRIBUTES:
+                found.append("[svg-attribute] %s is not an allowed attribute" % kname)
+            if SVG_VALUE_BAD.search(v):
+                found.append("[svg-external-ref] attribute %s has an external or script reference" % kname)
+            for ref in SVG_URL_FUNC.findall(v):
+                if not SVG_LOCAL_REF.match(ref.strip()):
+                    found.append("[svg-external-ref] attribute %s has a url() that is not a local #id" % kname)
+        for t in (el.text, el.tail):
+            if t and SVG_TEXT_BAD.search(t):
+                found.append("[svg-external-ref] text has a URL, a scheme or a protocol-relative reference")
     if "viewBox" not in root.attrib:
-        found.append("has no viewBox")
+        found.append("[svg-viewbox] has no viewBox")
     return sorted(set(found))
 
 

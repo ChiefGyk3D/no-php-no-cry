@@ -58,6 +58,12 @@ for p, dia in zip(files, diagrams):
         print("[font-or-import] %s" % p.name)
     if not (root.find("{*}title") is not None and root.find("{*}desc") is not None):
         print("[title-desc] %s" % p.name)
+    vb = [float(v) for v in root.attrib.get("viewBox", "0 0 0 0").split()]
+    if vb[2] > 900 or vb[3] <= vb[2]:
+        print("[legibility-viewbox] %s: viewBox %s must be at most 900 wide and taller than wide" % (p.name, root.attrib.get("viewBox")))
+    sizes = [float(x) for x in re.findall(r'font-size="([0-9.]+)"', text)]
+    if not sizes or min(sizes) < 16:
+        print("[legibility-font] %s: font sizes %s, need 16 or more in viewBox units" % (p.name, sorted(set(sizes))))
     if "stroke-dasharray" not in text:
         print("[dashed-boundary] %s" % p.name)
     shown = " ".join("".join(t.itertext()) for t in root.iter() if t.tag.endswith("}text"))
@@ -121,6 +127,14 @@ cp -r "$work/a" "$work/n5"
 echo '<svg' >"$work/n5/threat-model-publishing.svg"
 bites "malformed XML is caught" well-formed "$work/n5"
 
+cp -r "$work/a" "$work/n8"
+sed -i 's|font-size="17"|font-size="12"|' "$work/n8/threat-model-reader.svg"
+bites "small text is caught" legibility-font "$work/n8"
+
+cp -r "$work/a" "$work/n9"
+sed -i '0,/viewBox="0 0 900 /s|viewBox="0 0 900 |viewBox="0 0 1200 |' "$work/n9/threat-model-reader.svg"
+bites "a wide viewBox is caught" legibility-viewbox "$work/n9"
+
 # drift guard: a hand edit of a committed-style file, and a changed model
 mkdir -p "$work/n6"
 cp "$work/a"/*.svg "$work/n6/"
@@ -150,6 +164,64 @@ elif grep -q '^\[svg-drift\]' "$work/n7.log"; then
 else
     fail "model drift failed without [svg-drift]"
 fi
+
+# the content check's SVG allowlist accepts every fresh render, and rejects a tampered one
+svg_rule() { # svg_rule <svg file>: prints the allowlist findings
+    python3 -I - "$root/scripts/check-content.py" "$1" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("cc", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+print("\n".join(m.svg_findings(open(sys.argv[2], "rb").read())))
+PY
+}
+bad_rule=""
+for n in publishing reader secrets; do bad_rule+="$(svg_rule "$work/a/threat-model-$n.svg")"; done
+if [[ -z $bad_rule ]]; then pass "check-content's SVG allowlist accepts the renders"; else fail "allowlist rejects a render: $bad_rule"; fi
+sed 's|</svg>|<script>1</script></svg>|' "$work/a/threat-model-reader.svg" >"$work/tampered.svg"
+if svg_rule "$work/tampered.svg" | grep -q '^\[svg-element\]'; then pass "allowlist rejects a tampered render"; else fail "allowlist accepted a tampered render"; fi
+
+# --- layout geometry (assertions on the computed layout, not the picture) ---
+geo() { # geo <mutation name or none>
+    python3 -I - "$render" "$model" "$1" <<'PY'
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("rtd", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+model = json.load(open(sys.argv[2]))
+mut = sys.argv[3]
+out = []
+for d in model["detail"]["diagrams"]:
+    lay = m.build(d)
+    if mut == "node-onto-route":
+        rt = lay["routes"][0]
+        a, b = rt["points"][0], rt["points"][1]
+        victim = [n for n in lay["nodes"].values() if n["id"] not in (rt["src"], rt["dst"])][0]
+        victim["rect"] = (min(a[0], b[0]) - 20, min(a[1], b[1]) - 20, 250, 90)
+    elif mut == "chip-on-node":
+        n = next(iter(lay["nodes"].values()))
+        lay["chips"][0]["rect"] = n["rect"]
+    elif mut == "chips-overlap":
+        lay["chips"][1]["rect"] = lay["chips"][0]["rect"]
+    elif mut == "node-outside-boundary":
+        n = next(x for x in lay["nodes"].values() if x["group"] is not None)
+        n["rect"] = (n["rect"][0], -500, n["rect"][2], n["rect"][3])
+    elif mut == "chip-off-route":
+        lay["chips"][0]["center"] = (1, 1)
+    out += m.geometry_problems(lay)
+    if mut == "none" and any(len(n["lines"]) > 3 for n in lay["nodes"].values()):
+        out.append("[too-many-lines]")
+print("\n".join(sorted(set(out))))
+PY
+}
+out="$(geo none)"
+if [[ -z $out ]]; then pass "layout: nodes inside boundaries, no segment crosses a node, chips clear and on their route"; else fail "layout: $out"; fi
+for pair in node-onto-route:segment-crosses-node chip-on-node:chip-overlap chips-overlap:chip-overlap node-outside-boundary:node-outside-boundary chip-off-route:chip-off-route; do
+    mut="${pair%%:*}"
+    rule="${pair##*:}"
+    out="$(geo "$mut")"
+    if grep -q "^\[$rule\]" <<<"$out"; then pass "layout check bites: $mut"; else fail "layout check missed $mut (got: ${out:-nothing})"; fi
+done
 
 if [[ $failures -ne 0 ]]; then
     echo "$failures failure(s)"

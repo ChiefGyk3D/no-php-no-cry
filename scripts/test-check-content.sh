@@ -54,13 +54,65 @@ def webp(exif=False):
         body += b"EXIF" + struct.pack("<I", len(TIFF)) + TIFF + b"\x00" * (len(TIFF) & 1)
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
-def svg(inner="", head='viewBox="0 0 10 10"'):
-    return ('<svg xmlns="http://www.w3.org/2000/svg" %s><title>t</title>%s</svg>\n' % (head, inner)).encode()
+NS = 'xmlns="http://www.w3.org/2000/svg"'
 
-data = {"svg": svg('<rect width="5" height="5"/>'), "svg-script": svg("<script>1</script>"), "svg-href": svg('<rect href="#x" width="5" height="5"/>'),
-        "svg-url": svg('<rect fill="url(https://example.invalid/x)" width="5" height="5"/>'), "svg-onload": svg('<rect onclick="1" width="5" height="5"/>'),
-        "svg-entity": b'<!DOCTYPE svg [<!ENTITY a "b">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>', "svg-novb": svg("", ""),
-        "png-wide": png(False, 12000, 10), "png-huge": png(False, 9000, 9000), "png": png(), "png-exif": png(True), "jpg": jpeg(), "jpg-exif": jpeg(True), "webp": webp(), "webp-exif": webp(True)}[kind]
+def svg(inner="", head='viewBox="0 0 10 10"', pre=""):
+    return (pre + '<svg %s %s><title>t</title>%s</svg>\n' % (NS, head, inner)).encode()
+
+R = '<rect width="5" height="5"%s/>'
+SVGS = {
+    "svg": svg(R % ""),
+    "svg-xmldecl": svg(R % "", pre='<?xml version="1.0" encoding="UTF-8"?>\n'),
+    "svg-style-local": svg(R % ' style="fill:url(#g)"'),
+    "svg-marker": svg('<defs><marker id="m" markerWidth="2" markerHeight="2"><path d="M0 0L1 1"/></marker></defs><path d="M0 0L5 5" marker-end="url(#m)"/>'),
+    "svg-script": svg("<script>1</script>"),
+    "svg-script-upper": svg("<SCRIPT>1</SCRIPT>"),
+    "svg-script-mixed": svg("<ScRiPt>1</ScRiPt>"),
+    "svg-script-prefixed": svg('<s:script xmlns:s="http://www.w3.org/2000/svg">1</s:script>'),
+    "svg-script-xhtml": svg('<h:script xmlns:h="http://www.w3.org/1999/xhtml">1</h:script>'),
+    "svg-script-noprefix-ns": ('<svg %s viewBox="0 0 1 1"><script xmlns="http://www.w3.org/1999/xhtml">1</script></svg>' % NS).encode(),
+    "svg-foreign": svg("<foreignObject/>"),
+    "svg-animate": svg((R % "") + '<animate attributeName="x" to="9"/>'),
+    "svg-set": svg('<set attributeName="href" to="javascript:alert(1)"/>'),
+    "svg-use": svg('<use x="1"/>'),
+    "svg-href": svg(R % ' href="#x"'),
+    "svg-href-upper": svg(R % ' HREF="#x"'),
+    "svg-xlink-href": svg(R % ' xlink:href="#x"').replace(b"<svg ", b'<svg xmlns:xlink="http://www.w3.org/1999/xlink" '),
+    "svg-onclick": svg(R % ' onclick="1"'),
+    "svg-onclick-case": svg(R % ' OnClick="1"'),
+    "svg-onload-root": svg("", 'viewBox="0 0 1 1" onload="1"'),
+    "svg-unknown-attr": svg(R % ' data-x="1"'),
+    "svg-fill-url": svg(R % ' fill="url(https://example.invalid/x)"'),
+    "svg-fill-url-rel": svg(R % ' fill="url(other.svg#a)"'),
+    "svg-style-url": svg(R % ' style="fill:url(https://example.invalid/x)"'),
+    "svg-style-import": svg(R % ' style="@import url(#a)"'),
+    "svg-style-escape": svg(R % ' style="fill:\\75rl(x)"'),
+    "svg-js-attr": svg(R % ' fill="JaVaScRiPt:alert(1)"'),
+    "svg-text-url": svg("<text>see https://example.invalid/x</text>"),
+    "svg-text-scheme": svg("<text>JaVaScRiPt:alert(1)</text>"),
+    "svg-text-protorel": svg("<text>//example.invalid/x</text>"),
+    "svg-title-url": svg("<desc>http://example.invalid</desc>"),
+    "svg-pi-stylesheet": svg("", pre='<?xml-stylesheet href="a.css"?>'),
+    "svg-pi-wrapped": svg('<?foo <script>alert(1)</script> ?>'),
+    "svg-pi-late": svg('<?php echo 1; ?>' + R % ""),
+    "svg-comment": svg("<!-- <script>1</script> -->"),
+    "svg-cdata": svg("<text><![CDATA[<script>]]></text>"),
+    "svg-doctype": ('<!DOCTYPE svg><svg %s viewBox="0 0 1 1"/>' % NS).encode(),
+    "svg-doctype-lower": ('<!doctype svg [<!entity a "b">]><svg %s viewBox="0 0 1 1"/>' % NS).encode(),
+    "svg-ns-other": svg("", 'viewBox="0 0 1 1" xmlns:x="http://example.invalid/ns"'),
+    "svg-no-ns": b'<svg viewBox="0 0 1 1"/>',
+    "svg-novb": svg("", ""),
+    "svg-utf16": svg(R % "").decode().encode("utf-16"),
+    "svg-utf16le": svg(R % "").decode().encode("utf-16-le"),
+    "svg-utf16be-bom": b"\xfe\xff" + svg(R % "").decode().encode("utf-16-be"),
+    "svg-utf32": svg(R % "").decode().encode("utf-32"),
+    "svg-utf8-bom": b"\xef\xbb\xbf" + svg(R % ""),
+    "svg-latin1": svg("<text>caf\xe9</text>").decode().encode("latin-1"),
+    "svg-declared-latin1": svg(R % "", pre='<?xml version="1.0" encoding="ISO-8859-1"?>'),
+    "svg-malformed": b"<svg",
+}
+
+data = SVGS.get(kind) or {"png-wide": png(False, 12000, 10), "png-huge": png(False, 9000, 9000), "png": png(), "png-exif": png(True), "jpg": jpeg(), "jpg-exif": jpeg(True), "webp": webp(), "webp-exif": webp(True)}[kind]
 open(out, "wb").write(data + b"\x00" * extra)
 PY
 
@@ -431,13 +483,72 @@ img_case exif-webp 1 image-metadata webp-exif pic.webp
 img_case uppercase-name 1 image-name png Pic.png
 img_case space-name 1 image-name png 'my pic.png'
 img_case leading-dot-name 1 image-name png .hidden.png
-img_case good-svg 0 - svg pic.svg
-img_case svg-script 1 image-svg svg-script pic.svg
-img_case svg-href 1 image-svg svg-href pic.svg
-img_case svg-external-url 1 image-svg svg-url pic.svg
-img_case svg-event-handler 1 image-svg svg-onload pic.svg
-img_case svg-entity 1 image-svg svg-entity pic.svg
-img_case svg-no-viewbox 1 image-svg svg-novb pic.svg
+# svg_case <name> <exit> <code or -> <fixture kind>: the finding carries the [svg-...] code
+svg_case() {
+    local name="$1" want="$2" code="$3" kind="$4" d out rc=0
+    d="$(put "svg-$name" "$good_fm$body
+![A test image used by the fixture.](<pic.svg>)
+")"
+    python3 -I "$mk" "$kind" "$d/content/posts/p/pic.svg"
+    printf 'content/posts/p/pic.svg | %s | test | looked at\n' "$(sha256sum "$d/content/posts/p/pic.svg" | cut -d' ' -f1)" >>"$d/brand/approved-assets.txt"
+    out="$(check_py --root "$d" content/posts/p/pic.svg 2>&1)" || rc=$?
+    if [[ $rc -ne "$want" ]]; then
+        bad "svg $name (exit $rc, want $want): $out"
+    elif [[ "$code" != "-" ]] && ! grep -q "^image-svg: content/posts/p/pic.svg: \[$code\]" <<<"$out"; then
+        bad "svg $name (code $code not reported): $out"
+    else
+        ok "svg $name"
+    fi
+}
+svg_case good-svg 0 - svg
+svg_case good-svg-xml-declaration 0 - svg-xmldecl
+svg_case good-svg-local-style-url 0 - svg-style-local
+svg_case good-svg-local-marker-url 0 - svg-marker
+svg_case script 1 svg-element svg-script
+svg_case script-upper-case 1 svg-element svg-script-upper
+svg_case script-mixed-case 1 svg-element svg-script-mixed
+svg_case script-with-svg-prefix 1 svg-element svg-script-prefixed
+svg_case script-in-xhtml-namespace 1 svg-namespace svg-script-xhtml
+svg_case script-xhtml-default-namespace 1 svg-namespace svg-script-noprefix-ns
+svg_case foreignObject 1 svg-element svg-foreign
+svg_case animate 1 svg-element svg-animate
+svg_case set 1 svg-element svg-set
+svg_case use 1 svg-element svg-use
+svg_case href 1 svg-href svg-href
+svg_case href-upper-case 1 svg-href svg-href-upper
+svg_case xlink-href 1 svg-namespace svg-xlink-href
+svg_case onclick 1 svg-event-handler svg-onclick
+svg_case onclick-case 1 svg-event-handler svg-onclick-case
+svg_case onload-on-root 1 svg-event-handler svg-onload-root
+svg_case unknown-attribute 1 svg-attribute svg-unknown-attr
+svg_case fill-external-url 1 svg-external-ref svg-fill-url
+svg_case fill-relative-url 1 svg-external-ref svg-fill-url-rel
+svg_case style-external-url 1 svg-external-ref svg-style-url
+svg_case style-import 1 svg-external-ref svg-style-import
+svg_case style-css-escape 1 svg-external-ref svg-style-escape
+svg_case javascript-scheme-in-attribute 1 svg-external-ref svg-js-attr
+svg_case url-in-text 1 svg-external-ref svg-text-url
+svg_case scheme-in-text 1 svg-external-ref svg-text-scheme
+svg_case protocol-relative-in-text 1 svg-external-ref svg-text-protorel
+svg_case url-in-desc 1 svg-external-ref svg-title-url
+svg_case pi-stylesheet 1 svg-pi svg-pi-stylesheet
+svg_case pi-wrapped-payload 1 svg-pi svg-pi-wrapped
+svg_case pi-before-content 1 svg-pi svg-pi-late
+svg_case comment 1 svg-comment svg-comment
+svg_case cdata 1 svg-cdata svg-cdata
+svg_case doctype 1 svg-doctype svg-doctype
+svg_case doctype-entity-lower-case 1 svg-doctype svg-doctype-lower
+svg_case foreign-namespace-declaration 1 svg-namespace svg-ns-other
+svg_case no-namespace 1 svg-namespace svg-no-ns
+svg_case no-viewbox 1 svg-viewbox svg-novb
+svg_case utf16-with-bom 1 svg-encoding svg-utf16
+svg_case utf16-le-no-bom 1 svg-encoding svg-utf16le
+svg_case utf16-be-bom 1 svg-encoding svg-utf16be-bom
+svg_case utf32 1 svg-encoding svg-utf32
+svg_case utf8-bom 1 svg-encoding svg-utf8-bom
+svg_case latin1-bytes 1 svg-encoding svg-latin1
+svg_case declared-latin1 1 svg-encoding svg-declared-latin1
+svg_case malformed 1 svg-parse svg-malformed
 img_case wrong-type-gif 1 image-type png pic.gif
 img_case too-big 1 image-size png pic.png 6000000
 img_case unlisted 1 brand-asset png pic.png 0 no

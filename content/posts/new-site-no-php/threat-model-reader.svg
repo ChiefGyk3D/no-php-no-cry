@@ -1,93 +1,88 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 816" width="1200" height="816" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1230" width="900" height="1230" role="img" aria-labelledby="t d">
 <title id="t">2 Reader path</title>
-<desc id="d">Data flow diagram with 4 trust boundaries (dashed boxes): TB6 Visitor browser (untrusted input); TB7 Cloudflare edge and Pages (third-party operated); TB8 Other people's sites; TB9 Release of reports (owner to readers). Elements: Public visitor; Share panel and instance picker (/share.js); Cloudflare edge and Pages static assets; Analytics Pages Function (planned); Cloudflare Web Analytics beacon; Analytics database (planned); Report job (owner runs, aggregates only); Reader of released reports; Other sites (link targets, share targets, a Mastodon server); Third-party embeds (none shipped). Flows: Public visitor to Cloudflare edge and Pages static assets, HTTPS GET page; Cloudflare edge and Pages static assets to Public visitor, HTML, CSS, pinned scripts; Public visitor to Other sites (link targets, share targets, a Mastodon server), Follow an external link; Public visitor to Share panel and instance picker (/share.js), Click a share button; Share panel and instance picker (/share.js) to Other sites (link targets, share targets, a Mastodon server), Open share URL in a new window; Cloudflare edge and Pages static assets to Analytics Pages Function (planned), Invoke on HTML routes; Analytics Pages Function (planned) to Analytics database (planned), Insert one row, bounded by a timer; Cloudflare Web Analytics beacon to Cloudflare edge and Pages static assets, Beacon reports to the site; Analytics database (planned) to Report job (owner runs, aggregates only), Read report views; Report job (owner runs, aggregates only) to Reader of released reports, Released aggregate report.</desc>
+<desc id="d">Data flow diagram with 4 trust boundaries (dashed boxes): TB6 Visitor browser (untrusted input); TB7 Cloudflare edge and Pages (third-party operated); TB8 Other people's sites; TB9 Release of reports (owner to readers). Elements: Public visitor; Share panel and instance picker (/share.js); Cloudflare edge and Pages static assets; Analytics Pages Function (planned); Analytics database (planned); Cloudflare Web Analytics beacon; Other sites (link targets, share targets, a Mastodon server); Third-party embeds (none shipped); Report job (owner runs, aggregates only); Reader of released reports. Flows: Public visitor to Cloudflare edge and Pages static assets, HTTPS GET page; Cloudflare edge and Pages static assets to Public visitor, HTML, CSS, pinned scripts; Public visitor to Other sites (link targets, share targets, a Mastodon server), Follow an external link; Public visitor to Share panel and instance picker (/share.js), Click a share button; Share panel and instance picker (/share.js) to Other sites (link targets, share targets, a Mastodon server), Open share URL in a new window; Cloudflare edge and Pages static assets to Analytics Pages Function (planned), Invoke on HTML routes; Analytics Pages Function (planned) to Analytics database (planned), Insert one row, bounded by a timer; Cloudflare Web Analytics beacon to Cloudflare edge and Pages static assets, Beacon reports to the site; Analytics database (planned) to Report job (owner runs, aggregates only), Read report views; Report job (owner runs, aggregates only) to Reader of released reports, Released aggregate report.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a5b0c0"/></marker>
 </defs>
-<rect width="1200" height="816" fill="#12141a"/>
-<g transform="scale(0.852273) translate(4 -96)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="18">
-<rect x="380" y="120" width="640" height="700" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
-<rect x="20" y="120" width="330" height="430" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
-<rect x="1050" y="120" width="330" height="430" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
-<rect x="380" y="850" width="640" height="180" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
-<path d="M210 239Q322.8 277.5 430 249.6" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M430 192.6Q327.2 157.5 210 188" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M125 210Q650 215 1175 220" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M125 250Q125 295 125 330" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M210 367Q650 300 1080 234.5" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M525 280Q525 352.5 525 430" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M620 480Q660 480 700 480" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M700 302.8Q660 285 620 267.2" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M795 480Q660 705 525 930" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<path d="M620 933.7Q655 935 700 936.7" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
-<rect x="40" y="170" width="170" height="80" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
-<text x="125" y="215" fill="#eceff4" text-anchor="middle">Public visitor</text>
-<rect x="40" y="330" width="170" height="100" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
-<text x="125" y="364" fill="#eceff4" text-anchor="middle">Share panel and</text>
-<text x="125" y="385" fill="#eceff4" text-anchor="middle">instance picker</text>
-<text x="125" y="406" fill="#eceff4" text-anchor="middle">(/share.js)</text>
-<rect x="430" y="170" width="190" height="110" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
-<text x="525" y="219.5" fill="#eceff4" text-anchor="middle">Cloudflare edge and</text>
-<text x="525" y="240.5" fill="#eceff4" text-anchor="middle">Pages static assets</text>
-<rect x="430" y="430" width="190" height="100" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
-<text x="525" y="474.5" fill="#eceff4" text-anchor="middle">Analytics Pages</text>
-<text x="525" y="495.5" fill="#eceff4" text-anchor="middle">Function (planned)</text>
-<rect x="700" y="300" width="190" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
-<text x="795" y="339.5" fill="#eceff4" text-anchor="middle">Cloudflare Web</text>
-<text x="795" y="360.5" fill="#eceff4" text-anchor="middle">Analytics beacon</text>
-<rect x="700" y="440" width="190" height="80" fill="#1e232d" stroke="none"/>
-<path d="M700 440H890 M700 520H890" stroke="#e0a8ff" stroke-width="2" fill="none"/>
-<text x="795" y="474.5" fill="#eceff4" text-anchor="middle">Analytics database</text>
-<text x="795" y="495.5" fill="#eceff4" text-anchor="middle">(planned)</text>
-<rect x="430" y="880" width="190" height="100" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
-<text x="525" y="914" fill="#eceff4" text-anchor="middle">Report job (owner</text>
-<text x="525" y="935" fill="#eceff4" text-anchor="middle">runs, aggregates</text>
-<text x="525" y="956" fill="#eceff4" text-anchor="middle">only)</text>
-<rect x="700" y="900" width="170" height="80" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
-<text x="785" y="934.5" fill="#eceff4" text-anchor="middle">Reader of</text>
-<text x="785" y="955.5" fill="#eceff4" text-anchor="middle">released reports</text>
-<rect x="1080" y="170" width="190" height="100" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
-<text x="1175" y="193.5" fill="#eceff4" text-anchor="middle">Other sites (link</text>
-<text x="1175" y="214.5" fill="#eceff4" text-anchor="middle">targets, share</text>
-<text x="1175" y="235.5" fill="#eceff4" text-anchor="middle">targets, a Mastodon</text>
-<text x="1175" y="256.5" fill="#eceff4" text-anchor="middle">server)</text>
-<rect x="1080" y="330" width="190" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
-<text x="1175" y="369.5" fill="#eceff4" text-anchor="middle">Third-party embeds</text>
-<text x="1175" y="390.5" fill="#eceff4" text-anchor="middle">(none shipped)</text>
-<rect x="258.1" y="248.4" width="126.5" height="25" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="321.4" y="264.4" fill="#eceff4" font-size="16" text-anchor="middle">HTTPS GET page</text>
-<rect x="247.9" y="151.9" width="151.4" height="44" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="323.6" y="167.9" fill="#eceff4" font-size="16" text-anchor="middle">HTML, CSS, pinned</text>
-<text x="323.6" y="186.9" fill="#eceff4" font-size="16" text-anchor="middle">scripts</text>
-<rect x="622.6" y="193.5" width="159.8" height="44" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="702.5" y="209.5" fill="#eceff4" font-size="16" text-anchor="middle">Follow an external</text>
-<text x="702.5" y="228.5" fill="#eceff4" font-size="16" text-anchor="middle">link</text>
-<rect x="36.8" y="280" width="176.4" height="25" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="125" y="296" fill="#eceff4" font-size="16" text-anchor="middle">Click a share button</text>
-<rect x="519.9" y="285" width="168.1" height="44" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="604" y="301" fill="#eceff4" font-size="16" text-anchor="middle">Open share URL in a</text>
-<text x="604" y="320" fill="#eceff4" font-size="16" text-anchor="middle">new window</text>
-<rect x="461.8" y="331.8" width="126.5" height="44" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="525" y="347.8" fill="#eceff4" font-size="16" text-anchor="middle">Invoke on HTML</text>
-<text x="525" y="366.8" fill="#eceff4" font-size="16" text-anchor="middle">routes</text>
-<rect x="613.4" y="439" width="93.2" height="82" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="660" y="455" fill="#eceff4" font-size="16" text-anchor="middle">Insert one</text>
-<text x="660" y="474" fill="#eceff4" font-size="16" text-anchor="middle">row,</text>
-<text x="660" y="493" fill="#eceff4" font-size="16" text-anchor="middle">bounded by</text>
-<text x="660" y="512" fill="#eceff4" font-size="16" text-anchor="middle">a timer</text>
-<rect x="613.4" y="253.5" width="93.2" height="63" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="660" y="269.5" fill="#eceff4" font-size="16" text-anchor="middle">Beacon</text>
-<text x="660" y="288.5" fill="#eceff4" font-size="16" text-anchor="middle">reports to</text>
-<text x="660" y="307.5" fill="#eceff4" font-size="16" text-anchor="middle">the site</text>
-<rect x="584.3" y="692.5" width="151.4" height="25" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="660" y="708.5" fill="#eceff4" font-size="16" text-anchor="middle">Read report views</text>
-<rect x="615.1" y="903.6" width="84.9" height="63" rx="4" fill="#12141a" fill-opacity="0.92"/>
-<text x="657.5" y="919.6" fill="#eceff4" font-size="16" text-anchor="middle">Released</text>
-<text x="657.5" y="938.6" fill="#eceff4" font-size="16" text-anchor="middle">aggregate</text>
-<text x="657.5" y="957.6" fill="#eceff4" font-size="16" text-anchor="middle">report</text>
-<text x="390" y="136" fill="#fbbf24" font-size="16" font-weight="bold" stroke="#12141a" stroke-width="4" paint-order="stroke">TB7 Cloudflare edge and Pages (third-party operated)</text>
-<text x="30" y="136" fill="#fbbf24" font-size="16" font-weight="bold" stroke="#12141a" stroke-width="4" paint-order="stroke">TB6 Visitor browser (untrusted input)</text>
-<text x="1060" y="136" fill="#fbbf24" font-size="16" font-weight="bold" stroke="#12141a" stroke-width="4" paint-order="stroke">TB8 Other people's sites</text>
-<text x="390" y="866" fill="#fbbf24" font-size="16" font-weight="bold" stroke="#12141a" stroke-width="4" paint-order="stroke">TB9 Release of reports (owner to readers)</text>
+<rect width="900" height="1230" fill="#12141a"/>
+<g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="17">
+<text x="20" y="34" fill="#eceff4" font-size="22" font-weight="bold">2 Reader path</text>
+<rect x="20" y="70" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="92" fill="#fbbf24" font-weight="bold">TB6 Visitor browser (untrusted input)</text>
+<rect x="20" y="320" width="860" height="380" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="342" fill="#fbbf24" font-weight="bold">TB7 Cloudflare edge and Pages (third-party operated)</text>
+<rect x="20" y="780" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="802" fill="#fbbf24" font-weight="bold">TB8 Other people's sites</text>
+<rect x="20" y="1030" width="860" height="170" rx="10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 6"/>
+<text x="32" y="1052" fill="#fbbf24" font-weight="bold">TB9 Release of reports (owner to readers)</text>
+<path d="M295 210 L295 315 L535 315 L535 395 L350 395" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 415 L545 415 L545 185 L350 185" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 145 L525 145 L525 95 L825 95 L825 805 L295 805 L295 830" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 165 L550 165" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M800 185 L835 185 L835 945 L295 945 L295 920" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 435 L550 435" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M605 460 L605 555 L295 555 L295 580" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M550 605 L375 605 L375 485 L295 485 L295 460" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 645 L425 645 L425 1105 L350 1105" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M350 1125 L550 1125" fill="none" stroke="#a5b0c0" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="100" y="120" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="225" y="171" fill="#eceff4" text-anchor="middle">Public visitor</text>
+<rect x="550" y="120" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="160.5" fill="#eceff4" text-anchor="middle">Share panel and instance</text>
+<text x="675" y="181.5" fill="#eceff4" text-anchor="middle">picker (/share.js)</text>
+<rect x="100" y="370" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="225" y="410.5" fill="#eceff4" text-anchor="middle">Cloudflare edge and Pages</text>
+<text x="225" y="431.5" fill="#eceff4" text-anchor="middle">static assets</text>
+<rect x="550" y="370" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="410.5" fill="#eceff4" text-anchor="middle">Analytics Pages Function</text>
+<text x="675" y="431.5" fill="#eceff4" text-anchor="middle">(planned)</text>
+<rect x="100" y="580" width="250" height="90" fill="#1e232d" stroke="none"/>
+<path d="M100 580H350 M100 670H350" stroke="#e0a8ff" stroke-width="2" fill="none"/>
+<text x="225" y="620.5" fill="#eceff4" text-anchor="middle">Analytics database</text>
+<text x="225" y="641.5" fill="#eceff4" text-anchor="middle">(planned)</text>
+<rect x="550" y="580" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="620.5" fill="#eceff4" text-anchor="middle">Cloudflare Web Analytics</text>
+<text x="675" y="641.5" fill="#eceff4" text-anchor="middle">beacon</text>
+<rect x="100" y="830" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="225" y="860" fill="#eceff4" text-anchor="middle">Other sites (link</text>
+<text x="225" y="881" fill="#eceff4" text-anchor="middle">targets, share targets, a</text>
+<text x="225" y="902" fill="#eceff4" text-anchor="middle">Mastodon server)</text>
+<rect x="550" y="830" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="675" y="870.5" fill="#eceff4" text-anchor="middle">Third-party embeds (none</text>
+<text x="675" y="891.5" fill="#eceff4" text-anchor="middle">shipped)</text>
+<rect x="100" y="1080" width="250" height="90" rx="22" fill="#1e232d" stroke="#7fe0a8" stroke-width="2"/>
+<text x="225" y="1120.5" fill="#eceff4" text-anchor="middle">Report job (owner runs,</text>
+<text x="225" y="1141.5" fill="#eceff4" text-anchor="middle">aggregates only)</text>
+<rect x="550" y="1080" width="250" height="90" fill="#1e232d" stroke="#8fb4ff" stroke-width="2"/>
+<text x="675" y="1120.5" fill="#eceff4" text-anchor="middle">Reader of released</text>
+<text x="675" y="1141.5" fill="#eceff4" text-anchor="middle">reports</text>
+<rect x="370.1" y="381.5" width="144.9" height="27" rx="4" fill="#12141a"/>
+<text x="442.5" y="399.5" fill="#eceff4" text-anchor="middle">HTTPS GET page</text>
+<rect x="458.5" y="264.5" width="173" height="48" rx="4" fill="#12141a"/>
+<text x="545" y="282.5" fill="#eceff4" text-anchor="middle">HTML, CSS, pinned</text>
+<text x="545" y="303.5" fill="#eceff4" text-anchor="middle">scripts</text>
+<rect x="445.5" y="791.5" width="229.1" height="27" rx="4" fill="#12141a"/>
+<text x="560" y="809.5" fill="#eceff4" text-anchor="middle">Follow an external link</text>
+<rect x="382.2" y="141" width="135.6" height="48" rx="4" fill="#12141a"/>
+<text x="450" y="159" fill="#eceff4" text-anchor="middle">Click a share</text>
+<text x="450" y="180" fill="#eceff4" text-anchor="middle">button</text>
+<rect x="370.5" y="921" width="173" height="48" rx="4" fill="#12141a"/>
+<text x="457" y="939" fill="#eceff4" text-anchor="middle">Open share URL in</text>
+<text x="457" y="960" fill="#eceff4" text-anchor="middle">a new window</text>
+<rect x="377.6" y="411" width="144.9" height="48" rx="4" fill="#12141a"/>
+<text x="450" y="429" fill="#eceff4" text-anchor="middle">Invoke on HTML</text>
+<text x="450" y="450" fill="#eceff4" text-anchor="middle">routes</text>
+<rect x="490.5" y="483.5" width="229.1" height="48" rx="4" fill="#12141a"/>
+<text x="605" y="501.5" fill="#eceff4" text-anchor="middle">Insert one row, bounded</text>
+<text x="605" y="522.5" fill="#eceff4" text-anchor="middle">by a timer</text>
+<rect x="269.8" y="503" width="210.4" height="48" rx="4" fill="#12141a"/>
+<text x="375" y="521" fill="#eceff4" text-anchor="middle">Beacon reports to the</text>
+<text x="375" y="542" fill="#eceff4" text-anchor="middle">site</text>
+<rect x="338.5" y="746.5" width="173" height="27" rx="4" fill="#12141a"/>
+<text x="425" y="764.5" fill="#eceff4" text-anchor="middle">Read report views</text>
+<rect x="430.9" y="1090.5" width="98.2" height="69" rx="4" fill="#12141a"/>
+<text x="480" y="1108.5" fill="#eceff4" text-anchor="middle">Released</text>
+<text x="480" y="1129.5" fill="#eceff4" text-anchor="middle">aggregate</text>
+<text x="480" y="1150.5" fill="#eceff4" text-anchor="middle">report</text>
 </g>
 </svg>
