@@ -96,7 +96,7 @@
  * glow are background layers of two pseudo-elements. --s is the scale of the
  * traced 1332 px wide original (0.24 is the Twitch panel size). */
 .bx {
-  --s: 0.24;
+  --s: calc(0.24 * var(--k, 1));
   --a: linear-gradient(var(--accent), var(--accent));
   --f: linear-gradient(var(--frame-fill), var(--frame-fill));
   position: relative;
@@ -105,7 +105,7 @@
 }
 
 .bx.s18 {
-  --s: 0.18;
+  --s: calc(0.18 * var(--k, 1));
 }
 
 .bx::before,

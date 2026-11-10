@@ -23,6 +23,10 @@ Fails (exit 1) on any of, printed as "[rule] page@width detail":
               of its box: a handle or name that does not wrap (issue 170)
   target      a control under 44 x 44 CSS px (links inside running text are
               exempt, WCAG 2.5.8 inline exception)
+  scale       issue 358: at 1920x930 the root font is the user's 16 px; at 2560x1440, 3440x1440
+              and 3840x2160 the root font and the content column are at least 1.25 times
+              (1.9 at 3840) their 1920 size, the page does not scroll sideways, and a short
+              page still fits a 2560x1300 viewport
   hero        issue 308: at 1878x930 (the owner's real window) and 1366x768 the
               buttons of a .hero-actions row share one line, and the page has no
               sideways scroll
@@ -114,6 +118,18 @@ FIT_ALLOW = {
 # viewport is about 1878x930. The hero row must hold one line from 1366 wide up.
 LAYOUT_VIEWPORTS = [(1878, 930), (1366, 768)]
 BOX_DEAD_MAX = 0.25
+# Issue 358: above 1920 px the root font size, and so every rem, follows the viewport. Each row is
+# (width, height, least ratio of the root font and the content column to their 1920x930 size).
+SCALE_BASE = (1920, 930)
+SCALE_VIEWPORTS = [(2560, 1440, 1.25), (3440, 1440, 1.25), (3840, 2160, 1.9)]
+SCALE_FIT = (2560, 1300)  # a 2560x1440 screen less the browser's own bars
+JS_SCALE = """(() => {
+  const d = document.documentElement;
+  const col = document.querySelector('.wrap') || document.querySelector('main');
+  const cs = getComputedStyle(col);
+  return {font: parseFloat(getComputedStyle(d).fontSize), col: col.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+          sw: d.scrollWidth, cw: d.clientWidth, sh: d.scrollHeight, ch: d.clientHeight};
+})()"""
 JS_LAYOUT = """(() => {
   const out = [];
   const d = document.documentElement;
@@ -672,6 +688,45 @@ def layout_one(cdp, base, name, url, w, h, fails):
         pg.close()
 
 
+def scale_one(cdp, base, name, url, fit, fails):
+    """Issue 358: the page uses a large screen. Type and the content column grow with the viewport
+    above 1920 wide; at 1920x930 the root font is the default 16 px, so nothing there has moved."""
+    pg = Page(cdp)
+
+    def measure(w, h):
+        pg.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": h, "deviceScaleFactor": 1, "mobile": False})
+        pg.call("Page.navigate", {"url": base + url})
+        cdp.wait_event("Page.loadEventFired", pg.s, 60)
+        cdp.events[:] = [m for m in cdp.events if m.get("method") != "Page.loadEventFired"]
+        pg.js("document.fonts.ready.then(() => new Promise(r => setTimeout(r, 400)))")
+        return pg.js(JS_SCALE)
+
+    try:
+        pg.call("Page.enable")
+        pg.call("Network.enable")
+        pg.call("Network.setCacheDisabled", {"cacheDisabled": True})
+        b = measure(*SCALE_BASE)
+        if abs(b["font"] - 16) > 0.01:
+            fails.append("[scale] %s@%dx%d the root font is %.2f px, not the default 16 px" % (name, SCALE_BASE[0], SCALE_BASE[1], b["font"]))
+        for w, h, least in SCALE_VIEWPORTS:
+            m = measure(w, h)
+            label = "%s@%dx%d" % (name, w, h)
+            if m["font"] < b["font"] * least - 0.01:
+                fails.append("[scale] %s the root font is %.1f px, under %.2f times %.1f px" % (label, m["font"], least, b["font"]))
+            if m["col"] < b["col"] * least - 1:
+                fails.append("[scale] %s the content column is %.0f px, under %.2f times %.0f px" % (label, m["col"], least, b["col"]))
+            if m["sw"] > m["cw"]:
+                fails.append("[scale] %s the page scrolls sideways: %d > %d" % (label, m["sw"], m["cw"]))
+        if fit:
+            m = measure(*SCALE_FIT)
+            if m["sh"] > m["ch"]:
+                fails.append("[scale] %s@%dx%d a short page needs a vertical scroll: %d px tall in a %d px viewport" % (name, SCALE_FIT[0], SCALE_FIT[1], m["sh"], m["ch"]))
+    except (TimeoutError, RuntimeError) as err:
+        fails.append("[setup] %s scale run failed: %s" % (name, err))
+    finally:
+        pg.close()
+
+
 def first_post(site):
     d = os.path.join(site, "posts")
     if os.path.isdir(d):
@@ -741,6 +796,7 @@ def main():
                 layout_one(cdp, base, name, url, lw, lh, fails)
             if name not in allow:
                 fit_one(cdp, base, name, url, fails, rows)
+            scale_one(cdp, base, name, url, name not in allow, fails)
             if not a.no_zoom:
                 for zname, zw, zh, dpr in ZOOM_VIEWPORTS:
                     run_one(cdp, base, name, url, zw, zh, dpr, False, False, axe_src, has_theme, a.shots, fails, rows)

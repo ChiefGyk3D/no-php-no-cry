@@ -27,6 +27,7 @@ GOOD_CSS = (
     ".nav-menu ul{position:absolute;top:60px;left:0;right:0;margin:0;padding:0;list-style:none;background:#222;border:0}"
     "@media(min-width:64rem){.nav-menu .nav-toggle{display:none}.nav-menu ul{position:static;display:flex;gap:8px;background:none}}"
     "main{padding:16px}"
+    "@media(min-width:1921px){html{font-size:max(100%,min(calc(100vw/120),calc(100vh/60)))}}"
     ".tiles{list-style:none;margin:0;padding:0}.tile{width:12rem;border:1px solid #888;padding:8px;box-sizing:border-box}.part{white-space:nowrap}"
     ".wide{width:3000px;height:1px;background:#fff}"
     ".small{display:block;width:30px;height:20px;min-width:0;min-height:0}"
@@ -111,6 +112,9 @@ def mutate(d, m):
     elif m == "tall":
         edit(d, "site.css", "main{", ".tall{height:2000px}main{")  # a class, not a style attribute: the CSP forbids inline style
         edit(d, "index.html", "<footer>", '<div class="tall"></div><footer>')
+    elif m == "no-scale":
+        # Issue 358: the root font stays 16 px on a large screen.
+        edit(d, "site.css", "@media(min-width:1921px){html{font-size:max(100%,min(calc(100vw/120),calc(100vh/60)))}}", "")
     elif m in ("hero-wrap", "hero-ok"):
         # Issue 308: three wide hero buttons wrap at 1878 and 1366; narrow ones share a row.
         width = "700px" if m == "hero-wrap" else "100px"

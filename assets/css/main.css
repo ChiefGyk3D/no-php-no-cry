@@ -16,6 +16,7 @@
   /* Text inside a bordered box (issue 308): wider than the page prose so a wide box is not
    * left with a dead right side; about 100 to 115 characters of Jost per line at most. */
   --box-prose-max: 100ch;
+  --k: 1;
 }
 
 @media (min-width: 60rem) {
@@ -40,6 +41,27 @@
 @media (min-width: 120rem) {
   :root {
     --page-max: 90rem;
+  }
+}
+
+/* Large screens (issue 358). Up to 1920 px wide nothing here applies, so every page is as it was.
+ * Above that the root font size follows the viewport: 16 px at 1920 wide, 21.3 px at 2560, 32 px at
+ * 3840. It is capped by the viewport height (at 1.0 per 60 px of height) so a very wide, short
+ * window (an ultrawide) does not blow the type up past what fits, and it never goes below the
+ * user's own size. Every rem value then scales together: type, space, the --page-max steps above,
+ * the home grid and the hero. --k is the same ratio as a plain number for the traced frame art,
+ * which is drawn in px and scaled with --s (borders.css); without typed division it stays 1. */
+@media (min-width: 1921px) {
+  html {
+    font-size: max(100%, min(calc(100vw / 120), calc(100vh / 60)));
+  }
+}
+
+@supports (scale: calc(1px / 1px)) {
+  @media (min-width: 1921px) {
+    :root {
+      --k: calc(max(16px, min(calc(100vw / 120), calc(100vh / 60))) / 16px);
+    }
   }
 }
 

@@ -98,6 +98,9 @@ for ok in hero-ok box-ok; do
     if [[ $rc -eq 0 ]]; then pass "$ok fixture passes the layout rules"; else fail "$ok fixture: exit $rc: $out"; fi
 done
 
+# Issue 358: above 1920 px the root font and the content column grow; without the rule [scale] fails.
+mutate no-scale scale no-scale
+
 # The iPhone 15 viewport (issue 123): 393 x 852 is its own run. A page that overflows
 # only at that size passes at 390 x 844 and fails at 393 x 852 and in the default run.
 cp -r "$work/good" "$work/m-overflow-393"
