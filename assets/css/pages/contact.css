@@ -153,3 +153,9 @@
     white-space: normal;
   }
 }
+
+/* Postal mailbox (issue 362): <address> is italic by default; keep it upright like the other copy. */
+.contact-postal {
+  font-style: normal;
+  overflow-wrap: anywhere;
+}

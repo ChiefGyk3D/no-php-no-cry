@@ -57,6 +57,10 @@ def front(key):
 seo, desc = front("seoTitle"), front("description")
 if not seo or not desc:
     errs.append("content/contact/index.md needs seoTitle and description")
+postal = [front(key) for key in ("postalName", "postalStreet", "postalSuite", "postalLocality")]
+want_postal = ["ChiefGyk3D", "3000 E Main St", "Suite B 187", "Columbus, OH 43209"]
+if postal != want_postal:
+    errs.append("content/contact/index.md needs the public postal mailbox")
 h = read(page)
 if h is None:
     errs.append("the /contact/ page is not built")
@@ -78,6 +82,16 @@ if desc and not (70 <= len(desc) <= 160):
     errs.append("description must be 70 to 160 characters (found %d)" % len(desc))
 if chr(8212) in h or chr(8211) in h:
     errs.append("an em or en dash is on the page")
+address = re.search(r'<address class="?contact-postal"?>(.*?)</address>', h, re.S)
+if not address:
+    errs.append("the Contact page needs a semantic postal address")
+else:
+    address_text = html.unescape(re.sub(r"<[^>]*>", "\n", address.group(1)))
+    address_lines = [line.strip() for line in address_text.splitlines() if line.strip()]
+    if address_lines != want_postal:
+        errs.append("the postal address must contain the public mailbox as plain text")
+    if re.search(r"<a\b", address.group(1), re.I):
+        errs.append("the postal address must not be a link")
 sm = read(pub + "/sitemap.xml") or ""
 if "/contact/</loc>" not in sm:
     errs.append("the sitemap does not list /contact/")
