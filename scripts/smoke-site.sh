@@ -35,7 +35,9 @@
 #                 are read with scripts/scan-markup.py, the build check's parser:
 #                 no script element other than the page's own pinned script, once
 #                 (<script src=/copy.js></script> on /support/, /search.js on
-#                 /search/; the same tag on another page is script-wrong-page;
+#                 /search/, /share.js on each post and journal entry, one path
+#                 segment under /posts/ or /journal/; the same tag on another
+#                 page is script-wrong-page;
 #                 none at all without a pinned script), no handler, no
 #                 javascript: URL. It reads the served page only; it does not
 #                 fetch or inspect any other script file (the build checks do).

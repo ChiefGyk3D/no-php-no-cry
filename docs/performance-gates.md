@@ -22,7 +22,7 @@ largest candidate of an `<img srcset>`.
 
 | Rule | Limit | Today (largest) | Source |
 |---|---|---|---|
-| `js-count`, `js-name`, `js-page` | only the hash-pinned scripts ship, each only on its own page; the table is read from `PINNED_SCRIPTS` in `scripts/artifact-rules.sh` (today `/copy.js` on `/support/`, `/search.js` on `/search/` and `/share.js` on posts and journal entries), and `test-check-budget.sh` fails if the two ever differ; any `.js`, `.mjs` or `.cjs` file counts, the file count limit is the size of that table, and each script is under 1 KB gzip (`js-size`) | `/copy.js` and `/search.js` (2 files) | docs/pinned-script.md; the hash pin and CSP rules stay in `check-output.sh` |
+| `js-count`, `js-name`, `js-page` | only the hash-pinned scripts ship, each only on its own page; the table is read from `PINNED_SCRIPTS` in `scripts/artifact-rules.sh` (today `/copy.js` on `/support/`, `/search.js` on `/search/` and `/share.js` on posts and journal entries), and `test-check-budget.sh` fails if the two ever differ; any `.js`, `.mjs` or `.cjs` file counts, the file count limit is the size of that table, and each script is under 1 KB gzip (`js-size`) | `/copy.js`, `/search.js` and `/share.js` (3 files) | docs/pinned-script.md; the hash pin and CSP rules stay in `check-output.sh` |
 | `js-size` | 1 KB gzip | n/a | brief section 10 |
 | `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 6.1 KB (6.3 KB on Home and 404) | brief (target 12 KB) |
 | `font-count`, `font-size` | at most 2 font files per page, each 30 KB transferred | Jost 26.6 KB, Orbitron 19.9 KB | brief says one font; the brand kit ships two (Jost body, Orbitron headings), so the count is 2 |
