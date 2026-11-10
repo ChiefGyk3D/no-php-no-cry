@@ -48,6 +48,14 @@
       <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
       <p class="pgp-key-link"><a href="{{ $c.pgp_url | relURL }}">PGP public key</a></p>
       {{- end }}
+      <div class="contact-postal-row">
+      <p class="contact-postal-label">Postal mail:</p>
+      <address class="contact-postal">{{ .Params.postalName }}<br>
+        {{- .Params.postalStreet }}<br>
+        {{- .Params.postalSuite }}<br>
+        {{- .Params.postalLocality -}}
+      </address>
+      </div>
     </section>
   </div>
 </article>
