@@ -1,0 +1,45 @@
+/* /contact/ (issue 329). Tokens only. Two panels side by side from 48rem, stacked below. */
+.page-contact .contact-lede {
+  margin-top: var(--space-5);
+}
+
+.contact-grid {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 48rem) {
+  .contact-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.contact-grid h2 {
+  margin-top: 0;
+  font-size: var(--text-lg);
+}
+
+.contact-grid .contact-links {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.contact-tile {
+  display: block;
+}
+
+.contact-email {
+  overflow-wrap: anywhere;
+}
+
+.contact-grid code,
+.contact-grid .tile {
+  overflow-wrap: anywhere;
+}
+
+.contact-tile .meta {
+  display: block;
+}

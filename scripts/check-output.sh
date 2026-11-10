@@ -300,9 +300,9 @@ while IFS= read -r -d '' f; do
     fi
 
     # The one owner-approved business address (data/about.yaml) may appear on the
-    # About page only, as text and as a mailto: link to exactly that address.
+    # Contact page only, as text and as a mailto: link to exactly that address.
     email_opts=()
-    if [[ "$rel" == about/index.html ]]; then
+    if [[ "$rel" == contact/index.html ]]; then
         about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
         [[ -n "$about_email" ]] && email_opts=(--allow-email "$about_email")
     fi

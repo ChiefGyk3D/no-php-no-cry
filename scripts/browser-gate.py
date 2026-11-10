@@ -94,6 +94,7 @@ PAGES = [
     ("resume", "/resume/"),
     ("search", "/search/"),
     ("privacy", "/privacy/"),
+    ("contact", "/contact/"),
     ("404", "/no-such-page-gate/"),
 ]
 # Standing rule (issue 123): in a 1920x1080 browser the content viewport is about
