@@ -89,6 +89,27 @@ if "mailto:" in ab:
     errs.append("the About page still carries the email link")
 if "/contact/" not in ab:
     errs.append("the About page must point to /contact/")
+# The Discord and Matrix tiles (issue 329): icon, name and address in separate elements, a hint,
+# an accessible name with both platform and address, new-tab link handled like other external links.
+tiles = re.findall(r'<a class="?tile contact-tile"?[^>]*>.*?</a>', h, re.S)
+if len(tiles) != 2:
+    errs.append("expected 2 contact tiles, found %d" % len(tiles))
+for t, n in zip(tiles, ("Discord", "Matrix")):
+    if 'social-icon--' + n.lower() not in t:
+        errs.append("the %s tile has no platform icon" % n)
+    nm = re.search(r'class="?contact-tile-name"?[^>]*>([^<]*)<', t)
+    ad = re.search(r'class="?contact-tile-address"?[^>]*>(.*?)(?=<span[^>]*contact-tile-go)', t, re.S)
+    if not nm or nm.group(1).strip() != n:
+        errs.append("the %s tile needs the name alone in .contact-tile-name" % n)
+    if not ad or not re.sub("<[^>]*>", "", ad.group(1)).strip():
+        errs.append("the %s tile needs the address alone in .contact-tile-address" % n)
+    al = re.search(r'aria-label="([^"]*)"', t)
+    if not al or n not in al.group(1) or not ad or html.unescape(re.sub("<[^>]*>", "", ad.group(1))).strip() not in html.unescape(al.group(1)):
+        errs.append("the %s tile accessible name must include the platform and the address" % n)
+    if 'contact-tile-go' not in t:
+        errs.append("the %s tile needs an open-in-new hint" % n)
+    if 'target=_blank' not in t.replace('"', '') or 'noopener' not in t:
+        errs.append("the %s tile must open in a new tab with rel noopener" % n)
 for e in errs:
     print(e)
 sys.exit(1 if errs else 0)

@@ -27,10 +27,6 @@
   margin-top: var(--space-4);
 }
 
-.contact-tile {
-  display: block;
-}
-
 .contact-email {
   overflow-wrap: anywhere;
 }
@@ -40,6 +36,105 @@
   overflow-wrap: anywhere;
 }
 
-.contact-tile .meta {
-  display: block;
+/* Discord and Matrix tiles (issue 329): icon, name over address, an open-in-new hint. The L1 ticks and
+ * hairline come from .tile; hover is the amber fill from main.css, so the icon, address and hint
+ * switch to the dark on-accent color with it. The tiles stack in one column at every width (the
+ * Matrix room address is long); each fills the panel, so they are the same size. */
+.contact-grid .contact-links {
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  padding: 0;
+}
+
+.contact-grid .contact-links > li {
+  display: flex;
+}
+
+.contact-grid .contact-tile {
+  display: grid;
+  flex: 1;
+  grid-template-columns: var(--space-6) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon name go"
+    "icon address go";
+  align-items: center;
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  min-height: calc(var(--tap) + var(--space-5));
+  padding: var(--space-4) var(--space-5);
+}
+
+.contact-tile .social-icon {
+  grid-area: icon;
+}
+
+.contact-tile-name {
+  grid-area: name;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.2;
+}
+
+.contact-tile-address {
+  grid-area: address;
+  min-width: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.contact-tile-go {
+  grid-area: go;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-top: var(--chevron-width) solid var(--accent);
+  border-right: var(--chevron-width) solid var(--accent);
+  transform: rotate(45deg);
+  transition: transform var(--duration) ease;
+}
+
+.contact-tile:hover .social-icon,
+.contact-tile:focus-visible .social-icon {
+  background-color: var(--on-accent);
+}
+
+.contact-tile:hover .contact-tile-address,
+.contact-tile:focus-visible .contact-tile-address {
+  color: var(--on-accent);
+}
+
+.contact-tile:hover .contact-tile-go,
+.contact-tile:focus-visible .contact-tile-go {
+  border-color: var(--on-accent);
+  transform: translateX(3px) rotate(45deg);
+}
+
+.contact-tile:focus-visible {
+  outline: var(--rule-accent-width) solid var(--focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-tile-go {
+    transition: none;
+  }
+
+  .contact-tile:hover .contact-tile-go,
+  .contact-tile:focus-visible .contact-tile-go {
+    transform: rotate(45deg);
+  }
+}
+
+/* Narrow screens (320 px reflow): the nowrap handle parts may break inside the tile, and the tile
+ * padding and gaps tighten so the address never reaches the hint. */
+@media (max-width: 24rem) {
+  .contact-grid .contact-tile {
+    column-gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .contact-tile-address .handle-part {
+    white-space: normal;
+  }
 }
