@@ -66,8 +66,11 @@ I record nothing for that visit.
 ## Small numbers
 
 I never look at a group smaller than 5 visits. If fewer than 5 visits share a
-page, a place or a source, that line is hidden. So a small town with one reader
-never shows up as one reader.
+city, that count is merged into its region, then its country, then "other" until
+the total is at least 5. If only one place would be hidden, the next smallest is
+hidden with it. Pages and sources also hide groups smaller than 5. On a small
+audience, someone who knows who reads the blog might still infer a town with a
+few readers. The floor reduces that risk, but does not remove it.
 
 ## How long I keep it
 
