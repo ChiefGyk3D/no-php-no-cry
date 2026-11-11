@@ -18,7 +18,7 @@
 -- a second row written per view against D1's free write quota, and the daily
 -- purge and rollup scan a few days of rows only. INTEGER PRIMARY KEY without
 -- AUTOINCREMENT avoids the sqlite_sequence write too.
--- src_kind: d direct, i internal, r referrer host, o other (an address literal).
+-- src_kind: d direct, i internal, r referrer host, s listed source, o other.
 -- net: from the ASN list in analytics/hosting-asns.mjs; "unknown" means only
 -- "no list matched", never "residential".
 -- bot_class: h likely human, a automated. Bots are counted, in their own rows
@@ -27,7 +27,7 @@ CREATE TABLE view_events (
   id INTEGER PRIMARY KEY,
   ts INTEGER NOT NULL CHECK (ts % 3600 = 0),
   page TEXT NOT NULL CHECK (length(page) BETWEEN 1 AND 96),
-  src_kind TEXT NOT NULL CHECK (src_kind IN ('d', 'i', 'r', 'o')),
+  src_kind TEXT NOT NULL CHECK (src_kind IN ('d', 'i', 'r', 's', 'o')),
   src TEXT NOT NULL DEFAULT '' CHECK (length(src) <= 80),
   country TEXT NOT NULL DEFAULT '' CHECK (length(country) <= 2),
   region TEXT NOT NULL DEFAULT '' CHECK (length(region) <= 3),
@@ -43,7 +43,7 @@ CREATE TABLE view_events (
 CREATE TABLE view_daily (
   day TEXT NOT NULL,
   page TEXT NOT NULL,
-  src_kind TEXT NOT NULL CHECK (src_kind IN ('d', 'i', 'r', 'o')),
+  src_kind TEXT NOT NULL CHECK (src_kind IN ('d', 'i', 'r', 's', 'o')),
   src TEXT NOT NULL,
   country TEXT NOT NULL,
   bot_class TEXT NOT NULL CHECK (bot_class IN ('h', 'a')),

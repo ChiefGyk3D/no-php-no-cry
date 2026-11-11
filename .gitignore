@@ -12,6 +12,7 @@ db/
 # ...except the analytics migration and maintenance SQL (reviewed code, issue 84)
 !analytics/migrations/*.sql
 !analytics/maintenance.sql
+!analytics/rollback/*.sql
 *.wpress
 *.wxr
 *WordPress.*.xml

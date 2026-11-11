@@ -7,8 +7,8 @@
 // What a row holds (see analytics/migrations/0001_page_views.sql):
 //   ts        the hour, rounded down (epoch seconds)
 //   page      the path of a page the origin answered 200 text/html
-//   src_kind  d direct, i internal, r referrer host, o other
-//   src       referrer host only (never a path or query)
+//   src_kind  d direct, i internal, r referrer host, s listed source, o other
+//   src       listed source or referrer host only (never a path or query)
 //   country, region, city   from Cloudflare's request metadata (GEO_LEVEL)
 //   net       hosting-datacenter | vpn-proxy | tor | unknown (ASN list only)
 //   bot_class h likely human, a automated
@@ -28,33 +28,11 @@
 // address is ever hashed), no browser/OS/language/window columns.
 
 import { HOSTING_ASNS } from "./hosting-asns.mjs";
+import { pageSource, referrerInfo as guardedReferrerInfo, sourceList } from "./source-guard.mjs";
 
 const MAX_PATH = 96;
 const MAX_SEGMENTS = 6;
-const MAX_REFERER_CHARS = 2048;
-const MAX_HOST = 80;
 const MAX_UA_CHARS = 512;
-// Closed list of common two-label public suffixes. All other valid names use
-// their final two labels. KNOWN LIMIT: this is not the full Public Suffix List,
-// so a suffix missing here reduces to the suffix itself, which merges unrelated
-// sites into one bucket; it never stores more than two labels. The list is
-// pinned in source and needs no runtime lookup or network.
-const TWO_LABEL_PUBLIC_SUFFIXES = new Set([
-  "ac.in", "ac.jp", "ac.nz", "ac.uk", "ac.za", "co.id", "co.il", "co.in",
-  "co.jp", "co.kr", "co.nz", "co.th", "co.uk", "co.za", "com.ar", "com.au",
-  "com.br", "com.cn", "com.co", "com.hk", "com.mx", "com.my", "com.ng",
-  "com.pe", "com.ph", "com.pk", "com.sg", "com.tr", "com.tw", "com.ua",
-  "com.vn", "edu.au", "edu.cn", "gov.au", "gov.cn", "gov.in", "gov.uk",
-  "net.au", "net.cn", "net.in", "net.nz", "ne.jp", "or.jp", "org.au",
-  "org.cn", "org.in", "org.nz", "org.uk", "org.za",
-]);
-
-function registrableDomain(host) {
-  const labels = host.split(".");
-  if (labels.length < 3) return host;
-  const suffix = labels.slice(-2).join(".");
-  return labels.slice(TWO_LABEL_PUBLIC_SUFFIXES.has(suffix) ? -3 : -2).join(".");
-}
 
 /** Epoch seconds of the start of the hour containing `nowMs`. */
 export function hourBucket(nowMs) {
@@ -84,26 +62,8 @@ export function normalizePath(pathname) {
  * (stored as the word "other", never the address).
  */
 export function referrerInfo(header, siteHost) {
-  const direct = { kind: "d", host: "" };
-  if (typeof header !== "string" || header.length === 0) return direct;
-  if (header.length > MAX_REFERER_CHARS) return direct;
-  let url;
-  try {
-    url = new URL(header);
-  } catch {
-    return direct;
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return direct;
-  const host = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (host.length === 0 || host.length > MAX_HOST) return direct;
-  if (host === String(siteHost || "").toLowerCase()) return { kind: "i", host: "" };
-  if (host.startsWith("[") || /^\d+(\.\d+){3}$/.test(host)) {
-    return { kind: "o", host: "other" };
-  }
-  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(host)) {
-    return direct;
-  }
-  return { kind: "r", host: registrableDomain(host) };
+  const source = guardedReferrerInfo(header, siteHost);
+  return { kind: source.kind, host: source.value };
 }
 
 /**
@@ -188,7 +148,8 @@ export function shouldCount(request, response) {
 
 /**
  * The row to store, or null to store nothing. Never throws for odd input.
- * env.GEO_LEVEL: city (default), region or country.
+ * env.GEO_LEVEL: city (default), region or country. env.SOURCES: optional JSON
+ * array containing the site's closed source-label list.
  */
 export function buildRow(request, response, env, nowMs) {
   if (!shouldCount(request, response)) return null;
@@ -197,12 +158,12 @@ export function buildRow(request, response, env, nowMs) {
   if (page === null) return null;
   const cf = request.cf;
   const geo = geoFrom(cf, env && env.GEO_LEVEL);
-  const ref = referrerInfo(request.headers.get("referer"), url.hostname);
+  const ref = pageSource(url, sourceList(env && env.SOURCES), request.headers.get("referer"), url.hostname);
   return {
     ts: hourBucket(nowMs),
     page,
     src_kind: ref.kind,
-    src: ref.host,
+    src: ref.value,
     country: geo.country,
     region: geo.region,
     city: geo.city,
