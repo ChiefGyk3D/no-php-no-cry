@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Static lint used by the tests. Not part of the Function bundle.
+// Source selection and static lint for the page-view collector.
 //
 // BEST-EFFORT LINT, NOT A SECURITY BOUNDARY. These are regular expressions over
 // source text, not a JavaScript parser (the repository has none and adds no
@@ -19,6 +19,75 @@ const FORBIDDEN = [
   ["precise-location", /\.latitude|\.longitude|\.postalCode|\.metroCode|\.timezone\b/],
   ["network-owner", /asOrganization/],
 ];
+
+const MAX_REFERER_CHARS = 2048;
+const MAX_HOST = 80;
+const SRC_RAW = /^[A-Za-z0-9-]{1,30}$/;
+const SRC = /^[a-z0-9-]{1,30}$/;
+const TWO_LABEL_PUBLIC_SUFFIXES = new Set([
+  "ac.in", "ac.jp", "ac.nz", "ac.uk", "ac.za", "co.id", "co.il", "co.in",
+  "co.jp", "co.kr", "co.nz", "co.th", "co.uk", "co.za", "com.ar", "com.au",
+  "com.br", "com.cn", "com.co", "com.hk", "com.mx", "com.my", "com.ng",
+  "com.pe", "com.ph", "com.pk", "com.sg", "com.tr", "com.tw", "com.ua",
+  "com.vn", "edu.au", "edu.cn", "gov.au", "gov.cn", "gov.in", "gov.uk",
+  "net.au", "net.cn", "net.in", "net.nz", "ne.jp", "or.jp", "org.au",
+  "org.cn", "org.in", "org.nz", "org.uk", "org.za",
+]);
+
+function registrableDomain(host) {
+  const labels = host.split(".");
+  if (labels.length < 3) return host;
+  const suffix = labels.slice(-2).join(".");
+  return labels.slice(TWO_LABEL_PUBLIC_SUFFIXES.has(suffix) ? -3 : -2).join(".");
+}
+
+/** Referrer reduced to a host name, never its path, query or fragment. */
+export function referrerInfo(header, siteHost) {
+  const direct = { kind: "d", value: "" };
+  if (typeof header !== "string" || header.length === 0 || header.length > MAX_REFERER_CHARS) return direct;
+  let url;
+  try {
+    url = new URL(header);
+  } catch {
+    return direct;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return direct;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (host.length === 0 || host.length > MAX_HOST) return direct;
+  if (host === String(siteHost || "").toLowerCase()) return { kind: "i", value: "" };
+  if (host.startsWith("[") || /^\d+(\.\d+){3}$/.test(host)) return { kind: "o", value: "other" };
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(host)) return direct;
+  return { kind: "r", value: registrableDomain(host) };
+}
+
+/** Parse the optional closed source list from the non-secret Pages variable. */
+export function sourceList(raw) {
+  if (raw === undefined) return undefined;
+  let labels;
+  try {
+    labels = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(labels) || labels.length > 40) return undefined;
+  if (labels.some((label) => typeof label !== "string" || !SRC.test(label))) return undefined;
+  return [...new Set(labels)];
+}
+
+/**
+ * Prefer exactly one valid closed-list `s` label. Invalid source input is
+ * direct; only an absent `s` falls back to the referrer host. A site without a
+ * list skips query parameters and uses the referrer rule.
+ */
+export function pageSource(pageUrl, sources, referrer, siteHost) {
+  if (sources === undefined) return referrerInfo(referrer, siteHost);
+  const all = pageUrl.searchParams.getAll("s");
+  if (all.length === 0) return referrerInfo(referrer, siteHost);
+  if (all.length !== 1 || !SRC_RAW.test(all[0])) return { kind: "d", value: "" };
+  const label = all[0].toLowerCase();
+  if (!SRC.test(label)) return { kind: "d", value: "" };
+  return sources.includes(label) ? { kind: "s", value: label } : { kind: "o", value: "other" };
+}
 
 /** Names of the forbidden patterns found in a source text. */
 export function scanSource(text) {

@@ -16,6 +16,7 @@ import {
   insertRow,
 } from "../collect.mjs";
 import { HOSTING_ASNS } from "../hosting-asns.mjs";
+import { pageSource } from "../source-guard.mjs";
 
 const HUMAN_UA =
   "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0";
@@ -73,6 +74,55 @@ test("referrerInfo reduces external hosts to a registrable domain", () => {
     kind: "r",
     host: "example.co.uk",
   });
+});
+
+test("pageSource counts one listed source label as itself", () => {
+  const row = buildRow(
+    req("https://blog.example.test/posts/a/?s=N0CALL", { "user-agent": HUMAN_UA }),
+    html(),
+    { SOURCES: '["n0call"]' },
+    0,
+  );
+  assert.equal(row.src_kind, "s");
+  assert.equal(row.src, "n0call");
+});
+
+test("pageSource folds one valid unlisted source label into other", () => {
+  assert.deepEqual(
+    pageSource(new URL("https://blog.example.test/posts/a/?s=n0tst"), ["n0call"], null, "blog.example.test"),
+    { kind: "o", value: "other" },
+  );
+});
+
+test("pageSource treats missing, repeated and malformed labels as direct", () => {
+  for (const query of ["", "?s=n0call&s=n0tst", "?s=FN31pr!", `?s=${"a".repeat(31)}`]) {
+    assert.deepEqual(
+      pageSource(new URL(`https://blog.example.test/posts/a/${query}`), ["n0call"], null, "blog.example.test"),
+      { kind: "d", value: "" },
+      query,
+    );
+  }
+});
+
+test("pageSource does not read s when the site has no source list", () => {
+  const pageUrl = {
+    get searchParams() {
+      throw new Error("query parameters were read");
+    },
+  };
+  assert.deepEqual(pageSource(pageUrl, undefined, null, "blog.example.test"), { kind: "d", value: "" });
+});
+
+test("pageSource falls back to the referrer host when s is absent", () => {
+  assert.deepEqual(
+    pageSource(
+      new URL("https://blog.example.test/posts/a/"),
+      ["n0call"],
+      "https://radio.example.org/path?secret=FN31pr#fragment",
+      "blog.example.test",
+    ),
+    { kind: "r", value: "example.org" },
+  );
 });
 
 test("the write path caps distinct referrer domains per day and says so", () => {
