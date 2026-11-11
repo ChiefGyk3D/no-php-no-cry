@@ -205,6 +205,8 @@ def main(argv):
             return 2
     if len(args) != 2:
         return 2
+    if cloudflare_beacon and not scripts:
+        scripts = "none"
     host, path = args[0].lower(), args[1]
     scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon)
     try:
