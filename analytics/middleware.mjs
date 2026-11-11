@@ -20,7 +20,7 @@ const DEFAULT_TIMEOUT_MS = 1500;
 const MIN_TIMEOUT_MS = 50;
 const MAX_TIMEOUT_MS = 5000;
 export const DEFAULT_HOURLY_BUDGET = 4000;
-const admission = new Map();
+let admission = { hour: null, admitted: 0, skipped: 0 };
 
 function timeoutMs(env) {
   const n = Number.parseInt(env.ANALYTICS_TIMEOUT_MS, 10);
@@ -34,31 +34,21 @@ function hourlyBudget(env) {
   return Math.min(DEFAULT_HOURLY_BUDGET, Math.max(1, n));
 }
 
-function admissionKey(site, hour) {
-  return `${hour}\n${site}`;
-}
-
-function admit(site, hour, limit) {
-  const key = admissionKey(site, hour);
-  const counts = admission.get(key) ?? { admitted: 0, skipped: 0 };
-  if (counts.admitted >= limit) {
-    counts.skipped += 1;
-    admission.set(key, counts);
+function admit(hour, limit) {
+  if (admission.hour !== hour) admission = { hour, admitted: 0, skipped: 0 };
+  if (admission.admitted >= limit) {
+    admission.skipped += 1;
     return false;
   }
-  counts.admitted += 1;
-  admission.set(key, counts);
-  for (const [oldKey] of admission) {
-    if (!oldKey.startsWith(`${hour}\n`)) admission.delete(oldKey);
-  }
+  admission.admitted += 1;
   return true;
 }
 
 /** Aggregate local counters for operational checks. No request detail is kept. */
-export function admissionCounts(site, nowMs = Date.now()) {
+export function admissionCounts(nowMs = Date.now()) {
   const hour = Math.floor(nowMs / 3_600_000) * 3600;
-  const counts = admission.get(admissionKey(site, hour)) ?? { admitted: 0, skipped: 0 };
-  return { ...counts };
+  if (admission.hour !== hour) return { admitted: 0, skipped: 0 };
+  return { admitted: admission.admitted, skipped: admission.skipped };
 }
 
 async function boundedWrite(db, row, ms) {
@@ -80,8 +70,7 @@ function schedule(context, response) {
   if (!env.DB || env.ANALYTICS_OFF === "1") return;
   const row = buildRow(context.request, response, env, Date.now());
   if (row === null) return;
-  const site = new URL(context.request.url).hostname;
-  if (!admit(site, row.ts, hourlyBudget(env))) return;
+  if (!admit(row.ts, hourlyBudget(env))) return;
   const work = boundedWrite(env.DB, row, timeoutMs(env));
   if (typeof context.waitUntil === "function") context.waitUntil(work);
 }

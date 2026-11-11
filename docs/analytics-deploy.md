@@ -46,11 +46,13 @@ invariant at the top of `analytics/maintenance.sql`. The collector is a Pages
 Function in this repository, not the shared Reach Around Worker. Moving to the
 shared collector is an open question for later (design section 5.2).
 
-The Function admits at most 4,000 eligible views per site and UTC hour before
-it skips D1. `ANALYTICS_HOURLY_BUDGET` can lower that limit to at least 1. The
-local aggregate counter records admitted and skipped totals only, with no
-request details. Each Function isolate has its own counter, so concurrent
-isolates can each admit up to the configured limit.
+The Function admits at most 4,000 eligible views per deployment and UTC hour
+before it skips D1. `ANALYTICS_HOURLY_BUDGET` can lower that limit to at least
+1. The local aggregate counter records admitted and skipped totals only, with
+no request details. Request hostnames do not select counters: this deployment
+has one analytics database and intentionally no site dimension. Each Function
+isolate has its own counter, so concurrent isolates can each admit up to the
+configured limit.
 
 ## Why the artifact rules changed
 
