@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { onRequest } from "../../functions/_middleware.js";
+import { admissionCounts } from "../middleware.mjs";
 import { scanSource, checkFunctionsDir } from "../source-guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -145,6 +146,42 @@ test("kill switch records nothing", async () => {
   await onRequest(context);
   await Promise.all(pending);
   assert.equal(db.calls.length, 0);
+});
+
+test("the hourly admission budget bounds a concurrent host flood without blocking pages", async () => {
+  const db = fakeDb();
+  const env = { DB: db, ANALYTICS_HOURLY_BUDGET: "7" };
+  const realNow = Date.now;
+  let now = Date.UTC(2026, 10, 11, 15, 30);
+  Date.now = () => now;
+  const request = (host) => {
+    const { context, pending } = ctx({
+      url: `https://${host}/posts/a/`,
+      env,
+    });
+    return onRequest(context).then(async (response) => {
+      await Promise.all(pending);
+      return response;
+    });
+  };
+  try {
+    const pages = await Promise.all(
+      Array.from({ length: 50 }, (_, i) => request(`host-${i}.example.test`)),
+    );
+    assert.ok(pages.every((response) => response.status === 200), "every concurrent page remains available");
+    assert.equal(db.calls.length, 7, "untrusted Host values cannot create more admission buckets");
+    assert.deepEqual(admissionCounts(now), { admitted: 7, skipped: 43 });
+
+    now += 3_600_000;
+    assert.equal((await request("test-blog.chiefgyk3d.com")).status, 200);
+    assert.equal(db.calls.length, 8, "the budget resets at the next UTC hour");
+
+    env.ANALYTICS_OFF = "1";
+    assert.equal((await request("test-blog.chiefgyk3d.com")).status, 200);
+    assert.equal(db.calls.length, 8, "the kill switch remains active after the budget is spent");
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test("Do Not Track, GPC, 404s and assets record nothing", async () => {
