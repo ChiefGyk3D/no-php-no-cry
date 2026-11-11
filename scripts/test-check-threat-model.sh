@@ -148,6 +148,9 @@ expect_root() {
     fi
 }
 expect_root "default model: the copied repository passes" 0 ""
+sed 's/3 are not applicable/3 is not applicable/' "$root/$journal" >"$copy/$journal"
+expect_root "default model: plural NotApplicable count requires plural agreement" 1 counts-doc
+cp "$root/$journal" "$copy/$journal"
 for doc in "$risks" "$post" "$journal"; do
     cp "$root/$doc" "$copy/$doc"
     if [[ $doc == "$risks" ]]; then
