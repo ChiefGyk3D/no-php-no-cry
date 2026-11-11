@@ -38,6 +38,42 @@ else
     bad "the check did not read every file: $(cat "$work/repo.log")"
 fi
 
+# The public analytics how-to is a wiki source and points readers to the longer
+# repository copy. Each acceptance item has its own check so removing one part
+# of the guide makes this test fail.
+howto="$root/docs/wiki/Privacy-first-analytics-for-Hugo.md"
+repo_howto="$root/docs/privacy-first-analytics-for-hugo.md"
+if [[ -f "$howto" && -f "$repo_howto" ]]; then
+    ok "the analytics how-to has repository and wiki copies"
+else
+    bad "the analytics how-to is missing a repository or wiki copy"
+fi
+for requirement in \
+    '## Site configuration' \
+    '## Hugo render hook' \
+    '## Cloudflare Pages routes' \
+    '## Response headers' \
+    '## Privacy text from the same configuration' \
+    '## Preview-first deployment order' \
+    '## Owner-only account checklist'; do
+    if [[ -f "$howto" ]] && grep -qF "$requirement" "$howto"; then
+        ok "analytics how-to includes $requirement"
+    else
+        bad "analytics how-to is missing $requirement"
+    fi
+done
+for requirement in \
+    'Optional, less private: city' \
+    'Optional, less private: per-domain clicks' \
+    'Optional, less private: daily visitor code' \
+    'not live in no-php-no-cry'; do
+    if [[ -f "$howto" ]] && grep -qiF "$requirement" "$howto"; then
+        ok "analytics how-to marks $requirement"
+    else
+        bad "analytics how-to does not mark $requirement"
+    fi
+done
+
 # --- fixtures -------------------------------------------------------------------
 # fixture <name> <page text>: a repository with a real file, a real folder, a second
 # wiki page and one wiki page holding the text under test.
