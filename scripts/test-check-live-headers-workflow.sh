@@ -20,7 +20,7 @@ run() { python3 -I "$checker" "$1" >/dev/null 2>&1 && echo 0 || echo $?; }
 # mutate <label> <sed-expression>: the mutated copy must fail with exit 1.
 mutate() {
     local label="$1" expr="$2" expected="${3:-}" output rc
-    sed -E "$expr" "$wf" > "$tmp/m.yml"
+    sed -E "$expr" "$wf" >"$tmp/m.yml"
     if cmp -s "$wf" "$tmp/m.yml"; then
         echo "FAIL: $label (mutation changed nothing)"
         failures=$((failures + 1))
@@ -28,7 +28,7 @@ mutate() {
     fi
     rc=0
     output="$(python3 -I "$checker" "$tmp/m.yml" 2>&1)" || rc=$?
-    if [[ "$rc" == 1 && ( -z "$expected" || "$output" == *"$expected"* ) ]]; then
+    if [[ "$rc" == 1 && (-z "$expected" || "$output" == *"$expected"*) ]]; then
         echo "ok: $label"
     else
         echo "FAIL: $label (exit $rc, missing finding: ${expected:-any})"
