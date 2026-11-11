@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { onRequest } from "../../functions/_middleware.js";
+import { admissionCounts } from "../middleware.mjs";
 import { scanSource, checkFunctionsDir } from "../source-guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -145,6 +146,38 @@ test("kill switch records nothing", async () => {
   await onRequest(context);
   await Promise.all(pending);
   assert.equal(db.calls.length, 0);
+});
+
+test("the hourly admission budget bounds a request flood and the kill switch still wins", async () => {
+  const db = fakeDb();
+  const env = { DB: db, ANALYTICS_HOURLY_BUDGET: "7" };
+  const realNow = Date.now;
+  let now = Date.UTC(2026, 10, 11, 15, 30);
+  Date.now = () => now;
+  const request = async (host) => {
+    const { context, pending } = ctx({
+      url: `https://${host}/posts/a/`,
+      env,
+    });
+    assert.equal((await onRequest(context)).status, 200);
+    await Promise.all(pending);
+  };
+  try {
+    for (let i = 0; i < 50; i += 1) await request("test-blog.chiefgyk3d.com");
+    for (let i = 0; i < 8; i += 1) await request("chiefgyk3d.com");
+    assert.equal(db.calls.length, 14, "each site has its own seven-view budget");
+    assert.deepEqual(admissionCounts("test-blog.chiefgyk3d.com", now), { admitted: 7, skipped: 43 });
+
+    now += 3_600_000;
+    await request("test-blog.chiefgyk3d.com");
+    assert.equal(db.calls.length, 15, "the budget resets at the next UTC hour");
+
+    env.ANALYTICS_OFF = "1";
+    await request("test-blog.chiefgyk3d.com");
+    assert.equal(db.calls.length, 15, "the kill switch remains active after the budget is spent");
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test("Do Not Track, GPC, 404s and assets record nothing", async () => {

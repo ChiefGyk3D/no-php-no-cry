@@ -23,4 +23,5 @@ migrations_dir = "analytics/migrations"
 # GEO_LEVEL = "city"            # city (default), region or country
 # SOURCES = '["n0call"]'        # optional closed source-label list
 # ANALYTICS_TIMEOUT_MS = "1500" # bound on the background write, 50 to 5000
+# ANALYTICS_HOURLY_BUDGET = "4000" # admitted views per site and UTC hour, 1 to 4000
 # ANALYTICS_OFF = "1"           # kill switch: record nothing
