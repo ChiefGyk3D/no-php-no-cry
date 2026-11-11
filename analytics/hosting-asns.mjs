@@ -6,15 +6,15 @@
 // "net" flag on the row; the ASN itself is never stored. No address ranges
 // (CIDR) are used anywhere.
 //
-// STARTER LIST. Written from general knowledge on 2026-11-05 and NOT yet
-// checked against a registry or a vetted dataset. A wrong or missing entry
-// only changes a flag; it cannot break delivery. Before the collector goes
-// live, refresh it from a source the maintainer picks (open decision in
-// docs/analytics-deploy.md) and keep one comment per entry.
+// UNVERIFIED STARTER DATA. Written from general knowledge on 2026-11-05 and not
+// yet replaced by the decided source. The monthly refresh derives the reviewed
+// list from X4BNet/lists_vpn (MIT) and uses ipverse/as-metadata (CC0) only for
+// its report. This note stays until the first generated import is merged. A
+// wrong or missing entry only changes a flag; it cannot break delivery.
 //
 // Format: [ASN, class] where class is "hosting-datacenter" or "vpn-proxy".
-// A mixed-use network (a cloud that also carries a VPN) is listed as hosting.
-// Keep this table short: it ships in the Function bundle.
+// Generated refreshes give vpn-proxy precedence on overlap. The starter rows
+// below predate that rule. Only ASN numbers and classes ship in the Function.
 
 export const HOSTING_ASNS = new Map([
   [14061, "hosting-datacenter"], // DigitalOcean
