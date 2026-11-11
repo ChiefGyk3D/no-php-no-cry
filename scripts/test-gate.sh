@@ -97,7 +97,8 @@ gate --plan
 check "plan exits 0" test "$rc" -eq 0
 for n in check-hugo-version build-production check-output-staging test-pages gen-tokens \
     check-contrast check-brand-assets gen-support-qr check-wording check-license \
-    check-budget test-check-budget browser-gate test-browser-gate shfmt shellcheck test-gate; do
+    check-budget test-check-budget test-smoke-site-browser-request browser-gate \
+    test-browser-gate shfmt shellcheck test-gate; do
     check "plan lists $n" has "$out" "$n"
 done
 check "plan runs nothing" test -z "$calls"
@@ -119,6 +120,7 @@ check "full run ran hugo" has "$calls" "hugo --minify --gc"
 check "full run ran shellcheck" has "$calls" "shellcheck -S warning"
 check "full run ran shfmt" has "$calls" "shfmt -d -i 4 -ci"
 check "full run ran the browser gate" has "$calls" "browser-gate.py"
+check "full run tested the browser-like smoke request" has "$calls" "test-smoke-site-browser-request.sh"
 check "temp dir removed without --keep" test -z "$(ls -A "$work/gt")"
 
 # --- failure propagation: later steps still run ----------------------------
