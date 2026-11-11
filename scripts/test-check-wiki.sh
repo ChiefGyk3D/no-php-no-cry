@@ -48,29 +48,56 @@ if [[ -f "$howto" && -f "$repo_howto" ]]; then
 else
     bad "the analytics how-to is missing a repository or wiki copy"
 fi
-for requirement in \
-    '## Site configuration' \
-    '## Hugo render hook' \
-    '## Cloudflare Pages routes' \
-    '## Response headers' \
-    '## Privacy text from the same configuration' \
-    '## Preview-first deployment order' \
-    '## Owner-only account checklist'; do
-    if [[ -f "$howto" ]] && grep -qF "$requirement" "$howto"; then
-        ok "analytics how-to includes $requirement"
+for copy in "$howto" "$repo_howto"; do
+    label="${copy#"$root/"}"
+    for requirement in \
+        '## Site configuration' \
+        '## Hugo render hook' \
+        '## Cloudflare Pages routes' \
+        '## Response headers' \
+        '## Privacy text from the same configuration' \
+        '## Preview-first deployment order' \
+        '## Owner-only account checklist'; do
+        if [[ -f "$copy" ]] && grep -qF "$requirement" "$copy"; then
+            ok "$label includes $requirement"
+        else
+            bad "$label is missing $requirement"
+        fi
+    done
+    for requirement in \
+        'Optional, less private: city' \
+        'Optional, less private: per-domain clicks' \
+        'Optional, less private: daily visitor code' \
+        'not live in no-php-no-cry'; do
+        if [[ -f "$copy" ]] && grep -qiF "$requirement" "$copy"; then
+            ok "$label marks $requirement"
+        else
+            bad "$label does not mark $requirement"
+        fi
+    done
+
+    # These snippets are configuration contracts: each output must branch on the
+    # corresponding option, and the restrictive CSP must retain local scripts.
+    if grep -Eq '\$allowed := and site\.Data\.analytics\.enabled \(ne site\.Data\.analytics\.clicks "off"\) \$domain' "$copy"; then
+        ok "$label gates click pings on click mode"
     else
-        bad "analytics how-to is missing $requirement"
+        bad "$label does not gate click pings on click mode"
     fi
-done
-for requirement in \
-    'Optional, less private: city' \
-    'Optional, less private: per-domain clicks' \
-    'Optional, less private: daily visitor code' \
-    'not live in no-php-no-cry'; do
-    if [[ -f "$howto" ]] && grep -qiF "$requirement" "$howto"; then
-        ok "analytics how-to marks $requirement"
+    if grep -qF "script-src 'self'" "$copy"; then
+        ok "$label CSP permits same-origin scripts"
     else
-        bad "analytics how-to does not mark $requirement"
+        bad "$label CSP blocks same-origin scripts"
+    fi
+    if grep -Eq 'append.*script source|script source.*append' "$copy"; then
+        ok "$label explains how to extend script-src"
+    else
+        bad "$label does not explain how to extend script-src"
+    fi
+    if grep -qF '{{- if eq .visitor_code "off"' "$copy" &&
+       grep -qF '{{- else if eq .visitor_code "daily"' "$copy"; then
+        ok "$label privacy text covers every visitor-code mode"
+    else
+        bad "$label privacy text does not cover every visitor-code mode"
     fi
 done
 

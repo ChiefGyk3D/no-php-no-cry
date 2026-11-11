@@ -68,7 +68,7 @@ configured built-site domain list, omit `ping`.
 ```go-html-template
 {{- $href := .Destination | safeURL -}}
 {{- $domain := .Page.Scratch.Get "analyticsDomain" -}}
-{{- $allowed := and site.Data.analytics.enabled $domain -}}
+{{- $allowed := and site.Data.analytics.enabled (ne site.Data.analytics.clicks "off") $domain -}}
 <a href="{{ $href }}"{{ with .Title }} title="{{ . }}"{{ end }}
   {{- if $allowed }} ping="/e/c/{{ $domain | urlquery }}"{{ end -}}>
   {{- .Text | safeHTML -}}
@@ -116,14 +116,15 @@ uses `connect-src 'self'`. Add or preserve these lines in the site's single `/*`
 
 ```text
 /*
-  Content-Security-Policy: default-src 'none'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
 ```
 
 If Cloudflare Web Analytics is also enabled, name it separately in the privacy text and
-add only the script source that its current documentation requires. It is a second
-counter, and its results must not be joined to this one.
+append only the beacon script source that its current documentation requires to the
+existing `script-src` directive. It is a second counter, and its results must not be
+joined to this one.
 
 ## Privacy text from the same configuration
 
@@ -134,13 +135,22 @@ render the enabled choices, floor, and retention ceilings:
 ```go-html-template
 {{- with site.Data.analytics -}}
 {{- if .enabled -}}
-<p>This site counts successful HTML page views without cookies or a visitor identifier.
+<p>This site counts successful HTML page views without cookies.
+{{- if eq .visitor_code "off" }} It does not use a visitor identifier.
+{{- else if eq .visitor_code "daily" }} It uses a short-lived visitor code that rotates
+daily to estimate unique visitors.
+{{- else }}{{ errorf "unsupported analytics visitor_code %q" .visitor_code }}{{ end }}
 It keeps the page path, referrer host, hour, bot class, and {{ .geo }} location for at
 most {{ .raw_keep_days }} days. Daily totals are kept for at most
 {{ .aggregate_keep_days }} days and cells below {{ .min_cell }} visits are withheld.</p>
 <p>Global Privacy Control and Do Not Track requests are not counted.</p>
-{{- if eq .clicks "per-domain" -}}
+{{- if eq .clicks "off" -}}
+{{- else if eq .clicks "listed" -}}
+<p>Clicks to configured links are counted by their configured label.</p>
+{{- else if eq .clicks "per-domain" -}}
 <p>Outbound clicks are counted by destination site only, never by full address.</p>
+{{- else -}}
+{{- errorf "unsupported analytics clicks mode %q" .clicks -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
