@@ -138,6 +138,16 @@ scripts/verify-live.sh chiefgyk3d.com --public tmp/apex-build --env production
 
 (The production pipeline pins a commit of this repository, so build that same commit.)
 
+A scheduled run does this every day: `.github/workflows/live-headers.yml` builds the
+current commit and runs the verifier against the dev host (`--env staging`) and, read
+only, the apex (`--env production`). A red run means a deployed header drifted from
+`static/_headers`, or a deploy has not caught up with main yet (re-run after the deploy).
+`scripts/check-live-headers-workflow.py` parses and guards the workflow structure. It
+requires only the scheduled and manual triggers, exact top-level read permission with
+no job override, the two static host rows, and the exact verifier steps so a condition
+or shell wrapper cannot skip or swallow a failed check. Its mutation suite is
+`scripts/test-check-live-headers-workflow.sh`. Issue #72.
+
 The test `scripts/test-verify-live.sh` runs it against a local fake server with
 a negative case per check (CI step "Test the live-host verifier"). It cannot show
 what Cloudflare itself adds to a response (see "Verified and inferred").

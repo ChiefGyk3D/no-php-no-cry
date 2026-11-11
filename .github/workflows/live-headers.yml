@@ -1,0 +1,79 @@
+# Scheduled live header check (issue #72). static/_headers is the source of truth;
+# scripts/verify-live.sh compares what the deployed hosts really send (CSP, HSTS,
+# X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame rules, cache
+# headers, plus status, robots and third-party checks) with a build of this commit
+# and fails on drift or a missing header. GET requests only; no credentials, no
+# repository secrets. The structural guard in scripts/check-live-headers-workflow.py
+# pins the static matrix, exact verifier steps and permission boundaries.
+# It is a monitor, not a merge gate, so it is not part of `CI green`.
+name: Live headers
+
+on:
+  schedule:
+    # Daily, 07:17 UTC (off the hour on purpose)
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dev host
+            environment: staging
+            base-url: https://test-blog.chiefgyk3d.com/
+            host: test-blog.chiefgyk3d.com
+          - name: apex (read only)
+            environment: production
+            base-url: https://chiefgyk3d.com/
+            host: chiefgyk3d.com
+    steps:
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Hugo (pinned, checksum verified)
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < .hugo-version)"
+          base="https://github.com/gohugoio/hugo/releases/download/v${version}"
+          tarball="hugo_${version}_linux-amd64.tar.gz"
+          mkdir -p "$RUNNER_TEMP/hugo"
+          cd "$RUNNER_TEMP/hugo"
+          curl -fsSL --retry 3 -O "${base}/${tarball}"
+          curl -fsSL --retry 3 -O "${base}/hugo_${version}_checksums.txt"
+          grep " ${tarball}\$" "hugo_${version}_checksums.txt" | sha256sum -c -
+          tar -xzf "$tarball" hugo
+          echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
+
+      - name: Hugo is the pinned standard edition
+        run: scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
+
+      - name: Build this commit for the host
+        env:
+          HUGO_PARAMS_ENVIRONMENT: ${{ matrix.environment }}
+          BASE_URL: ${{ matrix.base-url }}
+        run: hugo --minify --gc --baseURL "$BASE_URL" --destination tmp/live-build
+
+      - name: Dev host headers
+        if: matrix.environment == 'staging'
+        run: scripts/verify-live.sh test-blog.chiefgyk3d.com --public tmp/live-build --env staging
+
+      - name: Apex headers
+        if: matrix.environment == 'production'
+        run: scripts/verify-live.sh chiefgyk3d.com --public tmp/live-build --env production
