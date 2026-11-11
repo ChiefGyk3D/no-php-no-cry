@@ -19,7 +19,7 @@ export const KEEP_OUT_OF_VPN = new Set([
 
 function validAsn(asn) {
   return Number.isInteger(asn) && asn >= 1 && asn <= 4294967295 &&
-    !(asn >= 64512 && asn <= 65534) && asn < 4200000000;
+    !(asn >= 64512 && asn <= 65535) && asn < 4200000000;
 }
 
 export function parseX4BList(text) {
@@ -69,13 +69,16 @@ export function parseIpverse(text) {
   const parsed = JSON.parse(text);
   const source = parsed.asns && typeof parsed.asns === "object" ? parsed.asns : parsed;
   const result = new Map();
-  for (const [rawAsn, value] of Object.entries(source ?? {})) {
+  const records = Array.isArray(source)
+    ? source.map((value) => [String(value?.asn ?? value?.number ?? ""), value])
+    : Object.entries(source ?? {});
+  for (const [rawAsn, value] of records) {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
     const match = /^(?:AS)?(\d+)$/.exec(rawAsn);
     const asn = match ? Number(match[1]) : Number(value.asn ?? value.number);
     if (!validAsn(asn)) continue;
     result.set(asn, {
-      category: value.category ?? value.type ?? "",
+      category: value.metadata?.category ?? value.category ?? value.type ?? "",
       lastAnnounced: value.lastAnnounced ?? value.last_announced ??
         value.lastAnnouncement ?? value.last_announcement ?? "",
     });

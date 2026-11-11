@@ -60,6 +60,7 @@ mutate_fetcher "datacenter source pinned" "s#X4BNet/lists_vpn/main/input/datacen
 mutate_fetcher "ipverse source pinned" "s#ipverse/as-metadata/master/as.json#example.invalid/as.json#"
 mutate "generator must run" "s#node analytics/refresh-asns.mjs#echo skipped#"
 mutate "PR remains owner gated" "s/vars.ASN_REFRESH_PR_ENABLED == 'true'/true/"
+mutate "default branch avoids shell template injection" "/DEFAULT_BRANCH:/d; s/\"\$DEFAULT_BRANCH\"/\"\${{ github.event.repository.default_branch }}\"/"
 mutate "never auto merge" "s/gh pr create/gh pr create \&\& gh pr merge --auto/"
 
 if [[ $failures -ne 0 ]]; then

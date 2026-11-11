@@ -29,12 +29,11 @@ AS65534 # private high
 AS4200000000 # reserved high
 AS4294967296 # too large
 AS64496 # valid
-AS65535 # valid
+AS65535 # reserved
 bad input
 `);
   assert.deepEqual(parsed, [
     { asn: 64496, comment: "valid" },
-    { asn: 65535, comment: "valid" },
   ]);
 });
 
@@ -107,6 +106,23 @@ test("ipverse field variants produce review findings without dropping entries", 
   assert.match(report, /AS64497.*older than 6 months/i);
   assert.match(report, /AS64498.*not present/i);
   assert.equal(entries.length, 3);
+});
+
+test("ipverse upstream array reads the nested hosting category", () => {
+  const metadata = parseIpverse(JSON.stringify([
+    {
+      asn: 64496,
+      metadata: { category: "hosting" },
+      lastAnnounced: "2026-10-01",
+    },
+  ]));
+  const entries = [
+    { asn: 64496, className: "hosting-datacenter", comment: "N0CALL" },
+  ];
+
+  const report = buildReport(entries, metadata, new Date("2026-11-10T00:00:00Z"));
+
+  assert.match(report, /No advisory findings/);
 });
 
 test("CLI refuses entry counts outside the safety range without writing output", () => {

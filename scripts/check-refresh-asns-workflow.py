@@ -16,6 +16,8 @@ def check(text, fetcher_text):
         "GitHub endpoint": r"github\.com:443",
         "generator": r"node analytics/refresh-asns\.mjs",
         "owner gate": r"if:\s*vars\.ASN_REFRESH_PR_ENABLED == 'true'",
+        "default branch environment handoff": r"DEFAULT_BRANCH:\s*\$\{\{ github\.event\.repository\.default_branch \}\}",
+        "safe default branch use": r"--base\s+[\"']?\$DEFAULT_BRANCH[\"']?",
         "PR creation": r"gh pr create",
         "read permission": r"(?m)^permissions:\n  contents: read$",
     }
@@ -48,6 +50,8 @@ def check(text, fetcher_text):
         findings.append("workflow grants repository write permission")
     if re.search(r"\bsecrets\.", text):
         findings.append("workflow reads a GitHub Actions secret")
+    if re.search(r"--base[^\n]*\$\{\{\s*github\.event\.repository\.default_branch\s*\}\}", text):
+        findings.append("default branch is interpolated directly into a shell script")
     return findings
 
 

@@ -74,6 +74,7 @@ jobs:
           ASN_REFRESH_APP_TOKEN: ""
           SOURCE_SHA_FILE: ${{ runner.temp }}/asn-sources/source-sha
           REPORT_FILE: ${{ runner.temp }}/asn-report.md
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           if [[ -z "$ASN_REFRESH_APP_TOKEN" ]]; then
@@ -91,7 +92,7 @@ jobs:
           gh auth setup-git
           git push --force-with-lease origin "$branch"
           gh pr create \
-              --base "${{ github.event.repository.default_branch }}" \
+              --base "$DEFAULT_BRANCH" \
               --head "$branch" \
               --title "chore: refresh analytics ASN classes" \
               --body-file "$REPORT_FILE"
