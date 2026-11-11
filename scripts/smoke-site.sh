@@ -43,6 +43,9 @@
 #                 fetch or inspect any other script file (the build checks do).
 #   missing-beacon  the home page carries exactly one edge-injected Cloudflare
 #                 Web Analytics beacon with a nonempty public site token.
+#                 Cloudflare injects it only for browser-like requests, as
+#                 measured on 2026-11-10, so only this request sends fixed
+#                 Firefox desktop and HTML Accept headers.
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
 # category page, the feeds (/index.xml and /feed/index.xml) and the 404 page (asked for as
@@ -226,8 +229,13 @@ body_dir="$(mktemp -d)"
 trap 'rm -rf "$body_dir"' EXIT
 body_file="$body_dir/body"
 fetch() {
+    local opts=(-sS -o "$body_file" -D - --max-time 20)
     : >"$body_file"
-    curl -sS -o "$body_file" -D - --max-time 20 "${base}$1"
+    if [[ "$1" == / ]]; then
+        opts+=(-H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0")
+        opts+=(-H "Accept: text/html,application/xhtml+xml")
+    fi
+    curl "${opts[@]}" "${base}$1"
 }
 
 status_of() { printf '%s' "$1" | tr -d '\r' | awk 'NR == 1 { print $2 }'; }

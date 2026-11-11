@@ -272,9 +272,8 @@ Required:
 - The floor applies per place granularity, not once. A city cell below the floor (5
   views, the blog's `min_cell`) is withheld and its count rolled up into its region; a
   region cell below the floor rolls up to its country; a country cell below the floor
-  folds into `other`. The roll-up happens in the stored aggregate fold and again at
-  report time (the same remainder rule as the funnel counters, design 6.2), so no
-  released table holds a sub-floor city.
+  folds into `other`. The roll-up happens at report time (the same remainder rule as
+  the funnel counters, design 6.2), so no released view holds a sub-floor city.
 - Complementary suppression: if exactly one cell in a group is withheld, the next smallest
   is withheld too, so a subtraction from a printed total cannot recover it (small-cell
   test from issue 408).
@@ -296,6 +295,9 @@ Required:
   level. The migration is a new view (and a stored-fold option if the owner wants
   sub-floor cities never stored); the rollup SQL needs no change for the view-only
   version. The earlier statement that city exists only in 7-day raw rows is withdrawn.
+- Stored-fold decision for issue 294: use the view-only option. Sub-floor cities remain
+  in the place-only aggregate table for its 90-day lifetime and are protected by the
+  report views. They are not folded at write time.
 - City aggregates share the 90 day ceiling (as the current retention SQL does); raw rows keep 7 days.
 - Residual risk, stated plainly here and on the privacy page: on a small audience a town
   with a few readers can still be inferred by someone who knows who reads the blog. The
