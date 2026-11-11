@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MIGRATIONS = sorted((ROOT / "analytics" / "migrations").glob("*.sql"))
 MAINT = ROOT / "analytics" / "maintenance.sql"
 DOWN = ROOT / "analytics" / "rollback" / "0002_down.sql"
+GEO_DOWN = ROOT / "analytics" / "rollback" / "0004_down.sql"
 NOW = "2026-11-05 12:00:00"
 NOW_EPOCH = 1793880000  # 2026-11-05 12:00:00 UTC, checked in test_clock_constant
 HOUR = 3600
@@ -303,7 +304,9 @@ class MigrationSafety(unittest.TestCase):
         db = fresh()
         self.assertNotEqual(self.views(db)["report_view_daily"], self.original["report_view_daily"])
         db.executescript(DOWN.read_text())
-        self.assertEqual(self.views(db), self.original)
+        restored = self.views(db)
+        for name in ("report_view_daily", "report_funnel_daily"):
+            self.assertEqual(restored[name], self.original[name])
         self.assertNotIn("referrer_seen", tables(db))
         self.assertEqual(set(tables(db)), set(ALLOWED) - {"referrer_seen"})
 
@@ -374,6 +377,94 @@ class DisplayFloor(unittest.TestCase):
         self.assertEqual(pages, {"/public/": 8})
         total = db.execute("SELECT SUM(views) FROM report_view_geo_daily").fetchone()[0]
         self.assertEqual(total - pages["/public/"], 2)
+
+
+class PlaceFloor(unittest.TestCase):
+    """Enumerated small-cell datasets for every released place level."""
+
+    DAY = "2026-11-04"
+
+    def setUp(self):
+        self.db = fresh()
+
+    def put(self, country, region, city, views):
+        self.db.execute(
+            "INSERT INTO view_geo_daily VALUES (?, ?, ?, ?, 'h', ?)",
+            (self.DAY, country, region, city, views),
+        )
+
+    def shown(self):
+        return self.db.execute(
+            "SELECT country, region, city, views FROM report_view_geo_daily ORDER BY country, region, city"
+        ).fetchall()
+
+    def test_city_cells_roll_up_and_the_only_withheld_cell_gets_a_complement(self):
+        self.put("N0", "N0", "FN31pr", 4)
+        self.put("N0", "N0", "N0CALL", 6)
+        self.put("N0", "N0", "N0TST", 8)
+        self.assertEqual(
+            self.shown(),
+            [("N0", "N0", "", 10), ("N0", "N0", "N0TST", 8)],
+        )
+
+    def test_region_cells_roll_up_and_the_only_withheld_cell_gets_a_complement(self):
+        for region, city, views in (
+            ("N0", "N0CALL", 1),
+            ("N0", "N0TST", 2),
+            ("T0", "N0CALL", 2),
+            ("T0", "N0TST", 3),
+        ):
+            self.put("N0", region, city, views)
+        self.assertEqual(self.shown(), [("N0", "", "", 8)])
+
+    def test_country_cells_roll_into_other_with_complementary_suppression(self):
+        for country, region, city, views in (
+            ("N0", "N0", "N0CALL", 1),
+            ("N0", "N0", "N0TST", 2),
+            ("T0", "N0", "N0CALL", 1),
+            ("T0", "N0", "N0TST", 1),
+            ("T0", "T0", "N0CALL", 1),
+            ("T0", "T0", "N0TST", 2),
+        ):
+            self.put(country, region, city, views)
+        self.assertEqual(self.shown(), [("other", "", "", 8)])
+
+    def test_blank_collected_places_are_distinct_from_blank_rollup_coordinates(self):
+        self.put("", "", "", 6)
+        self.put("", "N0", "N0CALL", 3)
+        self.put("", "T0", "N0TST", 3)
+
+        self.assertEqual(
+            self.db.execute(
+                "SELECT country, region, city, level, views "
+                "FROM report_view_geo_daily ORDER BY level"
+            ).fetchall(),
+            [("", "", "", "city", 6), ("", "", "", "country", 6)],
+        )
+
+
+class GeoMigrationSafety(unittest.TestCase):
+    def test_0004_rollback_restores_the_previous_geo_view_and_runs_twice(self):
+        before = sqlite3.connect(":memory:")
+        for migration in MIGRATIONS:
+            if migration.name.startswith("0004"):
+                break
+            before.executescript(migration.read_text())
+        previous = before.execute(
+            "SELECT sql FROM sqlite_master WHERE type='view' AND name='report_view_geo_daily'"
+        ).fetchone()[0]
+
+        db = fresh()
+        self.assertNotEqual(
+            db.execute("SELECT sql FROM sqlite_master WHERE name='report_view_geo_daily'").fetchone()[0],
+            previous,
+        )
+        db.executescript(GEO_DOWN.read_text())
+        db.executescript(GEO_DOWN.read_text())
+        self.assertEqual(
+            db.execute("SELECT sql FROM sqlite_master WHERE name='report_view_geo_daily'").fetchone()[0],
+            previous,
+        )
 
 
 class Schema(unittest.TestCase):
@@ -535,7 +626,7 @@ class KThreshold(unittest.TestCase):
         self.day([("/a/", "h", 5), ("/a/", "a", 90), ("/b/", "a", 40)])
         self.assertEqual(self.db.execute("SELECT page, views FROM report_funnel_daily").fetchall(), [("/a/", 5)])
 
-    def test_geo_and_dim_views_apply_the_same_floor(self):
+    def test_geo_rollup_and_dim_view_apply_the_floor(self):
         self.db.executescript(
             """
             INSERT INTO view_geo_daily VALUES ('2026-11-04','US','NY','Smalltown','h',4);
@@ -546,7 +637,7 @@ class KThreshold(unittest.TestCase):
         )
         self.assertEqual(
             self.db.execute("SELECT city, views FROM report_view_geo_daily").fetchall(),
-            [("New York", 5)],
+            [("", 9)],
         )
         self.assertEqual(
             self.db.execute("SELECT value, views FROM report_view_dim_daily").fetchall(),
