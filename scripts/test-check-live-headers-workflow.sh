@@ -12,26 +12,37 @@ failures=0
 
 run() { python3 -I "$checker" "$1" >/dev/null 2>&1 && echo 0 || echo $?; }
 
-[[ -s "$wf" ]] || { echo "FAIL: $wf missing or empty"; exit 1; }
+[[ -s "$wf" ]] || {
+    echo "FAIL: $wf missing or empty"
+    exit 1
+}
 
 # mutate <label> <sed-expression>: the mutated copy must fail with exit 1.
 mutate() {
     local label="$1" expr="$2" expected="${3:-}" output rc
     sed -E "$expr" "$wf" > "$tmp/m.yml"
     if cmp -s "$wf" "$tmp/m.yml"; then
-        echo "FAIL: $label (mutation changed nothing)"; failures=$((failures + 1)); return
+        echo "FAIL: $label (mutation changed nothing)"
+        failures=$((failures + 1))
+        return
     fi
     rc=0
     output="$(python3 -I "$checker" "$tmp/m.yml" 2>&1)" || rc=$?
     if [[ "$rc" == 1 && ( -z "$expected" || "$output" == *"$expected"* ) ]]; then
         echo "ok: $label"
     else
-        echo "FAIL: $label (exit $rc, missing finding: ${expected:-any})"; failures=$((failures + 1))
+        echo "FAIL: $label (exit $rc, missing finding: ${expected:-any})"
+        failures=$((failures + 1))
     fi
 }
 
 rc="$(run "$wf")"
-if [[ "$rc" == 0 ]]; then echo "ok: real workflow passes"; else echo "FAIL: real workflow (exit $rc)"; failures=$((failures + 1)); fi
+if [[ "$rc" == 0 ]]; then
+    echo "ok: real workflow passes"
+else
+    echo "FAIL: real workflow (exit $rc)"
+    failures=$((failures + 1))
+fi
 
 mutate "no cron" "s/- cron:/- nocron:/" "no schedule with a cron entry"
 mutate "no manual trigger" "/^(\s+)workflow_dispatch:/d" "no workflow_dispatch trigger"
@@ -76,7 +87,15 @@ mutate "setup command failure swallowed" "s/(sha256sum -c -)/\1 || true/"
 mutate "secret read" "s/^(\s+)runs-on:/\1env: { X: \${{ secrets.X }} }\n\1runs-on:/"
 mutate "duplicate YAML key" "s/^(permissions:)/\1\npermissions:/"
 
-if [[ "$(run "$tmp/absent.yml")" == 2 ]]; then echo "ok: unreadable file exits 2"; else echo "FAIL: unreadable file"; failures=$((failures + 1)); fi
+if [[ "$(run "$tmp/absent.yml")" == 2 ]]; then
+    echo "ok: unreadable file exits 2"
+else
+    echo "FAIL: unreadable file"
+    failures=$((failures + 1))
+fi
 
-if [[ $failures -gt 0 ]]; then echo "$failures test(s) failed"; exit 1; fi
+if [[ $failures -gt 0 ]]; then
+    echo "$failures test(s) failed"
+    exit 1
+fi
 echo "all live-headers workflow guard tests passed"
