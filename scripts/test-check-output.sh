@@ -190,6 +190,18 @@ HDR
 }
 build_good "$work/base"
 
+# Direct callers may request the Cloudflare beacon rule without choosing a
+# script policy. The beacon exception must not turn off the default refusal of
+# every other script.
+printf '%s\n' '<script src=/FN31pr.js></script>' >"$work/beacon-with-other-script.html"
+beacon_scan="$(python3 -I "$root/scripts/scan-markup.py" --cloudflare-beacon N0CALL "$work/beacon-with-other-script.html")"
+if grep -qx 'script-not-allowed' <<<"$beacon_scan"; then
+    echo "ok: beacon-only invocation still refuses another script"
+else
+    echo "FAIL: beacon-only invocation did not refuse another script"
+    exit 1
+fi
+
 # fail_case <label> <rule> <dir>: the checker must exit non-zero and name the rule.
 fail_case() {
     local label="$1" rule="$2" dir="$3" out rc=0

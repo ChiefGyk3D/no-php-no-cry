@@ -351,6 +351,11 @@ silently deleting the earlier design.
 Consequence: the same visit is counted by Cloudflare Web Analytics and by the blog's own
 counter, under different rules.
 
+Rationale: keep Cloudflare Web Analytics because it supplies page timing independently
+of the blog's server-side page, source and click counts. That operational signal remains
+useful when the blog counter is not deployed or drops a count, and the two counters are
+not joined. The privacy page must continue to describe Cloudflare's collection separately.
+
 Required:
 - The privacy page names both counters (Cloudflare Web Analytics, with the dated quote
   already on the live page, and the blog's own server-side counter) and says they are
@@ -359,9 +364,10 @@ Required:
   beacon URL and `connect-src 'self'`. VERIFIED from the repository file read on
   2026-11-09. No new CSP entry is needed for the server-side counter or for same-origin
   pings (pings: INFERRED, confirm in the spike). Nothing else is added.
-- Owner Cloudflare steps: keep Web Analytics enabled for the Pages project and check after
-  each deploy that the beacon is injected (dashboard path UNVERIFIED; read the Web
-  Analytics docs first). Issues 241 and 405 (turn it off) no longer apply to the blog.
+- Owner Cloudflare step: keep Web Analytics enabled for the Pages project. The post-deploy
+  smoke test checks that one configured beacon is injected on the home page after every
+  deploy. Issues no-php-no-cry#241 and Reach-Around#405, which tracked turning it off, do
+  not apply to the blog and should be closed or labeled accordingly by the owner.
 - Reconciliation note, for the docs and the report footer. The counters will not match.
   Expected causes: Cloudflare's beacon runs as a script, so it misses visitors who block
   it; the blog counter runs server side, so it also counts visitors who block scripts, and
@@ -417,7 +423,7 @@ the board before work starts (this PR files nothing).
 | 8 | 3 Clicks | Closed `s` source label list with referrer-host fallback on blog pages (Q5) | #1 | Feature | S |
 | 9 | 3 Clicks | Guardrail tests for the blog: sentinel, schema guard, small-cell, forged domain (reuses Reach-Around#408) | #1 | Task | M |
 | 10 | 3 Privacy | Privacy page rewrite covering both counters, city, domain clicks, floors and the reconciliation sentence, with the test change in the same PR | #1 | Feature | S |
-| 11 | 3 Privacy | Cloudflare Web Analytics kept: update docs and CSP notes; close or relabel no-php-no-cry#241 and Reach-Around#405 for the blog (Q3) | #1 | Task | XS |
+| 11 | 3 Privacy | Cloudflare Web Analytics kept: update docs and CSP notes; require the beacon in the post-deploy smoke test; close or relabel no-php-no-cry#241 and Reach-Around#405 for the blog (Q3) | #1 | Task | XS |
 | 12 | 3 Docs | Counter reconciliation note and report footer wording (Q3) | #1 | Task | XS |
 | 13 | 4 Converge | Extract the shared rules (path, referrer, bot, closed vocabularies) into one module used by both sites (Q1). The Q6 visitor-code derivation is superseded and is not part of this work | R#325 | Feature | M |
 | 14 | 4 Converge | Edge ingest entry in the shared Worker plus service binding, only if the owner later wants a cross-site report | R#325 | Feature | L |
@@ -441,7 +447,7 @@ UNVERIFIED; dashboard paths can change, so re-read before use.
 | Create a D1 database for the blog (preview and production) | Holds the page-view counter tables; no visitor hash table is planned | `wrangler d1 create ...` per `docs/analytics-deploy.md` step 1 (D1 docs not re-read here, UNVERIFIED) |
 | Bind it to the Pages project: Workers & Pages > project > Settings > Bindings > Add > D1 database > pick it > redeploy | The Function sees `env.DB` | VERIFIED: `/pages/functions/bindings/#d1-databases` |
 | Token scope for D1 edit (the deploy token or a second token used only by the maintenance job) | Apply migrations, run the daily roll-up and purge | `docs/analytics-deploy.md` access table; drop the scope after the work. Scope names UNVERIFIED against the token docs |
-| Keep Cloudflare Web Analytics enabled for the Pages project; check the beacon after each deploy (Q3) | Second counter, kept by choice | Dashboard wording not read, UNVERIFIED; the CSP entries are in `static/_headers` |
+| Keep Cloudflare Web Analytics enabled for the Pages project (Q3) | Second counter, kept by choice | The post-deploy smoke test checks the injected beacon; the CSP entries are in `static/_headers` |
 | Review Settings > Runtime > Fail open / closed; keep "fail open" | A spent free daily allowance must not take pages down | VERIFIED: `/pages/functions/routing/` |
 | Decide Workers Free versus Standard after a week of real request counts | The 100,000 per day free allowance is shared by Functions and Workers | VERIFIED limit; the decision is the owner's |
 | Optional, only for plan item 14: service binding from the Pages project to the shared Worker | Edge ingest without a public route | VERIFIED: `/pages/functions/bindings/#service-bindings` |

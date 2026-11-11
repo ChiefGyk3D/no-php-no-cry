@@ -42,6 +42,9 @@ toggle (pages/how-to/web-analytics, Apr 21, 2026), so it never appears in built
 HTML and the build checks still reject any other script element. The page does
 not describe what Cloudflare logs on its own. `scripts/test-pages.sh` rejects
 "collect nothing", "no analytics" and "likely block" claims (issue 159).
+Cloudflare Web Analytics remains enabled by owner decision Q3 B. The
+post-deploy smoke test requires one configured beacon on the served home page,
+while built HTML must continue to contain no beacon.
 
 The collector is built but not deployed (issue 84): see
 `docs/analytics-deploy.md`. The replacement text is drafted in

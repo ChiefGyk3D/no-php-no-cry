@@ -224,6 +224,11 @@ commit. What this repository cannot show is how the private side is configured (
 who reviews a pin, the identity claim rules). Those are owner-configured controls and are
 listed as Open in `docs/threat-model/RISKS.md` until read and dated.
 
+Cloudflare Web Analytics stays enabled for both Pages projects. After each deploy,
+`scripts/smoke-site.sh` requires exactly one edge-injected beacon with a versioned
+Cloudflare Insights URL and a nonempty public site token on the served home page. It
+continues to reject the beacon in built HTML and rejects every other remote script.
+
 After a header change (for example a new Content-Security-Policy), unchanged static files
 keep their cached headers at the edge. Purge those URLs, then fetch `/copy.js`,
 `/search.js` and `/share.js` and compare their headers with `static/_headers`
