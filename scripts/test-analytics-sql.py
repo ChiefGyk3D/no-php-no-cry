@@ -396,6 +396,15 @@ class Schema(unittest.TestCase):
 
 
 class Rollup(unittest.TestCase):
+    def test_listed_source_is_stored_and_rolled_up_as_itself(self):
+        db = fresh()
+        event(db, NOW_EPOCH, src_kind="s", src="n0call")
+        db.executescript(maintenance_sql())
+        self.assertEqual(
+            db.execute("SELECT src_kind, src, views FROM view_daily").fetchall(),
+            [("s", "n0call", 1)],
+        )
+
     def test_rollup_counts_and_is_idempotent(self):
         db = fresh()
         event(db, NOW_EPOCH, page="/a/", n=3)
