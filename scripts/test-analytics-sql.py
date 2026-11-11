@@ -429,6 +429,20 @@ class PlaceFloor(unittest.TestCase):
             self.put(country, region, city, views)
         self.assertEqual(self.shown(), [("other", "", "", 8)])
 
+    def test_blank_collected_places_are_distinct_from_blank_rollup_coordinates(self):
+        self.put("", "", "", 6)
+        self.put("", "N0", "N0CALL", 3)
+        self.put("", "T0", "N0TST", 3)
+
+        self.assertEqual(
+            self.db.execute(
+                "SELECT country, region, city, level, views "
+                "FROM report_view_geo_daily ORDER BY level"
+            ).fetchall(),
+            [("", "", "", "city", 6), ("", "", "", "country", 6)],
+        )
+
+
 class GeoMigrationSafety(unittest.TestCase):
     def test_0004_rollback_restores_the_previous_geo_view_and_runs_twice(self):
         before = sqlite3.connect(":memory:")

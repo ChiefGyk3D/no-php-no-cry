@@ -79,19 +79,19 @@ country_classified AS (
     (views < 5 OR (withheld_count = 1 AND next_smallest = 1)) AS withheld
   FROM country_marked
 )
-SELECT day, country, region, city, bot_class, views
+SELECT day, country, region, city, bot_class, views, 'city' AS level
 FROM city_classified
 WHERE NOT withheld AND views >= 5
 UNION ALL
-SELECT day, country, region, '', bot_class, views
+SELECT day, country, region, '', bot_class, views, 'region' AS level
 FROM region_classified
 WHERE NOT withheld AND views >= 5
 UNION ALL
-SELECT day, country, '', '', bot_class, views
+SELECT day, country, '', '', bot_class, views, 'country' AS level
 FROM country_classified
 WHERE NOT withheld AND views >= 5
 UNION ALL
-SELECT day, 'other', '', '', bot_class, SUM(views)
+SELECT day, 'other', '', '', bot_class, SUM(views), 'other' AS level
 FROM country_classified
 WHERE withheld
 GROUP BY day, bot_class
