@@ -3,6 +3,10 @@
 Status: design only. Nothing here changes code, a workflow or a Cloudflare setting.
 Refs issue 84 (blog analytics) and issue 189 (edge-mode collector). Written 2026-11-09.
 
+Update 2026-11-10: the ASN source decision is X4BNet/lists_vpn (MIT), with
+ipverse/as-metadata (CC0) used only in the monthly pull request review report.
+Only ASN numbers and closed classes ship; no ASN or address range is stored.
+
 ## Summary for the owner
 
 Update 2026-11-09: the owner answered the six open questions. They are recorded as

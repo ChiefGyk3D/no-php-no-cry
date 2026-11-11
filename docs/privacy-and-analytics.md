@@ -51,6 +51,12 @@ The collector is built but not deployed (issue 84): see
 `docs/privacy-with-analytics.md` and goes live with the first deploy that binds
 the database.
 
+The ASN class list is maintained by a monthly owner-reviewed pull request from
+X4BNet/lists_vpn, with ipverse/as-metadata used only for the review report. This
+does not change the privacy statement: the Function ships only ASN numbers and
+closed classes, reduces the request ASN to one class, and never stores or logs
+the ASN or an address range.
+
 TODO (issue 84): when analytics lands, the same pull request that adds the
 collector must change this text to say what is collected, why, and how to opt
 out. The page, the collector and `static/_headers` change together; do not add a
