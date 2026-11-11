@@ -30,4 +30,5 @@ tests=(analytics/test/*.test.mjs)
 }
 node --test "${tests[@]}"
 python3 -I -W ignore scripts/test-analytics-sql.py
+python3 -I scripts/test-analytics-reconciliation.py
 echo "test-analytics: ok"

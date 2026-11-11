@@ -1,12 +1,99 @@
 # Authoring helper
 
 `scripts/author.py` is a small command-line helper (Python 3, standard library only)
-that starts a post or journal entry the safe way. It is phase 1 of the local
-authoring editor (epic #237); editor settings and the writing guide arrive in later issues.
+that starts a post or journal entry the safe way. The repository also includes the
+workspace editor settings and writing aids described below.
 
 `new` and `img add` write only under `content/` and do no git, network or browser work.
 `preview` listens on loopback only. `publish` is the only command that runs `git` and `gh`.
 The helper never merges and never touches `main`.
+
+## Author from a desk
+
+Open the repository folder in VS Code. The recommended extensions check Markdown and
+American English spelling. Word wrap and spelling are enabled in the workspace. Type
+`post-skeleton` in a Markdown file for a post outline, or `post-image` for an image with
+alt text.
+
+VS Code tasks work only after you trust the folder. Restricted Mode keeps tasks from a
+hostile checkout from running. Read the changes before you grant Workspace Trust. The
+tasks menu offers a check of the current file and a draft preview. Neither task runs
+when the folder opens.
+
+From the repository root, create a draft:
+
+```sh
+python3 -I scripts/author.py new post "My post title" \
+  --description "One or two plain sentences that pitch the post." \
+  --tag hugo --tag web-editor
+```
+
+Add each image through the helper so it removes metadata and prints the Markdown to
+paste:
+
+```sh
+python3 -I scripts/author.py img add content/posts/my-post-title ~/Pictures/bench.jpg \
+  --alt "A breadboard with a small radio module wired to a microcontroller"
+```
+
+Keep `draft: true` while writing. Check the bundle, then preview it:
+
+```sh
+python3 -I scripts/author.py check content/posts/my-post-title
+python3 -I scripts/author.py preview
+```
+
+When the post is ready, publish it from a clean worktree. `--set-draft-false` changes
+the draft state, creates a `post/<slug>` branch, pushes that branch, and opens a pull
+request linked to the issue:
+
+```sh
+python3 -I scripts/author.py publish content/posts/my-post-title --issue 258 --set-draft-false
+```
+
+Review the pull request and wait for CI. The owner decides whether to merge it. The
+helper never merges and never touches `main`.
+
+## Author from a phone or tablet
+
+You can write Markdown in any editor and move it to the desk flow later. To work only
+on GitHub:
+
+1. Open the repository in GitHub's web editor and create a new branch.
+2. Add `content/posts/<slug>/index.md`, using lowercase words and single hyphens for
+   `<slug>`.
+3. Copy the front matter below and replace every example value. Keep `draft: true`
+   until the post is ready for review.
+4. Upload any images beside `index.md`, reference each one with real alt text, and keep
+   every source image under 5 MiB.
+5. Commit to the branch and open a pull request. Never commit the post directly to
+   `main`.
+
+```yaml
+---
+title: "Post title"
+date: 2026-11-10
+draft: true
+description: "One or two plain sentences that describe the post."
+slug: "post-slug"
+categories: ["Linux"]
+tags: ["hugo"]
+syndicate: true
+---
+
+Opening paragraph.
+
+<!--more-->
+```
+
+The web editor does not run `img add`. Images uploaded there are not resized and do
+not have EXIF, GPS, XMP, or IPTC metadata removed. Resize and clean them in an image
+editor before upload. CI is the only safeguard on this path. It rejects invalid or
+missing front matter, unsafe links or raw HTML, unfinished published text, invalid
+image names or types, missing or placeholder alt text on published pages, remote or
+unreferenced images, image metadata, images over 10000 pixels on a side or 64
+megapixels, images over 5 MiB, unapproved brand assets, secrets, and private terms.
+Fix every CI finding before the pull request is merged.
 
 ## New post or journal entry
 

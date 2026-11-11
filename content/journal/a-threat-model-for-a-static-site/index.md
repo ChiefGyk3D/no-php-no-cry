@@ -24,7 +24,7 @@ The adversary in this model is a public visitor or somebody reading a released r
 
 ## Counts with rules behind them
 
-The model currently contains 63 threats. Of those, 33 are mitigated, 26 remain open, 3 are accepted, and 1 is not applicable.
+The model currently contains 63 threats. Of those, 33 are mitigated, 24 remain open, 3 are accepted, and 3 are not applicable.
 
 Those statuses have a deliberately strict meaning. I only mark a threat mitigated when the repository contains a visible control and the mitigation text names it. Provider-side settings stay open until somebody checks them and records the result. Planned features stay open because a design document is not an implemented control.
 

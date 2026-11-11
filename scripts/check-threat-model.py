@@ -312,7 +312,7 @@ COUNT_FILES = (
         r"contains (\d+) threats: (\d+) Mitigated, (\d+) Open, (\d+) Accepted and (\d+) Not Applicable")),
     (os.path.join("content", "journal", "a-threat-model-for-a-static-site", "index.md"), re.compile(
         r"contains (\d+) threats\. Of those, (\d+) are mitigated, (\d+) remain open, (\d+) are accepted, "
-        r"and (\d+) is not applicable")),
+        r"and (\d+) are not applicable")),
 )
 
 

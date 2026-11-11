@@ -2021,13 +2021,24 @@
                 {
                   "id": "0b570f61-5463-5881-bfb4-c396d178cefd",
                   "title": "Prevent linking visitor codes across days",
-                  "status": "Open",
+                  "status": "NotApplicable",
                   "severity": "Medium",
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "The daily keyed hash (decision Q6) could be linked if the key leaks or rows are kept past the day.",
-                  "mitigation": "Open (not built). Design in docs/analytics-from-reach-around.md section 5.3: key from a Doppler secret, per-day and per-site derivation, purge at the end of the UTC day, never in a report.",
+                  "mitigation": "The unique-visitor hash was removed, so no visitor codes exist to link. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address. The feature was dropped, not deferred.",
                   "number": 34
+                },
+                {
+                  "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
+                  "title": "Protect the analytics hashing secret",
+                  "status": "NotApplicable",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "description": "A leaked key lets someone test guesses against the daily codes.",
+                  "mitigation": "The unique-visitor hash was removed, so no hashing secret exists. analytics/collect.mjs hashes no address, and analytics/migrations/0001_page_views.sql stores nothing derived from an address.",
+                  "number": 54
                 },
                 {
                   "id": "6632d91b-71bf-5126-b81f-528836761bba",
@@ -2809,7 +2820,7 @@
         "title": "3 Data stores and secrets",
         "diagramType": "STRIDE",
         "id": 2,
-        "description": "Where credentials live and who can reach them: Doppler as the only secret store, the OIDC identity, the Cloudflare token, the planned analytics hash secret, and the GitHub secrets policy.",
+        "description": "Where credentials live and who can reach them: Doppler as the only secret store, the OIDC identity, the Cloudflare token, and the GitHub secrets policy.",
         "thumbnail": "./public/content/images/thumbnail.stride.jpg",
         "cells": [
           {
@@ -3029,7 +3040,7 @@
             "id": "7e95b890-72da-55bb-ac7a-efdb9465abdc",
             "data": {
               "name": "Doppler (product project, dev environment config)",
-              "description": "Holds two deployment credential values for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables. A later project holds the analytics hash secret.",
+              "description": "Holds two deployment credential values for deploy; the workflow exports only those two names to the job (an allow-list; the whole config is still read on the runner), from the project and config named by repository variables.",
               "type": "tm.Store",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -3313,57 +3324,6 @@
               ],
               "hasOpenThreats": true,
               "privilegeLevel": ""
-            }
-          },
-          {
-            "position": {
-              "x": 300,
-              "y": 270
-            },
-            "size": {
-              "width": 200,
-              "height": 90
-            },
-            "attrs": {
-              "text": {
-                "text": "Analytics hash secret (planned)"
-              },
-              "topLine": {
-                "stroke": "#333333",
-                "strokeWidth": 1,
-                "strokeDasharray": null
-              },
-              "bottomLine": {
-                "stroke": "#333333",
-                "strokeWidth": 1,
-                "strokeDasharray": null
-              }
-            },
-            "visible": true,
-            "shape": "store",
-            "zIndex": 12,
-            "id": "4fd66311-d399-5400-8551-216eea17113f",
-            "data": {
-              "name": "Analytics hash secret (planned)",
-              "description": "VIEW_HASH_SECRET: key for the daily visitor code. Name only here; the value lives in Doppler.",
-              "type": "tm.Store",
-              "isTrustBoundary": false,
-              "outOfScope": false,
-              "reasonOutOfScope": "",
-              "threats": [
-                {
-                  "id": "88cf0701-f648-5a9f-b662-fb64c0c43c85",
-                  "title": "Protect the analytics hashing secret",
-                  "status": "Open",
-                  "severity": "High",
-                  "type": "Information disclosure",
-                  "modelType": "STRIDE",
-                  "description": "A leaked key lets someone test guesses against the daily codes.",
-                  "mitigation": "Open (not built). docs/analytics-from-reach-around.md requires secret-manager storage, no handler logging, and scheduled rotation; scripts/test-analytics.sh verifies the analytics source rules.",
-                  "number": 54
-                }
-              ],
-              "hasOpenThreats": true
             }
           },
           {
@@ -3870,56 +3830,6 @@
               "protocol": "HTTPS",
               "isEncrypted": true,
               "isPublicNetwork": true,
-              "isBidirectional": false,
-              "threats": [],
-              "isTrustBoundary": false,
-              "hasOpenThreats": false
-            }
-          },
-          {
-            "shape": "flow",
-            "attrs": {
-              "line": {
-                "stroke": "#333333",
-                "strokeWidth": 1,
-                "targetMarker": {
-                  "name": "block"
-                },
-                "sourceMarker": "",
-                "strokeDasharray": null
-              }
-            },
-            "width": 200,
-            "height": 100,
-            "zIndex": 123,
-            "connector": "smooth",
-            "id": "62140dc9-c253-5e6e-a33a-e2ba224cab18",
-            "visible": true,
-            "labels": [
-              {
-                "position": 0.5,
-                "attrs": {
-                  "label": {
-                    "text": "Key for the daily code"
-                  }
-                }
-              }
-            ],
-            "source": {
-              "cell": "4fd66311-d399-5400-8551-216eea17113f"
-            },
-            "target": {
-              "cell": "48f06a9c-79ca-5df7-9300-c6f1fb55b73b"
-            },
-            "data": {
-              "type": "tm.Flow",
-              "name": "Key for the daily code",
-              "description": "",
-              "outOfScope": false,
-              "reasonOutOfScope": "",
-              "protocol": "internal",
-              "isEncrypted": true,
-              "isPublicNetwork": false,
               "isBidirectional": false,
               "threats": [],
               "isTrustBoundary": false,

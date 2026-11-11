@@ -41,7 +41,11 @@ _site/
 
 # Editor and OS
 .DS_Store
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/markdown.code-snippets
+!.vscode/settings.json
+!.vscode/tasks.json
 .idea/
 *.swp
 *~
