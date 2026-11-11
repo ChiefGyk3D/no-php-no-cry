@@ -1,0 +1,31 @@
+{
+  "Post skeleton": {
+    "scope": "markdown",
+    "prefix": "post-skeleton",
+    "description": "Insert a draft post skeleton",
+    "body": [
+      "---",
+      "title: \"${1:Post title}\"",
+      "date: ${2:YYYY-MM-DD}",
+      "draft: true",
+      "description: \"${3:One or two plain sentences}\"",
+      "slug: \"${4:post-slug}\"",
+      "categories: [\"${5:Category}\"]",
+      "tags: [\"${6:tag}\"]",
+      "syndicate: true",
+      "---",
+      "",
+      "${7:Opening paragraph.}",
+      "",
+      "<!--more-->",
+      "",
+      "${0}"
+    ]
+  },
+  "Image with alt text": {
+    "scope": "markdown",
+    "prefix": "post-image",
+    "description": "Insert a Markdown image with alt text",
+    "body": "![${1:Describe the image}](${2:image.jpg})"
+  }
+}

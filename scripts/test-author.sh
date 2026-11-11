@@ -861,6 +861,48 @@ if grep -nE '^\s*(import|from)\s+(urllib|http|requests|webbrowser|ftplib|smtplib
 if grep -nE '\.bind\(' "$root/scripts/author.py" | grep -vF '.bind((LOOPBACK, 0))'; then bad "author.py binds something other than loopback"; else ok "author.py binds loopback only"; fi
 if grep -nE 'webbrowser|xdg-open|openBrowser' "$root/scripts/author.py"; then bad "author.py names a browser"; else ok "author.py runs no browser"; fi
 
+# --- VS Code workspace (issue #255): safe, fixed helper tasks and authoring aids --------------
+rc=0
+python3 -I - "$root" <<'PY' || rc=$?
+import json
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+vscode = root / ".vscode"
+extensions = json.loads((vscode / "extensions.json").read_text())
+tasks = json.loads((vscode / "tasks.json").read_text())
+settings = json.loads((vscode / "settings.json").read_text())
+snippets = json.loads((vscode / "markdown.code-snippets").read_text())
+
+assert extensions["recommendations"] == [
+    "davidanson.vscode-markdownlint",
+    "streetsidesoftware.code-spell-checker",
+]
+assert set(tasks) == {"version", "tasks"}
+assert tasks["version"] == "2.0.0"
+expected = {
+    "Author: Check current file": [
+        "-I", "scripts/author.py", "check", "${file}",
+    ],
+    "Author: Preview drafts": ["-I", "scripts/author.py", "preview"],
+}
+assert {task["label"]: task["args"] for task in tasks["tasks"]} == expected
+for task in tasks["tasks"]:
+    assert task["type"] == "process"
+    assert task["command"] == "python3"
+    assert "runOptions" not in task
+    assert task.get("options") == {"cwd": "${workspaceFolder}"}
+assert settings["editor.wordWrap"] == "on"
+assert settings["cSpell.enabled"] is True
+assert set(snippets) == {"Post skeleton", "Image with alt text"}
+assert snippets["Post skeleton"]["scope"] == "markdown"
+assert "draft: true" in snippets["Post skeleton"]["body"]
+assert "<!--more-->" in snippets["Post skeleton"]["body"]
+assert snippets["Image with alt text"]["body"] == "![${1:Describe the image}](${2:image.jpg})"
+PY
+[[ $rc -eq 0 ]] && ok "VS Code workspace has safe authoring tasks, extensions, settings and snippets" || bad "VS Code workspace contract (exit $rc)"
+
 if [[ $fail -ne 0 ]]; then
     echo "test-author: FAILED"
     exit 1
