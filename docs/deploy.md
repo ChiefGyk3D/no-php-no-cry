@@ -228,6 +228,9 @@ Cloudflare Web Analytics stays enabled for both Pages projects. After each deplo
 `scripts/smoke-site.sh` requires exactly one edge-injected beacon with a versioned
 Cloudflare Insights URL and a nonempty public site token on the served home page. It
 continues to reject the beacon in built HTML and rejects every other remote script.
+Cloudflare injects the beacon only when the request looks like a browser, as measured
+on 2026-11-10, so this home-page check uses fixed Firefox desktop and HTML Accept
+headers. Other smoke-test requests are unchanged.
 
 After a header change (for example a new Content-Security-Policy), unchanged static files
 keep their cached headers at the edge. Purge those URLs, then fetch `/copy.js`,
