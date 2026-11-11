@@ -337,6 +337,29 @@ class MigrationSafety(unittest.TestCase):
         for m in MIGRATIONS:
             self.assertNotRegex(m.read_text(), r"(?im)^\s*(BEGIN|COMMIT|ROLLBACK)\b", m.name)
 
+    def test_later_migrations_upgrade_the_original_source_kind_checks(self):
+        old_check = "src_kind IN ('d', 'i', 'r', 'o')"
+        current_check = "src_kind IN ('d', 'i', 'r', 's', 'o')"
+        original_0001 = self.m0001.read_text().replace(current_check, old_check)
+        self.assertEqual(original_0001.count(old_check), 2, "fixture must model both original checks")
+
+        db = sqlite3.connect(":memory:")
+        db.executescript(original_0001)
+        event(db, NOW_EPOCH, src_kind="d")
+        db.execute(
+            "INSERT INTO view_daily VALUES ('2026-11-04', '/old/', 'd', '', 'US', 'h', 7)"
+        )
+        for migration in MIGRATIONS:
+            if migration > self.m0001:
+                db.executescript(migration.read_text())
+
+        self.assertEqual(db.execute("SELECT src_kind FROM view_events").fetchall(), [("d",)])
+        self.assertEqual(db.execute("SELECT page, views FROM view_daily").fetchall(), [("/old/", 7)])
+        event(db, NOW_EPOCH, src_kind="s", src="n0call")
+        db.execute(
+            "INSERT INTO view_daily VALUES ('2026-11-05', '/a/', 's', 'n0call', 'US', 'h', 1)"
+        )
+
 
 class DisplayFloor(unittest.TestCase):
     def test_the_floor_is_not_a_bound_across_reports(self):
@@ -396,6 +419,15 @@ class Schema(unittest.TestCase):
 
 
 class Rollup(unittest.TestCase):
+    def test_listed_source_is_stored_and_rolled_up_as_itself(self):
+        db = fresh()
+        event(db, NOW_EPOCH, src_kind="s", src="n0call")
+        db.executescript(maintenance_sql())
+        self.assertEqual(
+            db.execute("SELECT src_kind, src, views FROM view_daily").fetchall(),
+            [("s", "n0call", 1)],
+        )
+
     def test_rollup_counts_and_is_idempotent(self):
         db = fresh()
         event(db, NOW_EPOCH, page="/a/", n=3)
