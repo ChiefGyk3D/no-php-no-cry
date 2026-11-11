@@ -1,8 +1,8 @@
 # Authoring helper
 
 `scripts/author.py` is a small command-line helper (Python 3, standard library only)
-that starts a post or journal entry the safe way. It is phase 1 of the local
-authoring editor (epic #237); editor settings and the writing guide arrive in later issues.
+that starts a post or journal entry the safe way. The repository also includes the
+workspace editor settings and writing aids described below.
 
 `new` and `img add` write only under `content/` and do no git, network or browser work.
 `preview` listens on loopback only. `publish` is the only command that runs `git` and `gh`.
