@@ -1880,7 +1880,7 @@
             "id": "07a2cdc6-2d91-5259-9ed5-95f493382d3a",
             "data": {
               "name": "Analytics Pages Function (planned)",
-              "description": "functions/_middleware.js calls analytics/middleware.mjs: counts one row for an HTML 200 response after the page is on its way. Built and tested, not deployed.",
+              "description": "functions/_middleware.js counts an HTML 200 response after the page is on its way. functions/e/c/[[domain]].js accepts same-origin outbound-link pings reduced to one built-site registrable domain. Built and tested, not deployed.",
               "type": "tm.Process",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -2015,7 +2015,7 @@
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "On a small audience, a rare city plus a page can point at one reader. The owner accepted city in the aggregates (decision Q2).",
-                  "mitigation": "Open: the per-level floor, roll-up and complementary suppression are plan item 4 in docs/analytics-from-reach-around.md and are not built. Today a single floor of 5 applies in the report views (analytics/migrations, analytics/maintenance.sql). Residual risk is accepted and stated on the privacy page when it ships.",
+                  "mitigation": "Migration 0004 now rolls sub-floor cities into regions, regions into countries and countries into other, with complementary suppression at each level. The location table remains marginal, and the SQL tests cover boundary and subtraction cases (analytics/migrations/0004_geo_report_floor.sql, scripts/test-analytics-sql.py). This stays Open because the accepted residual risk remains and the production privacy page has not shipped; the draft states it in docs/privacy-with-analytics.md.",
                   "number": 33
                 },
                 {
@@ -2094,18 +2094,18 @@
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "Totals and remainder rows let a reader work out a withheld cell.",
-                  "mitigation": "Open (not built). Plan items 4, 9 and 15 in docs/analytics-from-reach-around.md: marginal tables only, complementary suppression and a small-cell test. The report views exist in analytics/migrations with a floor of 5.",
+                  "mitigation": "Migration 0004 changes only the location report view: it keeps location data marginal and applies a floor of 5 with complementary suppression at each geographic level, so a lone withheld location cannot be recovered by subtraction within that view. The page, network and click report views retain independent floors, and cross-report subtraction remains possible as demonstrated by DisplayFloor.test_the_floor_is_not_a_bound_across_reports (analytics/migrations/0004_geo_report_floor.sql, scripts/test-analytics-sql.py). This stays Open until the owner report and release ledger in plan item 15 are built.",
                   "number": 36
                 },
                 {
                   "id": "3ffd8a22-3457-5a8b-960f-6187579d0bb7",
                   "title": "Limit destination growth in click reports",
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Denial of service",
                   "modelType": "STRIDE",
                   "description": "With every external link counted by domain, a flood of forged pings fills the table (decision Q4).",
-                  "mitigation": "Open (not built). Plan item 7: build-time domain list, Public Suffix List check, 150 per day cap with an other bucket. Outbound-link counting is not in the code today.",
+                  "mitigation": "The build emits a domain-only allowlist; the POST route applies the pinned Public Suffix List, rejects anything other than a listed eTLD+1, and folds failures into other. A reserved other cell, 149 named cells per day, and seven new cells per hour bound storage. Domain and country are separate marginal counters (analytics/click.mjs, migration 0005, and analytics/test/click.test.mjs).",
                   "number": 37
                 }
               ],
@@ -2152,7 +2152,7 @@
                   "type": "Repudiation",
                   "modelType": "STRIDE",
                   "description": "Two counters (Cloudflare Web Analytics and this one) disagree and are read as a leak or a bug.",
-                  "mitigation": "Open. A reconciliation note and report footer are plan item 12 in docs/analytics-from-reach-around.md.",
+                  "mitigation": "The reconciliation note now states why the counters differ, which counter owns each measure and the canonical report footer wording (docs/analytics-reconciliation.md). Its offline check runs with the analytics tests (scripts/test-analytics-reconciliation.py, scripts/test-analytics.sh). This stays Open until the owner report prints that footer.",
                   "number": 38
                 }
               ],
@@ -2605,7 +2605,7 @@
                   "type": "Tampering",
                   "modelType": "STRIDE",
                   "description": "Pages control files add routes or a Worker that was not reviewed.",
-                  "mitigation": "static/_routes.json keeps static asset paths away from the Function; scripts/check-site-artifact.sh rejects unexpected control files in the published folder; functions/ must hold only _middleware.js and package.json (analytics/test/middleware.test.mjs).",
+                  "mitigation": "static/_routes.json keeps static asset paths away from the Function; scripts/check-site-artifact.sh rejects unexpected control files in the published folder; functions/ may hold only _middleware.js, package.json and the outbound click route (analytics/test/middleware.test.mjs).",
                   "number": 45
                 }
               ],

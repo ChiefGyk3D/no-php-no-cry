@@ -14,6 +14,8 @@
 // unseen. The tables are wide on purpose and cheap to extend, but the real
 // guarantee is review of the small collector source plus the platform's own
 // limits.
+import { writeSync } from "node:fs";
+
 const hits = [];
 const trap = (name) => (...args) => {
   hits.push(name);
@@ -37,7 +39,6 @@ for (const m of Object.keys(console)) {
 for (const s of [process.stdout, process.stderr]) {
   s.write = trap("stdio-write");
 }
-const realWrite = process.stdout.constructor.prototype.write;
 
 // argv[2] names the module to drive; the default is the real Function. The test
 // passes a deliberately leaking module to prove the probe bites.
@@ -141,4 +142,4 @@ for (const env of envs.slice(0, 2)) {
   }
 }
 const out = JSON.stringify({ hits, rows: writes.length });
-realWrite.call(process.stdout, out);
+writeSync(1, out);

@@ -43,6 +43,23 @@ GROUP BY 1, 2, 3, 4
 ON CONFLICT (day, dim, value, bot_class)
 DO UPDATE SET views = excluded.views;
 
+INSERT INTO click_domain_daily (day, domain, clicks)
+SELECT date(ts, 'unixepoch'), domain, COUNT(*)
+FROM click_events
+WHERE ts >= CAST(strftime('%s', date('now', '-5 days')) AS INTEGER)
+GROUP BY 1, 2
+ON CONFLICT (day, domain) DO UPDATE SET clicks = excluded.clicks;
+
+-- Rebuild the current and prior two months from the retained daily cells. This
+-- makes retries idempotent and finishes the previous month after its last day.
+DELETE FROM click_domain_monthly
+WHERE month >= strftime('%Y-%m', date('now', 'start of month', '-2 months'));
+INSERT INTO click_domain_monthly (month, domain, clicks)
+SELECT substr(day, 1, 7), domain, SUM(clicks)
+FROM click_domain_daily
+WHERE day >= date('now', 'start of month', '-2 months')
+GROUP BY 1, 2;
+
 -- 2. Retention: 7 days raw, 90 days aggregates.
 DELETE FROM view_events
 WHERE ts < CAST(strftime('%s', 'now', '-7 days') AS INTEGER);
@@ -50,6 +67,13 @@ WHERE ts < CAST(strftime('%s', 'now', '-7 days') AS INTEGER);
 DELETE FROM view_daily WHERE day < date('now', '-90 days');
 DELETE FROM view_geo_daily WHERE day < date('now', '-90 days');
 DELETE FROM view_dim_daily WHERE day < date('now', '-90 days');
+DELETE FROM click_events
+WHERE ts < CAST(strftime('%s', 'now', '-7 days') AS INTEGER);
+DELETE FROM click_domain_daily WHERE day < date('now', '-90 days');
+DELETE FROM click_country_daily WHERE day < date('now', '-90 days');
+DELETE FROM click_domain_monthly
+WHERE month < strftime('%Y-%m', date('now', 'start of month', '-24 months'));
+DELETE FROM click_domain_seen WHERE day < date('now', '-7 days');
 -- The per-day referrer registry is only read for the day being written, so it
 -- is kept as long as the raw rows.
 DELETE FROM referrer_seen WHERE day < date('now', '-7 days');

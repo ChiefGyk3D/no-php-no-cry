@@ -1,0 +1,55 @@
+name: Refresh Public Suffix List
+
+on:
+  schedule:
+    - cron: '37 8 15 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-public-suffix-list
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: block
+          allowed-endpoints: >-
+            api.github.com:443
+            github.com:443
+            publicsuffix.org:443
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Refresh the pinned list and generated files
+        run: |
+          set -euo pipefail
+          curl -fsSLo analytics/public_suffix_list.dat https://publicsuffix.org/list/public_suffix_list.dat
+          grep -q '^// VERSION: ' analytics/public_suffix_list.dat
+          grep -q '^// ===BEGIN PRIVATE DOMAINS===$' analytics/public_suffix_list.dat
+          python3 -I scripts/build-outbound-domains.py
+          git diff --exit-code || true
+
+      - name: Open a refresh pull request when the pin changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git diff --quiet && exit 0
+          branch="automation/refresh-public-suffix-list"
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git switch -C "$branch"
+          git add analytics/public_suffix_list.dat analytics/public-suffix-rules.mjs analytics/site-domains.mjs data/analytics_hosts.json static/analytics-domains.txt
+          git commit -m "Analytics: refresh Public Suffix List"
+          git push --force-with-lease origin "$branch"
+          gh pr create --base main --head "$branch" --title "Analytics: refresh Public Suffix List" --body "Scheduled refresh of the pinned Public Suffix List and derived build files." || true

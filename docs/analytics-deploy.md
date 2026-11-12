@@ -9,14 +9,24 @@ later. Alpha: every default here is provisional.
 
 | Path | What it is |
 | --- | --- |
-| `functions/_middleware.js` | The Pages Functions entry. Calls `analytics/middleware.mjs`. `functions/` holds only this file and `package.json`; a test enforces it. |
+| `functions/_middleware.js` | The Pages Functions entry for views. Calls `analytics/middleware.mjs`; the function-tree allowlist test also permits only the outbound click route and `package.json`. |
 | `analytics/middleware.mjs` | Fail-open wrapper: returns the page first, writes in the background, bounded by a timer, swallows errors, logs nothing. |
 | `analytics/collect.mjs` | Pure functions: path rules, referrer host, geo, ASN class, bot class, opt-outs, the row. |
 | `analytics/hosting-asns.mjs` | The ASN list (data file, no CIDR). A starter list, to refresh before go-live. |
 | `analytics/migrations/0001_page_views.sql` | Tables, the 5-view floor (`report_*` views) and the funnel view. |
 | `analytics/migrations/0002_report_top_referrers.sql` | A per-day registry that caps stored referrer domains, and the replacement report views: top 20 referrer domains per day and class, the rest folded into "other". |
 | `analytics/rollback/0002_down.sql` | Rollback for 0002 (not a migration; run by hand). Restores the 0001 views and drops the registry. |
+| `analytics/migrations/0003_listed_source_kind.sql` | Adds the closed-list source kind to databases that applied migration 0001 before it was added to the baseline. |
+| `analytics/migrations/0004_geo_report_floor.sql` | Replaces the location report with per-level roll-up and complementary suppression. |
+| `analytics/rollback/0004_down.sql` | Idempotent rollback for the location report view. |
 | `analytics/maintenance.sql` | Daily rollup and retention (7 days raw, 90 days aggregates). Not scheduled yet. |
+| `analytics/migrations/0005_outbound_clicks.sql` | Outbound-click raw rows, separate domain and country counters, five-click report floors, and the 25-month domain roll-up. |
+| `analytics/rollback/0005_down.sql` | Idempotent rollback for the outbound-click tables and report views. |
+| `analytics/public_suffix_list.dat` | Pinned, dated Public Suffix List, including its private section. |
+| `analytics/site-domains.mjs` | Generated allowlist used by the click Function. Contains domains only. |
+| `functions/e/c/[[domain]].js` | Empty-204 POST route for outbound pings. Re-validates the eTLD+1 and writes no URL. |
+| `layouts/_markup/render-link.html` | Markdown link render hook that adds a same-origin ping for external destinations. |
+| `static/analytics-domains.txt` | Generated list of outbound eTLD+1 values present in site content. |
 | `analytics/wrangler.toml.example` | The D1 binding template. |
 | `static/_routes.json` | Limits the Function to HTML routes: the HTML pages (including `/support/`) run it; the CSS, fonts, brand files, images and the support QR and coin SVGs (`/support/qr-*.svg`, `/support/coin-*.svg`) do not. Required in the upload; copied there by Hugo. |
 | `docs/privacy-with-analytics.md` | The draft `/privacy/` text. Not live. |
@@ -78,7 +88,7 @@ the deploy token if the cleanup runs under its own token.
 1. Create the database (maintainer approval needed):
    `wrangler d1 create no-php-no-cry-analytics`. Note the printed id.
 2. Copy `analytics/wrangler.toml.example` to `wrangler.toml` at the repository
-   root and fill in `database_id`. Apply the migration, remote:
+   root and fill in `database_id`. Apply all migrations in order, remote:
    `wrangler d1 migrations apply no-php-no-cry-analytics --remote`.
 3. Change `.github/workflows/deploy.yml` so the deploy job (a) checks out
    `/functions/`, `/analytics/` and `/wrangler.toml` in its sparse list, and

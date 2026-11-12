@@ -117,11 +117,10 @@ Outbound link click, no script: a `ping` attribute on the anchor, as the link pa
   a `ping` to the click route for every external link, carrying the registrable domain of
   the destination (decision Q4 B, 2026-11-09: an open vocabulary). The domain rules, the
   per-day cap with an `other` bucket and the built-site membership check are in 5.2.
-- `/e/c/<id>` is a second Function file (a `POST` route) that applies the click rules:
-  closed id, `Ping-From` host noise filter, hour-rounded time, an optional closed `s`
-  source label, country only in an aggregate counter, never on the raw row (design 6.1
-  and 6.2). The current repo test says `functions/` holds only `_middleware.js`; that
-  test changes with this work.
+- `/e/c/<domain>` is a second Function file (a `POST` route) that applies the click
+  rules: a destination from the built-site allowlist, `Ping-From` as a noise filter,
+  hour-rounded time and country only in an aggregate counter, never on the raw row.
+  The function-tree test permits only `_middleware.js`, this route and `package.json`.
 - INFERRED, to confirm in the spike: browsers send `ping` as a `POST` with `Ping-From`
   and `Ping-To` headers; the CSP `connect-src` directive covers `ping` targets (the blog
   has `connect-src 'self'`, so a same-origin ping needs no CSP change); some browsers
@@ -279,22 +278,21 @@ Required:
   test from issue 408).
 - City stays in a marginal table by itself. It is never joined to network class, device,
   source or clicks; no city-with-click pair.
-- What the code does today (VERIFIED, `analytics/migrations/0001_page_views.sql` and
-  `analytics/maintenance.sql`, read 2026-11-09): the daily rollup copies country, region
+- Before migration 0004 (VERIFIED against `analytics/migrations/0001_page_views.sql` and
+  `analytics/maintenance.sql` on 2026-11-09), the daily rollup copied country, region
   and city from the raw rows into `view_geo_daily` (key: day, country, region, city, bot
   class), kept 90 days. The reader view `report_view_geo_daily` applies one floor of 5:
   a cell under 5 is dropped from the listing and the dropped cells of that day and class
   are summed into one `other` row, shown only if that sum is at least 5. So city in the
-  aggregate already exists, which matches decision Q2 C, but there is no roll-up of a
-  withheld city into its region or country, and the stored table still holds sub-floor
+  aggregate already existed, which matched decision Q2 C, but there was no roll-up of a
+  withheld city into its region or country. The stored table still holds sub-floor
   cities (readable with the D1 token, not through the report view).
-- What must change (plan item 4): new report views with a per-level floor (city cells
-  under 5 summed into their region, region cells under 5 into their country, country
-  cells under 5 into `other`, each level shown only if its sum is at least 5), the
-  complementary-suppression rule, and a small-cell test that enumerates datasets per
-  level. The migration is a new view (and a stored-fold option if the owner wants
-  sub-floor cities never stored); the rollup SQL needs no change for the view-only
-  version. The earlier statement that city exists only in 7-day raw rows is withdrawn.
+- Migration 0004 now supplies the report view described above: city cells under 5 roll
+  into their region, region cells under 5 into their country and country cells under 5
+  into `other`, with complementary suppression at every level. The SQL test covers the
+  boundary and subtraction cases. The rollup SQL did not need to change for this
+  view-only design. The earlier statement that city exists only in 7-day raw rows is
+  withdrawn.
 - Stored-fold decision for issue 294: use the view-only option. Sub-floor cities remain
   in the place-only aggregate table for its 90-day lifetime and are protected by the
   report views. They are not folded at write time.
@@ -413,24 +411,29 @@ migration); shared work belongs to Reach-Around#325 (One site system) or Reach-A
 (Analytics funnel and owner report). Each item is filed with its epic, Kind and Effort on
 the board before work starts (this PR files nothing).
 
+Completed before this audit: items 1, 4, 7, 8, 9, 11 and 12. Item 17 was
+implemented and then removed, so the current collector again has no admission budget.
+The table remains the decision record; completed items are labeled below so it does not
+describe shipped work as pending.
+
 | # | Phase | Issue to file | Epic | Kind | Size |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 0 Decide | Record decisions Q1 to Q5 and the superseded Q6 unique-visitor proposal (board and docs) | #1 | Task | XS |
+| 1 | 0 Decide | Completed: record decisions Q1 to Q5 and the superseded Q6 unique-visitor proposal (board and docs) | #1 | Task | XS |
 | 2 | 1 Spike | Close the UNVERIFIED items on a preview deployment: city in `request.cf`, cached HTML invoking the Function, `ping` support and CSP, bundle size with the ASN list and the suffix list | #1 | Task | S |
 | 3 | 2 Views live | Turn the existing Function on: bind the database, privacy page swap, test update, ASN refresh, daily maintenance job from the GYST pattern (existing no-php-no-cry#84, #189) | #1 | Feature | M |
-| 4 | 2 Views live | City in aggregates with per-granularity floor, roll-up to region then country, complementary suppression and the small-cell test (Q2) | #1 | Feature | M |
+| 4 | 2 Views live | Completed: city in aggregates with per-granularity floor, roll-up to region then country, complementary suppression and the small-cell test (Q2) | #1 | Feature | M |
 | 5 | 2 Views live | Superseded: no work. The blog dropped unique-visitor hashing and has no visitor table or hashing secret | #1 | Feature | M |
 | 6 | 2 Views live | Reach-Around: threat model entries for the blog site, with the Q2 and Q4 rows and the dropped Q6 proposal recorded (extends Reach-Around#333) | R#325 | Task | S |
-| 7 | 3 Clicks | Open-vocabulary outbound click ping: render hook with eTLD+1 reduction, built-site domain list, POST route, cap and `other` fold, pinned Public Suffix List with refresh job, tests (Q4) | #1 | Feature | L |
-| 8 | 3 Clicks | Closed `s` source label list with referrer-host fallback on blog pages (Q5) | #1 | Feature | S |
-| 9 | 3 Clicks | Guardrail tests for the blog: sentinel, schema guard, small-cell, forged domain (reuses Reach-Around#408) | #1 | Task | M |
+| 7 | 3 Clicks | Completed: open-vocabulary outbound click ping, render hook, eTLD+1 reduction, built-site domain list, POST route, cap and `other` fold, pinned Public Suffix List with refresh job and tests (Q4) | #1 | Feature | L |
+| 8 | 3 Clicks | Completed: closed `s` source label list with referrer-host fallback on blog pages (Q5) | #1 | Feature | S |
+| 9 | 3 Clicks | Completed: guardrail tests for the blog, including sentinel, schema guard, small-cell and forged domain cases (reuses Reach-Around#408) | #1 | Task | M |
 | 10 | 3 Privacy | Privacy page rewrite covering both counters, city, domain clicks, floors and the reconciliation sentence, with the test change in the same PR | #1 | Feature | S |
-| 11 | 3 Privacy | Cloudflare Web Analytics kept: update docs and CSP notes; require the beacon in the post-deploy smoke test; close or relabel no-php-no-cry#241 and Reach-Around#405 for the blog (Q3) | #1 | Task | XS |
-| 12 | 3 Docs | Counter reconciliation note and report footer wording (Q3) | #1 | Task | XS |
+| 11 | 3 Privacy | Completed in this repository: Cloudflare Web Analytics kept, docs and CSP notes updated, and the beacon required by the post-deploy smoke test (Q3) | #1 | Task | XS |
+| 12 | 3 Docs | Completed: counter reconciliation note and report footer wording (Q3) | #1 | Task | XS |
 | 13 | 4 Converge | Extract the shared rules (path, referrer, bot, closed vocabularies) into one module used by both sites (Q1). The Q6 visitor-code derivation is superseded and is not part of this work | R#325 | Feature | M |
 | 14 | 4 Converge | Edge ingest entry in the shared Worker plus service binding, only if the owner later wants a cross-site report | R#325 | Feature | L |
 | 15 | 5 Report | Blog report views and a funnel section for site `blog` in the owner report, floors applied. Needs item 18 first | R#245 | Feature | M |
-| 17 | 2 Views live | Per-site per-hour admission budget in the Function (sample or skip before the D1 insert once spent, flagged in a counter), and the load test (closes the gap in the threat table) | #1 | Feature | M |
+| 17 | 2 Views live | Open after removal: design admission control that cannot be multiplied by concurrent Function isolates, then add its load test | #1 | Feature | M |
 | 18 | 5 Report | Report input for the blog database: how the owner report reads the blog's separate D1. Options: read the `report_*` views through a scoped read-only token from the owner's machine (no public endpoint), or a periodic export of the aggregate views only (never raw rows); a service binding does not help because the owner report runs locally. Decide, then build | R#245 | Feature | M |
 | 16 | 6 Reuse | Public how-to: add this to your own Hugo site (config, snippet, privacy template, checklist), with the less private choices flagged as options | #1 | Docs | S |
 

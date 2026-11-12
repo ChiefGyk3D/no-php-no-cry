@@ -45,4 +45,13 @@ printf 'var r=window.%s||1;\n' "$short" >"$work/vendored/tools/axe/axe.min.js"
 printf 'var r=window.%s||1;\n' "$short" >"$work/elsewhere/tools/other/axe.min.js"
 if "$root/scripts/check-wording.sh" "$work/vendored" >/dev/null 2>&1; then ok "vendored axe build is exempt"; else bad "vendored axe build was flagged"; fi
 if "$root/scripts/check-wording.sh" "$work/elsewhere" >/dev/null 2>&1; then bad "same text outside tools/axe passed"; else ok "same text outside tools/axe fails"; fi
+
+# The pinned Public Suffix List is upstream registry data, so organization
+# names in that exact file are exempt. The same wording in any other analytics
+# file remains subject to the house rule.
+mkdir -p "$work/psl/analytics" "$work/analytics-other/analytics"
+printf '// Shift %s AG\n' "$short" >"$work/psl/analytics/public_suffix_list.dat"
+printf '// Shift %s AG\n' "$short" >"$work/analytics-other/analytics/other.dat"
+if "$root/scripts/check-wording.sh" "$work/psl" >/dev/null 2>&1; then ok "pinned Public Suffix List is exempt"; else bad "pinned Public Suffix List was flagged"; fi
+if "$root/scripts/check-wording.sh" "$work/analytics-other" >/dev/null 2>&1; then bad "same text outside the pinned Public Suffix List passed"; else ok "same text outside the pinned Public Suffix List fails"; fi
 exit "$fail"

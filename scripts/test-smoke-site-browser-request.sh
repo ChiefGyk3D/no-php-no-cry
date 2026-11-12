@@ -41,6 +41,13 @@ run_case "browser-like headers receive one beacon" one pass
 run_case "a response without the browser-only beacon is rejected" missing "missing-beacon: /"
 run_case "two beacons are rejected" two "script-count: /"
 run_case "a beacon without a token is rejected" no-token "missing-beacon: /"
+run_case "a beacon with a non-module type is rejected" script-type "script-not-allowed: /"
+run_case "a beacon with leading space in its type is rejected" spaced-type "script-not-allowed: /"
+run_case "a beacon with a newline in its type is rejected" newline-type "script-not-allowed: /"
+run_case "a beacon without integrity is rejected" no-integrity "script-not-allowed: /"
+run_case "a beacon with credentialed CORS is rejected" bad-crossorigin "script-not-allowed: /"
+run_case "a module beacon with an unknown attribute is rejected" extra-attribute "script-not-allowed: /"
+run_case "a module beacon with an inline body is rejected" inline-body "script-not-allowed: /"
 
 ((failures == 0)) || exit 1
 echo "all browser-request smoke checks passed"

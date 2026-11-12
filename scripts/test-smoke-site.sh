@@ -116,7 +116,12 @@ class H(BaseHTTPRequestHandler):
             return
         body = b"ok"
         if self.path == "/" and mode != "missing-beacon":
-            body = b"<html><script defer src=\"https://static.cloudflareinsights.com/beacon.min.js/vTEST\" integrity=\"sha512-test\" data-cf-beacon=\"{&quot;token&quot;:&quot;public-test-token&quot;}\"></script></html>"
+            beacon_type = "text/javascript" if mode == "beacon-script-type" else "module"
+            extra = " data-test=unknown" if mode == "beacon-extra-attribute" else ""
+            script_body = "x()" if mode == "beacon-inline-body" else ""
+            body = ("<html><script type=\"%s\" src=\"https://static.cloudflareinsights.com/beacon.min.js/vTEST\" "
+                    "integrity=\"sha512-test\" data-cf-beacon=%s{\"version\":\"2024.11.0\",\"token\":\"0123456789abcdef0123456789abcdef\",\"r\":1,\"spa\":2}%s "
+                    "crossorigin=\"anonymous\"%s>%s</script></html>" % (beacon_type, chr(39), chr(39), extra, script_body)).encode()
         pages = {
             "inlinescript": b"<html><script>x()</script></html>",
             "extrascript": b"<html><script src=/other.js></script></html>",
@@ -221,6 +226,9 @@ expect() {
 
 expect good pass good
 expect "Cloudflare beacon missing after deploy" "missing-beacon: /" missing-beacon
+expect "Cloudflare beacon with a non-module type" "script-not-allowed: /" beacon-script-type
+expect "Cloudflare module beacon with an unknown attribute" "script-not-allowed: /" beacon-extra-attribute
+expect "Cloudflare module beacon with an inline body" "script-not-allowed: /" beacon-inline-body
 expect bad-status status bad-status
 expect no-csp missing-csp no-csp
 expect weak-csp wrong-csp weak-csp

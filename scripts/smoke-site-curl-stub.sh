@@ -59,11 +59,18 @@ case "$path" in
     /smoke-check-missing-page/) status=404 ;;
     /)
         if [[ "${CURL_STUB_BEACON:-one}" != missing && "$user_agent" == *Firefox/* && "$accept" == "text/html,application/xhtml+xml" ]]; then
-            beacon='<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vTEST" integrity="sha512-test" data-cf-beacon="{&quot;token&quot;:&quot;public-test-token&quot;}"></script>'
+            beacon='<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vTEST" integrity="sha512-test" data-cf-beacon='"'"'{"version":"2024.11.0","token":"N0TST","r":1,"spa":2}'"'"' crossorigin="anonymous"></script>'
             case "${CURL_STUB_BEACON:-one}" in
                 one) body="<html>${beacon}</html>" ;;
                 two) body="<html>${beacon}${beacon}</html>" ;;
-                no-token) body="<html>${beacon/public-test-token/}</html>" ;;
+                no-token) body="<html>${beacon/N0TST/}</html>" ;;
+                script-type) body="<html>${beacon/type=\"module\"/type=\"text\/javascript\"}</html>" ;;
+                spaced-type) body="<html>${beacon/type=\"module\"/type=\" module\"}</html>" ;;
+                newline-type) body="<html>${beacon/type=\"module\"/$'type="mo\ndule"'}</html>" ;;
+                no-integrity) body="<html>${beacon/ integrity=\"sha512-test\"/}</html>" ;;
+                bad-crossorigin) body="<html>${beacon/crossorigin=\"anonymous\"/crossorigin=\"use-credentials\"}</html>" ;;
+                extra-attribute) body="<html>${beacon/<script /<script data-test=unknown }</html>" ;;
+                inline-body) body="<html>${beacon/<\/script>/x()<\/script>}</html>" ;;
             esac
         fi
         ;;
