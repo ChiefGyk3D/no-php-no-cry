@@ -124,8 +124,8 @@ path no rule matches all run every leg (fail closed). Note `.github/**` and
 - `egress-policy-secretless` is `audit`, as the old `build` job was. The GYST
   default is `block`. In audit mode the Hugo tarball cache and the pip cache are
   inert (a cache is only restored and saved where egress is `block`).
-- `shell` and `security` stay jobs, re-pinned from v1.31.0 (`9d6825d`) to v1.33.0
-  (`13f7a13`).
+- `shell` and `security` stay jobs. All three reusable workflows are pinned to
+  GYST v1.34.0 (`01f3978`).
 - `deploy.yml` and branch protection are unchanged.
 
 ## Roadmap
