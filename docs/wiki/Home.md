@@ -25,6 +25,7 @@ version: [README](https://github.com/ChiefGyk3D/no-php-no-cry/blob/main/README.m
 | [Deploy overview](Deploy-overview.md) | CI, the deploy gate, the dev deploy versus the production pipeline. |
 | [Migrating from WordPress](Migrating-from-WordPress.md) | The converter, redirects and the scrub pass. |
 | [Performance](Performance.md) | Page weight, fonts, images and the browser measurements. |
+| [Privacy-first analytics for Hugo](Privacy-first-analytics-for-Hugo.md) | A preview-first guide to the configuration, Hugo hook, Cloudflare files, privacy text and owner account steps. |
 | [Accessibility](Accessibility.md) | What is built in, what is checked and what is not proven. |
 | [Contributing](Contributing.md) | Issues, pull requests and the rules that never bend. |
 | [FAQ](FAQ.md) | Short answers to common questions. |
