@@ -19,36 +19,11 @@ import { buildRow, insertRow } from "./collect.mjs";
 const DEFAULT_TIMEOUT_MS = 1500;
 const MIN_TIMEOUT_MS = 50;
 const MAX_TIMEOUT_MS = 5000;
-export const DEFAULT_HOURLY_BUDGET = 4000;
-let admission = { hour: null, admitted: 0, skipped: 0 };
 
 function timeoutMs(env) {
   const n = Number.parseInt(env.ANALYTICS_TIMEOUT_MS, 10);
   if (!Number.isFinite(n)) return DEFAULT_TIMEOUT_MS;
   return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, n));
-}
-
-function hourlyBudget(env) {
-  const n = Number.parseInt(env.ANALYTICS_HOURLY_BUDGET, 10);
-  if (!Number.isFinite(n)) return DEFAULT_HOURLY_BUDGET;
-  return Math.min(DEFAULT_HOURLY_BUDGET, Math.max(1, n));
-}
-
-function admit(hour, limit) {
-  if (admission.hour !== hour) admission = { hour, admitted: 0, skipped: 0 };
-  if (admission.admitted >= limit) {
-    admission.skipped += 1;
-    return false;
-  }
-  admission.admitted += 1;
-  return true;
-}
-
-/** Aggregate local counters for operational checks. No request detail is kept. */
-export function admissionCounts(nowMs = Date.now()) {
-  const hour = Math.floor(nowMs / 3_600_000) * 3600;
-  if (admission.hour !== hour) return { admitted: 0, skipped: 0 };
-  return { admitted: admission.admitted, skipped: admission.skipped };
 }
 
 async function boundedWrite(db, row, ms) {
@@ -70,7 +45,6 @@ function schedule(context, response) {
   if (!env.DB || env.ANALYTICS_OFF === "1") return;
   const row = buildRow(context.request, response, env, Date.now());
   if (row === null) return;
-  if (!admit(row.ts, hourlyBudget(env))) return;
   const work = boundedWrite(env.DB, row, timeoutMs(env));
   if (typeof context.waitUntil === "function") context.waitUntil(work);
 }

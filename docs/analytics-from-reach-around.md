@@ -3,10 +3,6 @@
 Status: design only. Nothing here changes code, a workflow or a Cloudflare setting.
 Refs issue 84 (blog analytics) and issue 189 (edge-mode collector). Written 2026-11-09.
 
-Update 2026-11-10: the ASN source decision is X4BNet/lists_vpn (MIT), with
-ipverse/as-metadata (CC0) used only in the monthly pull request review report.
-Only ASN numbers and closed classes ship; no ASN or address range is stored.
-
 ## Summary for the owner
 
 Update 2026-11-09: the owner answered the six open questions. They are recorded as
@@ -396,7 +392,7 @@ readers of released reports. The owner is a trusted operator on his own machine
 | Path flood grows storage | Any client | Count only origin-confirmed 200 HTML; path shape rule; page cap with an `other` fold | Random-path and cap tests |
 | Click and source forgery | HTTP client | Destination checked against the built-site domain list; `s` closed list; `Ping-From` is a noise filter only; per-site budgets | Forged-header and forged-domain tests |
 | Destination domain flood (open vocabulary, Q4) | Any client sending pings | Public suffix check, build-time membership, 150 per day cap with reserved cells and an hourly slice, one overflow row | Flood, suffix and cap tests |
-| Edge amplification burns the daily free quota | Flood of real pages | Background write bounded by a timer, kill switch (`ANALYTICS_OFF`), fail open, and a local per-deployment per-hour admission budget before D1. The skipped counter has no request details. Untrusted request hostnames do not create counters. The limit applies per Function isolate, so concurrent isolates can each admit their own budget. | Concurrent load test with the budget spent |
+| Edge amplification burns the daily free quota | Flood of real pages | Existing: background write bounded by a timer, kill switch (`ANALYTICS_OFF`), fail open (VERIFIED: `analytics/middleware.mjs`). GAP: no per-site per-hour admission budget; every accepted HTML response schedules a D1 insert until the daily quota is spent (then counts are lost, pages are not). Planned: plan item 17 | Load test with the budget spent (after item 17) |
 | Small-place re-identification (city in aggregates, Q2) | Reader of a report or D1 | Per-granularity floor, roll up to region then country, complementary suppression, city in its own marginal table | Small-cell test per granularity |
 | Profile built from the network class (hosting, VPN or proxy, Tor) | D1 read access | Class lives only in its own marginal table | Schema guard |
 | Report leaks a suppressed value by subtraction | Reader of released reports | Marginal pairs only; remainder row; joint suppression with totals; applies only to page-view counts because Q6 superseded unique counts | Matrix test (issue 408) |

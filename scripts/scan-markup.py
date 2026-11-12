@@ -116,6 +116,8 @@ class Scan(HTMLParser):
         if tag == "style":
             self.in_style = True
         if tag == "script":
+            raw = [(n.lower(), v or "") for n, v in attrs]
+            raw_values = dict(raw)
             plain = [(n.lower(), clean(v)) for n, v in attrs]
             names = [n for n, _ in plain]
             values = dict(plain)
@@ -127,7 +129,10 @@ class Scan(HTMLParser):
                 beacon_config = {}
             if (self.cloudflare_beacon and not self.markup
                     and len(names) == len(set(names))
-                    and set(names) <= {"defer", "src", "integrity", "data-cf-beacon", "crossorigin"}
+                    and set(names) <= {"defer", "src", "integrity", "data-cf-beacon", "crossorigin", "type"}
+                    and "integrity" in values
+                    and raw_values.get("crossorigin") == "anonymous"
+                    and ("type" not in raw_values or raw_values["type"].lower() == "module")
                     and re.fullmatch(r"https://static\.cloudflareinsights\.com/beacon\.min\.js/v[A-Za-z0-9._-]+", beacon_src)
                     and isinstance(beacon_config, dict) and isinstance(beacon_config.get("token"), str)
                     and beacon_config["token"]):
