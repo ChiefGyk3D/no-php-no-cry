@@ -12,7 +12,7 @@ later. Alpha: every default here is provisional.
 | `functions/_middleware.js` | The Pages Functions entry. Calls `analytics/middleware.mjs`. `functions/` holds only this file and `package.json`; a test enforces it. |
 | `analytics/middleware.mjs` | Fail-open wrapper: returns the page first, writes in the background, bounded by a timer, swallows errors, logs nothing. |
 | `analytics/collect.mjs` | Pure functions: path rules, referrer host, geo, ASN class, bot class, opt-outs, the row. |
-| `analytics/hosting-asns.mjs` | The ASN list (data file, no CIDR). The unverified starter data remains until the first owner-reviewed generated import. |
+| `analytics/hosting-asns.mjs` | The ASN list (data file, no CIDR). A starter list, to refresh before go-live. |
 | `analytics/migrations/0001_page_views.sql` | Tables, the 5-view floor (`report_*` views) and the funnel view. |
 | `analytics/migrations/0002_report_top_referrers.sql` | A per-day registry that caps stored referrer domains, and the replacement report views: top 20 referrer domains per day and class, the rest folded into "other". |
 | `analytics/rollback/0002_down.sql` | Rollback for 0002 (not a migration; run by hand). Restores the 0001 views and drops the registry. |
@@ -40,19 +40,11 @@ From `ChiefGyk3D/Reach-Around`, `docs/analytics-design.md` (PR #222) and
 Left out on purpose, to match the brief and keep this slice small: the
 unique-visitor hash and its secret (nothing derived from an address is kept),
 the site column (this database is the blog's alone), browser/OS/language/window
-columns, UTM labels, the watermark-based rollup
+columns, UTM labels, the per-hour abuse budgets, the watermark-based rollup
 state. Instead the rollup recomputes the last 6 UTC days idempotently; see the
 invariant at the top of `analytics/maintenance.sql`. The collector is a Pages
 Function in this repository, not the shared Reach Around Worker. Moving to the
 shared collector is an open question for later (design section 5.2).
-
-The Function admits at most 4,000 eligible views per deployment and UTC hour
-before it skips D1. `ANALYTICS_HOURLY_BUDGET` can lower that limit to at least
-1. The local aggregate counter records admitted and skipped totals only, with
-no request details. Request hostnames do not select counters: this deployment
-has one analytics database and intentionally no site dimension. Each Function
-isolate has its own counter, so concurrent isolates can each admit up to the
-configured limit.
 
 ## Why the artifact rules changed
 
@@ -117,27 +109,8 @@ the deploy token if the cleanup runs under its own token.
    `docs/privacy-and-analytics.md`, all in one pull request with the first
    deploy that has `DB` bound. Until `DB` is bound the middleware records
    nothing, so shipping the Function before the binding is harmless.
-8. Merge an owner-reviewed ASN refresh before step 7. The source decision is
-   X4BNet/lists_vpn (MIT), cross-checked for review only against
-   ipverse/as-metadata (CC0). `.github/workflows/refresh-asns.yml` runs monthly
-   and can be dispatched by hand. It fetches the VPN and datacenter lists,
-   records the exact X4BNet commit in the generated header and report, and
-   opens a pull request. It never merges one. For the first import, dispatch it
-   with `allow_large_change` after checking that the large diff is expected;
-   later runs refuse changes over 20 percent without that explicit override.
-   Review the count, source SHA, additions, removals, class changes, sanitized
-   comments, and every ipverse stale-announcement or non-hosting-category
-   finding. The cross-check never silently removes an entry.
-
-   Owner setup is still required before the workflow can open pull requests.
-   Install or select a narrowly scoped GitHub App, deliver a short-lived
-   installation token through an approved secret-manager integration, wire it
-   to the gated PR step, then set the repository variable
-   `ASN_REFRESH_PR_ENABLED` to `true`. Never use a personal access token and
-   never place a secret-manager value in a GitHub Actions secret. Until that is
-   done, generation fails safely at the gated PR step and does not open a PR.
-   The Function bundle receives only ASN numbers and a closed class. It never
-   receives ranges or ipverse metadata, and no ASN is stored in a table or log.
+8. Refresh `analytics/hosting-asns.mjs` from a source the maintainer picks
+   (open: which list, how often) before step 7.
 
 Rollback: set `ANALYTICS_OFF=1` as a plain variable (records nothing at once),
 or remove the `DB` binding, or revert the deploy. To delete data:
