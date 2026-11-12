@@ -2,12 +2,13 @@
 """Build the outbound-domain inputs used by Hugo and the click Function."""
 
 import argparse
+import ipaddress
 import json
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-URL = re.compile(r"https://[^\s<>\"')\]]+")
+URL = re.compile(r"https?://[^\s<>\"')\]]+")
 HOST = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
 
 
@@ -30,6 +31,11 @@ def registrable(host, psl):
     host = host.lower().rstrip(".")
     if len(host) > 253 or not HOST.fullmatch(host):
         return None
+    try:
+        if isinstance(ipaddress.ip_address(host), ipaddress.IPv4Address):
+            return None
+    except ValueError:
+        pass
     labels = host.split(".")
     exact, wildcard, exception = psl
     suffix_labels = 1

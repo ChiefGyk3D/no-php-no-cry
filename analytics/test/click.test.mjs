@@ -26,6 +26,7 @@ test("PSL parsing returns only an eTLD+1 and includes private suffixes", () => {
   assert.equal(registrableDomain("test"), null, "public suffix");
   assert.equal(registrableDomain("n0call.github.io"), "n0call.github.io", "private suffix");
   assert.equal(registrableDomain("github.io"), null, "private suffix itself");
+  assert.equal(registrableDomain("127.0.0.1"), null, "IPv4 literal");
 });
 
 test("the route accepts a listed eTLD+1 and reduces everything else to other", () => {

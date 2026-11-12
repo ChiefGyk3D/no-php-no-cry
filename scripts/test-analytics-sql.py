@@ -552,6 +552,26 @@ class ClickRollup(unittest.TestCase):
             [("other", 6)],
         )
 
+    def test_floor_folds_small_domain_cells_into_an_existing_other_cell(self):
+        db = fresh()
+        for table, period in (
+            ("click_domain_daily", "2026-11-05"),
+            ("click_domain_monthly", "2026-11"),
+        ):
+            db.executemany(
+                f"INSERT INTO {table} VALUES (?,?,?)",
+                [(period, "other", 5), (period, "a.test", 2), (period, "b.test", 3)],
+            )
+
+        self.assertEqual(
+            db.execute("SELECT domain, clicks FROM report_click_domain_daily").fetchall(),
+            [("other", 10)],
+        )
+        self.assertEqual(
+            db.execute("SELECT domain, clicks FROM report_click_domain_monthly").fetchall(),
+            [("other", 10)],
+        )
+
     def test_click_retention_keeps_90_daily_days_and_25_months(self):
         db = fresh()
         db.execute("INSERT INTO click_domain_daily VALUES ('2026-08-06','n0call.test',5)")

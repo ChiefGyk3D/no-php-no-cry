@@ -6,9 +6,10 @@ import { PSL_EXACT, PSL_WILDCARD, PSL_EXCEPTION } from "./public-suffix-rules.mj
 export const CLICK_DAILY_NAMED_CAP = 149;
 export const CLICK_HOURLY_NEW_CAP = 7;
 const DOMAIN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 
 export function registrableDomain(value) {
-  if (typeof value !== "string" || value.length > 63 || !DOMAIN.test(value)) return null;
+  if (typeof value !== "string" || value.length > 63 || IPV4.test(value) || !DOMAIN.test(value)) return null;
   const labels = value.split(".");
   let suffixLabels = 1;
   for (let index = 0; index < labels.length; index++) {

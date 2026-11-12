@@ -41,9 +41,9 @@ CREATE TABLE click_domain_monthly (
 ) WITHOUT ROWID;
 
 CREATE VIEW report_click_domain_daily AS
-SELECT day, domain, clicks FROM click_domain_daily WHERE clicks >= 5
+SELECT day, domain, clicks FROM click_domain_daily WHERE domain <> 'other' AND clicks >= 5
 UNION ALL
-SELECT day, 'other', SUM(clicks) FROM click_domain_daily WHERE clicks < 5
+SELECT day, 'other', SUM(clicks) FROM click_domain_daily WHERE domain = 'other' OR clicks < 5
 GROUP BY day HAVING SUM(clicks) >= 5;
 
 CREATE VIEW report_click_country_daily AS
@@ -53,7 +53,7 @@ SELECT day, 'other', SUM(clicks) FROM click_country_daily WHERE clicks < 5
 GROUP BY day HAVING SUM(clicks) >= 5;
 
 CREATE VIEW report_click_domain_monthly AS
-SELECT month, domain, clicks FROM click_domain_monthly WHERE clicks >= 5
+SELECT month, domain, clicks FROM click_domain_monthly WHERE domain <> 'other' AND clicks >= 5
 UNION ALL
-SELECT month, 'other', SUM(clicks) FROM click_domain_monthly WHERE clicks < 5
+SELECT month, 'other', SUM(clicks) FROM click_domain_monthly WHERE domain = 'other' OR clicks < 5
 GROUP BY month HAVING SUM(clicks) >= 5;

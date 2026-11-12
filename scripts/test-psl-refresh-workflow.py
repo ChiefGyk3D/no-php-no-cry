@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Structural offline test for the scheduled Public Suffix List refresh."""
 
+import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
@@ -11,7 +12,7 @@ assert "scripts/build-outbound-domains.py" in workflow
 assert "BEGIN PRIVATE DOMAINS" in workflow
 assert "git diff --exit-code" in workflow
 psl = (root / "analytics/public_suffix_list.dat").read_text()
-assert "VERSION: 2024-01-22" in psl
+assert re.search(r"^// VERSION: \d{4}-\d{2}-\d{2}$", psl, re.MULTILINE)
 assert "===BEGIN ICANN DOMAINS===" in psl
 assert "===BEGIN PRIVATE DOMAINS===" in psl
 print("test-psl-refresh-workflow: ok")
