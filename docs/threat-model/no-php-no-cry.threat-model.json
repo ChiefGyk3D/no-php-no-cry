@@ -2015,7 +2015,7 @@
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "On a small audience, a rare city plus a page can point at one reader. The owner accepted city in the aggregates (decision Q2).",
-                  "mitigation": "Open: the per-level floor, roll-up and complementary suppression are plan item 4 in docs/analytics-from-reach-around.md and are not built. Today a single floor of 5 applies in the report views (analytics/migrations, analytics/maintenance.sql). Residual risk is accepted and stated on the privacy page when it ships.",
+                  "mitigation": "Migration 0004 now rolls sub-floor cities into regions, regions into countries and countries into other, with complementary suppression at each level. The location table remains marginal, and the SQL tests cover boundary and subtraction cases (analytics/migrations/0004_geo_report_floor.sql, scripts/test-analytics-sql.py). This stays Open because the accepted residual risk remains and the production privacy page has not shipped; the draft states it in docs/privacy-with-analytics.md.",
                   "number": 33
                 },
                 {
@@ -2094,7 +2094,7 @@
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "Totals and remainder rows let a reader work out a withheld cell.",
-                  "mitigation": "Open (not built). Plan items 4, 9 and 15 in docs/analytics-from-reach-around.md: marginal tables only, complementary suppression and a small-cell test. The report views exist in analytics/migrations with a floor of 5.",
+                  "mitigation": "The report views now use marginal tables, a floor of 5 and complementary suppression so a lone withheld location cannot be recovered by subtraction. The SQL tests exercise the boundary and subtraction cases (analytics/migrations/0004_geo_report_floor.sql, scripts/test-analytics-sql.py). This stays Open until the owner report and release ledger in plan item 15 are built.",
                   "number": 36
                 },
                 {
@@ -2152,7 +2152,7 @@
                   "type": "Repudiation",
                   "modelType": "STRIDE",
                   "description": "Two counters (Cloudflare Web Analytics and this one) disagree and are read as a leak or a bug.",
-                  "mitigation": "Open. A reconciliation note and report footer are plan item 12 in docs/analytics-from-reach-around.md.",
+                  "mitigation": "The reconciliation note now states why the counters differ, which counter owns each measure and the canonical report footer wording (docs/analytics-reconciliation.md). Its offline check runs with the analytics tests (scripts/test-analytics-reconciliation.py, scripts/test-analytics.sh). This stays Open until the owner report prints that footer.",
                   "number": 38
                 }
               ],

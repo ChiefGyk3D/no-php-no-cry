@@ -16,6 +16,9 @@ later. Alpha: every default here is provisional.
 | `analytics/migrations/0001_page_views.sql` | Tables, the 5-view floor (`report_*` views) and the funnel view. |
 | `analytics/migrations/0002_report_top_referrers.sql` | A per-day registry that caps stored referrer domains, and the replacement report views: top 20 referrer domains per day and class, the rest folded into "other". |
 | `analytics/rollback/0002_down.sql` | Rollback for 0002 (not a migration; run by hand). Restores the 0001 views and drops the registry. |
+| `analytics/migrations/0003_listed_source_kind.sql` | Adds the closed-list source kind to databases that applied migration 0001 before it was added to the baseline. |
+| `analytics/migrations/0004_geo_report_floor.sql` | Replaces the location report with per-level roll-up and complementary suppression. |
+| `analytics/rollback/0004_down.sql` | Idempotent rollback for the location report view. |
 | `analytics/maintenance.sql` | Daily rollup and retention (7 days raw, 90 days aggregates). Not scheduled yet. |
 | `analytics/migrations/0005_outbound_clicks.sql` | Outbound-click raw rows, separate domain and country counters, five-click report floors, and the 25-month domain roll-up. |
 | `analytics/rollback/0005_down.sql` | Idempotent rollback for the outbound-click tables and report views. |
@@ -85,7 +88,7 @@ the deploy token if the cleanup runs under its own token.
 1. Create the database (maintainer approval needed):
    `wrangler d1 create no-php-no-cry-analytics`. Note the printed id.
 2. Copy `analytics/wrangler.toml.example` to `wrangler.toml` at the repository
-   root and fill in `database_id`. Apply the migration, remote:
+   root and fill in `database_id`. Apply all migrations in order, remote:
    `wrangler d1 migrations apply no-php-no-cry-analytics --remote`.
 3. Change `.github/workflows/deploy.yml` so the deploy job (a) checks out
    `/functions/`, `/analytics/` and `/wrangler.toml` in its sparse list, and
