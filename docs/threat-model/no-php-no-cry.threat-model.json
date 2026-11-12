@@ -1880,7 +1880,7 @@
             "id": "07a2cdc6-2d91-5259-9ed5-95f493382d3a",
             "data": {
               "name": "Analytics Pages Function (planned)",
-              "description": "functions/_middleware.js calls analytics/middleware.mjs: counts one row for an HTML 200 response after the page is on its way. Built and tested, not deployed.",
+              "description": "functions/_middleware.js counts an HTML 200 response after the page is on its way. functions/e/c/[[domain]].js accepts same-origin outbound-link pings reduced to one built-site registrable domain. Built and tested, not deployed.",
               "type": "tm.Process",
               "isTrustBoundary": false,
               "outOfScope": false,
@@ -2100,12 +2100,12 @@
                 {
                   "id": "3ffd8a22-3457-5a8b-960f-6187579d0bb7",
                   "title": "Limit destination growth in click reports",
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Denial of service",
                   "modelType": "STRIDE",
                   "description": "With every external link counted by domain, a flood of forged pings fills the table (decision Q4).",
-                  "mitigation": "Open (not built). Plan item 7: build-time domain list, Public Suffix List check, 150 per day cap with an other bucket. Outbound-link counting is not in the code today.",
+                  "mitigation": "The build emits a domain-only allowlist; the POST route applies the pinned Public Suffix List, rejects anything other than a listed eTLD+1, and folds failures into other. A reserved other cell, 149 named cells per day, and seven new cells per hour bound storage. Domain and country are separate marginal counters (analytics/click.mjs, migration 0005, and analytics/test/click.test.mjs).",
                   "number": 37
                 }
               ],
@@ -2605,7 +2605,7 @@
                   "type": "Tampering",
                   "modelType": "STRIDE",
                   "description": "Pages control files add routes or a Worker that was not reviewed.",
-                  "mitigation": "static/_routes.json keeps static asset paths away from the Function; scripts/check-site-artifact.sh rejects unexpected control files in the published folder; functions/ must hold only _middleware.js and package.json (analytics/test/middleware.test.mjs).",
+                  "mitigation": "static/_routes.json keeps static asset paths away from the Function; scripts/check-site-artifact.sh rejects unexpected control files in the published folder; functions/ may hold only _middleware.js, package.json and the outbound click route (analytics/test/middleware.test.mjs).",
                   "number": 45
                 }
               ],

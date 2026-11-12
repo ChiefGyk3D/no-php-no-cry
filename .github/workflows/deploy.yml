@@ -73,7 +73,9 @@ jobs:
       - name: Build
         env:
           HUGO_PARAMS_ENVIRONMENT: staging
-        run: hugo --minify --gc
+        run: |
+          python3 -I scripts/build-outbound-domains.py
+          hugo --minify --gc
 
       - name: Check the generated output
         env:

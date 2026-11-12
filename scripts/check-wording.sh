@@ -10,9 +10,9 @@
 #
 # Scans tracked and untracked-but-not-ignored text files (git ls-files), or every
 # file under the directory when it is not a git checkout. This script and its
-# test are skipped because they have to name the pattern. tools/axe/ is skipped
-# too: it is the vendored, checksum-pinned axe-core build (third-party minified
-# code that reads the browser's own crypto object), not text we write.
+# test are skipped because they have to name the pattern. Pinned third-party
+# inputs are skipped too: tools/axe/ is the vendored axe-core build, and
+# analytics/public_suffix_list.dat is upstream registry data, not text we write.
 # Exit codes: 0 clean, 1 a finding, 2 usage.
 set -euo pipefail
 
@@ -37,6 +37,7 @@ while IFS= read -r -d '' f; do
     case "$f" in
         scripts/check-wording.sh | scripts/test-check-wording.sh) continue ;;
         tools/axe/* | ./tools/axe/*) continue ;;
+        analytics/public_suffix_list.dat | ./analytics/public_suffix_list.dat) continue ;;
     esac
     [[ -f "$f" ]] || continue
     if grep -IqiP -- "$pat" "$f" 2>/dev/null; then

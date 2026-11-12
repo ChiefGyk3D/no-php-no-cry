@@ -20,6 +20,7 @@ MIGRATIONS = sorted((ROOT / "analytics" / "migrations").glob("*.sql"))
 MAINT = ROOT / "analytics" / "maintenance.sql"
 DOWN = ROOT / "analytics" / "rollback" / "0002_down.sql"
 GEO_DOWN = ROOT / "analytics" / "rollback" / "0004_down.sql"
+CLICK_DOWN = ROOT / "analytics" / "rollback" / "0005_down.sql"
 NOW = "2026-11-05 12:00:00"
 NOW_EPOCH = 1793880000  # 2026-11-05 12:00:00 UTC, checked in test_clock_constant
 HOUR = 3600
@@ -32,6 +33,11 @@ ALLOWED = {
     "view_geo_daily": {"day", "country", "region", "city", "bot_class", "views"},
     "view_dim_daily": {"day", "dim", "value", "bot_class", "views"},
     "referrer_seen": {"day", "src", "n"},
+    "click_events": {"id", "ts", "domain"},
+    "click_domain_seen": {"day", "domain", "first_hour", "n"},
+    "click_domain_daily": {"day", "domain", "clicks"},
+    "click_country_daily": {"day", "country", "clicks"},
+    "click_domain_monthly": {"month", "domain", "clicks"},
 }
 # Names that suggest something identifying. Matched on whole underscore-separated words.
 FORBIDDEN_WORDS = {
@@ -467,6 +473,18 @@ class GeoMigrationSafety(unittest.TestCase):
         )
 
 
+class ClickMigrationSafety(unittest.TestCase):
+    def test_0005_rollback_removes_only_click_objects_and_runs_twice(self):
+        db = fresh()
+        db.executescript(CLICK_DOWN.read_text())
+        db.executescript(CLICK_DOWN.read_text())
+        self.assertEqual(set(tables(db)), set(ALLOWED) - {
+            "click_events", "click_domain_seen", "click_domain_daily",
+            "click_country_daily", "click_domain_monthly",
+        })
+        self.assertIsNotNone(db.execute("SELECT sql FROM sqlite_master WHERE name='view_events'").fetchone())
+
+
 class Schema(unittest.TestCase):
     def test_collected(self):
         self.assertTrue(MIGRATIONS, "no migration collected")
@@ -507,6 +525,63 @@ class Schema(unittest.TestCase):
             event(db, NOW_EPOCH, src_kind="u")
         with self.assertRaises(sqlite3.IntegrityError):
             event(db, NOW_EPOCH, page="x" * 97)
+
+
+class ClickRollup(unittest.TestCase):
+    def test_domain_and_country_are_separate_marginal_counters(self):
+        db = fresh()
+        for _ in range(5):
+            db.execute("INSERT INTO click_events(ts,domain) VALUES (?,?)", (NOW_EPOCH, "n0call.test"))
+        db.execute("INSERT INTO click_country_daily VALUES ('2026-11-05','US',5)")
+        db.executescript(maintenance_sql())
+        self.assertEqual(db.execute("SELECT domain, clicks FROM report_click_domain_daily").fetchall(), [("n0call.test", 5)])
+        self.assertEqual(db.execute("SELECT country, clicks FROM report_click_country_daily").fetchall(), [("US", 5)])
+        for table in ("click_events", "click_domain_daily", "click_country_daily"):
+            columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
+            self.assertFalse({"country", "domain"} <= columns, table)
+
+    def test_floor_folds_small_domain_cells_and_monthly_rollup_is_retained(self):
+        db = fresh()
+        for domain, count in (("n0call.test", 3), ("n0tst.test", 2), ("other", 1)):
+            for _ in range(count):
+                db.execute("INSERT INTO click_events(ts,domain) VALUES (?,?)", (NOW_EPOCH, domain))
+        db.executescript(maintenance_sql())
+        self.assertEqual(db.execute("SELECT domain, clicks FROM report_click_domain_daily").fetchall(), [("other", 6)])
+        self.assertEqual(
+            db.execute("SELECT domain, clicks FROM report_click_domain_monthly").fetchall(),
+            [("other", 6)],
+        )
+
+    def test_floor_folds_small_domain_cells_into_an_existing_other_cell(self):
+        db = fresh()
+        for table, period in (
+            ("click_domain_daily", "2026-11-05"),
+            ("click_domain_monthly", "2026-11"),
+        ):
+            db.executemany(
+                f"INSERT INTO {table} VALUES (?,?,?)",
+                [(period, "other", 5), (period, "a.test", 2), (period, "b.test", 3)],
+            )
+
+        self.assertEqual(
+            db.execute("SELECT domain, clicks FROM report_click_domain_daily").fetchall(),
+            [("other", 10)],
+        )
+        self.assertEqual(
+            db.execute("SELECT domain, clicks FROM report_click_domain_monthly").fetchall(),
+            [("other", 10)],
+        )
+
+    def test_click_retention_keeps_90_daily_days_and_25_months(self):
+        db = fresh()
+        db.execute("INSERT INTO click_domain_daily VALUES ('2026-08-06','n0call.test',5)")
+        db.execute("INSERT INTO click_country_daily VALUES ('2026-08-06','US',5)")
+        db.execute("INSERT INTO click_domain_monthly VALUES ('2024-10','n0call.test',5)")
+        db.execute("INSERT INTO click_domain_monthly VALUES ('2024-11','n0tst.test',5)")
+        db.executescript(maintenance_sql())
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM click_domain_daily").fetchone()[0], 0)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM click_country_daily").fetchone()[0], 0)
+        self.assertEqual(db.execute("SELECT month FROM click_domain_monthly").fetchall(), [("2024-11",)])
 
 
 class Rollup(unittest.TestCase):

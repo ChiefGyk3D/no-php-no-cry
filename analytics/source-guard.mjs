@@ -94,9 +94,9 @@ export function scanSource(text) {
   return FORBIDDEN.filter(([, re]) => re.test(text)).map(([name]) => name);
 }
 
-/** Problems with the listing of functions/: only these two files, no routes. */
+/** Problems with the top-level functions listing and its one approved route. */
 export function checkFunctionsDir(names) {
-  const want = ["_middleware.js", "package.json"];
+  const want = ["_middleware.js", "e", "package.json"];
   const problems = [];
   for (const n of names) if (!want.includes(n)) problems.push(`unexpected file: ${n}`);
   for (const n of want) if (!names.includes(n)) problems.push(`missing file: ${n}`);
