@@ -94,7 +94,7 @@ for copy in "$howto" "$repo_howto"; do
         bad "$label does not explain how to extend script-src"
     fi
     if grep -qF '{{- if eq .visitor_code "off"' "$copy" &&
-       grep -qF '{{- else if eq .visitor_code "daily"' "$copy"; then
+        grep -qF '{{- else if eq .visitor_code "daily"' "$copy"; then
         ok "$label privacy text covers every visitor-code mode"
     else
         bad "$label privacy text does not cover every visitor-code mode"
