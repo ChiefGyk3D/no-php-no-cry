@@ -8,9 +8,9 @@ and STRIDE categories.
 <!-- threat-summary:start -->
 | Diagram | Total | Mitigated | Open | Accepted | NotApplicable |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| All diagrams | 63 | 33 | 24 | 3 | 3 |
+| All diagrams | 63 | 34 | 23 | 3 | 3 |
 | 1 Publishing path | 25 | 15 | 10 | 0 | 0 |
-| 2 Reader path | 26 | 11 | 9 | 3 | 3 |
+| 2 Reader path | 26 | 12 | 8 | 3 | 3 |
 | 3 Data stores and secrets | 12 | 7 | 5 | 0 | 0 |
 <!-- threat-summary:end -->
 
@@ -130,7 +130,7 @@ that contains their center. Data flows without a position appear under `Boundary
 ### TB9 Release of reports (owner to readers)
 
 - Open: Prevent reports from revealing suppressed values
-- Open: Limit destination growth in click reports
+- Mitigated: Limit destination growth in click reports
 - Open: Label report periods and sources
 
 ### Boundary crossings

@@ -268,6 +268,7 @@ test("guard: collector sources never read the address, set cookies or call out",
     .filter((f) => f.endsWith(".mjs") && f !== "source-guard.mjs")
     .map((f) => join(root, "analytics", f));
   files.push(join(root, "functions", "_middleware.js"));
+  files.push(join(root, "functions", "e", "c", "[[domain]].js"));
   assert.ok(files.length >= 3, "the guard collected the collector sources");
   for (const f of files) {
     assert.deepEqual(scanSource(readFileSync(f, "utf8")), [], f);
@@ -310,14 +311,16 @@ test("guard bites: computed properties and simple aliases cannot hide calls", ()
   }
 });
 
-test("guard: functions/ holds only the middleware and its package.json", () => {
+test("guard: functions/ holds only the middleware, click route, and package.json", () => {
   const names = readdirSync(join(root, "functions")).sort();
-  assert.deepEqual(names, ["_middleware.js", "package.json"]);
+  assert.deepEqual(names, ["_middleware.js", "e", "package.json"]);
+  assert.deepEqual(readdirSync(join(root, "functions", "e")), ["c"]);
+  assert.deepEqual(readdirSync(join(root, "functions", "e", "c")), ["[[domain]].js"]);
   assert.deepEqual(checkFunctionsDir(names), []);
 });
 
 test("guard bites: checkFunctionsDir flags any extra route or script", () => {
-  assert.ok(checkFunctionsDir(["_middleware.js", "package.json", "api.js"]).length > 0);
+  assert.ok(checkFunctionsDir(["_middleware.js", "e", "package.json", "api.js"]).length > 0);
   assert.ok(checkFunctionsDir(["_middleware.js", "package.json", "_worker.js"]).length > 0);
   assert.ok(checkFunctionsDir(["package.json"]).length > 0, "middleware missing");
 });

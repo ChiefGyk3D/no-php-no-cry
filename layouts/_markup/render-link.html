@@ -1,0 +1,7 @@
+{{- $destination := .Destination -}}
+{{- $parsed := urls.Parse $destination -}}
+{{- $host := lower $parsed.Hostname -}}
+{{- $domain := index site.Data.analytics_hosts $host -}}
+<a href="{{ $destination | safeURL }}"
+  {{- with .Title }} title="{{ . }}"{{ end }}
+  {{- if $domain }} ping="{{ printf "/e/c/%s" $domain | relURL }}"{{ end }}>{{ .Text | safeHTML }}</a>
