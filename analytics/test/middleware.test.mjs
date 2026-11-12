@@ -324,3 +324,63 @@ test("guard bites: checkFunctionsDir flags any extra route or script", () => {
   assert.ok(checkFunctionsDir(["_middleware.js", "package.json", "_worker.js"]).length > 0);
   assert.ok(checkFunctionsDir(["package.json"]).length > 0, "middleware missing");
 });
+
+test("documentation-address sentinels cross every route but reach no table or log", async () => {
+  const sentinels = ["192.0.2.1", "198.51.100.7", "203.0.113.9", "2001:db8::7"];
+  const logs = [];
+  const original = {};
+  for (const name of ["log", "info", "warn", "error", "debug"]) {
+    original[name] = console[name];
+    console[name] = (...args) => logs.push([name, ...args]);
+  }
+  const db = fakeDb();
+  try {
+    const { context, pending } = ctx({
+      url: `https://chiefgyk3d.com/posts/fn31pr/?sentinel=${sentinels[0]}`,
+      headers: {
+        "user-agent": `N0CALL/${sentinels[1]}`,
+        referer: `https://chiefgyk3d.com/posts/fn31pr/?sentinel=${sentinels[2]}`,
+        "cf-connecting-ip": sentinels[0],
+        "x-forwarded-for": sentinels[1],
+        forwarded: `for=\"[${sentinels[3]}]\"`,
+      },
+      env: { DB: db },
+    });
+    Object.defineProperty(context.request, "cf", {
+      configurable: true,
+      value: { country: "N0", regionCode: "N0", city: "FN31pr", asOrganization: sentinels[2] },
+    });
+    await onRequest(context);
+    await Promise.all(pending);
+
+    const click = await import("../../functions/e/c/[[domain]].js");
+    const clickPending = [];
+    await click.onRequestPost({
+      request: new Request(`https://chiefgyk3d.com/e/c/${sentinels[0]}`, {
+        method: "POST",
+        headers: {
+          "ping-from": `https://chiefgyk3d.com/posts/fn31pr/?sentinel=${sentinels[1]}`,
+          "user-agent": `N0TST/${sentinels[2]}`,
+          forwarded: `for=\"[${sentinels[3]}]\"`,
+        },
+      }),
+      params: { domain: sentinels[0] },
+      env: { DB: db },
+      waitUntil: (work) => clickPending.push(work),
+    });
+    await Promise.all(clickPending);
+  } finally {
+    for (const [name, value] of Object.entries(original)) console[name] = value;
+  }
+
+  const schema = new Map();
+  for (const file of readdirSync(join(root, "analytics", "migrations")).filter((name) => name.endsWith(".sql"))) {
+    const sql = readFileSync(join(root, "analytics", "migrations", file), "utf8");
+    for (const match of sql.matchAll(/CREATE TABLE\s+(\w+)/gi)) schema.set(match[1], []);
+  }
+  assert.ok(schema.size >= 10, "every analytics table was collected for the dump");
+  schema.get("view_events").push(...db.calls);
+  const dump = JSON.stringify({ tables: Object.fromEntries(schema), logs });
+  for (const sentinel of sentinels) assert.ok(!dump.includes(sentinel), `sentinel leaked: ${sentinel}`);
+  assert.deepEqual(logs, []);
+});
