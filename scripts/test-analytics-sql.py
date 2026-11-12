@@ -21,6 +21,7 @@ MAINT = ROOT / "analytics" / "maintenance.sql"
 DOWN = ROOT / "analytics" / "rollback" / "0002_down.sql"
 GEO_DOWN = ROOT / "analytics" / "rollback" / "0004_down.sql"
 CLICK_DOWN = ROOT / "analytics" / "rollback" / "0005_down.sql"
+PRIVACY = ROOT / "docs" / "privacy-with-analytics.md"
 NOW = "2026-11-05 12:00:00"
 NOW_EPOCH = 1793880000  # 2026-11-05 12:00:00 UTC, checked in test_clock_constant
 HOUR = 3600
@@ -45,6 +46,32 @@ FORBIDDEN_WORDS = {
     "asn", "cidr", "cookie", "lat", "lon", "latitude", "longitude", "postal", "zip", "fingerprint",
     "hash", "visitor", "uid", "session", "lang", "language", "org", "organization", "uri",
 }
+
+# Shared vocabulary check, keyed by the stored schema names above. Repeated
+# bookkeeping names intentionally reuse one phrase instead of copying a test
+# for every table.
+PRIVACY_PHRASES = {
+    "id": "one small row",
+    "ts": "The hour. Not the minute.",
+    "page": "The page address on this site.",
+    "src_kind": "The site you came from, by name only.",
+    "src": "The site you came from, by name only.",
+    "country": "Your country, state or region, and city.",
+    "region": "Your country, state or region, and city.",
+    "city": "Your country, state or region, and city.",
+    "net": "whether your connection belongs to a hosting company or a VPN network",
+    "bot_class": "whether the visit looks like a bot",
+    "day": "Daily totals: 90 days.",
+    "views": "This site counts page views.",
+    "dim": "the two yes or no answers above",
+    "value": "the two yes or no answers above",
+    "n": "group smaller than 5 visits",
+    "domain": "destination site, by domain name only",
+    "first_hour": "The hour. Not the minute.",
+    "clicks": "I count the click",
+    "month": "Monthly destination totals: 25 months.",
+}
+CLICK_PRIVACY_COLUMNS = {"domain", "clicks", "month"}
 
 
 def guard(columns_by_table):
@@ -448,6 +475,29 @@ class PlaceFloor(unittest.TestCase):
             [("", "", "", "city", 6), ("", "", "", "country", 6)],
         )
 
+    def test_every_released_place_level_has_no_small_cell(self):
+        matrix = (
+            ("N0", "N0", "FN31pr", 1),
+            ("N0", "N0", "N0CALL", 4),
+            ("N0", "N0TST", "N0TST", 2),
+            ("N0", "N0TST", "FN31pr", 3),
+            ("N0TST", "N0", "N0CALL", 5),
+            ("N0TST", "N0", "N0TST", 6),
+        )
+        for row in matrix:
+            self.put(*row)
+
+        released = self.db.execute(
+            "SELECT country, region, city, level, views "
+            "FROM report_view_geo_daily ORDER BY country, region, city, level, views"
+        ).fetchall()
+        self.assertEqual(released, [
+            ("N0", "N0", "", "region", 5),
+            ("N0", "N0TST", "", "region", 5),
+            ("N0TST", "N0", "N0CALL", "city", 5),
+            ("N0TST", "N0", "N0TST", "city", 6),
+        ])
+
 
 class GeoMigrationSafety(unittest.TestCase):
     def test_0004_rollback_restores_the_previous_geo_view_and_runs_twice(self):
@@ -508,6 +558,17 @@ class Schema(unittest.TestCase):
             self.assertTrue(guard(bad), f"guard missed a {col} column")
         self.assertTrue(guard({"visitor_seen": ["day", "h"]}), "guard missed an extra table")
         self.assertEqual(guard({"view_events": sorted(ALLOWED["view_events"])}), [])
+
+    def test_every_stored_column_has_privacy_page_wording(self):
+        text = " ".join(PRIVACY.read_text().split())
+        click_match = re.search(r"## Outbound link clicks\s+(.*?)(?=\s+## |\s*```)", text)
+        self.assertIsNotNone(click_match, "privacy page has no outbound-click disclosure")
+        click_text = click_match.group(1)
+        stored_columns = set().union(*ALLOWED.values())
+        self.assertEqual(stored_columns, set(PRIVACY_PHRASES), "privacy vocabulary must cover the stored schema")
+        for column, phrase in PRIVACY_PHRASES.items():
+            disclosure = click_text if column in CLICK_PRIVACY_COLUMNS else text
+            self.assertIn(" ".join(phrase.split()), disclosure, f"{column} has no matching phrase on the privacy page")
 
     def test_ts_must_be_hour_rounded(self):
         db = fresh()

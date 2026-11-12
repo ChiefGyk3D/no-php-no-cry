@@ -78,6 +78,31 @@ test("the Pages route returns one uniform empty 204 and defers its write", async
   assert.equal(db.state.events.length, 1);
 });
 
+test("the click route is write-only with uniform empty no-CORS answers", async () => {
+  assert.deepEqual(Object.keys(await import("../../functions/e/c/[[domain]].js")).sort(), ["onRequestPost"]);
+  const cases = [
+    request("n0call.test"),
+    request("forged.test"),
+    request("n0call.test", { pingFrom: "https://n0tst.test/fn31pr/" }),
+    request("n0call.test", { cf: { country: "N0" } }),
+  ];
+  cases[3].headers.set("sec-gpc", "1");
+  for (const value of cases) {
+    const response = await onRequestPost({
+      request: value,
+      params: { domain: new URL(value.url).pathname.split("/").pop() },
+      env: { DB: fakeDb() },
+      waitUntil() {},
+    });
+    assert.equal(response.status, 204);
+    assert.equal(await response.text(), "");
+    assert.equal(response.headers.get("access-control-allow-origin"), null);
+    assert.equal(response.headers.get("access-control-allow-headers"), null);
+    assert.equal(response.headers.get("access-control-allow-methods"), null);
+    assert.deepEqual([...response.headers], []);
+  }
+});
+
 function fakeDb() {
   const state = { seen: new Map(), events: [], countries: new Map() };
   return {
