@@ -66,11 +66,12 @@ PRIVACY_PHRASES = {
     "dim": "the two yes or no answers above",
     "value": "the two yes or no answers above",
     "n": "group smaller than 5 visits",
-    "domain": "by name only",
+    "domain": "destination site, by domain name only",
     "first_hour": "The hour. Not the minute.",
-    "clicks": "count",
-    "month": "After that they are deleted.",
+    "clicks": "I count the click",
+    "month": "Monthly destination totals: 25 months.",
 }
+CLICK_PRIVACY_COLUMNS = {"domain", "clicks", "month"}
 
 
 def guard(columns_by_table):
@@ -487,11 +488,15 @@ class PlaceFloor(unittest.TestCase):
             self.put(*row)
 
         released = self.db.execute(
-            "SELECT level, views FROM report_view_geo_daily ORDER BY level, views"
+            "SELECT country, region, city, level, views "
+            "FROM report_view_geo_daily ORDER BY country, region, city, level, views"
         ).fetchall()
-        self.assertTrue(released, "the matrix must release at least one place")
-        self.assertTrue({level for level, unused in released} <= {"city", "region", "country", "other"})
-        self.assertTrue(all(views >= 5 for unused, views in released), released)
+        self.assertEqual(released, [
+            ("N0", "N0", "", "region", 5),
+            ("N0", "N0TST", "", "region", 5),
+            ("N0TST", "N0", "N0CALL", "city", 5),
+            ("N0TST", "N0", "N0TST", "city", 6),
+        ])
 
 
 class GeoMigrationSafety(unittest.TestCase):
@@ -556,10 +561,14 @@ class Schema(unittest.TestCase):
 
     def test_every_stored_column_has_privacy_page_wording(self):
         text = " ".join(PRIVACY.read_text().split())
+        click_match = re.search(r"## Outbound link clicks\s+(.*?)(?=\s+## |\s*```)", text)
+        self.assertIsNotNone(click_match, "privacy page has no outbound-click disclosure")
+        click_text = click_match.group(1)
         stored_columns = set().union(*ALLOWED.values())
         self.assertEqual(stored_columns, set(PRIVACY_PHRASES), "privacy vocabulary must cover the stored schema")
         for column, phrase in PRIVACY_PHRASES.items():
-            self.assertIn(" ".join(phrase.split()), text, f"{column} has no matching phrase on the privacy page")
+            disclosure = click_text if column in CLICK_PRIVACY_COLUMNS else text
+            self.assertIn(" ".join(phrase.split()), disclosure, f"{column} has no matching phrase on the privacy page")
 
     def test_ts_must_be_hour_rounded(self):
         db = fresh()

@@ -40,6 +40,16 @@ When a page loads, I save one small row:
 - A yes or no on whether the visit looks like a bot. Bots are counted on their
   own and left out of the numbers about people.
 
+## Outbound link clicks
+
+When you follow a link from this site to another site, I keep the destination
+site, by domain name only, along with the hour and your country. I never keep
+the full destination address, its path, or its query. I count the click without
+keeping an ID that could connect it to you or to a page view.
+
+Individual click rows: 7 days. Daily destination and country totals: 90 days.
+Monthly destination totals: 25 months. After that they are deleted.
+
 ## What I do not record
 
 - Your IP address.
