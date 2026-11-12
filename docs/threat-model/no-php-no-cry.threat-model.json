@@ -2094,7 +2094,7 @@
                   "type": "Information disclosure",
                   "modelType": "STRIDE",
                   "description": "Totals and remainder rows let a reader work out a withheld cell.",
-                  "mitigation": "The report views now use marginal tables, a floor of 5 and complementary suppression so a lone withheld location cannot be recovered by subtraction. The SQL tests exercise the boundary and subtraction cases (analytics/migrations/0004_geo_report_floor.sql, scripts/test-analytics-sql.py). This stays Open until the owner report and release ledger in plan item 15 are built.",
+                  "mitigation": "Migration 0004 changes only the location report view: it keeps location data marginal and applies a floor of 5 with complementary suppression at each geographic level, so a lone withheld location cannot be recovered by subtraction within that view. The page, network and click report views retain independent floors, and cross-report subtraction remains possible as demonstrated by DisplayFloor.test_the_floor_is_not_a_bound_across_reports (analytics/migrations/0004_geo_report_floor.sql, scripts/test-analytics-sql.py). This stays Open until the owner report and release ledger in plan item 15 are built.",
                   "number": 36
                 },
                 {
