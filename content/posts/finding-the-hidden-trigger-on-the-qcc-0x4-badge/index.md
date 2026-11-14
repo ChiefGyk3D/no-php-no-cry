@@ -2,7 +2,7 @@
 title: "Finding the Hidden Trigger on the QCC 0x4 Badge"
 date: 2026-11-14T12:20:00-05:00
 draft: false
-description: "The Queen City Con 0x4 badge plays a Rick Roll when it gets the right message over its LoRa mesh. Here is how I found the trigger in the firmware, checked it against what shipped, and set it off."
+description: "The Queen City Con 0x4 badge plays a Rick Roll on the right LoRa message. How I found the trigger in the firmware, checked what shipped, and set it off."
 slug: "finding-the-hidden-trigger-on-the-qcc-0x4-badge"
 image: "featured.jpg"
 imageAlt: "The purple Queen City Con 0x4 badge lying on a dark shirt, its green OLED screen showing a chat about the sound switch, with a lanyard, Call Center Village stickers and trading cards around it."
