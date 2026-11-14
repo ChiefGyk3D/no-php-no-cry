@@ -21,6 +21,7 @@
 # (decision N) and is NOT committed here; size ceiling 900 px. The two images
 # below are the kit's derivatives (same sha256 as kit rows derivative-001 and
 # derivative-002), not masters. No star variant is listed or allowed.
+content/posts/finding-the-hidden-trigger-on-the-qcc-0x4-badge/featured.jpg | 856eb91d585008b947ea762944be94c0b3ea7c8348ed49d02e96f1abbcb38c2b | owner's own photo of the Queen City Con 0x4 badge, cropped to 16:9, resized to 1400 px wide, JPEG, metadata stripped; two other people's chat handles on the badge screen blacked out; cropped and recompressed so the post fits the page budget (#388) | opened and inspected by eye 2026-11-14; no EXIF or GPS (scripts/check-image-metadata.py); event and sponsor branding only, no private text; owner's own photo
 static/brand/penguin-color.png | 0f34d05fe06348bb158190269cb85f28693a2f37b789c3d6808e0259d72fc4d8 | brand/Personal Logo/512x512.png (lossless optipng -o5 only; 512x512 RGBA, transparent, white sticker edge) | star-free, inspected by eye on a dark background; kit derivative-001; the dark-ground avatar and OG image
 static/brand/penguin-glyph.svg | ab9b961a48021e99120f57a67dad967ddb9c156c49b45cda8cea50b605794138 | brand/Personal Logo/Branding Concepts/Linux.svg (Illustrator header and <style> block removed, class replaced by a fill attribute so no inline style remains; paths unchanged) | star-free, rendered and inspected by eye; kit derivative-002; single-color glyph for the SVG favicon, not a light-mode asset (the brand is dark only)
 
