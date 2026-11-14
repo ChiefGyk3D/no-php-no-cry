@@ -940,44 +940,51 @@ if grep -Eq '<a[^>]*rel="?me[ "][^>]*href="?https://social.chiefgyk3d.com/@chief
 else
     fail "/social/ lost the rel=me Mastodon anchor"
 fi
-# Issue 195: LinkedIn is footer-only. It is in the footer icon row (noopener only) of every page
-# type, and it is not a head link, not a rel=me anchor, not a Socials tile and not a Home chip.
+# Issue 391: the site carries no LinkedIn profile link anywhere (owner decision 2026-11-14):
+# not in the footer icon row, a head link, a rel=me anchor, a Socials tile, a Home chip, llms.txt,
+# the sitemap or the JSON-LD. A share link (linkedin.com/sharing) is a different feature and is allowed.
 for f in index.html about/index.html social/index.html; do
-    if grep -Eq '<link[^>]*linkedin' "$pub/$f"; then
-        fail "a LinkedIn head link is on $f (footer-only)"
+    if grep -Eqi '<link[^>]*linkedin|aria-label="?LinkedIn"?|footer-social-link[^>]*linkedin' "$pub/$f"; then
+        fail "a LinkedIn head link or footer icon is on $f (the profile link was removed)"
     else
-        pass "no LinkedIn head link on $f"
-    fi
-    if grep -Eq 'class="?footer-social-link"? href="?https://www\.linkedin\.com/in/moshe-g"? rel="?noopener"? aria-label="?LinkedIn"?' "$pub/$f"; then
-        pass "LinkedIn is in the footer icon row of $f"
-    else
-        fail "LinkedIn is missing from the footer icon row of $f"
+        pass "no LinkedIn head link or footer icon on $f"
     fi
 done
-if grep -Eqi 'social-tile[^>]*linkedin|icon-linkedin|rel="?me[ "][^>]*linkedin|linkedin[^>]*rel="?me[ "]' "$pub/social/index.html" "$pub/index.html"; then
+if grep -Eqi 'social-tile[^>]*linkedin|social-icon--linkedin|rel="?me[ "][^>]*linkedin|linkedin[^>]*rel="?me[ "]' "$pub/social/index.html" "$pub/index.html"; then
     fail "LinkedIn is on /social/ or the Home chips, or has rel=me"
 else
     pass "LinkedIn is not on /social/, not a Home chip, no rel=me"
 fi
 if grep -q 'linkedin.com' "$pub/llms.txt" 2>/dev/null; then
-    fail "LinkedIn is listed in llms.txt (footer-only)"
+    fail "LinkedIn is listed in llms.txt"
 else
     pass "LinkedIn is not in llms.txt"
+fi
+# Regression: no built file (pages, llms.txt, sitemap, JSON-LD) holds a LinkedIn profile URL.
+n_built="$(find "$pub" -type f \( -name '*.html' -o -name '*.txt' -o -name '*.xml' -o -name '*.json' \) | wc -l)"
+if ((n_built < 10)); then
+    fail "LinkedIn profile scan saw only $n_built built files (expected at least 10)"
+elif grep -rIl 'linkedin\.com/in/' "$pub" >"$work/linkedin-profile-hits.txt" 2>/dev/null; then
+    fail "a LinkedIn profile URL (linkedin.com/in/) is in the built site: $(tr '\n' ' ' <"$work/linkedin-profile-hits.txt")"
+else
+    pass "no LinkedIn profile URL in $n_built built files (pages, llms.txt, sitemap, JSON-LD)"
 fi
 if python3 -I -c 'import re,sys; h=open(sys.argv[1],encoding="utf-8").read(); m=re.search(r"Contact</h2>(.*?)(?:<h2|</article>|$)",h,re.S); sys.exit(0 if m and "linkedin" not in m.group(1).lower() else 1)' "$pub/resume/index.html"; then
     pass "the Resume Contact section has no LinkedIn link (issue 360)"
 else
     fail "the Resume Contact section links or mentions LinkedIn, or has no Contact section"
 fi
-# Guard: the LinkedIn-leak check bites. A head link, and a Socials tile, put in must be caught.
-for pair in 'head:s#</head>#<link rel=me href=https://www.linkedin.com/in/moshe-g></head>#' 'chip:s#<li><a class=icon-github#<li><a class=icon-linkedin href=https://www.linkedin.com/in/moshe-g>LinkedIn</a></li><li><a class=icon-github#'; do
+# Guard: the LinkedIn-leak checks bite. A head link, a footer icon and a profile URL put in must be caught.
+for pair in 'head:s#</head>#<link rel=me href=https://www.linkedin.com/in/x></head>#' 'footer:s#</footer>#<a class=footer-social-link href=https://www.linkedin.com/in/x aria-label=LinkedIn>x</a></footer>#'; do
     sed "${pair#*:}" "$pub/index.html" >"$work/linkedin-leak.html"
     if cmp -s "$pub/index.html" "$work/linkedin-leak.html"; then
         fail "guard: the LinkedIn ${pair%%:*} leak did not change the page (the test is stale)"
-    elif grep -Eqi '<link[^>]*linkedin|icon-linkedin' "$work/linkedin-leak.html"; then
-        pass "guard: a LinkedIn ${pair%%:*} leak is detected by the pattern"
-    else
+    elif ! grep -Eqi '<link[^>]*linkedin|aria-label="?LinkedIn"?|footer-social-link[^>]*linkedin' "$work/linkedin-leak.html"; then
         fail "guard: the LinkedIn leak pattern missed a ${pair%%:*} leak"
+    elif ! grep -q 'linkedin\.com/in/' "$work/linkedin-leak.html"; then
+        fail "guard: the profile URL pattern missed a ${pair%%:*} leak"
+    else
+        pass "guard: a LinkedIn ${pair%%:*} leak is detected by the patterns"
     fi
 done
 # Guard: the footer-links check bites. A repeated social row put back must fail.

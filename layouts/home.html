@@ -36,7 +36,7 @@
   <p>No posts yet.</p>
   {{ end }}
 </section>
-{{- /* footer_only entries (LinkedIn, issue 195) are footer icons and are not chips. */}}
+{{- /* footer_only entries (none today) are footer icons and are not chips. */}}
 {{- with where (site.Data.socials | default slice) "footer_only" "ne" true }}
 <section class="panel home-panel home-find" aria-labelledby="find-me">
   <h2 id="find-me" class="hud-heading">Find me online</h2>

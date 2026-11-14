@@ -208,7 +208,12 @@ fi
 # the archive note, and the Twitch and Toot post and page hold no wallet address.
 wallet_re='bc1[a-z0-9]{20,}|0x[0-9a-fA-F]{30,}|\b[48][0-9A-Za-z]{94}\b|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b'
 wallet_scan() { # wallet_scan <file>: succeeds when the file holds a wallet-shaped string
-    grep -Eq "$wallet_re" "$1"
+    # Neutralize only the build's own asset fingerprints (.min.<64 hex>.css|js and
+    # integrity="shaNNN-<base64>"): a coincidental "bc1" run inside a hash is not a wallet.
+    sed -E \
+        -e 's/\.min\.[0-9a-f]{64}\.(css|js)/.min.FINGERPRINT.\1/g' \
+        -e 's/integrity="?sha(256|384|512)-[A-Za-z0-9+\/=]+"?/integrity=FINGERPRINT/g' "$1" |
+        grep -Eq "$wallet_re"
 }
 note='This is a record, not a current view.'
 if [[ -d "$work/real/posts" ]]; then
@@ -274,6 +279,24 @@ if [[ -d "$work/real/posts" ]]; then
     else
         pass "guard: the wallet scan passes plain prose"
     fi
+    # Guard: a build asset fingerprint is not a wallet, but real addresses still are.
+    printf '%s\n' '<link rel=stylesheet href=/css/site.min.f6cb884ebc1d756510e881643ec81353e7c3366e9306986d53f9c8e5982af84b.css integrity="sha256-9suITrwddWUQ6IFkPexample0123456789abcdefghi=">' >"$work/wallet-sample"
+    if wallet_scan "$work/wallet-sample"; then
+        fail "guard: the wallet scan flagged a build asset fingerprint"
+    else
+        pass "guard: the wallet scan ignores a build asset fingerprint"
+    fi
+    for sample in \
+        'Tip: bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' \
+        '<a href="bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq">tip</a>' \
+        "Tip: 0x$(printf 'a1%.0s' {1..20})"; do
+        printf '%s\n' "$sample" >"$work/wallet-sample"
+        if wallet_scan "$work/wallet-sample"; then
+            pass "guard: the wallet scan still flags: ${sample:0:30}"
+        else
+            fail "guard: the wallet scan missed: ${sample:0:30}"
+        fi
+    done
 fi
 
 # --- guard self-test: the line checker must reject bad lines -------------------

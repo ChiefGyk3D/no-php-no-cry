@@ -166,14 +166,15 @@ def check_social(page, root, bad):
             entries[-1][k] = v.strip().strip('"')
     want = ["Twitch", "YouTube", "Kick", "Mastodon", "Bluesky", "TikTok", "Instagram", "Pixelfed",
             "Threads", "Discord", "Matrix", "GitHub"]
-    # Issue 195: footer_only entries (LinkedIn) are in the footer icon row and nowhere else, so
-    # the tile grid follows the data file minus them, and nothing on the page names LinkedIn.
+    # Issue 391: the site carries no LinkedIn profile link. No data entry is footer_only or
+    # names LinkedIn, and nothing on the page does.
     footer_only = [e["name"] for e in entries if e.get("footer_only") == "true"]
-    if footer_only != ["LinkedIn"]:
-        bad.append("socials.yaml footer_only entries: want ['LinkedIn'], got %r" % footer_only)
-    entries = [e for e in entries if e.get("footer_only") != "true"]
+    if footer_only:
+        bad.append("socials.yaml footer_only entries: want none, got %r" % footer_only)
+    if any("linkedin" in (e.get("name", "") + e.get("icon", "") + e.get("url", "")).lower() for e in entries):
+        bad.append("socials.yaml has a LinkedIn entry (the profile link was removed, issue 391)")
     if "linkedin" in main.all_text().lower() or any("linkedin" in (a.attrs.get("href") or "").lower() for a in main.find("a")):
-        bad.append("LinkedIn is on the Socials page (it is footer-only)")
+        bad.append("LinkedIn is on the Socials page (the profile link was removed, issue 391)")
     if main.find("span", "social-icon--linkedin"):
         bad.append("a LinkedIn icon is on the Socials page")
     if [e["name"] for e in entries] != want:
@@ -247,15 +248,15 @@ def check_footer(page, root, bad):
         return 0
     foot = feet[0]
     navs = [n for n in foot.find("nav") if n.attrs.get("aria-label") == "Social profiles"]
-    # Issue 195: the row is the live entries that are not footer_only, then the footer_only ones
-    # (LinkedIn), each group in data order; the data keeps the footer_only entries last, so this
-    # is also the data order.
+    # The row is the live entries that are not footer_only, then the footer_only ones (none
+    # today, issue 391), each group in data order; the data keeps the footer_only entries last,
+    # so this is also the data order.
     live_all = [e for e in load_socials(root) if (e.get("url") or "").startswith("https://")]
     live = [e for e in live_all if e.get("footer_only") != "true"] + [e for e in live_all if e.get("footer_only") == "true"]
     if live != live_all:
         bad.append("footer_only entries are not last in data/socials.yaml")
-    if [e["name"] for e in live][-1:] != ["LinkedIn"] or len(live) != 13:
-        bad.append("footer row should be 12 networks then LinkedIn (13 icons), data gives %r" % [e["name"] for e in live])
+    if len(live) != 12 or any("linkedin" in e["name"].lower() for e in live):
+        bad.append("footer row should be the 12 networks (no LinkedIn), data gives %r" % [e["name"] for e in live])
     if len(navs) != 1:
         bad.append("footer has %d 'Social profiles' navs" % len(navs))
         return 0
@@ -465,7 +466,7 @@ def check_home(page, root, bad):
     chips = ul.find("a")
     names = [a.all_text() for a in chips]
     if "LinkedIn" in names or any("linkedin" in (a.attrs.get("href") or "").lower() for a in chips):
-        bad.append("LinkedIn is a Home chip (it is footer-only)")
+        bad.append("LinkedIn is a Home chip (the profile link was removed, issue 391)")
     if names != [e["name"] for e in live]:
         bad.append("chips %r differ from the live networks of data/socials.yaml in order" % names)
     want = "home-social--per-%d" % min(12, (len(live) + 1) // 2)
@@ -578,7 +579,7 @@ css="$(cat "$public"/css/*.css 2>/dev/null || true)"
 if [[ -z "$css" ]]; then
     fail "built stylesheet found"
 else
-    for slug in twitch youtube kick mastodon bluesky tiktok instagram threads discord matrix github pixelfed linkedin; do
+    for slug in twitch youtube kick mastodon bluesky tiktok instagram threads discord matrix github pixelfed; do
         if ! grep -q "social-icon--${slug}" <<<"$css"; then
             fail "css rule for social-icon--${slug}"
         fi
@@ -616,11 +617,10 @@ if [[ -f "$public/index.html" ]]; then
     fguard "link not https" 's#href="?https://twitch.tv/chiefgyk3d"?#href=http://twitch.tv/chiefgyk3d#'
     fguard "row removed" 's/aria-label="?Social profiles"?/aria-label=Other/'
     fguard "one icon removed" '/<li><a class="?footer-social-link"? href="?https:\/\/kick\.com/d'
-    fguard "balanced-row class wrong" 's/footer-social-list--per-7/footer-social-list--per-11/'
+    fguard "balanced-row class wrong" 's/footer-social-list--per-6/footer-social-list--per-11/'
     fguard "rel=me dropped" 's/rel="me noopener"/rel=noopener/g'
-    # Issue 195: LinkedIn is the last icon, footer-only, noopener only.
-    fguard "LinkedIn dropped from the footer" '/<li><a class="?footer-social-link"? href="?https:\/\/www\.linkedin\.com/d'
-    fguard "LinkedIn given rel=me" 's#(href="https://www\.linkedin\.com/in/moshe-g" rel=")noopener#\1me noopener#'
+    # Issue 391: a LinkedIn profile icon put back in the footer must fail.
+    fguard "LinkedIn profile icon added to the footer" 's#(<li><a class="?footer-social-link"? href="?https://kick\.com)#<li><a class="footer-social-link" href="https://www.linkedin.com/in/x" rel="noopener" aria-label="LinkedIn"><span class="social-icon social-icon--linkedin" aria-hidden="true"></span></a></li>\1#'
     # The CSS guard: a desktop footer with the icons centered again must fail.
     mkdir -p "$work/footroot/assets/css" "$work/footroot/data"
     cp "$root/data/socials.yaml" "$work/footroot/data/"
