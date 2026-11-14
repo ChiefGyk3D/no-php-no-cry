@@ -27,14 +27,16 @@ PY
 if check "$root/.github/workflows/ci.yml" 2>"$work/err"; then
     echo "ok: content checks fetches HEAD at depth 2"
 else
-    echo "FAIL: $(cat "$work/err")"; fail=1
+    echo "FAIL: $(cat "$work/err")"
+    fail=1
 fi
 
 # negative case: put the old line back and the guard must bite
 sed 's|git fetch --no-tags --depth=2 origin \\"$(git rev-parse HEAD)\\"|git fetch --no-tags --deepen=1 origin|' \
     "$root/.github/workflows/ci.yml" >"$work/old.yml"
 if check "$work/old.yml" 2>/dev/null; then
-    echo "FAIL: guard did not bite on the old --deepen=1 line"; fail=1
+    echo "FAIL: guard did not bite on the old --deepen=1 line"
+    fail=1
 else
     echo "ok: guard bites on the old line"
 fi
