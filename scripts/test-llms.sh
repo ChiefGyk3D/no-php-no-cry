@@ -53,7 +53,7 @@ check_llms() {
         grep -qF "]($url)" "$f" || echo "missing data link: $url"
         n=$((n + 1))
     done < <({
-        # footer_only entries (LinkedIn, issue 195) are in the footer icon row only, not in llms.txt.
+        # footer_only entries (none today, issue 391) are in the footer icon row only, not in llms.txt.
         awk '/^- name:/ { if (url != "" && fo != "true") print url; url = ""; fo = "" } $1 == "url:" && $2 ~ /^https:\/\// { url = $2 } $1 == "footer_only:" { fo = $2 } END { if (url != "" && fo != "true") print url }' "$root/data/socials.yaml"
         grep -hE '^[[:space:]]*(-[[:space:]]+)?url:[[:space:]]*https://' "$root/data/support.yaml" | sed -E 's/^[^:]*:[[:space:]]*//'
     })

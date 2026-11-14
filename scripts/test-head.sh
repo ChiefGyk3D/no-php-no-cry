@@ -649,7 +649,7 @@ printf -- '---\ntitle: "Entry J"\ndate: 2024-07-06T07:08:09-04:00\ndescription: 
 }
 pub="$site2/public"
 sameas="$work/sameas.txt"
-# footer_only entries (LinkedIn, issue 195) are in the footer icon row only: not in sameAs.
+# footer_only entries (none today, issue 391) are in the footer icon row only: not in sameAs.
 FEDI_WANT="$(sed -n 's/^  fediverse_creator: "\(.*\)"$/\1/p' "$root/data/socials.yaml" | head -n 1)"
 export FEDI_WANT
 awk '/^- name:/ { if (url != "" && fo != "true") print url; url = ""; fo = "" } $1 == "url:" && $2 ~ /^https:\/\// { url = $2 } $1 == "footer_only:" { fo = $2 } END { if (url != "" && fo != "true") print url }' "$root/data/socials.yaml" >"$sameas"

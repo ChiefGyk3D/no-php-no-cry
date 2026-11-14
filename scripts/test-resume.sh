@@ -211,7 +211,7 @@ def check(html):
     if cert and re.search(r"Associate degree|General class|Latter Day Dude", cert.group(1)):
         out.append("a degree, the radio license or the ordination is under Certifications")
     # Issue 360: the Contact section has no profile link and no "Find me online" line; its one link
-    # points at the Contact page. The footer LinkedIn icon is outside <main> and is asserted elsewhere.
+    # points at the Contact page. Issue 391: no LinkedIn profile link is anywhere on the site (test-pages.sh).
     cs = re.search(r"Contact</h2>(.*?)(?:<h2|</article>|$)", html, re.S)
     csec = cs.group(1) if cs else ""
     if "linkedin" in csec.lower():
