@@ -18,6 +18,7 @@ joinplu.me
 mastodon.social
 matrix.to
 misskey-hub.net
+mit.edu
 pixelfed.org
 pleroma.social
 twitodon.com
