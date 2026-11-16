@@ -126,7 +126,9 @@ path no rule matches all run every leg (fail closed). Note `.github/**` and
   inert (a cache is only restored and saved where egress is `block`).
 - `shell` and `security` stay jobs. All three reusable workflows are pinned to
   GYST v1.36.0 (`ff658b7`).
-- `deploy.yml` and branch protection are unchanged.
+- Branch protection is unchanged. `deploy.yml` keeps its harden-runner `block`
+  policy and allow-list; it changes only by dropping its local egress canary
+  and moving the `doppler-secrets` action pin to GYST v1.36.0 (`ff658b7`).
 
 ## Roadmap
 
