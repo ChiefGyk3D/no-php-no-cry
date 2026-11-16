@@ -166,24 +166,6 @@ jobs:
             raw.githubusercontent.com:443
             results-receiver.actions.githubusercontent.com:443
 
-      # Egress canary, as in git-your-ship-together (EX-0001): a runner with
-      # broken DNS makes block mode fail confusingly, so say which it is first.
-      - name: Egress canary
-        timeout-minutes: 2
-        run: |
-          set -u
-          bad=""
-          for name in github.com api.github.com api.cloudflare.com; do
-            if ! timeout 8 bash -c "exec 3<>/dev/tcp/${name}/443" 2>/dev/null; then
-              bad="$bad $name"
-            fi
-          done
-          if [ -n "$bad" ]; then
-            echo "::error title=egress canary::cannot reach:${bad}. Either the runner network is broken (rerun the job) or the allow-list is wrong (docs/deploy.md)."
-            exit 1
-          fi
-          echo "egress canary: allowed hosts accept TCP 443"
-
       # Checked out: deploy/ (a package.json and its lockfile), static/_headers
       # and static/_routes.json (the expected headers and routes files), copy.js.sha256 and
       # search.js.sha256 and share.js.sha256 (the pinned script hashes), the shared rules file and two scripts. scripts/test-deploy-sparse.sh
@@ -266,7 +248,7 @@ jobs:
       # selects the two. Least privilege is the config itself, a dedicated CI
       # config that holds only these two values (docs/deploy.md).
       - name: Fetch Cloudflare credentials from Doppler
-        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@01f397834f7acc553593abefbba135b18f580730 # v1.34.0
+        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@ff658b7c11a55eea1394af5fd1a3a1b4b09d9cd0 # v1.36.0
         with:
           project: ${{ vars.DOPPLER_PROJECT }}
           config: ${{ vars.DOPPLER_CONFIG }}
