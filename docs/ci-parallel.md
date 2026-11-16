@@ -3,7 +3,7 @@
 Issue 185. `.github/workflows/ci.yml` used to run one job, `build`, with about
 forty steps in a row. It now calls the shared `parallel-ci.yml` from
 [git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together)
-(GYST), pinned by commit at v1.34.0. The build runs once. The checks then run as
+(GYST), pinned by commit at v1.36.0. The build runs once. The checks then run as
 separate jobs, each on the build it downloads, so the wall time is the build plus
 the slowest check, not the sum.
 
@@ -125,8 +125,10 @@ path no rule matches all run every leg (fail closed). Note `.github/**` and
   default is `block`. In audit mode the Hugo tarball cache and the pip cache are
   inert (a cache is only restored and saved where egress is `block`).
 - `shell` and `security` stay jobs. All three reusable workflows are pinned to
-  GYST v1.34.0 (`01f3978`).
-- `deploy.yml` and branch protection are unchanged.
+  GYST v1.36.0 (`ff658b7`).
+- Branch protection is unchanged. `deploy.yml` keeps its harden-runner `block`
+  policy and allow-list; it changes only by dropping its local egress canary
+  and moving the `doppler-secrets` action pin to GYST v1.36.0 (`ff658b7`).
 
 ## Roadmap
 
