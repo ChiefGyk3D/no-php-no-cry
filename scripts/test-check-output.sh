@@ -830,6 +830,33 @@ staging_tree "$d"
 expect_pass "consistent staging tree passes" "consistent staging tree was rejected" "$d"
 EXPECT_ENV=staging expect_fail expect-staging-got-production env-mismatch "$good"
 EXPECT_ENV=production expect_fail expect-production-got-staging env-mismatch "$d"
+
+# Drafts are built on the dev host only (scripts/check-drafts.py): a production tree that
+# holds a draft page of content/ fails, the same page in a staging tree passes. The fixture
+# names the committed draft by the front matter the checker reads from this repository.
+draft_page="$(python3 -I - "$root" <<'PYEOF'
+import os, sys
+sys.path.insert(0, os.path.join(sys.argv[1], "scripts"))
+import importlib.util
+spec = importlib.util.spec_from_file_location("cd", os.path.join(sys.argv[1], "scripts", "check-drafts.py"))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+pages = sorted(m.draft_pages(os.path.join(sys.argv[1], "content")))
+print(pages[0] if pages else "")
+PYEOF
+)"
+if [[ -n "$draft_page" ]]; then
+    d="$work/draft-prod"
+    make_good "$d"
+    mkdir -p "$d/$(dirname "$draft_page")"
+    cp "$d/index.html" "$d/$draft_page"
+    expect_fail production-tree-with-a-draft-page draft-in-production "$d"
+    d="$work/draft-staging"
+    make_good "$d"
+    staging_tree "$d"
+    mkdir -p "$d/$(dirname "$draft_page")"
+    cp "$d/index.html" "$d/$draft_page"
+    EXPECT_ENV=staging expect_pass "staging tree with a draft page passes" "staging tree with a draft page was rejected" "$d"
+fi
 env_match_case() {
     if EXPECT_ENV=staging pass_quiet "$1" && EXPECT_ENV=production pass_quiet "$2"; then
         echo "ok: EXPECT_ENV accepts the matching environment"

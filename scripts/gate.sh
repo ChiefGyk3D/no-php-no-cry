@@ -45,9 +45,12 @@ step check-hugo-version "" 'scripts/check-hugo-version.sh "$(tr -d "[:space:]" <
 step build-production "" 'hugo --minify --gc --destination "$T/public"'
 step check-output-production build-production 'EXPECT_ENV=production scripts/check-output.sh "$T/public"'
 step check-site-artifact-production build-production 'scripts/check-site-artifact.sh "$T/public"'
-step build-staging "" 'HUGO_PARAMS_ENVIRONMENT=staging hugo --minify --gc --destination "$T/public-staging"'
+step build-staging "" 'HUGO_PARAMS_ENVIRONMENT=staging hugo --minify --gc --buildDrafts --destination "$T/public-staging"'
 step check-output-staging build-staging 'EXPECT_ENV=staging scripts/check-output.sh "$T/public-staging"'
 step check-site-artifact-staging build-staging 'scripts/check-site-artifact.sh "$T/public-staging"'
+step check-drafts-production build-production 'python3 -I scripts/check-drafts.py "$T/public" absent'
+step check-drafts-staging build-staging 'python3 -I scripts/check-drafts.py "$T/public-staging" present'
+step test-check-drafts "" 'scripts/test-check-drafts.sh'
 step test-check-output "" 'scripts/test-check-output.sh'
 step test-head "" 'scripts/test-head.sh'
 step test-featured-image "" 'scripts/test-featured-image.sh'
@@ -128,7 +131,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging test-head test-featured-image test-svg-render-hook test-social-products test-share test-borders test-resume test-layout
+    build-staging check-output-staging check-site-artifact-staging check-drafts-production check-drafts-staging test-check-drafts test-head test-featured-image test-svg-render-hook test-social-products test-share test-borders test-resume test-layout
     test-pages test-titles test-about-email check-email-image test-check-email-image test-social-identity test-contact-page test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model test-render-threat-summary check-threat-diagrams test-render-threat-diagram check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget

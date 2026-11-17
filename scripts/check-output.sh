@@ -16,7 +16,7 @@
 # noindex-mismatch, missing-head-tag, bad-head-value, bad-jsonld, duplicate-description, missing-sitemap,
 # bad-sitemap, bad-feed, missing-redirects, missing-alias, missing-feed,
 # missing-headers, weak-csp, template-element, missing-output, missing-llms,
-# bad-llms, old-site-name, image-metadata, multiple-l3.
+# bad-llms, old-site-name, image-metadata, multiple-l3, draft-in-production.
 #
 # multiple-l3: the border system (docs/borders.md) allows ONE level 3 frame, the
 # full button frame, per page: more than one <svg class="fr fr-l3"> on a page is a
@@ -666,6 +666,22 @@ if [[ -n "$(find "$dir" -type f \( -iname '*.webp' -o -iname '*.jpg' -o -iname '
         done <<<"$meta_out"
         [[ $found_line -eq 1 ]] || report image-metadata "check-image-metadata.py failed"
     fi
+fi
+
+# Drafts are built on the dev host only (deploy.yml builds staging with --buildDrafts). A
+# production tree must hold no draft page: scripts/check-drafts.py reads the repository's
+# content/ and names each draft page found in the output.
+if [[ "$env" == production ]]; then
+    drafts_out="$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-drafts.py" "$dir" absent 2>&1)" || {
+        found_line=0
+        while IFS= read -r line; do
+            if [[ "$line" == "[draft-in-production] "* ]]; then
+                report draft-in-production "${line#\[draft-in-production\] }"
+                found_line=1
+            fi
+        done <<<"$drafts_out"
+        [[ $found_line -eq 1 ]] || report draft-in-production "check-drafts.py failed"
+    }
 fi
 
 if [[ $findings -gt 0 ]]; then

@@ -2,6 +2,8 @@
 {{- $p := .page -}}
 {{- $pages := $p.Pages -}}
 {{- if $p.IsHome }}{{ $pages = where site.RegularPages "Section" "in" (slice "posts" "journal") }}{{ end -}}
+{{- /* A draft (built only on the staging host, with --buildDrafts) never reaches a feed: the feed is what a reader or a syndication step reads. */ -}}
+{{- $pages = where $pages "Draft" false -}}
 {{- $limit := 20 -}}
 {{- /* The declaration goes through safeHTML: the template is escaped as HTML, which turns a literal <?xml into &lt;?xml and makes the feed invalid XML. */ -}}
 {{ `<?xml version="1.0" encoding="utf-8"?>` | safeHTML }}
