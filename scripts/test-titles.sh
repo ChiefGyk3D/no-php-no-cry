@@ -131,7 +131,7 @@ PY
 
 # The journal entries (issue 316, plus the QCC lessons entry, issue 389): all nine are published, the synthetic
 # sample entry is gone, and nothing in the repository still points at it.
-expected="a-database-rollout-on-a-test-environment a-threat-model-for-a-static-site borders-and-the-brand-look collectors-and-credential-handling lessons-from-the-qcc-badge-post privacy-engineering-for-analytics running-a-fleet-of-ai-agents shipping-reach-around-while-moving-machines support-share-and-post-layouts"
+expected="a-database-rollout-on-a-test-environment a-threat-model-for-a-static-site borders-and-the-brand-look collectors-and-credential-handling lessons-from-the-qcc-badge-post privacy-engineering-for-analytics prox-and-recreation-dress-rehearsal running-a-fleet-of-ai-agents shipping-reach-around-while-moving-machines support-share-and-post-layouts"
 journal_fail=0
 for slug in $expected; do
     if [[ ! -f "$work/public/journal/$slug/index.html" ]]; then

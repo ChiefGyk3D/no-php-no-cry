@@ -1,7 +1,7 @@
 ---
 title: "The Stub Was Right, the Machine Was Not"
 date: 2026-11-17T12:00:00-05:00
-draft: true
+draft: false
 description: "A laptop rehearsal found a silent installer placeholder, a repair step that passed its stubs and failed on real hardware, and a validator that lies."
 slug: "the-stub-was-right-the-machine-was-not"
 categories: ["Open Source"]

@@ -1,7 +1,7 @@
 ---
 title: "Lab Notes: Prox & Recreation Dress Rehearsal"
 date: 2026-11-17T12:00:00-05:00
-draft: true
+draft: false
 description: "Notes from the first full rehearsal of my Proxmox toolkit on a spare laptop: the installer placeholder address, the first-boot repair, the LDAP realm bootstrap, and what is still open."
 slug: "prox-and-recreation-dress-rehearsal"
 categories: ["Journal"]
