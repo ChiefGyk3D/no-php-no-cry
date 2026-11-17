@@ -188,8 +188,8 @@ else
     fail "data/comments: $data_check"
 fi
 
-# 2. A normal build and a drafts build both show the comments of the published posts.
-hugo --minify --buildDrafts --destination "$work/drafts" >"$work/drafts.log" 2>&1 || {
+# 2. A normal build and a drafts build (the staging variant: drafts are built on the dev host only) both show the comments of the published posts.
+HUGO_PARAMS_ENVIRONMENT=staging hugo --minify --buildDrafts --destination "$work/drafts" >"$work/drafts.log" 2>&1 || {
     cat "$work/drafts.log"
     fail "hugo --buildDrafts failed"
 }
@@ -240,7 +240,7 @@ fi
 if find "$work/drafts" -type f -name '*.html' -print0 | xargs -0 grep -lE '\[email protected\]' >/dev/null 2>&1; then
     fail "an obfuscated email placeholder is in the output"
 fi
-if EXPECT_ENV=production "$root/scripts/check-output.sh" "$work/drafts" >"$work/co.log" 2>&1; then
+if EXPECT_ENV=staging "$root/scripts/check-output.sh" "$work/drafts" >"$work/co.log" 2>&1; then
     pass "check-output.sh is green on the drafts build"
 else
     cat "$work/co.log"

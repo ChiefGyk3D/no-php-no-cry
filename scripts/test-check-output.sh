@@ -843,17 +843,27 @@ pages = sorted(m.draft_pages(os.path.join(sys.argv[1], "content")))
 print(pages[0] if pages else "")
 ' "$root")"
 if [[ -n "$draft_page" ]]; then
-    d="$work/draft-prod"
-    make_good "$d"
-    mkdir -p "$d/$(dirname "$draft_page")"
-    cp "$d/index.html" "$d/$draft_page"
-    expect_fail production-tree-with-a-draft-page draft-in-production "$d"
-    d="$work/draft-staging"
-    make_good "$d"
-    staging_tree "$d"
-    mkdir -p "$d/$(dirname "$draft_page")"
-    cp "$d/index.html" "$d/$draft_page"
-    EXPECT_ENV=staging expect_pass "staging tree with a draft page passes" "staging tree with a draft page was rejected" "$d"
+    draft_prod="$work/draft-prod"
+    make_good "$draft_prod"
+    mkdir -p "$draft_prod/$(dirname "$draft_page")"
+    cp "$draft_prod/index.html" "$draft_prod/$draft_page"
+    expect_fail production-tree-with-a-draft-page draft-in-production "$draft_prod"
+    # The draft rule is production only: a staging tree names no draft finding.
+    draft_stage="$work/draft-staging"
+    make_good "$draft_stage"
+    staging_tree "$draft_stage"
+    mkdir -p "$draft_stage/$(dirname "$draft_page")"
+    cp "$draft_stage/index.html" "$draft_stage/$draft_page"
+    draft_not_flagged() {
+        local out
+        out="$(SCRIPT_HASH_DIR="$1.hashes" "$checker" "$1" 2>&1)" || true
+        if grep -q '\[draft-in-production\]' <<<"$out"; then
+            echo "FAIL: a staging tree was flagged draft-in-production"
+        else
+            echo "ok: staging tree with a draft page is not flagged draft-in-production"
+        fi
+    }
+    bg draft_not_flagged "$draft_stage"
 fi
 env_match_case() {
     if EXPECT_ENV=staging pass_quiet "$1" && EXPECT_ENV=production pass_quiet "$2"; then
