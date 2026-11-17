@@ -7,6 +7,8 @@ slug: "running-key-rotation-through-doppler"
 categories: ["Journal"]
 tags: ["security", "doppler", "key-rotation", "ci", "least-privilege"]
 syndicate: false
+image: "featured.webp"
+imageAlt: "AI-generated illustration of a cartoon penguin at a workbench hanging a second matching key on a pegboard beside the first."
 ---
 
 I wanted credential rotation across my projects without turning every swap into a maintenance window, so I built the process around Doppler, short-lived CI identity, and overlapping credential pairs. The interesting part was not creating a replacement value. It was proving that applications kept reading the right thing after the replacement happened.

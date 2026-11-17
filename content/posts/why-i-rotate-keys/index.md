@@ -7,6 +7,8 @@ slug: "why-i-rotate-keys"
 categories: ["Open Source"]
 tags: ["security", "credentials", "key-rotation", "least-privilege"]
 syndicate: true
+image: "featured.webp"
+imageAlt: "AI-generated illustration of a cartoon penguin in a hard hat and hi-vis vest fitting a new key into a padlock on a pipe while the old key sits in a bin."
 ---
 
 Most keys do not leak because somebody performed some elite hacker magic. They leak because a command printed too much, a screenshot included the wrong window, somebody pasted one into chat, or an old CI run kept output nobody remembered was there.
