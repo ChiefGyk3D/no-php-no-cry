@@ -830,6 +830,41 @@ staging_tree "$d"
 expect_pass "consistent staging tree passes" "consistent staging tree was rejected" "$d"
 EXPECT_ENV=staging expect_fail expect-staging-got-production env-mismatch "$good"
 EXPECT_ENV=production expect_fail expect-production-got-staging env-mismatch "$d"
+
+# Drafts are built on the dev host only (scripts/check-drafts.py): a production tree that
+# holds a draft page of content/ fails, the same page in a staging tree passes. The fixture
+# names the committed draft by the front matter the checker reads from this repository.
+draft_page="$(python3 -I -c '
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("cd", os.path.join(sys.argv[1], "scripts", "check-drafts.py"))
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+pages = sorted(m.draft_pages(os.path.join(sys.argv[1], "content")))
+print(pages[0] if pages else "")
+' "$root")"
+if [[ -n "$draft_page" ]]; then
+    draft_prod="$work/draft-prod"
+    make_good "$draft_prod"
+    mkdir -p "$draft_prod/$(dirname "$draft_page")"
+    cp "$draft_prod/index.html" "$draft_prod/$draft_page"
+    expect_fail production-tree-with-a-draft-page draft-in-production "$draft_prod"
+    # The draft rule is production only: a staging tree names no draft finding.
+    draft_stage="$work/draft-staging"
+    make_good "$draft_stage"
+    staging_tree "$draft_stage"
+    mkdir -p "$draft_stage/$(dirname "$draft_page")"
+    cp "$draft_stage/index.html" "$draft_stage/$draft_page"
+    draft_not_flagged() {
+        local out
+        out="$(SCRIPT_HASH_DIR="$1.hashes" "$checker" "$1" 2>&1)" || true
+        if grep -q '\[draft-in-production\]' <<<"$out"; then
+            echo "FAIL: a staging tree was flagged draft-in-production"
+        else
+            echo "ok: staging tree with a draft page is not flagged draft-in-production"
+        fi
+    }
+    bg draft_not_flagged "$draft_stage"
+fi
 env_match_case() {
     if EXPECT_ENV=staging pass_quiet "$1" && EXPECT_ENV=production pass_quiet "$2"; then
         echo "ok: EXPECT_ENV accepts the matching environment"

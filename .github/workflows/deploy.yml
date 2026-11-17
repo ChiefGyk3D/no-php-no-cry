@@ -69,18 +69,22 @@ jobs:
 
       # test-blog is the staging site: noindex on every page and a robots.txt
       # that disallows everything. At the apex cutover set this to production
-      # (docs/cutover.md).
+      # (docs/cutover.md). Drafts are built here and only here: the dev host is
+      # the review copy (noindex), production is built by the private pipeline
+      # without drafts, and check-output.sh fails a production tree that holds one.
       - name: Build
         env:
           HUGO_PARAMS_ENVIRONMENT: staging
         run: |
           python3 -I scripts/build-outbound-domains.py
-          hugo --minify --gc
+          hugo --minify --gc --buildDrafts
 
       - name: Check the generated output
         env:
           EXPECT_ENV: staging
-        run: scripts/check-output.sh public
+        run: |
+          scripts/check-output.sh public
+          python3 -I scripts/check-drafts.py public present
 
       - name: Check the site for Pages control files and pinned _headers/_redirects
         run: scripts/check-site-artifact.sh public

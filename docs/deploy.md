@@ -205,6 +205,14 @@ the OIDC subject and `SITE_URL` to match.
   matches nothing), commit, and re-run. The other jobs stay in audit because
   the artifact storage host varies per run. Tracked in issue #10.
 
+### Drafts
+
+The dev host builds with `--buildDrafts`, so a page with `draft: true` is shown on
+`test-blog.chiefgyk3d.com` for review (noindex, robots disallow all). Production does not
+build drafts: `scripts/check-output.sh` fails a production tree that holds a draft page
+(`draft-in-production`, from `scripts/check-drafts.py`), and the feeds, sitemap and llms.txt leave drafts out on
+every host, so nothing reads a draft from a feed.
+
 ## Dev deploy versus the production pipeline
 
 | | Dev deploy (this repository) | Production pipeline (private repository) |

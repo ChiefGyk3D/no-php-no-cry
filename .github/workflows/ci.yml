@@ -49,7 +49,7 @@ jobs:
         scripts/check-hugo-version.sh "$(tr -d '[:space:]' < .hugo-version)"
         python3 -I scripts/build-outbound-domains.py
         hugo --minify --gc
-        HUGO_PARAMS_ENVIRONMENT=staging hugo --minify --gc --destination "$RUNNER_TEMP/public-staging"
+        HUGO_PARAMS_ENVIRONMENT=staging hugo --minify --gc --buildDrafts --destination "$RUNNER_TEMP/public-staging"
       build-output-path: public
       extra-output-path: RUNNER_TEMP/public-staging
       build-timeout-minutes: 15
@@ -66,7 +66,7 @@ jobs:
       areas: '{"docs": ["docs/*.md", "docs/wiki/*.md", "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md"], "site": ["*"]}'
       jobs: |
         [
-            {"name": "output checks", "command": "EXPECT_ENV=production scripts/check-output.sh public\nscripts/check-site-artifact.sh public\nEXPECT_ENV=staging scripts/check-output.sh \"$RUNNER_TEMP/public-staging\"\nscripts/check-site-artifact.sh \"$RUNNER_TEMP/public-staging\"\nscripts/test-check-site-artifact.sh", "timeout": 10},
+            {"name": "output checks", "command": "EXPECT_ENV=production scripts/check-output.sh public\nscripts/check-site-artifact.sh public\nEXPECT_ENV=staging scripts/check-output.sh \"$RUNNER_TEMP/public-staging\"\nscripts/check-site-artifact.sh \"$RUNNER_TEMP/public-staging\"\npython3 -I scripts/check-drafts.py public absent\npython3 -I scripts/check-drafts.py \"$RUNNER_TEMP/public-staging\" present\nscripts/test-check-site-artifact.sh\nscripts/test-check-drafts.sh", "timeout": 10},
             {"name": "output checker tests", "command": "scripts/test-check-output.sh", "timeout": 20},
             {"name": "site tests", "command": "scripts/test-head.sh\nscripts/test-featured-image.sh\nscripts/test-svg-render-hook.sh\nscripts/test-social-products.sh\nscripts/test-share.sh\nscripts/test-borders.sh\nscripts/test-resume.sh\nscripts/test-layout.sh\nscripts/test-pages.sh\nscripts/test-titles.sh\nscripts/test-about-email.sh\nscripts/test-social-identity.sh\nscripts/test-contact-page.sh\nscripts/test-comments.sh\nscripts/test-redirects.sh\nscripts/test-llms.sh\nscripts/test-migration.sh\nscripts/test-archetype.sh\nscripts/test-check-wiki.sh\nscripts/test-publish-wiki.sh", "timeout": 20, "tools": true, "build": false},
             {"name": "tool tests", "command": "scripts/test-deploy-sparse.sh\nscripts/test-deploy-doppler-vars.sh\nscripts/test-pin-script.sh\nscripts/test-check-hugo-version.sh\nscripts/test-check-reach-around-drift.sh\nscripts/test-smoke-site.sh\nscripts/test-smoke-site-browser-request.sh\nscripts/test-verify-live.sh\npython3 -I scripts/check-live-headers-workflow.py\nscripts/test-check-live-headers-workflow.sh\nscripts/test-robots-wildcard.sh\nscripts/test-wait-for-ci-green.sh\nscripts/test-ensure-pages-project.sh\nscripts/test-wxr2hugo.sh\nscripts/test-wxr2hugo-webp.sh\nscripts/test-analytics.sh\nscripts/test-outbound-clicks.sh\npython3 -I scripts/test-psl-refresh-workflow.py\nscripts/test-brand.sh\nscripts/test-gitleaks-config.sh\nscripts/test-crosscheck-redirects.sh\nscripts/test-scrub-config.sh", "timeout": 20, "tools": true, "build": false, "pip-cache": true},
