@@ -17,6 +17,11 @@ bad() {
 }
 
 content="$work/content"
+mkdir -p "$content/posts/commented" "$content/posts/crlf" "$content/posts/dots" "$content/posts/broken"
+printf -- '---\ntitle: "C"\ndraft: true # keep for review\nslug: "commented-slug" # note\n---\nbody\n' >"$content/posts/commented/index.md"
+printf -- '---\r\ntitle: "W"\r\ndraft: true\r\n---\r\nbody\r\n' >"$content/posts/crlf/index.md"
+printf -- '---\ntitle: "P"\ndraft: true\n...\nbody\n' >"$content/posts/dots/index.md"
+printf -- '---\ntitle: "B"\ndraft: true\nthis line is not yaml\n---\nbody\n' >"$content/posts/broken/index.md"
 mkdir -p "$content/posts/draft-post" "$content/posts/live-post" "$content/journal/loose" "$content/posts/renamed"
 printf -- '---\ntitle: "D"\ndraft: true\n---\nbody\n' >"$content/posts/draft-post/index.md"
 printf -- '---\ntitle: "L"\ndraft: false\n---\nbody\n' >"$content/posts/live-post/index.md"
@@ -45,17 +50,26 @@ run "production with a draft page fails" 1 "[draft-in-production] posts/draft-po
 mkdir -p "$prod/posts/other-name"
 : >"$prod/posts/other-name/index.html"
 run "a draft with a slug is found under the slug" 1 "[draft-in-production] posts/other-name/index.html" "$prod" absent
-run "a quoted draft value is not a draft" 0 "" "$prod" present
+quoted_out="$(python3 -I "$checker" "$prod" present "$content" 2>&1 || true)"
+if grep -q "journal/loose" <<<"$quoted_out"; then bad "a quoted draft value was read as a draft"; else ok "a quoted draft value is not a draft"; fi
+
+# Every accepted way of writing the front matter is found (a trailing comment, CRLF lines, a ...
+# closing fence, a slug with a comment, and a page the content parser rejects).
+for page in commented-slug crlf dots broken; do
+    mkdir -p "$prod/posts/$page"
+    : >"$prod/posts/$page/index.html"
+    run "a draft written with the $page form is found" 1 "[draft-in-production] posts/$page/index.html" "$prod" absent
+done
 
 stage="$work/stage"
-mkdir -p "$stage/posts/draft-post" "$stage/posts/other-name"
-: >"$stage/posts/draft-post/index.html"
-: >"$stage/posts/other-name/index.html"
+mkdir -p "$stage/posts/draft-post" "$stage/posts/other-name" "$stage/posts/commented-slug" "$stage/posts/crlf" "$stage/posts/dots" "$stage/posts/broken"
+for d in draft-post other-name commented-slug crlf dots broken; do : >"$stage/posts/$d/index.html"; done
 run "staging with every draft passes" 0 "ok" "$stage" present
 run "bad mode is refused" 2 "Drafts" "$stage" sideways
 
 # The real repository: content/ names its drafts, and both modes read it.
-python3 -I "$checker" "$work/stage" absent >/dev/null 2>&1 && ok "real content, empty tree passes absent" || bad "real content, absent"
+mkdir -p "$work/empty"
+python3 -I "$checker" "$work/empty" absent >/dev/null 2>&1 && ok "real content, empty tree passes absent" || bad "real content, absent"
 
 ((fails == 0)) || exit 1
 echo "check-drafts tests: ok"
