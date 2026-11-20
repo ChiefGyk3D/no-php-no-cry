@@ -20,7 +20,10 @@ fi
 # The caller's helpers, as verify-live.sh defines them, reduced to one line each.
 ok() { echo "OK $1"; }
 bad() { echo "BAD $1 $2"; }
-host=example.test
+# The lifted function reads host, scan_py, scheme and body as globals. They are
+# exported (not merely set) so the read is visible to shellcheck, which cannot
+# follow the eval below.
+export host=example.test
 eval "$func"
 
 # A scanner that prints a code verify-live.sh has never heard of.
@@ -29,7 +32,7 @@ printf 'print("made-up-rule")\n' >"$work/stub.py"
 failures=0
 check() { # check <label> <want OK|BAD> <scan_py> <scheme> <mode> <body-file>
     local out
-    scan_py="$3" scheme="$4" body="$6"
+    export scan_py="$3" scheme="$4" body="$6"
     out="$(third_party "$1" "$5")"
     if [[ "$out" == "$2"* ]]; then
         echo "ok: $1"
