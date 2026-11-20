@@ -157,6 +157,9 @@ def check_set(pages, base):
             bad.append(f"{name}: nav item does not follow Contact ({labels})")
         if "About" not in labels or "Contact" not in labels or labels.index("Contact") != labels.index("About") + 1:
             bad.append(f"{name}: Contact does not follow About in the nav ({labels})")
+        want = ["Home", "Posts", "Gear & tools", "Socials", "Support", "About", "Contact", NAV_LABEL, "Search", "Shop"]
+        if [x for x in labels if x != "Journal"] != want:
+            bad.append(f"{name}: nav order is not {want} (Journal aside): {labels}")
         foot = [t for c, t in p.paras if norm(t) == FOOTER_LINE]
         if len(foot) != 1:
             bad.append(f"{name}: expected one footer line {FOOTER_LINE!r}, found {len(foot)}")
