@@ -93,10 +93,12 @@ timeZone = "America/New_York"
 
   # Crosslinks to the business site (issue 407): a nav item, a block on About and
   # Resume, and a footer line, all pointing here. Empty renders none of them, so
-  # production (built by the private pipeline) shows nothing until the owner
-  # opts in. The dev deploy sets it from the workflow
-  # (HUGO_PARAMS_BUSINESSSITEURL in .github/workflows/deploy.yml). At the
-  # business site cutover the owner changes it to https://renegadepenguinllc.com.
+  # production (built by the private pipeline) shows nothing unless that build
+  # sets it. This file ships it empty (scripts/test-business-crosslinks.sh
+  # requires that). The dev deploy sets it from the workflow
+  # (HUGO_PARAMS_BUSINESSSITEURL in .github/workflows/deploy.yml), and the
+  # PRIVATE production pipeline sets HUGO_PARAMS_BUSINESSSITEURL to
+  # https://renegadepenguinllc.com in its own build.
   businessSiteURL = ""
 
   # Default Open Graph image, a path under static/. Use only a file listed in

@@ -33,6 +33,8 @@ fail() {
 
 asserter="$work/assert_crosslinks.py"
 cat >"$asserter" <<'PY'
+import json
+import re
 import sys
 from html.parser import HTMLParser
 
@@ -44,6 +46,22 @@ ABOUT_BLOCK = ("If you want to hire me for security advisory work, I do it throu
 RESUME_BLOCK = "I am available for advisory, assessment, and speaking work through Renegade Penguin LLC."
 FOOTER_LINE = "Hire me through Renegade Penguin LLC."
 LINK_TEXT = "Renegade Penguin LLC"
+# Issue 414: the credit link, the Person node's worksFor and jobTitle, the llms.txt block.
+# JOB_TITLE is the text the business site's own Person node uses for the same person.
+JOB_TITLE = "Founder, Renegade Penguin LLC"
+LLMS_HEADING = "## Work with me"
+LLMS_NOTE = "My advisory firm provides hands-on security assessments, AI security reviews, and virtual CISO and CIO guidance."
+# The Contact page notice (owner-approved wording; LINK_TEXT is replaced by the link).
+CONTACT_NOTICE = ("If you're looking to hire me for consulting or advisory work, please head to LINK_TEXT "
+                  "so your request reaches Renegade Penguin LLC. This page and email address are for "
+                  "content, community, and personal messages.")
+CONTACT_LINK_TEXT = "renegadepenguinllc.com"
+CREDIT_TEXT = re.compile("^\N{COPYRIGHT SIGN} \\d{4} Renegade Penguin LLC \N{MIDDLE DOT} Powered by No PHP No Cry$")
+# The credit exactly as it ships today (minified), for the empty-param check.
+CREDIT_RAW = re.compile(
+    "^(?:&copy;|\N{COPYRIGHT SIGN}) \\d{4} Renegade Penguin LLC <span aria-hidden=\"?true\"?>(?:&middot;|&#183;|\N{MIDDLE DOT})</span> Powered by "
+    "<a href=\"?https://github\\.com/ChiefGyk3D/no-php-no-cry\"? rel=\"?noopener\"?>No PHP No Cry"
+    "<span class=\"?visually-hidden\"?> \\(external site\\)</span></a>$")
 
 
 class P(HTMLParser):
@@ -57,6 +75,7 @@ class P(HTMLParser):
         self._hidden = 0
         self._stack = []
         self._in_nav = 0
+        self._in_credit = False
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -69,9 +88,10 @@ class P(HTMLParser):
         if tag == "nav" and a.get("aria-label") == "Main":
             self._in_nav += 1
         if tag == "a":
-            self._a = {"href": a.get("href"), "rel": a.get("rel"), "label": a.get("aria-label") or "", "text": "", "nav": bool(self._in_nav)}
+            self._a = {"href": a.get("href"), "rel": a.get("rel"), "label": a.get("aria-label") or "", "text": "", "nav": bool(self._in_nav), "credit": self._in_credit}
         if tag == "p":
             self._p = [" ".join(cls), ""]
+            self._in_credit = "credit" in cls
 
     def handle_endtag(self, tag):
         while self._stack:
@@ -90,6 +110,7 @@ class P(HTMLParser):
         if tag == "p" and self._p is not None:
             self.paras.append(tuple(self._p))
             self._p = None
+            self._in_credit = False
 
     def handle_data(self, d):
         if self._hidden:
@@ -137,7 +158,7 @@ def check_set(pages, base):
         foot = [t for c, t in p.paras if norm(t) == FOOTER_LINE]
         if len(foot) != 1:
             bad.append(f"{name}: expected one footer line {FOOTER_LINE!r}, found {len(foot)}")
-        fa = [a for a in p.anchors if a["href"] == home and norm(a["text"]) == LINK_TEXT]
+        fa = [a for a in p.anchors if a["href"] == home and norm(a["text"]) == LINK_TEXT and not a["credit"]]
         if len(fa) != 1:
             bad.append(f"{name}: expected one footer link to {home!r}, found {len(fa)}")
         elif not noopener(fa[0]):
@@ -172,12 +193,117 @@ def check_empty(pages):
     return bad
 
 
+def read(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def person_node(root):
+    """The home page Person node from the JSON-LD data block (parsed, not grepped)."""
+    html = read(f"{root}/index.html")
+    blocks = re.findall(r'<script type="?application/ld\+json"?>(.*?)</script>', html, re.S)
+    if len(blocks) != 1:
+        return None, [f"home: expected one JSON-LD block, found {len(blocks)}"]
+    try:
+        graph = json.loads(blocks[0])["@graph"]
+    except (ValueError, KeyError) as e:
+        return None, [f"home: JSON-LD does not parse: {e}"]
+    persons = [n for n in graph if n.get("@type") == "Person"]
+    if len(persons) != 1:
+        return None, [f"home: expected one Person node, found {len(persons)}"]
+    return persons[0], []
+
+
+def check_extras(mode, base, root, pages):
+    """Credit link, Person worksFor and jobTitle, llms.txt block (issue 414)."""
+    bad = []
+    llms = read(f"{root}/llms.txt")
+    person, errs = person_node(root)
+    bad += errs
+    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html"), ("contact", "contact/index.html")):
+        m = re.search(r'<p class="?credit"?>(.*?)</p>', read(f"{root}/{rel}"), re.S)
+        if not m:
+            bad.append(f"{name}: no credit paragraph")
+            continue
+        credit = [a for a in pages[name].anchors if a["credit"] and norm(a["text"]) == LINK_TEXT]
+        text = [norm(t) for c, t in pages[name].paras if "credit" in c.split()]
+        if mode == "set":
+            if len(credit) != 1:
+                bad.append(f"{name}: expected one credit link {LINK_TEXT!r}, found {len(credit)}")
+            else:
+                if credit[0]["href"] != base + "/":
+                    bad.append(f"{name}: credit href {credit[0]['href']!r} is not {base + '/'!r}")
+                rel_tokens = (credit[0]["rel"] or "").split()
+                if "me" not in rel_tokens or "noopener" not in rel_tokens:
+                    bad.append(f"{name}: credit link rel {credit[0]['rel']!r} lacks me and noopener")
+            if len(text) != 1 or not CREDIT_TEXT.match(text[0]):
+                bad.append(f"{name}: credit text changed: {text!r}")
+        else:
+            if credit:
+                bad.append(f"{name}: credit link present while the param is empty")
+            if not CREDIT_RAW.match(m.group(1)):
+                bad.append(f"{name}: credit markup is not the plain-text original: {m.group(1)!r}")
+    if person is not None:
+        if mode == "set":
+            want = {"@type": "Organization", "@id": base + "/#organization", "name": LINK_TEXT, "url": base + "/"}
+            if person.get("worksFor") != want:
+                bad.append(f"Person worksFor is {person.get('worksFor')!r}, want {want!r}")
+            if person.get("jobTitle") != JOB_TITLE:
+                bad.append(f"Person jobTitle is {person.get('jobTitle')!r}, want {JOB_TITLE!r}")
+        else:
+            for k in ("worksFor", "jobTitle"):
+                if k in person:
+                    bad.append(f"Person has {k} while the param is empty")
+    block = f"{LLMS_HEADING}\n- [{LINK_TEXT}]({base}/): {LLMS_NOTE}\n"
+    if mode == "set":
+        if llms.count(block) != 1:
+            bad.append("llms.txt: the Work with me block is missing, altered or repeated")
+        elif llms.index(block) > llms.index("## Find me online"):
+            bad.append("llms.txt: the Work with me block must come before Find me online")
+    else:
+        if LLMS_HEADING in llms or "renegadepenguin" in llms.lower():
+            bad.append("llms.txt: a business reference is present while the param is empty")
+    bad += check_contact(mode, base, root, pages["contact"])
+    return bad
+
+
+def check_contact(mode, base, root, p):
+    """The Contact page notice: exact words, one link to the business home, before the email address."""
+    bad = []
+    raw = read(f"{root}/contact/index.html")
+    notes = [norm(t) for c, t in p.paras if "contact-notice" in c.split()]
+    links = [a for a in p.anchors if norm(a["text"]) == CONTACT_LINK_TEXT]
+    if raw.count("<!--email_off-->") != 1 or raw.count("<!--/email_off-->") != 1 or not re.search(
+            r"<!--email_off-->\s*<p class=\"?contact-email\"?>.*?mailto:.*?</p><!--/email_off-->", raw, re.S):
+        bad.append("contact: the email_off markers no longer wrap the address")
+    if mode == "set":
+        want = norm(CONTACT_NOTICE.replace("LINK_TEXT", CONTACT_LINK_TEXT))
+        if notes != [want]:
+            bad.append(f"contact: notice paragraphs are {notes!r}, want exactly [{want!r}]")
+        if len(links) != 1:
+            bad.append(f"contact: expected one link with text {CONTACT_LINK_TEXT!r}, found {len(links)}")
+        else:
+            if links[0]["href"] != base + "/":
+                bad.append(f"contact: notice link href {links[0]['href']!r} is not {base + '/'!r}")
+            if not noopener(links[0]):
+                bad.append("contact: notice link lacks rel=noopener")
+        i = raw.find("contact-notice")
+        j = raw.find("<!--email_off-->")
+        if i < 0 or j < 0 or i > j:
+            bad.append("contact: the notice must come before the email address")
+    else:
+        if notes or links or "contact-notice" in raw or "hire me for consulting" in raw:
+            bad.append("contact: notice or link present while the param is empty")
+    return bad
+
+
 def main(argv):
     mode, base, root = argv[1], argv[2], argv[3]
     pages = {}
-    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html")):
+    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html"), ("contact", "contact/index.html")):
         pages[name] = parse(f"{root}/{rel}")
     bad = check_set(pages, base) if mode == "set" else check_empty(pages)
+    bad += check_extras(mode, base, root, pages)
     for b in bad:
         print(b)
     return 1 if bad else 0
@@ -201,6 +327,11 @@ build() {
 if build dev "$base"; then
     if python3 -I "$asserter" set "$base" "$work/dev"; then pass "dev build shows every crosslink with the exact text and URL"; else fail "dev build crosslinks"; fi
 fi
+# The production apex, character for character (the id must match the business site's).
+apex="https://renegadepenguinllc.com"
+if build apex "$apex"; then
+    if python3 -I "$asserter" set "$apex" "$work/apex"; then pass "apex build: credit link, worksFor id, jobTitle and llms block exact"; else fail "apex build crosslinks"; fi
+fi
 if build prod ""; then
     if python3 -I "$asserter" empty "" "$work/prod"; then pass "empty param renders none of the four placements and no empty anchor"; else fail "empty-param build shows a crosslink"; fi
 fi
@@ -219,6 +350,8 @@ hostile=(
 for i in "${!hostile[@]}"; do
     if HUGO_PARAMS_BUSINESSSITEURL="${hostile[$i]}" hugo --minify --gc --destination "$work/hostile-$i" --cacheDir "$work/cache" >"$work/hostile-$i.log" 2>&1; then
         fail "hostile value $i built: ${hostile[$i]}"
+    elif [[ -d "$work/hostile-$i" ]] && grep -rIlE 'x\.example|staging\.example' "$work/hostile-$i" >/dev/null 2>&1; then
+        fail "hostile value $i left injected markup in the output"
     elif grep -q 'businessSiteURL' "$work/hostile-$i.log"; then
         pass "hostile value $i fails the build naming businessSiteURL"
     else
@@ -250,7 +383,7 @@ if [[ -d "$work/dev" ]]; then
         # $1 label, $2 sed expression applied to a copy of the dev build
         local d="$work/mut-$1" f
         cp -r "$work/dev" "$d"
-        for f in "$d/index.html" "$d/about/index.html" "$d/resume/index.html" "$d/posts/index.html"; do
+        for f in "$d/index.html" "$d/about/index.html" "$d/resume/index.html" "$d/posts/index.html" "$d/contact/index.html" "$d/llms.txt"; do
             sed -i -E "$2" "$f"
         done
         if python3 -I "$asserter" set "$base" "$d" >/dev/null 2>&1; then
@@ -263,6 +396,14 @@ if [[ -d "$work/dev" ]]; then
     mut no-noopener 's# rel="?noopener"?##g'
     mut wrong-text 's#Work with me#Hire me#g'
     mut empty-anchor 's#<a href="?https://staging\.example/"?#<a href=""#g'
+    mut credit-no-me 's#rel="me noopener"#rel=noopener#g'
+    mut credit-wrong-href 's#(<p class="?credit"?>[^<]*<a href="?)https://staging\.example/#\1https://staging.example/x/#g'
+    mut worksfor-wrong-id 's#/\#organization"#/\#org"#g'
+    mut no-jobtitle 's#"jobTitle":"[^"]*",?##g'
+    mut notice-edited-words 's#hire me for consulting#hire me for work#g'
+    mut notice-link-missing 's#(<p class="?contact-notice"?>[^<]*)<a href="?https://staging\.example/"? rel="?noopener"?>[^<]*<span[^>]*>[^<]*</span></a>#\1apex#g'
+    mut notice-other-host 's#(<p class="?contact-notice"?>[^<]*)<a href="?https://staging\.example/"?#\1<a href=https://evil.example/#g'
+    mut no-llms-heading 's#^\#\# Work with me$#\#\# Other#'
     # The empty-mode guard must bite on a page that still shows the links.
     if python3 -I "$asserter" empty "" "$work/dev" >/dev/null 2>&1; then
         fail "guard: empty-mode accepted a page with crosslinks"

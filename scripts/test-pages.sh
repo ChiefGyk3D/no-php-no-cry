@@ -80,10 +80,10 @@ CREATOR_START = "I am a content creator with over 500,000 followers across platf
 CLOSING = "You’re not dead until you stop learning. Happy hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 ABOUT_POINTER = "Email, Discord, and Matrix are on the contact page."
-CONTACT_INTRO = "Use email for business inquiries. For general correspondence, find me on Discord or Matrix."
+CONTACT_INTRO = "Use email for content, community, or personal messages. For general correspondence, find me on Discord or Matrix."
 CONTACT_GENERAL = ("Use Discord or Matrix for general correspondence. They are bridged, so you can read chats "
                    "from the other side in most rooms unless there is an issue with a bridge.")
-CONTACT_BUSINESS = "The email address here is primarily for business inquiries."
+CONTACT_BUSINESS = "Use this email for content, community, and personal messages, not hiring or consulting requests."
 SPEAKING = ("In 2026, I spoke at BSides Dayton and COISSA. I also volunteer with the "
             "Call Center Village.")
 CONTACT_SOON = "The address will be listed here soon."
@@ -367,6 +367,10 @@ def check_about_data(errs, html_src):
             errs.append("%s paragraph differs from data/about.yaml (issue 264)" % key)
     if not d.get("closing") or d["closing"] != CLOSING or d["closing"] not in ps:
         errs.append("closing line differs from the owner-approved one (issue 225)")
+    # Issue 414: the owner-approved mentor sentence ends the first bio paragraph, verbatim, and is on the page.
+    mentor = "I work as an independent security advisor, and I’m grateful that my mentor, Elissa Shevinsky, publicly endorsed my work."
+    if not d["paragraphs"][0].endswith(" " + mentor) or not any(x.endswith(" " + mentor) for x in ps):
+        errs.append("the first bio paragraph must end with the approved mentor sentence (issue 414)")
     sp = d["speaking"]
     if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
         errs.append("speaking sentence or role differs from data/about.yaml")
@@ -612,7 +616,7 @@ def contact(p, errs, repo):
         if (a.get("href") or "").startswith("https://") and (a.get("href") or "") != cd["pgp_url"] and not external_ok(a):
             errs.append("an external link without target=_blank and rel=noopener: %s" % a.get("href"))
     if p.count("h2") != 2:
-        errs.append("expected two h2 panels (general correspondence, business inquiries)")
+        errs.append("expected two h2 panels (general correspondence, email)")
     if repo["html"].count("l3") and "bx l3" in repo["html"]:
         errs.append("the page must carry no L3 frame")
     if repo["html"].count("bx l2") != 1:
@@ -892,7 +896,7 @@ PYEOF
     build_contact_case email-and-url "chief@chiefgyk3d.com" "" "$KEYURL" incomplete
     build_contact_case both "chief@chiefgyk3d.com" "$FP" "$KEYURL" complete
     # The checker bites: an address injected into an incomplete page is rejected.
-    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "The email address here is primarily for business inquiries."; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "The email address here is <a href=mailto:chief@chiefgyk3d.com>primarily</a> for business inquiries.", 1))' "$work/contact-public-email-only/contact/index.html" "$work/about-mail.html"
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Use this email for content, community, and personal messages, not hiring or consulting requests."; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Use this email for <a href=mailto:chief@chiefgyk3d.com>content</a>, community, and personal messages, not hiring or consulting requests.", 1))' "$work/contact-public-email-only/contact/index.html" "$work/about-mail.html"
     if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" contact "$work/about-mail.html" >/dev/null 2>&1; then
         fail "guard: a Contact page linking an email with an incomplete config passed"
     else
