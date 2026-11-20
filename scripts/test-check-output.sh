@@ -222,6 +222,7 @@ files = {
     "dup-meta-charset": b"<meta charset=iso-2022-jp charset=utf-8>",
     "dup-meta-http-equiv": b"<meta http-equiv=content-type content=\"text/html; charset=iso-2022-jp\" content=\"text/html; charset=utf-8\">",
     "dup-meta-charset-same": b"<meta charset=utf-8 charset=utf-8>",
+    "dup-meta-http-equiv-same": b"<meta http-equiv=content-type content=\"text/html; charset=utf-8\" content=\"text/html; charset=utf-8\">",
     "controls-ok": b"<p>\t\n\r\x0c</p>",
 }
 for name, data in files.items():
@@ -243,7 +244,7 @@ for enc in utf16le utf16be utf32le utf32be nul invalid utf8-bom esc bell unit-se
 done
 # A browser keeps the FIRST of a duplicated attribute; a meta that carries two
 # charset or content attributes is refused (HTML mode, where meta is read).
-for enc in dup-meta-charset dup-meta-http-equiv dup-meta-charset-same; do
+for enc in dup-meta-charset dup-meta-http-equiv dup-meta-charset-same dup-meta-http-equiv-same; do
     enc_scan="$(python3 -I "$root/scripts/scan-markup.py" --scripts none N0CALL "$work/enc-$enc.html")"
     if grep -qx 'bad-encoding' <<<"$enc_scan"; then
         echo "ok: scanner refuses $enc"
