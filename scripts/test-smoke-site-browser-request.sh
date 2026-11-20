@@ -119,6 +119,8 @@ encoding_case "a Content-Type header charset other than UTF-8 is rejected" "" "t
 encoding_case "a UTF-16 Content-Type header charset is rejected" "" "text/html; charset=utf-16" "bad-encoding: /posts/"
 encoding_case "a meta with a duplicate charset attribute is rejected" dup-meta-charset "" "bad-encoding: /posts/"
 encoding_case "a meta http-equiv with a duplicate content attribute is rejected" dup-meta-http-equiv "" "bad-encoding: /posts/"
+encoding_case "a meta with the same charset attribute twice is rejected" dup-meta-charset-same "" "bad-encoding: /posts/"
+encoding_case "a meta http-equiv with the same content attribute twice is rejected" dup-meta-http-equiv-same "" "bad-encoding: /posts/"
 encoding_case "an ESC byte in a page is rejected" esc "" "bad-encoding: /posts/"
 encoding_case "a BEL control byte in a page is rejected" bell "" "bad-encoding: /posts/"
 encoding_case "tab, line feed, carriage return and form feed are allowed" controls-ok "" pass

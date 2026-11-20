@@ -153,6 +153,10 @@ elif mode == "dup-meta-charset":
     out = b"<html><meta charset=iso-2022-jp charset=utf-8></html>"
 elif mode == "dup-meta-http-equiv":
     out = b"<html><meta http-equiv=content-type content=\"text/html; charset=iso-2022-jp\" content=\"text/html; charset=utf-8\"></html>"
+elif mode == "dup-meta-charset-same":
+    out = b"<html><meta charset=utf-8 charset=utf-8></html>"
+elif mode == "dup-meta-http-equiv-same":
+    out = b"<html><meta http-equiv=content-type content=\"text/html; charset=utf-8\" content=\"text/html; charset=utf-8\"></html>"
 elif mode == "esc":
     out = b"<html>\x1b$B<!--\x1b(B<script src=/evil.js></script>--></html>"
 elif mode == "bell":

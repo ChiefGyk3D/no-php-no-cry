@@ -166,6 +166,9 @@ class H(BaseHTTPRequestHandler):
         elif self.path != "/feed/index.xml" and not self.path.endswith((".js", ".xml")):
             # Cloudflare Pages: pages and the 404 are text/html with a utf-8 charset.
             self.send_header("Content-Type", "text/html; charset=utf-8")
+        elif self.path.endswith(".js") and fault in ("jsutf16", "jsutf8") and hit:
+            # jsutf16 / jsutf8: a pinned script served with a declared charset.
+            self.send_header("Content-Type", "application/javascript; charset=" + fault[2:].replace("utf", "utf-"))
         if mode != "no-csp" and not (fault == "nocsp" and hit):
             value = "default-src *" if mode == "weak-csp" else csp
             if fault == "diffcsp" and hit:
@@ -278,6 +281,11 @@ done
 # The feed type is any XML type a reader accepts.
 for ft in application/rss+xml text/xml "application/xml; charset=utf-8"; do
     FEED_TYPE="$ft" expect "feed served as $ft" pass good
+done
+# The header charset check holds every page, not only HTML: a feed or a script
+# whose header names a charset other than utf-8 is refused (issue 410).
+for ft in "application/xml; charset=iso-8859-1" "application/xml; charset=utf-16"; do
+    FEED_TYPE="$ft" expect "feed served as $ft" "bad-encoding: /feed/index.xml" good
 done
 
 # Edge propagation: wrong answers first, correct ones later. The first twenty
@@ -420,6 +428,8 @@ for name in copy.js search.js; do
     expect "the $name tag served on a post" "script-wrong-page: /posts/sample-post/" "$ref@/posts/sample-post/" "$tpub"
     expect "an extra script next to $name" "script-not-allowed: /posts/" extrascript@/posts/ "$tpub"
     expect "$name bytes alternate between responses" "script-hash: /$name" alternatecopy@/$name "$tpub"
+    expect "$name served with a utf-16 charset" "bad-encoding: /$name" jsutf16@/$name "$tpub"
+    expect "$name served with a utf-8 charset" pass jsutf8@/$name "$tpub"
     expect "no CSP on $name" "missing-csp: /$name" nocsp@/$name "$tpub"
     expect "a script tag with a body on the $name page" "script-not-allowed: /$page/" searchbody@/$page/ "$tpub"
     expect "a self-closing $name tag followed by a comment on its page" "script-not-allowed: /$page/" "$selfclose@/$page/" "$tpub"
