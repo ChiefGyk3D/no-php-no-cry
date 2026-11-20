@@ -45,9 +45,9 @@
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
             <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            {{- range slice (dict "path" "/products/" "name" "Gear & tools") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
+            {{- range slice (dict "path" "/products/" "name" "Gear & tools") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/contact/" "name" "Contact") (dict "path" "/search/" "name" "Search") }}
             <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
-            {{- if eq .path "/about/" }}
+            {{- if eq .path "/contact/" }}
             {{- /* Issue 407: the business-site link; nothing renders while params.businessSiteURL is empty. */}}
             {{- with partial "business-url.html" "/contact/" }}
             <li><a href="{{ . }}" rel="noopener">{{ site.Data.business.nav_label }}<span class="visually-hidden"> (external site)</span></a></li>
@@ -69,7 +69,6 @@
     <div class="wrap">
       <ul class="footer-row" aria-label="Footer">
         <li><a href="{{ "/about/" | relURL }}">About</a></li>
-        <li><a href="{{ "/contact/" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
         <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>
