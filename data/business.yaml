@@ -1,0 +1,9 @@
+# Crosslinks from this site to the business site (issue 407). The copy is
+# owner-approved wording; change it here and in scripts/test-business-crosslinks.sh.
+# The URL is never written here: it is params.businessSiteURL in hugo.toml
+# (empty = nothing renders), joined to a path by layouts/_partials/business-url.html.
+nav_label: Work with me
+about_block: If you want to hire me for security advisory work, I do it through Renegade Penguin LLC. The first step is a free 30 minute fit call.
+resume_block: I am available for advisory, assessment, and speaking work through Renegade Penguin LLC.
+footer_line: Hire me through Renegade Penguin LLC.
+link_text: Renegade Penguin LLC

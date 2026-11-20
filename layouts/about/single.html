@@ -31,6 +31,8 @@
       <p class="about-closing">{{ . }}</p>
       {{- end }}
       <p class="resume-link">My <a href="{{ "/resume/" | relURL }}">resume</a> lists my skills, open-source projects, certifications, and education.</p>
+      {{- /* Issue 407: nothing renders while params.businessSiteURL is empty. */}}
+      {{- partial "business-block.html" (dict "text" site.Data.business.about_block "class" "about-mission") }}
     </div>
   </div>
 

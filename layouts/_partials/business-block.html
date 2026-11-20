@@ -1,0 +1,5 @@
+{{- /* A crosslink block: the sentence(s) as one paragraph, then the link as its own short line. Context: dict "text" (data/business.yaml string) "class" (paragraph class). Renders nothing when params.businessSiteURL is empty. */ -}}
+{{- with partial "business-url.html" "/contact/" }}
+<p class="{{ $.class }}">{{ $.text }}</p>
+<p class="business-link"><a href="{{ . }}" rel="noopener">{{ site.Data.business.link_text }}<span class="visually-hidden"> (external site)</span></a></p>
+{{- end }}

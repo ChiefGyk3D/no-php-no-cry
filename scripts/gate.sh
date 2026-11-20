@@ -59,6 +59,7 @@ step test-social-products "" 'scripts/test-social-products.sh'
 step test-share "" 'scripts/test-share.sh'
 step test-borders "" 'scripts/test-borders.sh'
 step test-resume "" 'scripts/test-resume.sh'
+step test-business-crosslinks "" 'scripts/test-business-crosslinks.sh'
 step test-layout "" 'scripts/test-layout.sh'
 step test-check-site-artifact "" 'scripts/test-check-site-artifact.sh'
 step test-deploy-sparse "" 'scripts/test-deploy-sparse.sh'
@@ -131,7 +132,7 @@ optional["check-reach-around-drift"]="live check: needs the network and Reach Ar
 
 # --- fast-mode groups --------------------------------------------------------
 content_steps=(check-hugo-version build-production check-output-production check-site-artifact-production
-    build-staging check-output-staging check-site-artifact-staging check-drafts-production check-drafts-staging test-check-drafts test-head test-featured-image test-svg-render-hook test-social-products test-share test-borders test-resume test-layout
+    build-staging check-output-staging check-site-artifact-staging check-drafts-production check-drafts-staging test-check-drafts test-head test-featured-image test-svg-render-hook test-social-products test-share test-borders test-resume test-business-crosslinks test-layout
     test-pages test-titles test-about-email check-email-image test-check-email-image test-social-identity test-contact-page test-comments test-redirects test-llms test-migration test-archetype check-wording test-check-wording check-script-count test-check-script-count check-threat-model test-check-threat-model test-render-threat-summary check-threat-diagrams test-render-threat-diagram check-wiki test-check-wiki test-publish-wiki test-check-launch-seo
     check-content test-check-content test-author)
 layout_steps=("${content_steps[@]}" gen-tokens check-contrast test-check-contrast check-brand-assets test-brand check-budget
