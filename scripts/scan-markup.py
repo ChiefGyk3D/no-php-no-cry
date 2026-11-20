@@ -36,7 +36,11 @@ script-not-allowed in every mode (a browser ignores the slash, this parser does
 not).
 In every mode the file must be plain UTF-8, the one encoding this parser reads
 the way a browser does: a UTF-16 or UTF-32 byte order mark, a NUL byte, bytes that
-are not valid UTF-8, a UTF-8 byte order mark, or (HTML) a <meta charset> or
+are not valid UTF-8, a UTF-8 byte order mark, a control byte other than tab, line
+feed, form feed or carriage return (ESC is how ISO-2022 encodings hide tags), or
+(HTML) a meta with two charset attributes, an http-equiv content-type meta with two
+content attributes (a browser keeps the first; so does this scanner, for every
+tag), a <meta charset> or
 <meta http-equiv=content-type> naming any charset but utf-8 is bad-encoding. A
 file that fails the byte checks is reported as bad-encoding alone and not parsed.
 --cloudflare-beacon requires exactly one Cloudflare Web Analytics tag with a
@@ -126,11 +130,26 @@ def precursor_body_ok(body):
 BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")
 
 
+# C0 control bytes other than tab, line feed, form feed and carriage return. ESC
+# is what ISO-2022 style encodings switch state with; no page here carries any.
+CONTROLS = re.compile(rb"[\x00-\x08\x0b\x0e-\x1f]")
+
+
+def first_wins(attrs):
+    """Attributes as a browser keeps them: the FIRST of a duplicated name wins
+    (a dict built in order would keep the last)."""
+    out = {}
+    for name, value in attrs:
+        out.setdefault(name, value)
+    return out
+
+
 def utf8_only(raw):
     """True if the bytes are plain UTF-8 a browser reads as UTF-8: no byte order
     mark of any kind (a UTF-16 or UTF-32 one makes a browser decode the whole file
-    differently), no NUL byte, and strictly valid UTF-8."""
-    if raw.startswith(BOMS) or b"\x00" in raw:
+    differently), no control byte but tab, line feed, form feed and carriage return
+    (this covers NUL and the ESC of ISO-2022), and strictly valid UTF-8."""
+    if raw.startswith(BOMS) or CONTROLS.search(raw):
         return False
     try:
         raw.decode("utf-8")
@@ -202,19 +221,25 @@ class Scan(HTMLParser):
         if tag == "style":
             self.in_style = True
         if tag == "meta" and not self.markup:
-            meta = {n.lower(): clean(v) for n, v in attrs}
+            meta = first_wins([(n.lower(), clean(v)) for n, v in attrs])
+            meta_names = [n.lower() for n, _ in attrs]
             if "charset" in meta and not charset_ok(meta["charset"]):
+                self.found.add("bad-encoding")
+            if meta_names.count("charset") > 1:
+                # The first one counts in a browser; refuse rather than guess.
                 self.found.add("bad-encoding")
             if meta.get("http-equiv", "").strip().lower() == "content-type":
                 m = re.search(r"charset\s*=\s*[\"']?\s*([^\s;\"']*)", meta.get("content", ""), re.I)
                 if m and not charset_ok(m.group(1)):
                     self.found.add("bad-encoding")
+                if meta_names.count("content") > 1:
+                    self.found.add("bad-encoding")
         if tag == "script":
             raw = [(n.lower(), v or "") for n, v in attrs]
-            raw_values = dict(raw)
+            raw_values = first_wins(raw)
             plain = [(n.lower(), clean(v)) for n, v in attrs]
             names = [n for n, _ in plain]
-            values = dict(plain)
+            values = first_wins(plain)
             beacon_src = values.get("src", "")
             beacon_data = values.get("data-cf-beacon", "")
             try:
@@ -272,7 +297,7 @@ class Scan(HTMLParser):
             if is_cloudflare_beacon and name == "src":
                 continue
             # <link rel=me> is an identity claim (Mastodon, GitHub read it); nothing is fetched.
-            if tag == "link" and clean(dict(attrs).get("rel")).lower().split() == ["me"]:
+            if tag == "link" and clean(first_wins(attrs).get("rel")).lower().split() == ["me"]:
                 continue
             urls = []
             if name in URL_ATTRS:

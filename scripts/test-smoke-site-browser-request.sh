@@ -93,8 +93,8 @@ precursor_case "a plain inline script is still rejected" alert "script-not-allow
 # Encoding: the scanner reads UTF-8, so a page a browser would read as something
 # else (a UTF-16 or UTF-32 BOM, a declared charset) must fail, not pass unseen.
 encoding_case() {
-    local label="$1" encoding="$2" ctype="$3" want="$4" out rc=0
-    out="$(PATH="$work/bin:$PATH" CURL_STUB_CSP="$csp" CURL_STUB_BEACON=one CURL_STUB_ENCODING="$encoding" CURL_STUB_CTYPE="$ctype" SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" https://test-blog.chiefgyk3d.com "$pub" 2>&1)" || rc=$?
+    local label="$1" encoding="$2" ctype="$3" want="$4" ctype2="${5:-}" out rc=0
+    out="$(PATH="$work/bin:$PATH" CURL_STUB_CSP="$csp" CURL_STUB_BEACON=one CURL_STUB_ENCODING="$encoding" CURL_STUB_CTYPE="$ctype" CURL_STUB_CTYPE2="$ctype2" SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" https://test-blog.chiefgyk3d.com "$pub" 2>&1)" || rc=$?
     if [[ "$want" == pass && $rc -eq 0 ]]; then
         echo "ok: $label"
     elif [[ "$want" != pass && $rc -eq 1 && "$out" == *"$want"* ]]; then
@@ -117,6 +117,14 @@ encoding_case "a meta charset other than UTF-8 is rejected" meta-charset "" "bad
 encoding_case "a meta http-equiv charset other than UTF-8 is rejected" meta-http-equiv "" "bad-encoding: /posts/"
 encoding_case "a Content-Type header charset other than UTF-8 is rejected" "" "text/html; charset=iso-8859-1" "bad-encoding: /posts/"
 encoding_case "a UTF-16 Content-Type header charset is rejected" "" "text/html; charset=utf-16" "bad-encoding: /posts/"
+encoding_case "a meta with a duplicate charset attribute is rejected" dup-meta-charset "" "bad-encoding: /posts/"
+encoding_case "a meta http-equiv with a duplicate content attribute is rejected" dup-meta-http-equiv "" "bad-encoding: /posts/"
+encoding_case "an ESC byte in a page is rejected" esc "" "bad-encoding: /posts/"
+encoding_case "a BEL control byte in a page is rejected" bell "" "bad-encoding: /posts/"
+encoding_case "tab, line feed, carriage return and form feed are allowed" controls-ok "" pass
+encoding_case "a Content-Type header without a charset is rejected" "" "text/html" "bad-encoding: /posts/"
+encoding_case "a second Content-Type header is rejected" "" "" "bad-encoding: /posts/" "text/html; charset=iso-8859-1"
+encoding_case "a second Content-Type header with the same value is rejected" "" "" "bad-encoding: /posts/" "text/html; charset=utf-8"
 encoding_case "UTF-8 declared in meta tags passes" utf8-meta "" pass
 encoding_case "a UTF-8 Content-Type header charset passes" "" "text/html; charset=UTF-8" pass
 

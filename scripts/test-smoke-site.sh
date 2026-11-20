@@ -163,6 +163,9 @@ class H(BaseHTTPRequestHandler):
         self.send_response(code)
         if self.path == "/feed/index.xml" and fault != "feednone":
             self.send_header("Content-Type", "text/html" if fault == "feedhtml" else os.environ.get("FEED_TYPE", "application/xml"))
+        elif self.path != "/feed/index.xml" and not self.path.endswith((".js", ".xml")):
+            # Cloudflare Pages: pages and the 404 are text/html with a utf-8 charset.
+            self.send_header("Content-Type", "text/html; charset=utf-8")
         if mode != "no-csp" and not (fault == "nocsp" and hit):
             value = "default-src *" if mode == "weak-csp" else csp
             if fault == "diffcsp" and hit:

@@ -299,6 +299,20 @@ check_page() {
         echo "bad-encoding: ${path} has Content-Type '${header_type}', wanted no charset or utf-8"
         failed=1
     fi
+    if [[ "$(printf '%s' "$resp" | header_values content-type | wc -l)" -gt 1 ]]; then
+        echo "bad-encoding: ${path} has more than one Content-Type header, wanted 1"
+        failed=1
+    fi
+    # A browser honors the header's charset over any meta tag, so on a page read
+    # as HTML the header must say utf-8 itself (Cloudflare Pages serves
+    # "text/html; charset=utf-8" for pages and the 404; the xml feeds and scripts
+    # carry no charset, so they are only held to "none or utf-8" above).
+    if [[ "$path" != *.xml && -z "${script_pinned[$path]:-}" && $ok -eq 1 ]]; then
+        if [[ ! "${header_type,,}" =~ ^text/html[[:space:]]*\;[[:space:]]*charset=\"?utf-8\"?$ ]]; then
+            echo "bad-encoding: ${path} has Content-Type '${header_type}', wanted 'text/html; charset=utf-8'"
+            failed=1
+        fi
+    fi
     if [[ -n "${script_pinned[$path]:-}" ]]; then
         got="$(sha256sum <"$body_file" | cut -d' ' -f1)"
         if [[ "$got" != "${script_pinned[$path]}" ]]; then

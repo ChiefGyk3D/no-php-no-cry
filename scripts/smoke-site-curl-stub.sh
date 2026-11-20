@@ -125,7 +125,7 @@ printf '%s' "$body" >"$body_file"
 # bytes a browser would read differently from the UTF-8 the scanner assumes
 # (issue 410): UTF-16 and UTF-32 with a BOM, a NUL byte, invalid UTF-8, a UTF-8
 # BOM, a meta charset. utf8-meta is the allowed control.
-if [[ -n "${CURL_STUB_ENCODING:-}" && "$status" == 200 && "$content_type" == text/html && ("$path" != / || "$CURL_STUB_ENCODING" != utf8-meta) ]]; then
+if [[ -n "${CURL_STUB_ENCODING:-}" && "$status" == 200 && "$content_type" == text/html && ("$path" != / || ("$CURL_STUB_ENCODING" != utf8-meta && "$CURL_STUB_ENCODING" != controls-ok)) ]]; then
     python3 -I -c '
 import sys
 
@@ -149,6 +149,16 @@ elif mode == "meta-charset":
     out = b"<html><meta charset=iso-8859-1></html>"
 elif mode == "meta-http-equiv":
     out = b"<html><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\"></html>"
+elif mode == "dup-meta-charset":
+    out = b"<html><meta charset=iso-2022-jp charset=utf-8></html>"
+elif mode == "dup-meta-http-equiv":
+    out = b"<html><meta http-equiv=content-type content=\"text/html; charset=iso-2022-jp\" content=\"text/html; charset=utf-8\"></html>"
+elif mode == "esc":
+    out = b"<html>\x1b$B<!--\x1b(B<script src=/evil.js></script>--></html>"
+elif mode == "bell":
+    out = b"<html>\x07</html>"
+elif mode == "controls-ok":
+    out = b"<html>\t\n\r\x0c</html>"
 elif mode == "utf8-meta":
     out = b"<html><meta charset=UTF-8><meta http-equiv=content-type content=\"text/html; charset=utf-8\"></html>"
 else:
@@ -156,11 +166,15 @@ else:
 sys.stdout.buffer.write(out)
 ' "$CURL_STUB_ENCODING" >"$body_file"
 fi
-if [[ -n "${CURL_STUB_CTYPE:-}" && "$content_type" == text/html ]]; then
-    content_type="$CURL_STUB_CTYPE"
+# Cloudflare Pages serves pages as "text/html; charset=utf-8" (read from the
+# real test host on 2026-11-20); CURL_STUB_CTYPE replaces that value, and
+# CURL_STUB_CTYPE2 adds a second Content-Type header.
+if [[ "$content_type" == text/html ]]; then
+    content_type="${CURL_STUB_CTYPE:-text/html; charset=utf-8}"
 fi
 printf 'HTTP/1.1 %s Test\r\n' "$status"
 printf 'Content-Type: %s\r\n' "$content_type"
+[[ -z "${CURL_STUB_CTYPE2:-}" ]] || printf 'Content-Type: %s\r\n' "$CURL_STUB_CTYPE2"
 printf 'Content-Security-Policy: %s\r\n' "$CURL_STUB_CSP"
 printf 'X-Content-Type-Options: nosniff\r\n'
 [[ -z "$location" ]] || printf 'Location: %s\r\n' "$location"

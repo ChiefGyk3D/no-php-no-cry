@@ -216,12 +216,19 @@ files = {
     "nul": b"<p>\x00</p>",
     "invalid": b"<p>\xc3\x28</p>",
     "utf8-bom": b"\xef\xbb\xbf<p>x</p>",
+    "esc": b"<p>\x1b$B<!--\x1b(B<script src=/evil.js></script>--></p>",
+    "bell": b"<p>\x07</p>",
+    "unit-separator": b"<p>\x1f</p>",
+    "dup-meta-charset": b"<meta charset=iso-2022-jp charset=utf-8>",
+    "dup-meta-http-equiv": b"<meta http-equiv=content-type content=\"text/html; charset=iso-2022-jp\" content=\"text/html; charset=utf-8\">",
+    "dup-meta-charset-same": b"<meta charset=utf-8 charset=utf-8>",
+    "controls-ok": b"<p>\t\n\r\x0c</p>",
 }
 for name, data in files.items():
     with open(sys.argv[1] + "/enc-" + name + ".html", "wb") as f:
         f.write(data)
 ' "$work"
-for enc in utf16le utf16be utf32le utf32be nul invalid utf8-bom; do
+for enc in utf16le utf16be utf32le utf32be nul invalid utf8-bom esc bell unit-separator; do
     for flag in --markup --cloudflare-precursor --scripts=none; do
         args=("$flag")
         [[ "$flag" == --scripts=none ]] && args=(--scripts none)
@@ -234,6 +241,25 @@ for enc in utf16le utf16be utf32le utf32be nul invalid utf8-bom; do
         fi
     done
 done
+# A browser keeps the FIRST of a duplicated attribute; a meta that carries two
+# charset or content attributes is refused (HTML mode, where meta is read).
+for enc in dup-meta-charset dup-meta-http-equiv dup-meta-charset-same; do
+    enc_scan="$(python3 -I "$root/scripts/scan-markup.py" --scripts none N0CALL "$work/enc-$enc.html")"
+    if grep -qx 'bad-encoding' <<<"$enc_scan"; then
+        echo "ok: scanner refuses $enc"
+    else
+        echo "FAIL: scanner did not refuse $enc"
+        exit 1
+    fi
+done
+# Tab, line feed, carriage return and form feed are ordinary white space.
+enc_scan="$(python3 -I "$root/scripts/scan-markup.py" --scripts none N0CALL "$work/enc-controls-ok.html")"
+if grep -qx 'bad-encoding' <<<"$enc_scan"; then
+    echo "FAIL: scanner refused tab, line feed, carriage return and form feed"
+    exit 1
+else
+    echo "ok: scanner allows tab, line feed, carriage return and form feed"
+fi
 
 # fail_case <label> <rule> <dir>: the checker must exit non-zero and name the rule.
 fail_case() {
@@ -348,6 +374,8 @@ APPEND='<button onclick="go()">x</button>' variant event-handler event-handler a
 APPEND='<img src="http://example.org/a.png" alt=x>' variant http-reference http-reference append_html
 APPEND='<link rel=stylesheet href=https://fonts.example.org/css>' variant external-asset external-asset append_html
 APPEND='<link rel="me stylesheet" href=https://fonts.example.org/css>' variant rel-me-stylesheet external-asset append_html
+# A browser keeps the first of a duplicated attribute, so the first rel decides.
+APPEND='<link rel=stylesheet rel=me href=https://fonts.example.org/css>' variant rel-me-duplicate-stylesheet external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script-element script-not-allowed append_html
 APPEND='<script src=//cdn.example.org/x.js></script>' variant scheme-relative-script script-not-allowed append_html
