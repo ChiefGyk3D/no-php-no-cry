@@ -324,6 +324,16 @@ APPEND='<script>alert(1)</script>' variant inline-script-element script-not-allo
 # page only (issue 410); the build check refuses it like any inline script.
 PRECURSOR_SNIPPET=$'<script>window.__CF$cv$params={r:\'a5d75b7a99234fa9\',t:\'MTc5NTE3NjY4Nw==\',u:\'01a1f8de693b77ff8797ecd89f056a26\',ut:\'qSfHbBdqBR2fpGPmsiATGAzCUzUlQAEQRmh5UW2JC7Y-1795176687-1.2.1.1-EB.WKWouzfLG1PX4s2FeKYZlPMcQUx2DKthc8hxIWSUgwDAxaO1SJz9zNWpVeygeVqPHHaR_Fepiblcr.SNIhpc8aXaYj_OP0YafcMHZYvY\',i:60};(function(){if(!document.body)return;var l=window.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=\'\'}}var u=\'/cdn-cgi/challenge-platform/scripts/precursor/main.js?ray=a5d75b7a99234fa9\',s=document.createElement(\'script\');s.src=o?new URL(u,o).href:u;document.head.appendChild(s);})();</script>'
 APPEND="$PRECURSOR_SNIPPET" variant precursor-snippet-in-build script-not-allowed append_html
+# Direct callers may request the Precursor allowance without choosing a script
+# policy; it must not open the door to any other script (default policy none).
+printf '%s%s\n' "$PRECURSOR_SNIPPET" '<script src=/evil.js></script>' >"$work/precursor-with-other-script.html"
+precursor_scan="$(python3 -I "$root/scripts/scan-markup.py" --cloudflare-precursor N0CALL "$work/precursor-with-other-script.html")"
+if grep -qx 'script-not-allowed' <<<"$precursor_scan"; then
+    echo "ok: precursor-only invocation still refuses another script"
+else
+    echo "FAIL: precursor-only invocation did not refuse another script"
+    exit 1
+fi
 APPEND='<script src=/copy.js>alert(1)</script>' variant copy-script-with-inline-body script-not-allowed append_html
 APPEND='<script src=/copy.js defer></script>' variant copy-script-extra-attribute script-not-allowed append_html
 APPEND='<script type=module src=/copy.js></script>' variant copy-script-module script-not-allowed append_html

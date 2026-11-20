@@ -81,6 +81,13 @@ precursor_case "the snippet with a src attribute is rejected" attr-src "script-n
 precursor_case "the snippet with a nonce attribute is rejected" attr-nonce "script-not-allowed: /"
 precursor_case "the snippet with a defer attribute is rejected" attr-defer "script-not-allowed: /"
 precursor_case "the snippet with trailing whitespace is rejected" trailing-space "script-not-allowed: /"
+precursor_case "a self-closing script with a comment before the exact body is rejected" self-closing-comment "script-not-allowed: /"
+precursor_case "a self-closing script with the exact body is rejected" self-closing "script-not-allowed: /"
+precursor_case "an upper case self-closing script with a space is rejected" self-closing-space-upper "script-not-allowed: /"
+precursor_case "a self-closing script with an attribute is rejected" self-closing-attribute "script-not-allowed: /"
+precursor_case "the exact body after a self-closing sibling script is rejected" self-closing-sibling "script-not-allowed: /"
+precursor_case "a comment marker inside the candidate body is rejected" comment-in-body "script-not-allowed: /"
+precursor_case "a CDATA marker inside the candidate body is rejected" cdata-in-body "script-not-allowed: /"
 precursor_case "a plain inline script is still rejected" alert "script-not-allowed: /"
 
 ((failures == 0)) || exit 1

@@ -103,6 +103,16 @@ if [[ -n "${CURL_STUB_PRECURSOR:-}" && "$status" == 200 && "$content_type" == te
         attr-nonce) pre_open="<script nonce=abc>" ;;
         attr-defer) pre_open="<script defer>" ;;
         trailing-space) pre_after=" " ;;
+        self-closing-comment)
+            pre_open="<script/>"
+            pre_before=$'<!--\nalert(1)\n-->'
+            ;;
+        self-closing) pre_open="<script/>" ;;
+        self-closing-space-upper) pre_open="<SCRIPT />" ;;
+        self-closing-attribute) pre_open="<script a=b />" ;;
+        self-closing-sibling) pre_open="<script/><script>" ;;
+        comment-in-body) pre_before="<!--" ;;
+        cdata-in-body) pre_before="<![CDATA[" ;;
         alert) pre_before="alert(1)" pre_a="" pre_b="" pre_c="" pre_path="" pre_query="" ray="" ;;
     esac
     pre="${pre_open}${pre_before}${pre_a}${ray}${pre_b}${pre_path}${pre_query}${pre_c}${pre_after}</script>"

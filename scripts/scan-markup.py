@@ -30,7 +30,11 @@ every script element is still refused.
 the build check) also permits, at most once per page, the one inline script
 Cloudflare Precursor injects at the edge: a script element with no attribute
 whose whole body fullmatches PRECURSOR_BODY below. A second one is script-count;
-any other body, or any attribute, is script-not-allowed as before.
+any other body, or any attribute, is script-not-allowed as before. Without --scripts
+it implies --scripts none. A self-closing script tag (<script/>, <SCRIPT />) is
+script-not-allowed in every mode (a browser ignores the slash, this parser does
+not), and a comment, CDATA, declaration or processing instruction inside a
+candidate script refuses it.
 --cloudflare-beacon requires exactly one Cloudflare Web Analytics tag with a
 versioned Insights URL and a nonempty public token. It permits only that remote
 script; every other script rule remains active.
@@ -133,6 +137,23 @@ class Scan(HTMLParser):
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
+        if tag.lower() == "script":
+            # A browser ignores the slash of <script/> and reads script text up to
+            # </script>, but this parser stays in markup mode: what it sees
+            # (a comment, a tag) is not what the browser runs. Refuse the tag
+            # in every mode, and never let it open or satisfy an allowance.
+            self.found.add("script-not-allowed")
+            self.precursor_body = None
+            self.in_script = False
+
+    def poison_candidate(self, *_):
+        # Anything but plain text between a candidate's tags means the scanner's
+        # text is not exactly the bytes a browser would run.
+        if self.precursor_body is not None:
+            self.found.add("script-not-allowed")
+            self.precursor_body = None
+
+    handle_comment = unknown_decl = handle_decl = handle_pi = poison_candidate
 
     def handle_data(self, data):
         if self.precursor_body is not None:
@@ -267,7 +288,7 @@ def main(argv):
             return 2
     if len(args) != 2:
         return 2
-    if cloudflare_beacon and not scripts:
+    if (cloudflare_beacon or precursor) and not scripts:
         scripts = "none"
     host, path = args[0].lower(), args[1]
     scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon, precursor)

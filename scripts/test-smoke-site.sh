@@ -134,7 +134,9 @@ class H(BaseHTTPRequestHandler):
             "searchref": b"<html><script src=/search.js></script></html>",
             "searchtwice": b"<html><script src=/search.js></script><script src=/search.js></script></html>",
             "bothref": b"<html><script src=/copy.js></script><script src=/search.js></script></html>",
-            "searchbody": b"<html><script src=/search.js>x()</script></html>",
+            "copyselfclose": b"<html><script src=/copy.js /><!--\nalert(1)\n--></script></html>",
+            "searchselfclose": b"<html><script src=/search.js /><!--\nalert(1)\n--></script></html>",
+            "searchbody":b"<html><script src=/search.js>x()</script></html>",
             "benignpage": b"<html><img alt=\"one=1\" src=/a.png><a href=\"https://example.org/\">y</a></html>",
             "badfeed": b"<rss><a onclick=\"x\"/></rss>",
         }
@@ -405,6 +407,8 @@ for name in copy.js search.js; do
     [[ $name == search.js ]] && ref=searchref
     twice=copytwice
     [[ $name == search.js ]] && twice=searchtwice
+    selfclose=copyselfclose
+    [[ $name == search.js ]] && selfclose=searchselfclose
     expect "pinned $name served unchanged" pass good "$tpub"
     expect "$name served with different bytes" "script-hash: /$name" tampercopy@/$name "$tpub"
     expect "the pinned $name tag served on its own page passes" pass "$ref@/$page/" "$tpub"
@@ -415,6 +419,7 @@ for name in copy.js search.js; do
     expect "$name bytes alternate between responses" "script-hash: /$name" alternatecopy@/$name "$tpub"
     expect "no CSP on $name" "missing-csp: /$name" nocsp@/$name "$tpub"
     expect "a script tag with a body on the $name page" "script-not-allowed: /$page/" searchbody@/$page/ "$tpub"
+    expect "a self-closing $name tag followed by a comment on its page" "script-not-allowed: /$page/" "$selfclose@/$page/" "$tpub"
     rm -f "$SCRIPT_HASH_DIR/$name.sha256"
     expect "$name in the build with no hash file" input good "$tpub"
     printf '%s  %s\n' "$(printf 'a%.0s' $(seq 1 64))" "$name" >"$SCRIPT_HASH_DIR/$name.sha256"
