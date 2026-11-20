@@ -183,6 +183,8 @@
   <section aria-labelledby="r-contact">
     <h2 id="r-contact" class="hud-heading">Contact</h2>
     <p>{{ .contact }} <a href="{{ .contact_url | relURL }}">{{ .contact_link_text }}</a>.</p>
+    {{- /* Issue 407: nothing renders while params.businessSiteURL is empty. */}}
+    {{- partial "business-block.html" (dict "text" site.Data.business.resume_block "class" "resume-business") }}
   </section>
 </article>
 {{- end }}

@@ -1,0 +1,8 @@
+{{- /* The business-site URL for a path ("/contact/", "/"), or "" when params.businessSiteURL is empty (the production default: nothing renders). Takes the path as its context. A non-https value fails the build. */ -}}
+{{- $base := strings.TrimSuffix "/" (site.Params.businessSiteURL | default "") -}}
+{{- $out := "" -}}
+{{- if $base -}}
+  {{- if not (strings.HasPrefix $base "https://") -}}{{ errorf "params.businessSiteURL %q is not an https URL" $base }}{{- end -}}
+  {{- $out = print $base . -}}
+{{- end -}}
+{{- return $out -}}

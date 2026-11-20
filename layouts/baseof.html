@@ -47,6 +47,12 @@
             {{- end }}{{ end }}
             {{- range slice (dict "path" "/products/" "name" "Gear & tools") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
             <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
+            {{- if eq .path "/about/" }}
+            {{- /* Issue 407: the business-site link; nothing renders while params.businessSiteURL is empty. */}}
+            {{- with partial "business-url.html" "/contact/" }}
+            <li><a href="{{ . }}" rel="noopener">{{ site.Data.business.nav_label }}<span class="visually-hidden"> (external site)</span></a></li>
+            {{- end }}
+            {{- end }}
             {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
           </ul>
@@ -75,6 +81,11 @@
       {{- range site.Data.socials }}{{ if strings.HasPrefix .url "https://" }}{{ $live = $live | append . }}{{ end }}{{ end }}
       <div class="footer-meta">
         <p class="footer-line">You're not dead until you stop learning. Happy Hacking.</p>
+        {{- /* Issue 407: the business-site footer line; the link text sits inside the sentence. Nothing renders while params.businessSiteURL is empty. */}}
+        {{- with partial "business-url.html" "/" }}
+        {{- $link := printf `<a href="%s" rel="noopener">%s<span class="visually-hidden"> (external site)</span></a>` . site.Data.business.link_text }}
+        <p class="footer-line footer-business">{{ replace site.Data.business.footer_line site.Data.business.link_text $link | safeHTML }}</p>
+        {{- end }}
         {{- with $live }}
         <nav class="footer-social" aria-label="Social profiles">
           <ul class="footer-social-list footer-social-list--per-{{ math.Ceil (div (float (len .)) 2) | int }}">

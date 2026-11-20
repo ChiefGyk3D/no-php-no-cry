@@ -117,6 +117,7 @@ Every `scripts/test-*.sh` pairs with a check or a feature. The ones to read:
 | `scripts/test-head.sh` | Head tags and `rel=me` links against hostile front matter. |
 | `scripts/test-social-products.sh` | The Social tiles and the Products disclosure, items and affiliate links. |
 | `scripts/test-resume.sh` | The Resume page and its print stylesheet. |
+| `scripts/test-business-crosslinks.sh` | The business-site crosslinks (nav item, About and Resume blocks, footer line): all four appear with the exact text when `params.businessSiteURL` is set, none when it is empty. |
 | `scripts/test-llms.sh` | The `/llms.txt` shape. |
 | `scripts/test-featured-image.sh` | The headline image slot, see [Headline images](Headline-images.md). |
 | `scripts/test-archetype.sh` | `hugo new content` makes a post that builds and passes the checks, and a missing alt text fails. |
