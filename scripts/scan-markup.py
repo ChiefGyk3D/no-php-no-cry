@@ -33,8 +33,12 @@ whose whole body fullmatches PRECURSOR_BODY below. A second one is script-count;
 any other body, or any attribute, is script-not-allowed as before. Without --scripts
 it implies --scripts none. A self-closing script tag (<script/>, <SCRIPT />) is
 script-not-allowed in every mode (a browser ignores the slash, this parser does
-not), and a comment, CDATA, declaration or processing instruction inside a
-candidate script refuses it.
+not).
+In every mode the file must be plain UTF-8, the one encoding this parser reads
+the way a browser does: a UTF-16 or UTF-32 byte order mark, a NUL byte, bytes that
+are not valid UTF-8, a UTF-8 byte order mark, or (HTML) a <meta charset> or
+<meta http-equiv=content-type> naming any charset but utf-8 is bad-encoding. A
+file that fails the byte checks is reported as bad-encoding alone and not parsed.
 --cloudflare-beacon requires exactly one Cloudflare Web Analytics tag with a
 versioned Insights URL and a nonempty public token. It permits only that remote
 script; every other script rule remains active.
@@ -119,6 +123,26 @@ def precursor_body_ok(body):
     return bool(m) and m.group("ray") == m.group("loader")
 
 
+BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")
+
+
+def utf8_only(raw):
+    """True if the bytes are plain UTF-8 a browser reads as UTF-8: no byte order
+    mark of any kind (a UTF-16 or UTF-32 one makes a browser decode the whole file
+    differently), no NUL byte, and strictly valid UTF-8."""
+    if raw.startswith(BOMS) or b"\x00" in raw:
+        return False
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def charset_ok(name):
+    return name.strip().lower() == "utf-8"
+
+
 class Scan(HTMLParser):
     def __init__(self, host, markup, scripts, known=(), allow="", allow_email="", cloudflare_beacon=False, precursor=False):
         super().__init__(convert_charrefs=True)
@@ -145,15 +169,6 @@ class Scan(HTMLParser):
             self.found.add("script-not-allowed")
             self.precursor_body = None
             self.in_script = False
-
-    def poison_candidate(self, *_):
-        # Anything but plain text between a candidate's tags means the scanner's
-        # text is not exactly the bytes a browser would run.
-        if self.precursor_body is not None:
-            self.found.add("script-not-allowed")
-            self.precursor_body = None
-
-    handle_comment = unknown_decl = handle_decl = handle_pi = poison_candidate
 
     def handle_data(self, data):
         if self.precursor_body is not None:
@@ -186,6 +201,14 @@ class Scan(HTMLParser):
         is_cloudflare_beacon = False
         if tag == "style":
             self.in_style = True
+        if tag == "meta" and not self.markup:
+            meta = {n.lower(): clean(v) for n, v in attrs}
+            if "charset" in meta and not charset_ok(meta["charset"]):
+                self.found.add("bad-encoding")
+            if meta.get("http-equiv", "").strip().lower() == "content-type":
+                m = re.search(r"charset\s*=\s*[\"']?\s*([^\s;\"']*)", meta.get("content", ""), re.I)
+                if m and not charset_ok(m.group(1)):
+                    self.found.add("bad-encoding")
         if tag == "script":
             raw = [(n.lower(), v or "") for n, v in attrs]
             raw_values = dict(raw)
@@ -293,8 +316,20 @@ def main(argv):
     host, path = args[0].lower(), args[1]
     scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon, precursor)
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            scan.feed(f.read())
+        with open(path, "rb") as f:
+            raw = f.read()
+    except Exception:
+        raw = None
+    if raw is not None and not utf8_only(raw):
+        # What a browser would read from these bytes is not what a UTF-8 reader
+        # sees, so nothing below can be trusted: report only this.
+        print("bad-encoding")
+        return 0
+    try:
+        if raw is None:
+            raise OSError(path)
+        # Universal newlines, as the text-mode read this replaces did.
+        scan.feed(raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n"))
         scan.close()
     except Exception:
         scan.found.add("unparseable-html")

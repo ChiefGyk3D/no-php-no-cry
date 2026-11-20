@@ -86,9 +86,39 @@ precursor_case "a self-closing script with the exact body is rejected" self-clos
 precursor_case "an upper case self-closing script with a space is rejected" self-closing-space-upper "script-not-allowed: /"
 precursor_case "a self-closing script with an attribute is rejected" self-closing-attribute "script-not-allowed: /"
 precursor_case "the exact body after a self-closing sibling script is rejected" self-closing-sibling "script-not-allowed: /"
-precursor_case "a comment marker inside the candidate body is rejected" comment-in-body "script-not-allowed: /"
-precursor_case "a CDATA marker inside the candidate body is rejected" cdata-in-body "script-not-allowed: /"
+precursor_case "a comment marker in the candidate body is rejected because the body must match exactly" comment-in-body "script-not-allowed: /"
+precursor_case "a CDATA marker in the candidate body is rejected because the body must match exactly" cdata-in-body "script-not-allowed: /"
 precursor_case "a plain inline script is still rejected" alert "script-not-allowed: /"
+
+# Encoding: the scanner reads UTF-8, so a page a browser would read as something
+# else (a UTF-16 or UTF-32 BOM, a declared charset) must fail, not pass unseen.
+encoding_case() {
+    local label="$1" encoding="$2" ctype="$3" want="$4" out rc=0
+    out="$(PATH="$work/bin:$PATH" CURL_STUB_CSP="$csp" CURL_STUB_BEACON=one CURL_STUB_ENCODING="$encoding" CURL_STUB_CTYPE="$ctype" SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" https://test-blog.chiefgyk3d.com "$pub" 2>&1)" || rc=$?
+    if [[ "$want" == pass && $rc -eq 0 ]]; then
+        echo "ok: $label"
+    elif [[ "$want" != pass && $rc -eq 1 && "$out" == *"$want"* ]]; then
+        echo "ok: $label"
+    else
+        echo "FAIL: $label (exit $rc, wanted $want)"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+
+encoding_case "a UTF-16LE page with a BOM is rejected" utf16le "" "bad-encoding: /posts/"
+encoding_case "a UTF-16BE page with a BOM is rejected" utf16be "" "bad-encoding: /posts/"
+encoding_case "a UTF-32LE page with a BOM is rejected" utf32le "" "bad-encoding: /posts/"
+encoding_case "a UTF-32BE page with a BOM is rejected" utf32be "" "bad-encoding: /posts/"
+encoding_case "a NUL byte in a page is rejected" nul "" "bad-encoding: /posts/"
+encoding_case "invalid UTF-8 in a page is rejected" invalid-utf8 "" "bad-encoding: /posts/"
+encoding_case "a UTF-8 BOM in a page is rejected" utf8-bom "" "bad-encoding: /posts/"
+encoding_case "a meta charset other than UTF-8 is rejected" meta-charset "" "bad-encoding: /posts/"
+encoding_case "a meta http-equiv charset other than UTF-8 is rejected" meta-http-equiv "" "bad-encoding: /posts/"
+encoding_case "a Content-Type header charset other than UTF-8 is rejected" "" "text/html; charset=iso-8859-1" "bad-encoding: /posts/"
+encoding_case "a UTF-16 Content-Type header charset is rejected" "" "text/html; charset=utf-16" "bad-encoding: /posts/"
+encoding_case "UTF-8 declared in meta tags passes" utf8-meta "" pass
+encoding_case "a UTF-8 Content-Type header charset passes" "" "text/html; charset=UTF-8" pass
 
 ((failures == 0)) || exit 1
 echo "all browser-request smoke checks passed"

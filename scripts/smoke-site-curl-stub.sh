@@ -121,6 +121,44 @@ if [[ -n "${CURL_STUB_PRECURSOR:-}" && "$status" == 200 && "$content_type" == te
     done
 fi
 printf '%s' "$body" >"$body_file"
+# CURL_STUB_ENCODING replaces the body of every HTML page that answers 200 with
+# bytes a browser would read differently from the UTF-8 the scanner assumes
+# (issue 410): UTF-16 and UTF-32 with a BOM, a NUL byte, invalid UTF-8, a UTF-8
+# BOM, a meta charset. utf8-meta is the allowed control.
+if [[ -n "${CURL_STUB_ENCODING:-}" && "$status" == 200 && "$content_type" == text/html && ("$path" != / || "$CURL_STUB_ENCODING" != utf8-meta) ]]; then
+    python3 -I -c '
+import sys
+
+mode = sys.argv[1]
+script = "<html><script src=/copy.js></script></html>"
+if mode == "utf16le":
+    out = b"\xff\xfe" + script.encode("utf-16le")
+elif mode == "utf16be":
+    out = b"\xfe\xff" + script.encode("utf-16be")
+elif mode == "utf32le":
+    out = b"\xff\xfe\x00\x00" + script.encode("utf-32le")
+elif mode == "utf32be":
+    out = b"\x00\x00\xfe\xff" + script.encode("utf-32be")
+elif mode == "nul":
+    out = b"<html>\x00</html>"
+elif mode == "invalid-utf8":
+    out = b"<html>\xc3\x28</html>"
+elif mode == "utf8-bom":
+    out = b"\xef\xbb\xbf<html></html>"
+elif mode == "meta-charset":
+    out = b"<html><meta charset=iso-8859-1></html>"
+elif mode == "meta-http-equiv":
+    out = b"<html><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\"></html>"
+elif mode == "utf8-meta":
+    out = b"<html><meta charset=UTF-8><meta http-equiv=content-type content=\"text/html; charset=utf-8\"></html>"
+else:
+    sys.exit(2)
+sys.stdout.buffer.write(out)
+' "$CURL_STUB_ENCODING" >"$body_file"
+fi
+if [[ -n "${CURL_STUB_CTYPE:-}" && "$content_type" == text/html ]]; then
+    content_type="$CURL_STUB_CTYPE"
+fi
 printf 'HTTP/1.1 %s Test\r\n' "$status"
 printf 'Content-Type: %s\r\n' "$content_type"
 printf 'Content-Security-Policy: %s\r\n' "$CURL_STUB_CSP"

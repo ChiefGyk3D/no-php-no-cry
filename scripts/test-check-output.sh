@@ -202,6 +202,39 @@ else
     exit 1
 fi
 
+# The scanner reads UTF-8 only. A file a browser would decode differently (a
+# UTF-16 BOM hides every tag from a UTF-8 reader) is refused in every mode.
+python3 -I -c '
+import sys
+
+tag = "<script src=/copy.js></script>"
+files = {
+    "utf16le": b"\xff\xfe" + tag.encode("utf-16le"),
+    "utf16be": b"\xfe\xff" + tag.encode("utf-16be"),
+    "utf32le": b"\xff\xfe\x00\x00" + tag.encode("utf-32le"),
+    "utf32be": b"\x00\x00\xfe\xff" + tag.encode("utf-32be"),
+    "nul": b"<p>\x00</p>",
+    "invalid": b"<p>\xc3\x28</p>",
+    "utf8-bom": b"\xef\xbb\xbf<p>x</p>",
+}
+for name, data in files.items():
+    with open(sys.argv[1] + "/enc-" + name + ".html", "wb") as f:
+        f.write(data)
+' "$work"
+for enc in utf16le utf16be utf32le utf32be nul invalid utf8-bom; do
+    for flag in --markup --cloudflare-precursor --scripts=none; do
+        args=("$flag")
+        [[ "$flag" == --scripts=none ]] && args=(--scripts none)
+        enc_scan="$(python3 -I "$root/scripts/scan-markup.py" "${args[@]}" N0CALL "$work/enc-$enc.html")"
+        if grep -qx 'bad-encoding' <<<"$enc_scan"; then
+            echo "ok: scanner refuses $enc with $flag"
+        else
+            echo "FAIL: scanner did not refuse $enc with $flag"
+            exit 1
+        fi
+    done
+done
+
 # fail_case <label> <rule> <dir>: the checker must exit non-zero and name the rule.
 fail_case() {
     local label="$1" rule="$2" dir="$3" out rc=0

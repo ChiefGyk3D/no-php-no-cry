@@ -290,6 +290,15 @@ check_page() {
         echo "wrong-nosniff: ${path} must have exactly one X-Content-Type-Options header with the value nosniff"
         failed=1
     fi
+    # The scanner reads UTF-8 only (it refuses a UTF-16 or UTF-32 byte order mark,
+    # a NUL byte and a meta charset that is not utf-8); a header that names
+    # another charset changes how a browser reads the page just the same.
+    local charset_re='charset[[:space:]]*=[[:space:]]*"?([^;"[:space:]]*)' header_type
+    header_type="$(printf '%s' "$resp" | header_values content-type | head -n 1)"
+    if [[ "${header_type,,}" =~ $charset_re && "${BASH_REMATCH[1]}" != utf-8 ]]; then
+        echo "bad-encoding: ${path} has Content-Type '${header_type}', wanted no charset or utf-8"
+        failed=1
+    fi
     if [[ -n "${script_pinned[$path]:-}" ]]; then
         got="$(sha256sum <"$body_file" | cut -d' ' -f1)"
         if [[ "$got" != "${script_pinned[$path]}" ]]; then
