@@ -353,16 +353,14 @@ a:focus-visible {
 }
 
 /* Issue 416: from 64rem to the next --page-max step (80rem) the header column is
- * 60rem wide and eleven links (Contact, and Work with me when the business URL is
- * set) plus the wordmark no longer fit on one row at the 8px link gap; drop the gap
- * (the links keep their own 8px side padding and the 44px height) so the header stays one row. */
+ * 60rem wide and Contact made the production header wrap to two rows. Drop the 8px
+ * gap between the nav links in that band only; the links keep their 8px side
+ * padding and their 44px height, so every build with the business link unset
+ * stays one row. With params.businessSiteURL set the header wraps in this band
+ * as it did before Contact (unchanged behavior). */
 @media (min-width: 64rem) and (max-width: 79.99rem) {
   .nav-menu ul {
     gap: 0;
-  }
-
-  .nav-menu li a {
-    padding: 0 0.25rem;
   }
 }
 
