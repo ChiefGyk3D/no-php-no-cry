@@ -58,8 +58,8 @@ WANT = {
         "A practical list of security gear, privacy services, audio equipment, repair tools, and creator software. Affiliate links are disclosed.",
     ),
     "contact/index.html": (
-        "Contact for Business Inquiries, Discord, and Matrix" + SUFFIX,
-        "Use email for business inquiries, or Discord and Matrix for general correspondence. Chats are bridged in most rooms when working.",
+        "Contact ChiefGyk3D: Email, Discord, Matrix" + SUFFIX,
+        "Email ChiefGyk3D about content, community, or personal matters. Use Discord or Matrix for general correspondence; most active rooms are bridged.",
     ),
     "journal/index.html": (
         "ChiefGyk3D's Technical Journal Index Page" + SUFFIX,

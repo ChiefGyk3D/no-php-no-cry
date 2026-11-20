@@ -7,3 +7,7 @@ about_block: If you want to hire me for security advisory work, I do it through 
 resume_block: I am available for advisory, assessment, and speaking work through Renegade Penguin LLC.
 footer_line: Hire me through Renegade Penguin LLC.
 link_text: Renegade Penguin LLC
+# The Contact page notice (issue 414): LINK_TEXT is replaced by a link to the business home whose
+# visible text is contact_notice_link_text. Rendered only while params.businessSiteURL is set.
+contact_notice: "If you're looking to hire me for consulting or advisory work, please head to LINK_TEXT so your request reaches Renegade Penguin LLC. This page and email address are for content, community, and personal messages."
+contact_notice_link_text: renegadepenguinllc.com

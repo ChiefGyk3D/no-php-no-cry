@@ -1,7 +1,7 @@
 ---
 title: "Contact"
-seoTitle: "Contact for Business Inquiries, Discord, and Matrix"
-description: "Use email for business inquiries, or Discord and Matrix for general correspondence. Chats are bridged in most rooms when working."
+seoTitle: "Contact ChiefGyk3D: Email, Discord, Matrix"
+description: "Email ChiefGyk3D about content, community, or personal matters. Use Discord or Matrix for general correspondence; most active rooms are bridged."
 date: 2026-11-09
 draft: false
 syndicate: false

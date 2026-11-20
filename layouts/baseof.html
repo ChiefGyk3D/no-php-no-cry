@@ -95,7 +95,7 @@
           </ul>
         </nav>
         {{- end }}
-        <p class="credit">&copy; {{ now.Year }} Renegade Penguin LLC <span aria-hidden="true">&middot;</span> Powered by <a href="https://github.com/ChiefGyk3D/no-php-no-cry" rel="noopener">No PHP No Cry<span class="visually-hidden"> (external site)</span></a></p>
+        <p class="credit">&copy; {{ now.Year }} {{ with partial "business-url.html" "/" }}<a href="{{ . }}" rel="me noopener">Renegade Penguin LLC<span class="visually-hidden"> (external site)</span></a>{{ else }}Renegade Penguin LLC{{ end }} <span aria-hidden="true">&middot;</span> Powered by <a href="https://github.com/ChiefGyk3D/no-php-no-cry" rel="noopener">No PHP No Cry<span class="visually-hidden"> (external site)</span></a></p>
       </div>
     </div>
   </footer>

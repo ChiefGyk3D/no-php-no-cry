@@ -1,6 +1,6 @@
 {{- /*
   /contact/ (issue 329). No form and no script: two panels. General correspondence goes to Discord or
-  Matrix (links from data/socials.yaml, by name, https only); business inquiries go by email, with the PGP
+  Matrix (links from data/socials.yaml, by name, https only); the email panel (content, community and personal messages) has the address, with the PGP
   fingerprint and key link. The address, fingerprint and key link come from data/about.yaml (contact:) and
   are published only when all three are set (layouts/_partials/contact-complete.html, the same rule as
   before the move from /about/). The address sits between email_off markers so the host's Email Address
@@ -33,10 +33,24 @@
         {{- end }}
         {{- end }}
       </ul>
+      <div class="contact-postal-row">
+      <p class="contact-postal-label">Postal mail:</p>
+      <address class="contact-postal">{{ .Params.postalName }}<br>
+        {{- .Params.postalStreet }}<br>
+        {{- .Params.postalSuite }}<br>
+        {{- .Params.postalLocality -}}
+      </address>
+      </div>
     </section>
     <section class="panel contact-business" aria-labelledby="business">
       <h2 id="business" class="hud-heading">{{ $t.business_title }}</h2>
       <p>{{ $t.business_text }}{{ if not $complete }} {{ $t.business_soon }}{{ end }}</p>
+      {{- /* Issue 414: send hiring requests to the business site. Rendered only while params.businessSiteURL is set (valid https); nothing otherwise, so the page is unchanged. It sits in the Email panel, before the address, where the other column has the room (the page is a short page under the 1920x930 fit rule). */ -}}
+      {{- with partial "business-url.html" "/" }}
+      {{- $parts := split site.Data.business.contact_notice "LINK_TEXT" }}
+      {{- if ne (len $parts) 2 }}{{ errorf "data/business.yaml contact_notice must contain LINK_TEXT exactly once" }}{{ end }}
+      <p class="contact-notice">{{ index $parts 0 }}<a href="{{ . }}" rel="noopener">{{ site.Data.business.contact_notice_link_text }}<span class="visually-hidden"> (external site)</span></a>{{ index $parts 1 }}</p>
+      {{- end }}
       {{- if $complete }}
       {{ "<!--email_off-->" | safeHTML }}<p class="contact-email">Email: {{ if site.Params.emailAsImage -}}
       {{- $img := resources.Get "contact/email-address.png" | fingerprint -}}
@@ -48,14 +62,6 @@
       <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
       <p class="pgp-key-link"><a href="{{ $c.pgp_url | relURL }}">PGP public key</a></p>
       {{- end }}
-      <div class="contact-postal-row">
-      <p class="contact-postal-label">Postal mail:</p>
-      <address class="contact-postal">{{ .Params.postalName }}<br>
-        {{- .Params.postalStreet }}<br>
-        {{- .Params.postalSuite }}<br>
-        {{- .Params.postalLocality -}}
-      </address>
-      </div>
     </section>
   </div>
 </article>

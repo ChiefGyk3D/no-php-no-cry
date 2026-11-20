@@ -84,7 +84,7 @@ NEW_PROJECT_URLS = [
 MORE_URL = "https://github.com/ChiefGyk3D"
 MORE_LABEL = "More on GitHub"
 SUMMARY = [
-    "Senior Cybersecurity Engineer and CISSP with about 15 years across IT and "
+    "Senior Cybersecurity Engineer and CISSP with about 16 years across IT and "
     "security. I design, build, integrate, and test security systems across "
     "identity, network defense, SIEM engineering, cloud security, zero trust, "
     "and automation. I question unnecessary access and use hands-on testing to "
