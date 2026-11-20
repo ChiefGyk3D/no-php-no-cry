@@ -527,11 +527,17 @@ sys.exit(1)
 PY
 }
 maincss="$root/assets/css/main.css"
-if tap_rule "$maincss"; then pass "main.css gives .business-link a the --tap target size"
-else fail "main.css does not give .business-link a a min-height of var(--tap)"; fi
+if tap_rule "$maincss"; then
+    pass "main.css gives .business-link a the --tap target size"
+else
+    fail "main.css does not give .business-link a a min-height of var(--tap)"
+fi
 sed 's/^\.business-link a/.unrelated-link a/' "$maincss" >"$work/main-nobiz.css"
-if tap_rule "$work/main-nobiz.css"; then fail "guard: dropping .business-link a from the tap rule was not flagged"
-else pass "guard: dropping .business-link a from the tap rule is flagged"; fi
+if tap_rule "$work/main-nobiz.css"; then
+    fail "guard: dropping .business-link a from the tap rule was not flagged"
+else
+    pass "guard: dropping .business-link a from the tap rule is flagged"
+fi
 
 if [[ $failures -ne 0 ]]; then
     echo "$failures failure(s)"
