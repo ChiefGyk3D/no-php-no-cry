@@ -30,7 +30,8 @@ cancelled `ci`, `shell` or `security` makes the local `CI green` fail.
 
 Every step of the old `Hugo build and output checks` job, mapped to exactly one
 place. Legs: `output checks` (O), `output checker tests` (OT), `site tests` (S),
-`tool tests` (T), `content checks` (C), `size budget` (B), `browser gate` (G).
+`tool tests` (T), `content checks` (C), `size budget` (B), `browser gate` (G),
+`browser gate business url` (GB).
 Setup and build run in the `ci / Build` job (`setup-command`, `build-command`).
 
 | Old step | New place |
@@ -113,11 +114,19 @@ On a pull request the changed paths decide which legs run:
 | `docs` | `docs/*.md`, `docs/wiki/*.md`, `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` |
 | `site` | everything else (`*`) |
 
-Only `size budget` and `browser gate` carry `areas: ["site"]`. A change confined to
-the `docs` area skips those two; every other leg always runs. A push, a schedule, a
+Only `size budget`, `browser gate` and `browser gate business url` carry `areas: ["site"]`. A change
+confined to the `docs` area skips those three; every other leg always runs. A push, a schedule, a
 manual run, a pull request to another branch, an empty or unreadable diff, and a
 path no rule matches all run every leg (fail closed). Note `.github/**` and
 `scripts/**` are `site`: a workflow or script change runs everything.
+
+`browser gate business url` (issue 419) builds the site a second time with
+`HUGO_PARAMS_BUSINESSSITEURL=https://renegadepenguinllc.com` (the shape the private
+production pipeline builds) into `$RUNNER_TEMP/public-business`, then runs
+`scripts/browser-gate.py` on it. The main build leaves the param empty, so the
+gated crosslink blocks (About, Resume, nav, footer, Contact notice) are never in the
+`browser gate` leg's pages. The leg runs beside the others (`tools: true` for Hugo,
+`build: false`: it makes its own build), so it adds no time to the critical path.
 
 ## Decisions
 

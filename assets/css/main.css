@@ -298,7 +298,8 @@ a:focus-visible {
 .archive-links a,
 .tag-list a,
 .post-list li > a,
-.more-link a {
+.more-link a,
+.business-link a {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
