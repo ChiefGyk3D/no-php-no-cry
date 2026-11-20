@@ -23,6 +23,6 @@ The first test message never arrived. The function said success and the Worker s
 
 Two things I found only because I tested the failure path. When the mail send failed, the function returned a 502 with a friendly message and the visitor got Cloudflare's generic Bad Gateway page instead. I think Cloudflare swaps its own page in for 5xx responses, though I have not confirmed that in their docs. The fix was to stop returning a 5xx: a small dark HTML page with a 424 and my fallback address on it.
 
-The other one is the email obfuscation setting. Cloudflare rewrites visible email addresses into links like /cdn-cgi/l/email-protection and relies on a script to decode them. My CSP does not allow that script, so clicking my contact address landed on Cloudflare's Email Protection page. I have it on my list to turn off in the dashboard, and my API token cannot touch zone settings, which is how I want it.
+The other one is the email obfuscation setting. Cloudflare rewrites visible email addresses into links like /cdn-cgi/l/email-protection and relies on a script to decode them. My CSP does not allow that script, so clicking my contact address landed on Cloudflare's Email Protection page. I turned it off in the dashboard, because my API token cannot touch zone settings, which is how I want it, and the contact page now serves a plain mailto link.
 
 The part that kept it honest was CI. Every merge waits on one gate, and Copilot review caught a real regression where a redesign dropped the contact form CSS entirely.
