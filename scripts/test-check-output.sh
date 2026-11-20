@@ -202,6 +202,66 @@ else
     exit 1
 fi
 
+# The scanner reads UTF-8 only. A file a browser would decode differently (a
+# UTF-16 BOM hides every tag from a UTF-8 reader) is refused in every mode.
+python3 -I -c '
+import sys
+
+tag = "<script src=/copy.js></script>"
+files = {
+    "utf16le": b"\xff\xfe" + tag.encode("utf-16le"),
+    "utf16be": b"\xfe\xff" + tag.encode("utf-16be"),
+    "utf32le": b"\xff\xfe\x00\x00" + tag.encode("utf-32le"),
+    "utf32be": b"\x00\x00\xfe\xff" + tag.encode("utf-32be"),
+    "nul": b"<p>\x00</p>",
+    "invalid": b"<p>\xc3\x28</p>",
+    "utf8-bom": b"\xef\xbb\xbf<p>x</p>",
+    "esc": b"<p>\x1b$B<!--\x1b(B<script src=/evil.js></script>--></p>",
+    "bell": b"<p>\x07</p>",
+    "unit-separator": b"<p>\x1f</p>",
+    "dup-meta-charset": b"<meta charset=iso-2022-jp charset=utf-8>",
+    "dup-meta-http-equiv": b"<meta http-equiv=content-type content=\"text/html; charset=iso-2022-jp\" content=\"text/html; charset=utf-8\">",
+    "dup-meta-charset-same": b"<meta charset=utf-8 charset=utf-8>",
+    "dup-meta-http-equiv-same": b"<meta http-equiv=content-type content=\"text/html; charset=utf-8\" content=\"text/html; charset=utf-8\">",
+    "controls-ok": b"<p>\t\n\r\x0c</p>",
+}
+for name, data in files.items():
+    with open(sys.argv[1] + "/enc-" + name + ".html", "wb") as f:
+        f.write(data)
+' "$work"
+for enc in utf16le utf16be utf32le utf32be nul invalid utf8-bom esc bell unit-separator; do
+    for flag in --markup --cloudflare-precursor --scripts=none; do
+        args=("$flag")
+        [[ "$flag" == --scripts=none ]] && args=(--scripts none)
+        enc_scan="$(python3 -I "$root/scripts/scan-markup.py" "${args[@]}" N0CALL "$work/enc-$enc.html")"
+        if grep -qx 'bad-encoding' <<<"$enc_scan"; then
+            echo "ok: scanner refuses $enc with $flag"
+        else
+            echo "FAIL: scanner did not refuse $enc with $flag"
+            exit 1
+        fi
+    done
+done
+# A browser keeps the FIRST of a duplicated attribute; a meta that carries two
+# charset or content attributes is refused (HTML mode, where meta is read).
+for enc in dup-meta-charset dup-meta-http-equiv dup-meta-charset-same dup-meta-http-equiv-same; do
+    enc_scan="$(python3 -I "$root/scripts/scan-markup.py" --scripts none N0CALL "$work/enc-$enc.html")"
+    if grep -qx 'bad-encoding' <<<"$enc_scan"; then
+        echo "ok: scanner refuses $enc"
+    else
+        echo "FAIL: scanner did not refuse $enc"
+        exit 1
+    fi
+done
+# Tab, line feed, carriage return and form feed are ordinary white space.
+enc_scan="$(python3 -I "$root/scripts/scan-markup.py" --scripts none N0CALL "$work/enc-controls-ok.html")"
+if grep -qx 'bad-encoding' <<<"$enc_scan"; then
+    echo "FAIL: scanner refused tab, line feed, carriage return and form feed"
+    exit 1
+else
+    echo "ok: scanner allows tab, line feed, carriage return and form feed"
+fi
+
 # fail_case <label> <rule> <dir>: the checker must exit non-zero and name the rule.
 fail_case() {
     local label="$1" rule="$2" dir="$3" out rc=0
@@ -315,11 +375,27 @@ APPEND='<button onclick="go()">x</button>' variant event-handler event-handler a
 APPEND='<img src="http://example.org/a.png" alt=x>' variant http-reference http-reference append_html
 APPEND='<link rel=stylesheet href=https://fonts.example.org/css>' variant external-asset external-asset append_html
 APPEND='<link rel="me stylesheet" href=https://fonts.example.org/css>' variant rel-me-stylesheet external-asset append_html
+# A browser keeps the first of a duplicated attribute, so the first rel decides.
+APPEND='<link rel=stylesheet rel=me href=https://fonts.example.org/css>' variant rel-me-duplicate-stylesheet external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script external-asset append_html
 APPEND='<script src=https://cdn.example.org/x.js></script>' variant external-script-element script-not-allowed append_html
 APPEND='<script src=//cdn.example.org/x.js></script>' variant scheme-relative-script script-not-allowed append_html
 APPEND='<script src=/app.js></script>' variant local-other-script script-not-allowed append_html
 APPEND='<script>alert(1)</script>' variant inline-script-element script-not-allowed append_html
+# The Cloudflare Precursor snippet is allowed by the smoke test on the served
+# page only (issue 410); the build check refuses it like any inline script.
+PRECURSOR_SNIPPET=$'<script>window.__CF$cv$params={r:\'a5d75b7a99234fa9\',t:\'MTc5NTE3NjY4Nw==\',u:\'01a1f8de693b77ff8797ecd89f056a26\',ut:\'qSfHbBdqBR2fpGPmsiATGAzCUzUlQAEQRmh5UW2JC7Y-1795176687-1.2.1.1-EB.WKWouzfLG1PX4s2FeKYZlPMcQUx2DKthc8hxIWSUgwDAxaO1SJz9zNWpVeygeVqPHHaR_Fepiblcr.SNIhpc8aXaYj_OP0YafcMHZYvY\',i:60};(function(){if(!document.body)return;var l=window.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=\'\'}}var u=\'/cdn-cgi/challenge-platform/scripts/precursor/main.js?ray=a5d75b7a99234fa9\',s=document.createElement(\'script\');s.src=o?new URL(u,o).href:u;document.head.appendChild(s);})();</script>'
+APPEND="$PRECURSOR_SNIPPET" variant precursor-snippet-in-build script-not-allowed append_html
+# Direct callers may request the Precursor allowance without choosing a script
+# policy; it must not open the door to any other script (default policy none).
+printf '%s%s\n' "$PRECURSOR_SNIPPET" '<script src=/evil.js></script>' >"$work/precursor-with-other-script.html"
+precursor_scan="$(python3 -I "$root/scripts/scan-markup.py" --cloudflare-precursor N0CALL "$work/precursor-with-other-script.html")"
+if grep -qx 'script-not-allowed' <<<"$precursor_scan"; then
+    echo "ok: precursor-only invocation still refuses another script"
+else
+    echo "FAIL: precursor-only invocation did not refuse another script"
+    exit 1
+fi
 APPEND='<script src=/copy.js>alert(1)</script>' variant copy-script-with-inline-body script-not-allowed append_html
 APPEND='<script src=/copy.js defer></script>' variant copy-script-extra-attribute script-not-allowed append_html
 APPEND='<script type=module src=/copy.js></script>' variant copy-script-module script-not-allowed append_html

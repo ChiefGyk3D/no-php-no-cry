@@ -75,9 +75,122 @@ case "$path" in
         fi
         ;;
 esac
+# CURL_STUB_PRECURSOR adds the snippet Cloudflare injects at the edge (Precursor,
+# observed on 2026-11-20; the per-request values are replaced by fixed ones of
+# the same shape) to every HTML page that answers 200, as the real edge does.
+# One variant per case of scripts/test-smoke-site-browser-request.sh.
+if [[ -n "${CURL_STUB_PRECURSOR:-}" && "$status" == 200 && "$content_type" == text/html ]]; then
+    ray=a5d75b7a99234fa9
+    pre_a=$'window.__CF$cv$params={r:\''
+    pre_b=$'\',t:\'MTc5NTE3NjY4Nw==\',u:\'01a1f8de693b77ff8797ecd89f056a26\',ut:\'qSfHbBdqBR2fpGPmsiATGAzCUzUlQAEQRmh5UW2JC7Y-1795176687-1.2.1.1-EB.WKWouzfLG1PX4s2FeKYZlPMcQUx2DKthc8hxIWSUgwDAxaO1SJz9zNWpVeygeVqPHHaR_Fepiblcr.SNIhpc8aXaYj_OP0YafcMHZYvY\',i:60};(function(){if(!document.body)return;var l=window.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=\'\'}}var u=\''
+    pre_c=$'\',s=document.createElement(\'script\');s.src=o?new URL(u,o).href:u;document.head.appendChild(s);})();'
+    pre_path=/cdn-cgi/challenge-platform/scripts/precursor/main.js
+    pre_query="?ray=${ray}"
+    # t is base64 of a 10 digit Unix time (1795176687); the t-* modes swap it.
+    pre_t=MTc5NTE3NjY4Nw==
+    pre_open="<script>"
+    pre_before="" pre_after="" pre_repeat=1
+    case "$CURL_STUB_PRECURSOR" in
+        one) ;;
+        two) pre_repeat=2 ;;
+        appended) pre_after="alert(1);" ;;
+        prefixed) pre_before="alert(1);" ;;
+        wrong-path) pre_path=/cdn-cgi/challenge-platform/scripts/other/main.js ;;
+        wrong-host) pre_path=https://e.example/cdn-cgi/challenge-platform/scripts/precursor/main.js ;;
+        wrong-ray) pre_query="?ray=0123456789abcdef" ;;
+        no-ray) pre_query="" ;;
+        extra-query) pre_query="?ray=${ray}&x=1" ;;
+        attr-type) pre_open="<script type=text/javascript>" ;;
+        attr-src) pre_open="<script src=/x.js>" ;;
+        attr-nonce) pre_open="<script nonce=abc>" ;;
+        attr-defer) pre_open="<script defer>" ;;
+        trailing-space) pre_after=" " ;;
+        t-zero-bytes) pre_t=AAAAAAAAAAAAAA== ;;
+        t-letters) pre_t=YWJjZGVmZ2hpag== ;;
+        t-non-ascii) pre_t=MTc5NTE4NTU2ww== ;;
+        t-nine-digits-letter) pre_t=MTc5NTE4NTU2YQ== ;;
+        t-leading-space) pre_t=IDE3OTUxODU1Ng== ;;
+        t-nine-digits) pre_t=MTc5NTE4NTU2 ;;
+        t-eleven-digits) pre_t=MTc5NTE4NTU2NzA= ;;
+        t-bad-padding) pre_t=MTc5NTE3NjY4Nw= ;;
+        t-bad-alphabet) pre_t='MTc5NTE3NjY4Nw!!' ;;
+        t-other-time) pre_t=MTc5NTE4NTU2OA== ;;
+        self-closing-comment)
+            pre_open="<script/>"
+            pre_before=$'<!--\nalert(1)\n-->'
+            ;;
+        self-closing) pre_open="<script/>" ;;
+        self-closing-space-upper) pre_open="<SCRIPT />" ;;
+        self-closing-attribute) pre_open="<script a=b />" ;;
+        self-closing-sibling) pre_open="<script/><script>" ;;
+        comment-in-body) pre_before="<!--" ;;
+        cdata-in-body) pre_before="<![CDATA[" ;;
+        alert) pre_before="alert(1)" pre_a="" pre_b="" pre_c="" pre_path="" pre_query="" ray="" ;;
+    esac
+    pre="${pre_open}${pre_before}${pre_a}${ray}${pre_b/MTc5NTE3NjY4Nw==/${pre_t}}${pre_path}${pre_query}${pre_c}${pre_after}</script>"
+    for ((i = 0; i < pre_repeat; i++)); do
+        body="${body}${pre}"
+    done
+fi
 printf '%s' "$body" >"$body_file"
+# CURL_STUB_ENCODING replaces the body of every HTML page that answers 200 with
+# bytes a browser would read differently from the UTF-8 the scanner assumes
+# (issue 410): UTF-16 and UTF-32 with a BOM, a NUL byte, invalid UTF-8, a UTF-8
+# BOM, a meta charset. utf8-meta is the allowed control.
+if [[ -n "${CURL_STUB_ENCODING:-}" && "$status" == 200 && "$content_type" == text/html && ("$path" != / || ("$CURL_STUB_ENCODING" != utf8-meta && "$CURL_STUB_ENCODING" != controls-ok)) ]]; then
+    python3 -I -c '
+import sys
+
+mode = sys.argv[1]
+script = "<html><script src=/copy.js></script></html>"
+if mode == "utf16le":
+    out = b"\xff\xfe" + script.encode("utf-16le")
+elif mode == "utf16be":
+    out = b"\xfe\xff" + script.encode("utf-16be")
+elif mode == "utf32le":
+    out = b"\xff\xfe\x00\x00" + script.encode("utf-32le")
+elif mode == "utf32be":
+    out = b"\x00\x00\xfe\xff" + script.encode("utf-32be")
+elif mode == "nul":
+    out = b"<html>\x00</html>"
+elif mode == "invalid-utf8":
+    out = b"<html>\xc3\x28</html>"
+elif mode == "utf8-bom":
+    out = b"\xef\xbb\xbf<html></html>"
+elif mode == "meta-charset":
+    out = b"<html><meta charset=iso-8859-1></html>"
+elif mode == "meta-http-equiv":
+    out = b"<html><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\"></html>"
+elif mode == "dup-meta-charset":
+    out = b"<html><meta charset=iso-2022-jp charset=utf-8></html>"
+elif mode == "dup-meta-http-equiv":
+    out = b"<html><meta http-equiv=content-type content=\"text/html; charset=iso-2022-jp\" content=\"text/html; charset=utf-8\"></html>"
+elif mode == "dup-meta-charset-same":
+    out = b"<html><meta charset=utf-8 charset=utf-8></html>"
+elif mode == "dup-meta-http-equiv-same":
+    out = b"<html><meta http-equiv=content-type content=\"text/html; charset=utf-8\" content=\"text/html; charset=utf-8\"></html>"
+elif mode == "esc":
+    out = b"<html>\x1b$B<!--\x1b(B<script src=/evil.js></script>--></html>"
+elif mode == "bell":
+    out = b"<html>\x07</html>"
+elif mode == "controls-ok":
+    out = b"<html>\t\n\r\x0c</html>"
+elif mode == "utf8-meta":
+    out = b"<html><meta charset=UTF-8><meta http-equiv=content-type content=\"text/html; charset=utf-8\"></html>"
+else:
+    sys.exit(2)
+sys.stdout.buffer.write(out)
+' "$CURL_STUB_ENCODING" >"$body_file"
+fi
+# Cloudflare Pages serves pages as "text/html; charset=utf-8" (read from the
+# real test host on 2026-11-20); CURL_STUB_CTYPE replaces that value, and
+# CURL_STUB_CTYPE2 adds a second Content-Type header.
+if [[ "$content_type" == text/html ]]; then
+    content_type="${CURL_STUB_CTYPE:-text/html; charset=utf-8}"
+fi
 printf 'HTTP/1.1 %s Test\r\n' "$status"
 printf 'Content-Type: %s\r\n' "$content_type"
+[[ -z "${CURL_STUB_CTYPE2:-}" ]] || printf 'Content-Type: %s\r\n' "$CURL_STUB_CTYPE2"
 printf 'Content-Security-Policy: %s\r\n' "$CURL_STUB_CSP"
 printf 'X-Content-Type-Options: nosniff\r\n'
 [[ -z "$location" ]] || printf 'Location: %s\r\n' "$location"
