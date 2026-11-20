@@ -28,11 +28,13 @@ NAME = "ChiefGyk3D"
 FORBIDDEN = {"givenName", "familyName", "additionalName", "worksFor", "jobTitle",
              "affiliation", "email", "telephone", "address", "birthDate", "alumniOf"}
 # Issue 414 (owner decision): the one business reference a Person may carry, emitted only while
-# params.businessSiteURL is set: the exact jobTitle and a worksFor Organization with an https @id ending
-# /#organization, the name Renegade Penguin LLC and an https url, nothing else. Any other value of
-# either key stays forbidden.
+# params.businessSiteURL is set: the exact jobTitle and a worksFor Organization named Renegade Penguin LLC
+# whose url is the business home (https, a plain host with an optional port, path exactly "/") and whose
+# @id is that url plus "#organization", character for character, nothing else. Any other value of either
+# key stays forbidden.
 BIZ_JOB = "Founder, Renegade Penguin LLC"
 BIZ_ORG = "Renegade Penguin LLC"
+BIZ_HOME = re.compile(r"^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?/$")
 
 
 def business_ok(key, value, parent):
@@ -43,9 +45,8 @@ def business_ok(key, value, parent):
     if key == "worksFor":
         return (isinstance(value, dict) and set(value) == {"@type", "@id", "name", "url"}
                 and value["@type"] == "Organization" and value["name"] == BIZ_ORG
-                and isinstance(value["@id"], str) and value["@id"].startswith("https://")
-                and value["@id"].endswith("/#organization")
-                and isinstance(value["url"], str) and value["url"].startswith("https://"))
+                and isinstance(value["url"], str) and BIZ_HOME.match(value["url"]) is not None
+                and value["@id"] == value["url"] + "#organization")
     return False
 
 

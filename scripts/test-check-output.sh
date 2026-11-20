@@ -1003,6 +1003,25 @@ FROM='"@type":"Person"' TO="\"@type\":\"Person\",${biz_job},${biz_org%\}*},\"ema
 FROM='"@type":"Person"' TO='"@type":"Person","jobTitle":"Chief Everything Officer"' variant ld-other-job-title bad-jsonld ld_pipe_edit
 FROM='"@type":"Person"' TO='"@type":"Person","worksFor":{"@type":"Organization","@id":"https://corp.example/#organization","name":"Corp","url":"https://corp.example/"}' variant ld-other-employer bad-jsonld ld_pipe_edit
 FROM='"@type":"Person"' TO='"@type":"Person","worksFor":{"@type":"Organization","@id":"http://renegadepenguinllc.com/#organization","name":"Renegade Penguin LLC","url":"https://renegadepenguinllc.com/"}' variant ld-business-org-http-id bad-jsonld ld_pipe_edit
+# The relationship rule: the template emits url = the business home (https, host, path exactly /) and
+# @id = url + "#organization", so any pair that differs from that shape is a finding.
+biz_org_edit() {
+    # $1 variant name, $2 @id, $3 name, $4 url
+    FROM='"@type":"Person"' TO="\"@type\":\"Person\",\"worksFor\":{\"@type\":\"Organization\",\"@id\":\"$2\",\"name\":\"$3\",\"url\":\"$4\"}" variant "$1" bad-jsonld ld_pipe_edit
+}
+d="$work/ld-business-port-ok"
+make_good "$d"
+FROM='"@type":"Person"' TO='"@type":"Person","worksFor":{"@type":"Organization","@id":"https://staging.example:8443/#organization","name":"Renegade Penguin LLC","url":"https://staging.example:8443/"}' ld_pipe_edit "$d"
+expect_pass "a business worksFor with a port and matching id and url passes" "a business worksFor with a port was rejected" "$d"
+biz_org_edit ld-business-mismatched-hosts "https://one.example/#organization" "Renegade Penguin LLC" "https://two.example/"
+biz_org_edit ld-business-id-other-path "https://renegadepenguinllc.com/x/#organization" "Renegade Penguin LLC" "https://renegadepenguinllc.com/"
+biz_org_edit ld-business-id-no-fragment "https://renegadepenguinllc.com/" "Renegade Penguin LLC" "https://renegadepenguinllc.com/"
+biz_org_edit ld-business-id-http "http://renegadepenguinllc.com/#organization" "Renegade Penguin LLC" "http://renegadepenguinllc.com/"
+biz_org_edit ld-business-url-no-slash "https://renegadepenguinllc.com#organization" "Renegade Penguin LLC" "https://renegadepenguinllc.com"
+biz_org_edit ld-business-url-with-path "https://renegadepenguinllc.com/a/#organization" "Renegade Penguin LLC" "https://renegadepenguinllc.com/a/"
+biz_org_edit ld-business-url-with-query "https://renegadepenguinllc.com/?x=1#organization" "Renegade Penguin LLC" "https://renegadepenguinllc.com/?x=1"
+biz_org_edit ld-business-url-userinfo "https://u@renegadepenguinllc.com/#organization" "Renegade Penguin LLC" "https://u@renegadepenguinllc.com/"
+biz_org_edit ld-business-wrong-name "https://renegadepenguinllc.com/#organization" "Other LLC" "https://renegadepenguinllc.com/"
 FROM='https://github.com/ChiefGyk3D' TO='http://github.com/ChiefGyk3D' variant ld-sameas-not-https bad-jsonld home_edit
 FROM='https://schema.org' TO='https://example.org/vocab' variant ld-wrong-context bad-jsonld home_edit
 FROM='"@type":"Person"' TO='"@type":"Organization"' variant ld-home-without-person bad-jsonld home_edit
