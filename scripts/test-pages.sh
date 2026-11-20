@@ -367,6 +367,10 @@ def check_about_data(errs, html_src):
             errs.append("%s paragraph differs from data/about.yaml (issue 264)" % key)
     if not d.get("closing") or d["closing"] != CLOSING or d["closing"] not in ps:
         errs.append("closing line differs from the owner-approved one (issue 225)")
+    # Issue 414: the owner-approved mentor sentence ends the first bio paragraph, verbatim, and is on the page.
+    mentor = "I work as an independent security advisor, and I’m grateful that my mentor, Elissa Shevinsky, publicly endorsed my work."
+    if not d["paragraphs"][0].endswith(" " + mentor) or not any(x.endswith(" " + mentor) for x in ps):
+        errs.append("the first bio paragraph must end with the approved mentor sentence (issue 414)")
     sp = d["speaking"]
     if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
         errs.append("speaking sentence or role differs from data/about.yaml")
