@@ -401,8 +401,8 @@ if [[ -d "$work/dev" ]]; then
     mut worksfor-wrong-id 's#/\#organization"#/\#org"#g'
     mut no-jobtitle 's#"jobTitle":"[^"]*",?##g'
     mut notice-edited-words 's#hire me for consulting#hire me for work#g'
-    mut notice-link-missing 's#(<p class="?lede contact-notice"?>[^<]*)<a href="?https://staging\.example/"? rel="?noopener"?>[^<]*<span[^>]*>[^<]*</span></a>#\1apex#g'
-    mut notice-other-host 's#(<p class="?lede contact-notice"?>[^<]*)<a href="?https://staging\.example/"?#\1<a href=https://evil.example/#g'
+    mut notice-link-missing 's#(<p class="?contact-notice"?>[^<]*)<a href="?https://staging\.example/"? rel="?noopener"?>[^<]*<span[^>]*>[^<]*</span></a>#\1apex#g'
+    mut notice-other-host 's#(<p class="?contact-notice"?>[^<]*)<a href="?https://staging\.example/"?#\1<a href=https://evil.example/#g'
     mut no-llms-heading 's#^\#\# Work with me$#\#\# Other#'
     # The empty-mode guard must bite on a page that still shows the links.
     if python3 -I "$asserter" empty "" "$work/dev" >/dev/null 2>&1; then

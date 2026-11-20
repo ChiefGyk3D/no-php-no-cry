@@ -1,6 +1,10 @@
 /* /contact/ (issue 329). Tokens only. Two panels side by side from 48rem, stacked below. */
 .page-contact .contact-lede {
-  margin-top: var(--space-5);
+  margin-top: var(--space-4);
+  /* The intro line is one line on a wide screen, and the lede sits closer to the title plate: wrapped,
+   * it pushed the page past the 1920x930 fit rule (standing rule, issue 123) once its wording
+   * changed, and the Email panel with the issue 414 notice is only 1 px under it. */
+  max-width: none;
 }
 
 .contact-grid {
@@ -14,6 +18,11 @@
   .contact-grid {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* The last line of a panel adds no margin of its own below the panel padding (the 1920x930 fit rule). */
+.contact-grid .panel > :last-child {
+  margin-bottom: 0;
 }
 
 .contact-grid h2 {

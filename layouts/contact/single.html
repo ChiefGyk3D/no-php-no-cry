@@ -18,12 +18,6 @@
     <h1>{{ .Title }}</h1>
   </div>
   <p class="lede contact-lede">{{ $t.intro }}</p>
-  {{- /* Issue 414: send hiring requests to the business site. Rendered only while params.businessSiteURL is set (valid https); nothing otherwise, so the page is unchanged. */ -}}
-  {{- with partial "business-url.html" "/" }}
-  {{- $parts := split site.Data.business.contact_notice "LINK_TEXT" }}
-  {{- if ne (len $parts) 2 }}{{ errorf "data/business.yaml contact_notice must contain LINK_TEXT exactly once" }}{{ end }}
-  <p class="lede contact-notice">{{ index $parts 0 }}<a href="{{ . }}" rel="noopener">{{ site.Data.business.contact_notice_link_text }}<span class="visually-hidden"> (external site)</span></a>{{ index $parts 1 }}</p>
-  {{- end }}
   <div class="contact-grid">
     <section class="panel contact-general" aria-labelledby="general">
       <h2 id="general" class="hud-heading">{{ $t.general_title }}</h2>
@@ -39,10 +33,24 @@
         {{- end }}
         {{- end }}
       </ul>
+      <div class="contact-postal-row">
+      <p class="contact-postal-label">Postal mail:</p>
+      <address class="contact-postal">{{ .Params.postalName }}<br>
+        {{- .Params.postalStreet }}<br>
+        {{- .Params.postalSuite }}<br>
+        {{- .Params.postalLocality -}}
+      </address>
+      </div>
     </section>
     <section class="panel contact-business" aria-labelledby="business">
       <h2 id="business" class="hud-heading">{{ $t.business_title }}</h2>
       <p>{{ $t.business_text }}{{ if not $complete }} {{ $t.business_soon }}{{ end }}</p>
+      {{- /* Issue 414: send hiring requests to the business site. Rendered only while params.businessSiteURL is set (valid https); nothing otherwise, so the page is unchanged. It sits in the Email panel, before the address, where the other column has the room (the page is a short page under the 1920x930 fit rule). */ -}}
+      {{- with partial "business-url.html" "/" }}
+      {{- $parts := split site.Data.business.contact_notice "LINK_TEXT" }}
+      {{- if ne (len $parts) 2 }}{{ errorf "data/business.yaml contact_notice must contain LINK_TEXT exactly once" }}{{ end }}
+      <p class="contact-notice">{{ index $parts 0 }}<a href="{{ . }}" rel="noopener">{{ site.Data.business.contact_notice_link_text }}<span class="visually-hidden"> (external site)</span></a>{{ index $parts 1 }}</p>
+      {{- end }}
       {{- if $complete }}
       {{ "<!--email_off-->" | safeHTML }}<p class="contact-email">Email: {{ if site.Params.emailAsImage -}}
       {{- $img := resources.Get "contact/email-address.png" | fingerprint -}}
@@ -54,14 +62,6 @@
       <p class="pgp-fingerprint">PGP fingerprint: <code>{{ $c.pgp_fingerprint }}</code></p>
       <p class="pgp-key-link"><a href="{{ $c.pgp_url | relURL }}">PGP public key</a></p>
       {{- end }}
-      <div class="contact-postal-row">
-      <p class="contact-postal-label">Postal mail:</p>
-      <address class="contact-postal">{{ .Params.postalName }}<br>
-        {{- .Params.postalStreet }}<br>
-        {{- .Params.postalSuite }}<br>
-        {{- .Params.postalLocality -}}
-      </address>
-      </div>
     </section>
   </div>
 </article>
