@@ -51,6 +51,11 @@ LINK_TEXT = "Renegade Penguin LLC"
 JOB_TITLE = "Founder, Renegade Penguin LLC"
 LLMS_HEADING = "## Work with me"
 LLMS_NOTE = "My advisory firm provides hands-on security assessments, AI security reviews, and virtual CISO and CIO guidance."
+# The Contact page notice (owner-approved wording; LINK_TEXT is replaced by the link).
+CONTACT_NOTICE = ("If you're looking to hire me for consulting or advisory work, please head to LINK_TEXT "
+                  "so your request reaches Renegade Penguin LLC. This page and email address are for "
+                  "content, community, and personal messages.")
+CONTACT_LINK_TEXT = "renegadepenguinllc.com"
 CREDIT_TEXT = re.compile("^\N{COPYRIGHT SIGN} \\d{4} Renegade Penguin LLC \N{MIDDLE DOT} Powered by No PHP No Cry$")
 # The credit exactly as it ships today (minified), for the empty-param check.
 CREDIT_RAW = re.compile(
@@ -215,7 +220,7 @@ def check_extras(mode, base, root, pages):
     llms = read(f"{root}/llms.txt")
     person, errs = person_node(root)
     bad += errs
-    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html")):
+    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html"), ("contact", "contact/index.html")):
         m = re.search(r'<p class="?credit"?>(.*?)</p>', read(f"{root}/{rel}"), re.S)
         if not m:
             bad.append(f"{name}: no credit paragraph")
@@ -258,13 +263,44 @@ def check_extras(mode, base, root, pages):
     else:
         if LLMS_HEADING in llms or "renegadepenguin" in llms.lower():
             bad.append("llms.txt: a business reference is present while the param is empty")
+    bad += check_contact(mode, base, root, pages["contact"])
+    return bad
+
+
+def check_contact(mode, base, root, p):
+    """The Contact page notice: exact words, one link to the business home, before the email address."""
+    bad = []
+    raw = read(f"{root}/contact/index.html")
+    notes = [norm(t) for c, t in p.paras if "contact-notice" in c.split()]
+    links = [a for a in p.anchors if norm(a["text"]) == CONTACT_LINK_TEXT]
+    if raw.count("<!--email_off-->") != 1 or raw.count("<!--/email_off-->") != 1 or not re.search(
+            r"<!--email_off-->\s*<p class=\"?contact-email\"?>.*?mailto:.*?</p><!--/email_off-->", raw, re.S):
+        bad.append("contact: the email_off markers no longer wrap the address")
+    if mode == "set":
+        want = norm(CONTACT_NOTICE.replace("LINK_TEXT", CONTACT_LINK_TEXT))
+        if notes != [want]:
+            bad.append(f"contact: notice paragraphs are {notes!r}, want exactly [{want!r}]")
+        if len(links) != 1:
+            bad.append(f"contact: expected one link with text {CONTACT_LINK_TEXT!r}, found {len(links)}")
+        else:
+            if links[0]["href"] != base + "/":
+                bad.append(f"contact: notice link href {links[0]['href']!r} is not {base + '/'!r}")
+            if not noopener(links[0]):
+                bad.append("contact: notice link lacks rel=noopener")
+        i = raw.find("contact-notice")
+        j = raw.find("<!--email_off-->")
+        if i < 0 or j < 0 or i > j:
+            bad.append("contact: the notice must come before the email address")
+    else:
+        if notes or links or "contact-notice" in raw or "hire me for consulting" in raw:
+            bad.append("contact: notice or link present while the param is empty")
     return bad
 
 
 def main(argv):
     mode, base, root = argv[1], argv[2], argv[3]
     pages = {}
-    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html")):
+    for name, rel in (("home", "index.html"), ("about", "about/index.html"), ("resume", "resume/index.html"), ("posts", "posts/index.html"), ("contact", "contact/index.html")):
         pages[name] = parse(f"{root}/{rel}")
     bad = check_set(pages, base) if mode == "set" else check_empty(pages)
     bad += check_extras(mode, base, root, pages)
@@ -347,7 +383,7 @@ if [[ -d "$work/dev" ]]; then
         # $1 label, $2 sed expression applied to a copy of the dev build
         local d="$work/mut-$1" f
         cp -r "$work/dev" "$d"
-        for f in "$d/index.html" "$d/about/index.html" "$d/resume/index.html" "$d/posts/index.html" "$d/llms.txt"; do
+        for f in "$d/index.html" "$d/about/index.html" "$d/resume/index.html" "$d/posts/index.html" "$d/contact/index.html" "$d/llms.txt"; do
             sed -i -E "$2" "$f"
         done
         if python3 -I "$asserter" set "$base" "$d" >/dev/null 2>&1; then
@@ -364,6 +400,9 @@ if [[ -d "$work/dev" ]]; then
     mut credit-wrong-href 's#(<p class="?credit"?>[^<]*<a href="?)https://staging\.example/#\1https://staging.example/x/#g'
     mut worksfor-wrong-id 's#/\#organization"#/\#org"#g'
     mut no-jobtitle 's#"jobTitle":"[^"]*",?##g'
+    mut notice-edited-words 's#hire me for consulting#hire me for work#g'
+    mut notice-link-missing 's#(<p class="?lede contact-notice"?>[^<]*)<a href="?https://staging\.example/"? rel="?noopener"?>[^<]*<span[^>]*>[^<]*</span></a>#\1apex#g'
+    mut notice-other-host 's#(<p class="?lede contact-notice"?>[^<]*)<a href="?https://staging\.example/"?#\1<a href=https://evil.example/#g'
     mut no-llms-heading 's#^\#\# Work with me$#\#\# Other#'
     # The empty-mode guard must bite on a page that still shows the links.
     if python3 -I "$asserter" empty "" "$work/dev" >/dev/null 2>&1; then

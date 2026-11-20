@@ -18,6 +18,12 @@
     <h1>{{ .Title }}</h1>
   </div>
   <p class="lede contact-lede">{{ $t.intro }}</p>
+  {{- /* Issue 414: send hiring requests to the business site. Rendered only while params.businessSiteURL is set (valid https); nothing otherwise, so the page is unchanged. */ -}}
+  {{- with partial "business-url.html" "/" }}
+  {{- $parts := split site.Data.business.contact_notice "LINK_TEXT" }}
+  {{- if ne (len $parts) 2 }}{{ errorf "data/business.yaml contact_notice must contain LINK_TEXT exactly once" }}{{ end }}
+  <p class="lede contact-notice">{{ index $parts 0 }}<a href="{{ . }}" rel="noopener">{{ site.Data.business.contact_notice_link_text }}<span class="visually-hidden"> (external site)</span></a>{{ index $parts 1 }}</p>
+  {{- end }}
   <div class="contact-grid">
     <section class="panel contact-general" aria-labelledby="general">
       <h2 id="general" class="hud-heading">{{ $t.general_title }}</h2>
