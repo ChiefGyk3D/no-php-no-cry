@@ -76,8 +76,9 @@ jobs:
         env:
           HUGO_PARAMS_ENVIRONMENT: staging
           # Issue 407: the business-site crosslinks point at the business staging host
-          # on this dev build only. The owner changes it to https://renegadepenguinllc.com
-          # at the business site cutover (and sets params.businessSiteURL for production).
+          # on this dev build only. hugo.toml keeps params.businessSiteURL empty (a test
+          # requires it); the PRIVATE production pipeline sets HUGO_PARAMS_BUSINESSSITEURL
+          # to https://renegadepenguinllc.com in its own build.
           HUGO_PARAMS_BUSINESSSITEURL: https://staging.renegadepenguinllc.com
         run: |
           python3 -I scripts/build-outbound-domains.py
