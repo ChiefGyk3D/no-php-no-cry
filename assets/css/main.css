@@ -352,6 +352,20 @@ a:focus-visible {
   }
 }
 
+/* Issue 416: from 64rem to the next --page-max step (80rem) the header column is
+ * 60rem wide and eleven links (Contact, and Work with me when the business URL is
+ * set) plus the wordmark no longer fit on one row at the 8px link gap; drop the gap
+ * (the links keep their own 8px side padding and the 44px height) so the header stays one row. */
+@media (min-width: 64rem) and (max-width: 79.99rem) {
+  .nav-menu ul {
+    gap: 0;
+  }
+
+  .nav-menu li a {
+    padding: 0 0.25rem;
+  }
+}
+
 /* Current page: aria-current="page" on a header link gets an amber underline. */
 .nav-menu li a[aria-current="page"] {
   text-decoration: underline;
