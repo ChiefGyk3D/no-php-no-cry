@@ -27,6 +27,26 @@ from html.parser import HTMLParser
 NAME = "ChiefGyk3D"
 FORBIDDEN = {"givenName", "familyName", "additionalName", "worksFor", "jobTitle",
              "affiliation", "email", "telephone", "address", "birthDate", "alumniOf"}
+# Issue 414 (owner decision): the one business reference a Person may carry, emitted only while
+# params.businessSiteURL is set: the exact jobTitle and a worksFor Organization with an https @id ending
+# /#organization, the name Renegade Penguin LLC and an https url, nothing else. Any other value of
+# either key stays forbidden.
+BIZ_JOB = "Founder, Renegade Penguin LLC"
+BIZ_ORG = "Renegade Penguin LLC"
+
+
+def business_ok(key, value, parent):
+    if parent.get("@type") != "Person":
+        return False
+    if key == "jobTitle":
+        return value == BIZ_JOB
+    if key == "worksFor":
+        return (isinstance(value, dict) and set(value) == {"@type", "@id", "name", "url"}
+                and value["@type"] == "Organization" and value["name"] == BIZ_ORG
+                and isinstance(value["@id"], str) and value["@id"].startswith("https://")
+                and value["@id"].endswith("/#organization")
+                and isinstance(value["url"], str) and value["url"].startswith("https://"))
+    return False
 
 
 class Page(HTMLParser):
@@ -71,7 +91,7 @@ def parse(path):
 def walk(x, bad):
     if isinstance(x, dict):
         for k, v in x.items():
-            if k in FORBIDDEN:
+            if k in FORBIDDEN and not business_ok(k, v, x):
                 bad.add("forbidden key")
             if k == "sameAs":
                 urls = v if isinstance(v, list) else [v]
