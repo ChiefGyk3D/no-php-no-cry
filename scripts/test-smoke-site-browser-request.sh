@@ -68,6 +68,16 @@ precursor_case() {
 }
 
 precursor_case "the observed Precursor snippet, once per page, is allowed" one pass
+precursor_case "another valid 10 digit time in t is allowed" t-other-time pass
+precursor_case "a t of ten zero bytes is rejected" t-zero-bytes "script-not-allowed: /"
+precursor_case "a t of ten letters is rejected" t-letters "script-not-allowed: /"
+precursor_case "a t with a non-ASCII byte is rejected" t-non-ascii "script-not-allowed: /"
+precursor_case "a t of nine digits and a letter is rejected" t-nine-digits-letter "script-not-allowed: /"
+precursor_case "a t of ten bytes with a leading space is rejected" t-leading-space "script-not-allowed: /"
+precursor_case "a t of nine digits is rejected" t-nine-digits "script-not-allowed: /"
+precursor_case "a t of eleven digits is rejected" t-eleven-digits "script-not-allowed: /"
+precursor_case "a t with invalid padding is rejected" t-bad-padding "script-not-allowed: /"
+precursor_case "a t with characters outside the base64 alphabet is rejected" t-bad-alphabet "script-not-allowed: /"
 precursor_case "the Precursor snippet twice is rejected" two "script-count: /"
 precursor_case "the Precursor snippet with code appended is rejected" appended "script-not-allowed: /"
 precursor_case "the Precursor snippet with code before it is rejected" prefixed "script-not-allowed: /"

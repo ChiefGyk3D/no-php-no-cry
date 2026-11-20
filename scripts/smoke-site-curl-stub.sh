@@ -86,6 +86,8 @@ if [[ -n "${CURL_STUB_PRECURSOR:-}" && "$status" == 200 && "$content_type" == te
     pre_c=$'\',s=document.createElement(\'script\');s.src=o?new URL(u,o).href:u;document.head.appendChild(s);})();'
     pre_path=/cdn-cgi/challenge-platform/scripts/precursor/main.js
     pre_query="?ray=${ray}"
+    # t is base64 of a 10 digit Unix time (1795176687); the t-* modes swap it.
+    pre_t=MTc5NTE3NjY4Nw==
     pre_open="<script>"
     pre_before="" pre_after="" pre_repeat=1
     case "$CURL_STUB_PRECURSOR" in
@@ -103,6 +105,16 @@ if [[ -n "${CURL_STUB_PRECURSOR:-}" && "$status" == 200 && "$content_type" == te
         attr-nonce) pre_open="<script nonce=abc>" ;;
         attr-defer) pre_open="<script defer>" ;;
         trailing-space) pre_after=" " ;;
+        t-zero-bytes) pre_t=AAAAAAAAAAAAAA== ;;
+        t-letters) pre_t=YWJjZGVmZ2hpag== ;;
+        t-non-ascii) pre_t=MTc5NTE4NTU2ww== ;;
+        t-nine-digits-letter) pre_t=MTc5NTE4NTU2YQ== ;;
+        t-leading-space) pre_t=IDE3OTUxODU1Ng== ;;
+        t-nine-digits) pre_t=MTc5NTE4NTU2 ;;
+        t-eleven-digits) pre_t=MTc5NTE4NTU2NzA= ;;
+        t-bad-padding) pre_t=MTc5NTE3NjY4Nw= ;;
+        t-bad-alphabet) pre_t='MTc5NTE3NjY4Nw!!' ;;
+        t-other-time) pre_t=MTc5NTE4NTU2OA== ;;
         self-closing-comment)
             pre_open="<script/>"
             pre_before=$'<!--\nalert(1)\n-->'
@@ -115,7 +127,7 @@ if [[ -n "${CURL_STUB_PRECURSOR:-}" && "$status" == 200 && "$content_type" == te
         cdata-in-body) pre_before="<![CDATA[" ;;
         alert) pre_before="alert(1)" pre_a="" pre_b="" pre_c="" pre_path="" pre_query="" ray="" ;;
     esac
-    pre="${pre_open}${pre_before}${pre_a}${ray}${pre_b}${pre_path}${pre_query}${pre_c}${pre_after}</script>"
+    pre="${pre_open}${pre_before}${pre_a}${ray}${pre_b/MTc5NTE3NjY4Nw==/${pre_t}}${pre_path}${pre_query}${pre_c}${pre_after}</script>"
     for ((i = 0; i < pre_repeat; i++)); do
         body="${body}${pre}"
     done

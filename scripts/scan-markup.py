@@ -51,6 +51,7 @@ mailto: link to exactly that address, from email-shaped-text. The caller passes 
 only for the page that publishes the owner-approved business address (About);
 any other address on that page, or on any other page, is still a finding.
 """
+import base64
 import json
 import re
 import sys
@@ -107,7 +108,7 @@ def share_mailto_ok(v):
 # whitespace, statement or URL may be added before, inside or after it.
 PRECURSOR_BODY = re.compile(
     r"window\.__CF\$cv\$params=\{r:'(?P<ray>[0-9a-f]{16})'"
-    r",t:'[A-Za-z0-9+/]{14}=='"
+    r",t:'(?P<t>[A-Za-z0-9+/]{14}==)'"
     r",u:'[0-9a-f]{32}'"
     r",ut:'[A-Za-z0-9._-]{40,300}'"
     r",i:[0-9]{1,4}\};"
@@ -124,7 +125,15 @@ PRECURSOR_BODY = re.compile(
 
 def precursor_body_ok(body):
     m = PRECURSOR_BODY.fullmatch(body)
-    return bool(m) and m.group("ray") == m.group("loader")
+    if not m or m.group("ray") != m.group("loader"):
+        return False
+    # t is the base64 of a 10 digit Unix time (observed: MTc5NTE4NTU2Nw== is
+    # 1795185567); strict decoding, ASCII digits only.
+    try:
+        decoded = base64.b64decode(m.group("t"), validate=True)
+    except ValueError:
+        return False
+    return re.fullmatch(rb"[0-9]{10}", decoded) is not None
 
 
 BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")
