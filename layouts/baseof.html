@@ -83,8 +83,9 @@
         <p class="footer-line">You're not dead until you stop learning. Happy Hacking.</p>
         {{- /* Issue 407: the business-site footer line; the link text sits inside the sentence. Nothing renders while params.businessSiteURL is empty. */}}
         {{- with partial "business-url.html" "/" }}
-        {{- $link := printf `<a href="%s" rel="noopener">%s<span class="visually-hidden"> (external site)</span></a>` . site.Data.business.link_text }}
-        <p class="footer-line footer-business">{{ replace site.Data.business.footer_line site.Data.business.link_text $link | safeHTML }}</p>
+        {{- $parts := split site.Data.business.footer_line site.Data.business.link_text }}
+        {{- if ne (len $parts) 2 }}{{ errorf "data/business.yaml footer_line must contain link_text exactly once" }}{{ end }}
+        <p class="footer-line footer-business">{{ index $parts 0 }}<a href="{{ . }}" rel="noopener">{{ site.Data.business.link_text }}<span class="visually-hidden"> (external site)</span></a>{{ index $parts 1 }}</p>
         {{- end }}
         {{- with $live }}
         <nav class="footer-social" aria-label="Social profiles">

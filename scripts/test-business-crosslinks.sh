@@ -205,6 +205,32 @@ if build prod ""; then
     if python3 -I "$asserter" empty "" "$work/prod"; then pass "empty param renders none of the four placements and no empty anchor"; else fail "empty-param build shows a crosslink"; fi
 fi
 
+# A hostile or malformed value must fail the build, never render as markup.
+hostile=(
+    'https://x.example/" onmouseover="alert(1)'
+    "https://x.example/' onmouseover='alert(1)"
+    'https://x.example/><script>alert(1)</script>'
+    'https://x.example/ space'
+    'https://x.example/\evil'
+    'https://x.example/<b>'
+    'http://staging.example'
+    'javascript:alert(1)'
+)
+for i in "${!hostile[@]}"; do
+    if HUGO_PARAMS_BUSINESSSITEURL="${hostile[$i]}" hugo --minify --gc --destination "$work/hostile-$i" --cacheDir "$work/cache" >"$work/hostile-$i.log" 2>&1; then
+        fail "hostile value $i built: ${hostile[$i]}"
+    elif grep -q 'businessSiteURL' "$work/hostile-$i.log"; then
+        pass "hostile value $i fails the build naming businessSiteURL"
+    else
+        fail "hostile value $i failed the build for another reason (see $work/hostile-$i.log)"
+        cat "$work/hostile-$i.log"
+    fi
+done
+# A valid value with a port and a path still builds and renders under the same assertions.
+if build ok-path "https://staging.example:8443/base"; then
+    if python3 -I "$asserter" set "https://staging.example:8443/base" "$work/ok-path"; then pass "a valid value with a port and a path renders exactly"; else fail "valid value with a port and a path"; fi
+fi
+
 # hugo.toml itself ships the param empty (production shows nothing until opted in).
 if grep -Eq '^[[:space:]]*businessSiteURL[[:space:]]*=[[:space:]]*""[[:space:]]*(#.*)?$' "$root/hugo.toml"; then
     pass "hugo.toml ships params.businessSiteURL empty"
