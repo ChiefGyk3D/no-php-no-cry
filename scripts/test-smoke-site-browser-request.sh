@@ -49,5 +49,39 @@ run_case "a beacon with credentialed CORS is rejected" bad-crossorigin "script-n
 run_case "a module beacon with an unknown attribute is rejected" extra-attribute "script-not-allowed: /"
 run_case "a module beacon with an inline body is rejected" inline-body "script-not-allowed: /"
 
+# Cloudflare Precursor: the edge injects one inline script into every HTML page
+# (observed 2026-11-20, issue 410). Exactly that shape is allowed, once per page;
+# anything near it is not. The stub adds the variant to every HTML page, and a
+# page that is not the home page has no beacon requirement.
+precursor_case() {
+    local label="$1" mode="$2" want="$3" out rc=0
+    out="$(PATH="$work/bin:$PATH" CURL_STUB_CSP="$csp" CURL_STUB_BEACON=one CURL_STUB_PRECURSOR="$mode" SMOKE_ALLOW_HTTP=1 SMOKE_RETRIES=0 "$smoke" https://test-blog.chiefgyk3d.com "$pub" 2>&1)" || rc=$?
+    if [[ "$want" == pass && $rc -eq 0 ]]; then
+        echo "ok: $label"
+    elif [[ "$want" != pass && $rc -eq 1 && "$out" == *"$want"* ]]; then
+        echo "ok: $label"
+    else
+        echo "FAIL: $label (exit $rc, wanted $want)"
+        echo "$out"
+        failures=$((failures + 1))
+    fi
+}
+
+precursor_case "the observed Precursor snippet, once per page, is allowed" one pass
+precursor_case "the Precursor snippet twice is rejected" two "script-count: /"
+precursor_case "the Precursor snippet with code appended is rejected" appended "script-not-allowed: /"
+precursor_case "the Precursor snippet with code before it is rejected" prefixed "script-not-allowed: /"
+precursor_case "a different Precursor loader path is rejected" wrong-path "script-not-allowed: /"
+precursor_case "a Precursor loader on another host is rejected" wrong-host "script-not-allowed: /"
+precursor_case "a loader ray that differs from the params ray is rejected" wrong-ray "script-not-allowed: /"
+precursor_case "a loader without a ray is rejected" no-ray "script-not-allowed: /"
+precursor_case "a loader with an extra query is rejected" extra-query "script-not-allowed: /"
+precursor_case "the snippet with a type attribute is rejected" attr-type "script-not-allowed: /"
+precursor_case "the snippet with a src attribute is rejected" attr-src "script-not-allowed: /"
+precursor_case "the snippet with a nonce attribute is rejected" attr-nonce "script-not-allowed: /"
+precursor_case "the snippet with a defer attribute is rejected" attr-defer "script-not-allowed: /"
+precursor_case "the snippet with trailing whitespace is rejected" trailing-space "script-not-allowed: /"
+precursor_case "a plain inline script is still rejected" alert "script-not-allowed: /"
+
 ((failures == 0)) || exit 1
 echo "all browser-request smoke checks passed"

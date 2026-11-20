@@ -46,6 +46,9 @@
 #                 Cloudflare injects it only for browser-like requests, as
 #                 measured on 2026-11-10, so only this request sends fixed
 #                 Firefox desktop and HTML Accept headers.
+#                 One exception, here only (not in scripts/check-output.sh): the
+#                 edge-injected Cloudflare Precursor script, at most once per HTML
+#                 page, in its exact shape (see PRECURSOR_BODY in scan-markup.py).
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
 # category page, the feeds (/index.xml and /feed/index.xml) and the 404 page (asked for as
@@ -305,6 +308,10 @@ check_page() {
             opts=(--scripts pinned --known "$known_csv" --allow "$allow")
         fi
         [[ "$path" == *.xml ]] && opts=(--markup)
+        # The edge injects one Cloudflare Precursor script into HTML pages
+        # (issue 410); only this served-page check allows it, once, in its exact
+        # shape. scripts/check-output.sh does not, and still refuses it.
+        [[ "$path" == *.xml ]] || opts+=(--cloudflare-precursor)
         [[ "$path" == / ]] && opts+=(--cloudflare-beacon)
         if [[ "$path" == /about/ ]]; then
             about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"

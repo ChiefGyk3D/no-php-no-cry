@@ -1,6 +1,6 @@
 """Reads a page, svg or xml file the way a browser reads its tags.
 
-Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] [--cloudflare-beacon] <site-host> <file>
+Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] [--cloudflare-beacon] [--cloudflare-precursor] <site-host> <file>
 
 Prints one rule name per line, never page content. Attributes are read from real
 attributes by a quote-aware parser (a ">" or "=" inside a quoted value is just
@@ -26,6 +26,11 @@ A <script type="application/ld+json"> data block (that one attribute, nothing
 else) is not a script in either mode: a browser never runs it and script-src
 does not apply. Its body is judged by scripts/check-seo.py. In --markup mode
 every script element is still refused.
+--cloudflare-precursor (HTML only, used by the smoke test on served pages, never by
+the build check) also permits, at most once per page, the one inline script
+Cloudflare Precursor injects at the edge: a script element with no attribute
+whose whole body fullmatches PRECURSOR_BODY below. A second one is script-count;
+any other body, or any attribute, is script-not-allowed as before.
 --cloudflare-beacon requires exactly one Cloudflare Web Analytics tag with a
 versioned Insights URL and a nonempty public token. It permits only that remote
 script; every other script rule remains active.
@@ -80,14 +85,47 @@ def share_mailto_ok(v):
     return bool(m) and not any(re.search(r"[^\s@]+@[^\s@]+", unquote(g, errors="replace")) for g in m.groups())
 
 
+# The inline script Cloudflare Precursor injects at the edge (observed
+# 2026-11-20, issue 410): window.__CF$cv$params={...} then a loader that appends
+# <script src=/cdn-cgi/challenge-platform/scripts/precursor/main.js?ray=RAY>.
+# The whole body must match this one shape, byte for byte apart from the
+# per-request values, which are matched by character class and length: the ray
+# (16 lowercase hex, the same in params and loader), t (base64 of a 10 digit
+# timestamp), u (32 hex), ut (token characters) and i (a small integer). No
+# whitespace, statement or URL may be added before, inside or after it.
+PRECURSOR_BODY = re.compile(
+    r"window\.__CF\$cv\$params=\{r:'(?P<ray>[0-9a-f]{16})'"
+    r",t:'[A-Za-z0-9+/]{14}=='"
+    r",u:'[0-9a-f]{32}'"
+    r",ut:'[A-Za-z0-9._-]{40,300}'"
+    r",i:[0-9]{1,4}\};"
+    r"\(function\(\)\{if\(!document\.body\)return;"
+    r"var l=window\.location,o;"
+    r"try\{o=new URL\(l\.origin\)\.origin\}"
+    r"catch\(e\)\{try\{o=new URL\(new URL\(l\.href\)\.origin\)\.origin\}catch\(e\)\{o=''\}\}"
+    r"var u='/cdn-cgi/challenge-platform/scripts/precursor/main\.js\?ray=(?P<loader>[0-9a-f]{16})',"
+    r"s=document\.createElement\('script'\);"
+    r"s\.src=o\?new URL\(u,o\)\.href:u;"
+    r"document\.head\.appendChild\(s\);\}\)\(\);"
+)
+
+
+def precursor_body_ok(body):
+    m = PRECURSOR_BODY.fullmatch(body)
+    return bool(m) and m.group("ray") == m.group("loader")
+
+
 class Scan(HTMLParser):
-    def __init__(self, host, markup, scripts, known=(), allow="", allow_email="", cloudflare_beacon=False):
+    def __init__(self, host, markup, scripts, known=(), allow="", allow_email="", cloudflare_beacon=False, precursor=False):
         super().__init__(convert_charrefs=True)
         self.allow_email = allow_email.lower()
         self.host, self.markup, self.scripts = host, markup, scripts
         self.known, self.allow = set(known), allow
         self.cloudflare_beacon = cloudflare_beacon
         self.cloudflare_beacons = 0
+        self.precursor = precursor
+        self.precursors = 0
+        self.precursor_body = None  # the text of an open candidate script, else None
         self.found = set()
         self.pinned_tags = 0
         self.in_script = False
@@ -97,6 +135,9 @@ class Scan(HTMLParser):
         self.handle_starttag(tag, attrs)
 
     def handle_data(self, data):
+        if self.precursor_body is not None:
+            self.precursor_body.append(data)
+            return
         if self.allow_email:
             data = re.sub(re.escape(self.allow_email), "", data, flags=re.I)
         if not self.markup and not self.in_script and not self.in_style and EMAIL.search(data):
@@ -107,6 +148,15 @@ class Scan(HTMLParser):
     def handle_endtag(self, tag):
         if tag.lower() == "script":
             self.in_script = False
+            if self.precursor_body is not None:
+                body = "".join(self.precursor_body)
+                self.precursor_body = None
+                if not precursor_body_ok(body):
+                    self.found.add("script-not-allowed")
+                else:
+                    self.precursors += 1
+                    if self.precursors > 1:
+                        self.found.add("script-count")
         if tag.lower() == "style":
             self.in_style = False
 
@@ -141,6 +191,10 @@ class Scan(HTMLParser):
                 self.in_script = True
                 if self.cloudflare_beacons > 1:
                     self.found.add("script-count")
+            elif self.precursor and not self.markup and not attrs:
+                # A bare <script> with no attribute at all is a candidate for
+                # the Precursor snippet; its body is judged at </script>.
+                self.precursor_body = []
             elif not self.markup and [(n.lower(), clean(v).lower()) for n, v in attrs] == [("type", "application/ld+json")]:
                 # A JSON-LD data block: never run, not subject to script-src.
                 # Its body is judged by scripts/check-seo.py.
@@ -191,11 +245,14 @@ class Scan(HTMLParser):
 
 def main(argv):
     markup, scripts, known, allow, allow_email, cloudflare_beacon = False, "", [], "", "", False
+    precursor = False
     args = list(argv)
     while args and args[0].startswith("--"):
         opt = args.pop(0)
         if opt == "--markup":
             markup = True
+        elif opt == "--cloudflare-precursor":
+            precursor = True
         elif opt == "--cloudflare-beacon":
             cloudflare_beacon = True
         elif opt == "--scripts" and args:
@@ -213,13 +270,16 @@ def main(argv):
     if cloudflare_beacon and not scripts:
         scripts = "none"
     host, path = args[0].lower(), args[1]
-    scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon)
+    scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon, precursor)
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             scan.feed(f.read())
         scan.close()
     except Exception:
         scan.found.add("unparseable-html")
+    if scan.precursor_body is not None:
+        # A candidate script that never closed is not the exact snippet.
+        scan.found.add("script-not-allowed")
     if cloudflare_beacon and scan.cloudflare_beacons == 0:
         scan.found.add("missing-beacon")
     for rule in sorted(scan.found):
