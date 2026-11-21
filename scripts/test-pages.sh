@@ -698,7 +698,7 @@ if __name__ == "__main__":
             errs.append("footer social icon row missing")
         hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", foot, re.S)
         names = [norm(t) for _, t in hrefs]
-        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Socials", "Support", "No PHP No Cry (external site)"]:
+        if names != ["About", "Privacy", "Resume", "RSS", "Socials", "Support", "No PHP No Cry (external site)"]:
             errs.append("footer links are %r" % names)
         targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
         if not targets.get("Socials", "").endswith("/social/"):
@@ -1642,6 +1642,59 @@ if [[ "$(nav_first "$pub/support/index.html")" == "Home" ]]; then
 else
     fail "the first nav item on /support/ is '$(nav_first "$pub/support/index.html")', expected 'Home'"
 fi
+# Contact sits in the header nav (issue 416), right after About and before the business
+# link (Work with me, only when params.businessSiteURL is set), once, and not in the footer.
+nav_contact_check() { # <html> [business] -> problems, one per line (empty when right)
+    python3 -I - "$1" "${2:-}" <<'PY'
+import html, re, sys
+h = open(sys.argv[1], encoding="utf-8").read()
+business = sys.argv[2] == "business"
+nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
+nav = nav.group(0) if nav else ""
+links = [(m.group(1).strip('"'), html.unescape(re.sub(r"<[^>]+>", "", m.group(2))).strip())
+         for m in re.finditer(r"<a\b[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", nav, re.S)]
+names = [n for _, n in links]
+if names.count("Contact") != 1:
+    print("header nav has Contact %d times, not once" % names.count("Contact"))
+else:
+    i = names.index("Contact")
+    if not links[i][0].endswith("/contact/"):
+        print("header Contact does not point at /contact/")
+    if names[i - 1] != "About":
+        print("header Contact does not follow About (%r)" % names)
+    want = "Work with me" if business else "Search"
+    if i + 1 >= len(names) or not names[i + 1].startswith(want):
+        print("header Contact is not followed by %s (%r)" % (want, names))
+fm = re.search(r"<footer.*?</footer>", h, re.S)
+if fm and re.search(r"<a[^>]*href=\"?[^\s>\"]*/contact/", fm.group(0)):
+    print("footer still links /contact/")
+PY
+}
+if [[ -z "$(nav_contact_check "$pub/index.html")" ]]; then
+    pass "header nav has Contact once, after About, before Search; footer has none"
+else
+    fail "header Contact: $(nav_contact_check "$pub/index.html")"
+fi
+# Negative fixtures: each break must be reported.
+nc="$work/nav-contact"
+mkdir -p "$nc"
+nav_mut() { # <name> <python expr on s>
+    python3 -I - "$pub/index.html" "$nc/$1.html" "$2" <<'PY'
+import sys
+s = open(sys.argv[1], encoding="utf-8").read()
+s = eval(sys.argv[3], {"s": s})
+open(sys.argv[2], "w", encoding="utf-8").write(s)
+PY
+    if [[ -n "$(nav_contact_check "$nc/$1.html")" ]]; then
+        pass "guard: $1 is rejected"
+    else
+        fail "guard: $1 was not rejected"
+    fi
+}
+nav_mut contact-missing-from-header 's.replace("<li><a href=/contact/>Contact</a></li>", "", 1)'
+nav_mut contact-in-footer 's.replace("<li><a href=/privacy/>Privacy</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/privacy/>Privacy</a></li>", 1)'
+nav_mut contact-before-about 's.replace("<li><a href=/about/>About</a></li><li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/about/>About</a></li>", 1)'
+nav_mut contact-twice-in-header 's.replace("<li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/contact/>Contact</a></li>", 1)'
 if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
     pass "stylesheet styles [aria-current]"
 else
@@ -1654,7 +1707,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC <span aria-hidden=true>&middot;</span> Powered by <a href=https://github.com/ChiefGyk3D/no-php-no-cry rel=noopener>No PHP No Cry<span class=visually-hidden> (external site)</span></a></p></footer>'
+good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC <span aria-hidden=true>&middot;</span> Powered by <a href=https://github.com/ChiefGyk3D/no-php-no-cry rel=noopener>No PHP No Cry<span class=visually-hidden> (external site)</span></a></p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"

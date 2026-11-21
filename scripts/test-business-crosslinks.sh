@@ -6,7 +6,7 @@
 # HUGO_PARAMS_BUSINESSSITEURL. This builds the site both ways into the
 # repository's gitignored tmp/ (never /tmp) and asserts, with Python's stdlib
 # HTML parser:
-#   set:   the nav item (after About), the About block, the Resume block and the
+#   set:   the nav item (after Contact), the About block, the Resume block and the
 #          footer line all appear with the exact approved text, every link
 #          equals the param plus its path, and carries rel="noopener".
 #   empty: none of the four appears and the page holds no empty anchor.
@@ -153,8 +153,13 @@ def check_set(pages, base):
             if not noopener(nav[0]):
                 bad.append(f"{name}: nav link lacks rel=noopener")
         labels = p.navlinks
-        if NAV_LABEL not in labels or "About" not in labels or labels.index(NAV_LABEL) != labels.index("About") + 1:
-            bad.append(f"{name}: nav item does not follow About ({labels})")
+        if NAV_LABEL not in labels or "Contact" not in labels or labels.index(NAV_LABEL) != labels.index("Contact") + 1:
+            bad.append(f"{name}: nav item does not follow Contact ({labels})")
+        if "About" not in labels or "Contact" not in labels or labels.index("Contact") != labels.index("About") + 1:
+            bad.append(f"{name}: Contact does not follow About in the nav ({labels})")
+        want = ["Home", "Posts", "Gear & tools", "Socials", "Support", "About", "Contact", NAV_LABEL, "Search", "Shop"]
+        if [x for x in labels if x != "Journal"] != want:
+            bad.append(f"{name}: nav order is not {want} (Journal aside): {labels}")
         foot = [t for c, t in p.paras if norm(t) == FOOTER_LINE]
         if len(foot) != 1:
             bad.append(f"{name}: expected one footer line {FOOTER_LINE!r}, found {len(foot)}")
@@ -394,6 +399,7 @@ if [[ -d "$work/dev" ]]; then
     }
     mut wrong-url 's#href="?https://staging\.example/contact/"?#href=https://staging.example/other/#g'
     mut no-noopener 's# rel="?noopener"?##g'
+    mut no-contact-nav 's#<li><a href="?/contact/"?>Contact</a></li>##g'
     mut wrong-text 's#Work with me#Hire me#g'
     mut empty-anchor 's#<a href="?https://staging\.example/"?#<a href=""#g'
     mut credit-no-me 's#rel="me noopener"#rel=noopener#g'
