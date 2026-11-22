@@ -1642,13 +1642,13 @@ if [[ "$(nav_first "$pub/support/index.html")" == "Home" ]]; then
 else
     fail "the first nav item on /support/ is '$(nav_first "$pub/support/index.html")', expected 'Home'"
 fi
-# Contact sits in the header nav (issue 416), right after About and before the business
-# link (Work with me, only when params.businessSiteURL is set), once, and not in the footer.
-nav_contact_check() { # <html> [business] -> problems, one per line (empty when right)
-    python3 -I - "$1" "${2:-}" <<'PY'
+# Contact sits in the header nav (issue 416), right after About and before Search, once, and
+# not in the footer. The header nav holds no link to the business site (issue 422), whether or
+# not params.businessSiteURL is set.
+nav_contact_check() { # <html> -> problems, one per line (empty when right)
+    python3 -I - "$1" <<'PY'
 import html, re, sys
 h = open(sys.argv[1], encoding="utf-8").read()
-business = sys.argv[2] == "business"
 nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
 nav = nav.group(0) if nav else ""
 links = [(m.group(1).strip('"'), html.unescape(re.sub(r"<[^>]+>", "", m.group(2))).strip())
@@ -1662,9 +1662,11 @@ else:
         print("header Contact does not point at /contact/")
     if names[i - 1] != "About":
         print("header Contact does not follow About (%r)" % names)
-    want = "Work with me" if business else "Search"
-    if i + 1 >= len(names) or not names[i + 1].startswith(want):
-        print("header Contact is not followed by %s (%r)" % (want, names))
+    if i + 1 >= len(names) or names[i + 1] != "Search":
+        print("header Contact is not followed by Search (%r)" % names)
+for href, name in links:
+    if "renegadepenguinllc.com" in href or "staging.example" in href or name.startswith("Work with me"):
+        print("header nav links to the business site: %s (%s)" % (href, name))
 fm = re.search(r"<footer.*?</footer>", h, re.S)
 if fm and re.search(r"<a[^>]*href=\"?[^\s>\"]*/contact/", fm.group(0)):
     print("footer still links /contact/")
@@ -1694,6 +1696,8 @@ PY
 nav_mut contact-missing-from-header 's.replace("<li><a href=/contact/>Contact</a></li>", "", 1)'
 nav_mut contact-in-footer 's.replace("<li><a href=/privacy/>Privacy</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/privacy/>Privacy</a></li>", 1)'
 nav_mut contact-before-about 's.replace("<li><a href=/about/>About</a></li><li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/about/>About</a></li>", 1)'
+nav_mut work-with-me-returns 's.replace("<li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=https://renegadepenguinllc.com/contact/ rel=noopener>Work with me</a></li>", 1)'
+nav_mut business-link-under-another-label 's.replace("<li><a href=/search/>Search</a></li>", "<li><a href=https://renegadepenguinllc.com/ rel=noopener>Search</a></li>", 1)'
 nav_mut contact-twice-in-header 's.replace("<li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/contact/>Contact</a></li>", 1)'
 if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
     pass "stylesheet styles [aria-current]"

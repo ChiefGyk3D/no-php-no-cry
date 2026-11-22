@@ -6,7 +6,7 @@
 # HUGO_PARAMS_BUSINESSSITEURL. This builds the site both ways into the
 # repository's gitignored tmp/ (never /tmp) and asserts, with Python's stdlib
 # HTML parser:
-#   set:   the nav item (after Contact), the About block, the Resume block and the
+#   set:   the header nav is unchanged (no business item), the About block, the Resume block and the
 #          footer line all appear with the exact approved text, every link
 #          equals the param plus its path, and carries rel="noopener".
 #   empty: none of the four appears and the page holds no empty anchor.
@@ -139,27 +139,27 @@ def empty_anchors(name, p):
     return [f"{name}: empty anchor {a!r}" for a in p.anchors if not (a["href"] or "").strip() or not (a["text"].strip() or a["label"].strip())]
 
 
+def check_nav(name, p, base):
+    """The header nav is the same with the param set or empty: no business item, Contact after About."""
+    bad = []
+    labels = p.navlinks
+    if "About" not in labels or "Contact" not in labels or labels.index("Contact") != labels.index("About") + 1:
+        bad.append(f"{name}: Contact does not follow About in the nav ({labels})")
+    want = ["Home", "Posts", "Gear & tools", "Socials", "Support", "About", "Contact", "Search", "Shop"]
+    if [x for x in labels if x != "Journal"] != want:
+        bad.append(f"{name}: nav order is not {want} (Journal aside): {labels}")
+    for a in p.anchors:
+        if a["nav"] and (a["text"].strip() == NAV_LABEL or (base and (a["href"] or "").startswith(base))):
+            bad.append(f"{name}: the header nav links to the business site: {a['href']!r} ({a['text'].strip()!r})")
+    return bad
+
+
 def check_set(pages, base):
     bad = []
     contact = base + "/contact/"
     home = base + "/"
     for name, p in pages.items():
-        nav = [a for a in p.anchors if a["nav"] and a["text"].strip() == NAV_LABEL]
-        if len(nav) != 1:
-            bad.append(f"{name}: expected one nav item {NAV_LABEL!r}, found {len(nav)}")
-        else:
-            if nav[0]["href"] != contact:
-                bad.append(f"{name}: nav href {nav[0]['href']!r} is not {contact!r}")
-            if not noopener(nav[0]):
-                bad.append(f"{name}: nav link lacks rel=noopener")
-        labels = p.navlinks
-        if NAV_LABEL not in labels or "Contact" not in labels or labels.index(NAV_LABEL) != labels.index("Contact") + 1:
-            bad.append(f"{name}: nav item does not follow Contact ({labels})")
-        if "About" not in labels or "Contact" not in labels or labels.index("Contact") != labels.index("About") + 1:
-            bad.append(f"{name}: Contact does not follow About in the nav ({labels})")
-        want = ["Home", "Posts", "Gear & tools", "Socials", "Support", "About", "Contact", NAV_LABEL, "Search", "Shop"]
-        if [x for x in labels if x != "Journal"] != want:
-            bad.append(f"{name}: nav order is not {want} (Journal aside): {labels}")
+        bad += check_nav(name, p, base)
         foot = [t for c, t in p.paras if norm(t) == FOOTER_LINE]
         if len(foot) != 1:
             bad.append(f"{name}: expected one footer line {FOOTER_LINE!r}, found {len(foot)}")
@@ -186,6 +186,7 @@ def check_empty(pages):
     bad = []
     for name, p in pages.items():
         bad += empty_anchors(name, p)
+        bad += check_nav(name, p, "")
         for a in p.anchors:
             if "renegadepenguinllc.com" in (a["href"] or "") or "staging.example" in (a["href"] or ""):
                 bad.append(f"{name}: business link present while the param is empty: {a['href']!r}")
@@ -401,6 +402,8 @@ if [[ -d "$work/dev" ]]; then
     mut no-noopener 's# rel="?noopener"?##g'
     mut no-contact-nav 's#<li><a href="?/contact/"?>Contact</a></li>##g'
     mut wrong-text 's#Work with me#Hire me#g'
+    mut nav-work-with-me-returns 's#(<li><a href="?/contact/"?>Contact</a></li>)#\1<li><a href=https://staging.example/contact/ rel=noopener>Work with me<span class=visually-hidden> (external site)</span></a></li>#g'
+    mut nav-business-link-other-label 's#<li><a href="?/search/"?>Search</a></li>#<li><a href=https://staging.example/ rel=noopener>Search</a></li>#g'
     mut empty-anchor 's#<a href="?https://staging\.example/"?#<a href=""#g'
     mut credit-no-me 's#rel="me noopener"#rel=noopener#g'
     mut credit-wrong-href 's#(<p class="?credit"?>[^<]*<a href="?)https://staging\.example/#\1https://staging.example/x/#g'
