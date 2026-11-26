@@ -1,7 +1,7 @@
 ---
 title: "What the Link-Priority Manager Had to Prove"
 date: 2026-11-25T14:30:00-05:00
-draft: true
+draft: false
 description: "A network repair exposed mistakes in the proposed fix, the test fakes and the standard used to call something ready. The useful result came from testing the real failure path."
 slug: "link-priority-manager-and-network-repair"
 categories: ["Journal"]

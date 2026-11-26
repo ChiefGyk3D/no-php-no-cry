@@ -1,7 +1,7 @@
 ---
 title: "A Cell Modem the VPN Kept Choosing"
 date: 2026-11-25T14:00:00-05:00
-draft: true
+draft: false
 description: "A backup cellular modem kept carrying my laptop's traffic because IPv6 and a VPN bind ignored route metrics. What failed first, and what fixed it."
 slug: "a-cell-modem-the-vpn-kept-choosing"
 categories: ["Open Source"]
