@@ -589,6 +589,12 @@ pre code {
   white-space: inherit;
 }
 
+/* Inline code may break anywhere, so a long identifier never pushes a narrow page wider.
+ * Code blocks (pre) keep scrolling sideways instead. */
+:not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
 pre:focus-visible {
   outline: var(--rule-accent-width) solid var(--focus);
   outline-offset: 2px;
