@@ -2,7 +2,7 @@
 title: "A Cell Modem the VPN Kept Choosing"
 date: 2026-11-25T14:00:00-05:00
 draft: true
-description: "My cellular modem was supposed to be the last-resort connection, but IPv6 and a VPN interface bind kept sending traffic through it. The fix required changing which profiles could provide default routes."
+description: "A backup cellular modem kept carrying my laptop's traffic because IPv6 and a VPN bind ignored route metrics. What failed first, and what fixed it."
 slug: "a-cell-modem-the-vpn-kept-choosing"
 categories: ["Open Source"]
 tags: ["linux", "networking", "networkmanager", "twingate", "cellular", "troubleshooting"]
