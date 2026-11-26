@@ -8,7 +8,7 @@ categories: ["Journal"]
 tags: ["networking", "testing", "ai-assistant", "review", "linux"]
 syndicate: false
 image: "featured.webp"
-imageAlt: "A black Motorola MicroTAC flip phone from 1989 with its antenna up and the flip cover open, on a plain gray backdrop."
+imageAlt: "A black Motorola MicroTAC flip phone from 1989 with its antenna up and the flip cover open, on a dark background."
 ---
 
 The lesson from this network repair is simple: a test double that agrees with the implementation can still be completely wrong about the system. My cellular failover passed its tests, then failed the first time I turned off the Wi-Fi radio.
