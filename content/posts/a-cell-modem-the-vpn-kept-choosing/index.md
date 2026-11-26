@@ -7,6 +7,8 @@ slug: "a-cell-modem-the-vpn-kept-choosing"
 categories: ["Open Source"]
 tags: ["linux", "networking", "networkmanager", "twingate", "cellular", "troubleshooting"]
 syndicate: false
+image: "featured.webp"
+imageAlt: "A black Motorola MicroTAC flip phone from 1989 with its antenna up and the flip cover open, on a plain gray backdrop."
 ---
 
 My laptop sent about 1.3 GB up and 5 GB down through its backup cellular modem in roughly six hours. About 750 MB was VPN tunnel traffic, and some version of this had apparently been happening for weeks.
