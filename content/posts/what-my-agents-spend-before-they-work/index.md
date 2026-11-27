@@ -1,6 +1,6 @@
 ---
 title: "My Agents Were Eating 40,225 Tokens Before They Did Any Work"
-date: 2026-11-27T12:00:00-05:00
+date: 2026-11-26T23:00:00-05:00
 description: "I spent a day measuring my agent workflow, found a duplicate instruction file and silent context truncation, and came away with a baseline I can actually check."
 slug: "what-my-agents-spend-before-they-work"
 categories: ["Blog"]
