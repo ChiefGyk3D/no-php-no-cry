@@ -87,7 +87,7 @@ Every task now gets an issue and a board card first. I was repeatedly asked to r
 
 ## A portable version
 
-I’m also building a portable edition as a separate, private project for coworkers who have different mixes of AI tools or use none. The initial starter set, record schema, threat model, local-model tier design, and contracts for briefs and reports are done, with storage and the event log merged, the commands that use them in progress, and delegation that accounts for task dependencies still to come.
+I’m also building a portable edition as a separate, private project for coworkers who have different mixes of AI tools or use none. The initial starter set, record schema, threat model, local-model tier design, and contracts for briefs and reports are done, with storage and the event log merged, the commands that use them in progress and delegation that accounts for task dependencies still to come.
 
 ## The ledger still says zero
 

@@ -82,7 +82,7 @@ counts. To change a limit, edit `LIMITS` in the script and the table in
 | `image-size` | 120 KB per image an `<img>` loads |
 | `image-file-size` | 300 KB per image file anywhere in the build |
 | `page-total` | 150 KB cold transfer per page |
-| `post-no-images` | 80 KB for a post page without its body images |
+| `post-no-images` | 128 KB for a post page without its body images |
 
 Details, the fixed weight every post pays and the history of each limit are in
 `docs/performance-gates.md`.
