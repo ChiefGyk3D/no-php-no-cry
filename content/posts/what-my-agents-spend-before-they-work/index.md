@@ -1,7 +1,7 @@
 ---
 title: "My Agents Were Eating 40,225 Tokens Before They Did Any Work"
 date: 2026-11-26T21:00:00-05:00
-draft: true
+draft: false
 description: "I measured where my assistant spent its tokens, found a local model silently dropping instructions, and set a baseline to check what my fixes actually change."
 slug: "what-my-agents-spend-before-they-work"
 categories: ["Open Source"]

@@ -1,7 +1,7 @@
 ---
 title: "The Missing Top of the Prompt"
 date: 2026-11-26T20:00:00-05:00
-draft: true
+draft: false
 description: "A local model silently dropped the top of my prompt, so I tested what it actually read and checked which workflow changes had measured results."
 slug: "what-i-measured-before-i-cut-the-prompt"
 categories: ["Journal"]
