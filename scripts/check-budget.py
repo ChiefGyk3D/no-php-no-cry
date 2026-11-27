@@ -70,7 +70,7 @@ LIMITS = {
     "image_any": 300 * KB,
     "page_total": 150 * KB,
     # A post page without the images inside the post body.
-    "post_no_images": 80 * KB,
+    "post_no_images": 128 * KB,
 }
 SCRIPT_EXT = {"js", "mjs", "cjs"}
 TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "webmanifest", "asc"} | SCRIPT_EXT

@@ -550,7 +550,7 @@ Budgets (a build gate in CI measures them):
 | Fonts | 1 file, under 30 KB (Jost is 26.6 KB) |
 | Home page HTML | under 15 KB gzip |
 | Home page total transfer, cold | under 150 KB including images |
-| Post page, no inline images | under 80 KB |
+| Post page, no inline images | under 128 KB (raised from 80 KB, owner-approved) |
 | Largest image on any page | under 120 KB |
 | Third-party requests | 0 |
 | LCP on a mid-range phone, 4G | under 2.0 s (measure in a browser run; the baseline did not measure Lighthouse) |

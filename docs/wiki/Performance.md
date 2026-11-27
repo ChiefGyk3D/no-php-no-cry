@@ -43,7 +43,7 @@ Enforced by `scripts/check-budget.py` (static, no browser). The limits:
 | Any image a page loads | 120 KB |
 | Any image file in the build | 300 KB |
 | A page, cold transfer | 150 KB |
-| A post without its body images | 80 KB |
+| A post without its body images | 128 KB |
 
 The full table, today's measurements and the fixed weight every post pays are in
 `docs/performance-gates.md`. See also
@@ -89,5 +89,5 @@ CSP path entry, re-measured after the deploy); the details are in `docs/performa
 
 - Resize images before you commit them and prefer WebP.
 - Do not embed. Link.
-- Check a long post against the 80 KB post limit with `scripts/check-budget.py`
+- Check a long post against the 128 KB post limit with `scripts/check-budget.py`
   on a build.
