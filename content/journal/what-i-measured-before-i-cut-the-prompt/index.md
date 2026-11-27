@@ -3,7 +3,7 @@ title: "The Missing Top of the Prompt"
 date: 2026-11-26T20:00:00-05:00
 draft: true
 description: "A local model silently dropped the top of my prompt, and checking what actually happened left me with three changes and zero measured after-values."
-slug: "the-missing-top-of-the-prompt"
+slug: "what-i-measured-before-i-cut-the-prompt"
 categories: ["Journal"]
 tags: ["ai", "vibe-coding", "local-models", "measurement"]
 syndicate: false

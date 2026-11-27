@@ -3,7 +3,7 @@ title: "My Agents Were Eating 40,225 Tokens Before They Did Any Work"
 date: 2026-11-26T21:00:00-05:00
 draft: true
 description: "I measured what my agents cost before they did any work and found a local model quietly dropping the instructions at the top of its prompt."
-slug: "my-agents-were-eating-40225-tokens-before-they-did-any-work"
+slug: "what-my-agents-spend-before-they-work"
 categories: ["Open Source"]
 tags: ["ai", "vibe-coding", "local-llm", "measurement"]
 syndicate: false
