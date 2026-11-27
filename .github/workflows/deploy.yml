@@ -75,11 +75,11 @@ jobs:
       - name: Build
         env:
           HUGO_PARAMS_ENVIRONMENT: staging
-          # Issue 407: the business-site crosslinks point at the business staging host
-          # on this dev build only. hugo.toml keeps params.businessSiteURL empty (a test
-          # requires it); the PRIVATE production pipeline sets HUGO_PARAMS_BUSINESSSITEURL
-          # to https://renegadepenguinllc.com in its own build.
-          HUGO_PARAMS_BUSINESSSITEURL: https://staging.renegadepenguinllc.com
+          # Issue 407 and 434: the business-site crosslinks on this dev build point at
+          # the Renegade Penguin LLC root domain. hugo.toml keeps params.businessSiteURL
+          # empty (a test requires it); the PRIVATE production pipeline sets
+          # HUGO_PARAMS_BUSINESSSITEURL to https://renegadepenguinllc.com in its own build.
+          HUGO_PARAMS_BUSINESSSITEURL: https://renegadepenguinllc.com
         run: |
           python3 -I scripts/build-outbound-domains.py
           hugo --minify --gc --buildDrafts
