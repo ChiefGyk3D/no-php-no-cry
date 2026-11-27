@@ -376,11 +376,11 @@ if grep -Eq '^[[:space:]]*businessSiteURL[[:space:]]*=[[:space:]]*""[[:space:]]*
 else
     fail "hugo.toml must set params.businessSiteURL = \"\""
 fi
-# The dev deploy build sets it to the staging business host.
-if grep -Eq 'HUGO_PARAMS_BUSINESSSITEURL:[[:space:]]*https://staging\.renegadepenguinllc\.com[[:space:]]*$' "$root/.github/workflows/deploy.yml"; then
+# The dev deploy build sets it to the root business host.
+if grep -Eq 'HUGO_PARAMS_BUSINESSSITEURL:[[:space:]]*https://renegadepenguinllc\.com[[:space:]]*$' "$root/.github/workflows/deploy.yml"; then
     pass "deploy.yml sets the param for the dev build"
 else
-    fail "deploy.yml must set HUGO_PARAMS_BUSINESSSITEURL to the staging business host"
+    fail "deploy.yml must set HUGO_PARAMS_BUSINESSSITEURL to the root business host"
 fi
 
 # Guard self-test: the asserter must fail on pages that break each rule.
