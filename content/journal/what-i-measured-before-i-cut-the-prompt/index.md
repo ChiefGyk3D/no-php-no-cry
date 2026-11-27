@@ -1,6 +1,6 @@
 ---
 title: "What I Measured Before I Cut the Prompt"
-date: 2026-11-26T23:05:00-05:00
+date: 2026-11-26T22:30:00-05:00
 description: "My notes on the token spend baseline, local model recall tests, and what I still need to measure after replacing a duplicate instruction file."
 slug: "what-i-measured-before-i-cut-the-prompt"
 categories: ["Journal"]
