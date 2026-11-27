@@ -11,6 +11,8 @@ syndicate: false
 
 The median first turn for an agent in my workflow was 40,225 tokens before it did any work. I wanted a yardstick before changing anything, so I pulled a read-only weekly spend report from my own agent sessions. The lead session accounted for 37.4 percent of weighted Claude spend. The agents it spawned accounted for 62.6 percent. If I’d focused on the session I was talking to, I would’ve started with the smaller share of the bill.
 
+<!--more-->
+
 The post image is a placeholder.
 
 The lead still had something worth looking at. Cache reads accounted for 83.7 percent of its weighted spend, and 84.2 percent of the lead’s spend happened after turn 200. Those are two different cuts of the same spend. One tells me what I was paying for, and the other tells me when I was paying for it. I want to see what happens if I end lead sessions sooner, including what it costs to hand the work to a fresh session and get it back up to speed. The late-session number tells me where to run that experiment.

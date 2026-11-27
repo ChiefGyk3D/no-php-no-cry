@@ -11,6 +11,8 @@ syndicate: false
 
 I asked for a yardstick before making changes. The read-only weekly report on my own sessions put 37.4 percent of weighted Claude spend on the lead and 62.6 percent on spawned agents. Median first turn for a spawned agent was 40,225 tokens before it did any work. For the lead, 83.7 percent of weighted spend was cache reads, and 84.2 percent of spend came after turn 200. I want both cuts of that report when I rerun it because a shorter session could also change what I spend getting the next session caught up.
 
+<!--more-->
+
 ## Local model checks
 
 I’d noticed that the local model had dropped out of calls I expected it to handle. The report showed 256 of 7,007 dispatches went to the local model server, or 3.6 percent. I’d check the dispatch counts earlier next time. A recall test can tell me whether a model can handle the prompt I give it. I still need the dispatch count to know whether the workflow sends it that prompt in the first place.
