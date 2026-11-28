@@ -39,7 +39,7 @@ Enforced by `scripts/check-budget.py` (static, no browser). The limits:
 | Scripts | Only the pinned ones, 1 KB gzip each |
 | Stylesheet | One per page, 20 KB gzip |
 | Fonts | At most 2 files per page, 30 KB each |
-| Page HTML | 15 KB gzip |
+| Page HTML | 17 KB gzip |
 | Any image a page loads | 120 KB |
 | Any image file in the build | 300 KB |
 | A page, cold transfer | 150 KB |

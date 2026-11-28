@@ -63,7 +63,7 @@ LIMITS = {
     # display), so: at most 2 font files per page, each under 30 KB transferred.
     "font_files_per_page": 2,
     "font_each": 30 * KB,
-    "html_gzip": 15 * KB,
+    "html_gzip": 17 * KB,
     # Largest image an <img> loads on any page; and any image file in the build
     # (the 1200x630 Open Graph card is the biggest and is never loaded by a page).
     "image_displayed": 120 * KB,

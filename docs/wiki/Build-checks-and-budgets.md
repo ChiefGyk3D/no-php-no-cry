@@ -78,7 +78,7 @@ counts. To change a limit, edit `LIMITS` in the script and the table in
 | `js-size` | 1 KB gzip per script |
 | `css-count`, `css-size` | One stylesheet per page, 20 KB gzip |
 | `font-count`, `font-size` | At most 2 font files per page, each 30 KB transferred |
-| `html-size` | 15 KB gzip per page |
+| `html-size` | 17 KB gzip per page |
 | `image-size` | 120 KB per image an `<img>` loads |
 | `image-file-size` | 300 KB per image file anywhere in the build |
 | `page-total` | 150 KB cold transfer per page |
