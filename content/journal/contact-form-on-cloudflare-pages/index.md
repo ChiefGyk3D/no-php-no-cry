@@ -1,7 +1,7 @@
 ---
 title: "A Contact Form on Cloudflare Pages With No Server Behind It"
 date: 2026-11-19T21:30:00-05:00
-draft: true
+draft: false
 description: "I put a contact form on a static Hugo site on Cloudflare Pages with no server: a Pages Function, Turnstile, and a Worker that can only email one address. The bugs were more useful than the build."
 slug: "contact-form-on-cloudflare-pages"
 categories: ["Journal"]
