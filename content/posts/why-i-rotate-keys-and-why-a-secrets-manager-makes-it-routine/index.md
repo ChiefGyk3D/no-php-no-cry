@@ -1,7 +1,7 @@
 ---
 title: "Why I rotate keys, and why a secrets manager makes it routine"
 date: 2026-11-28T10:20:00-05:00
-draft: true
+draft: false
 slug: "why-i-rotate-keys-and-why-a-secrets-manager-makes-it-routine"
 description: "An AI agent printed two of my stored credentials into a chat. Because they lived in Doppler, the fix was a quick rotation. Why routine rotation matters."
 categories: ["Security"]
