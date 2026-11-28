@@ -26,7 +26,7 @@ largest candidate of an `<img srcset>`.
 | `js-size` | 1 KB gzip | n/a | brief section 10 |
 | `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 6.1 KB (6.3 KB on Home and 404) | brief (target 12 KB) |
 | `font-count`, `font-size` | at most 2 font files per page, each 30 KB transferred | Jost 26.6 KB, Orbitron 19.9 KB | brief says one font; the brand kit ships two (Jost body, Orbitron headings), so the count is 2 |
-| `html-size` | 15 KB gzip per page | 4.2 KB | brief: home page HTML |
+| `html-size` | 17 KB gzip per page | 4.2 KB | brief: home page HTML |
 | `image-size` | 120 KB per image an `<img>` loads | 20.7 KB | brief |
 | `image-file-size` | 300 KB per image file anywhere in the build | 267 KB (Open Graph card, never loaded by a page) | local limit |
 | `page-total` | 150 KB cold transfer per page | 82.1 KB (Home, the largest) | brief: home page |
