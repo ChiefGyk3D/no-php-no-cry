@@ -26,7 +26,7 @@ Hardware security keys were already valuable long before generative AI became ma
 
 <!--more-->
 
-**Disclosure:** I've been a Yubico ambassador for years. This article contains Amazon affiliate links. As an Amazon Associate, I earn from qualifying purchases. However, I've been using YubiKeys since the Mt. Gox Bitcoin days, long before I ever worked with Yubico. I would still be recommending them regardless of that relationship.
+**Disclosure:** I've been a Yubico ambassador for years. This article contains Amazon affiliate links. As an Amazon Associate, I earn from qualifying purchases. However, I've been using YubiKeys since the Mt. Gox Bitcoin days, long before I ever worked with Yubico. I would still be recommending them regardless of that relationship. This article also contains an affiliate link to [Proton](https://go.getproton.me/aff_c?offer_id=38&aff_id=8335). I am a Proton affiliate and I do recommend them.
 
 If you're already looking to get started, here's my [YubiKey 5C NFC affiliate link](https://amzn.to/3PSRPp7). And before you buy anything, read the section below about why you should have at least two keys.
 
@@ -332,7 +332,7 @@ My additional encrypted TOTP backups are for situations where I need more contro
 
 Congratulations. So do I.
 
-I use Proton Pass, Bitwarden, and KeePassXC for different purposes, and I've been using password managers alongside YubiKeys for years.
+I use [Proton Pass](https://go.getproton.me/aff_c?offer_id=38&aff_id=8335), Bitwarden, and KeePassXC for different purposes, and I've been using password managers alongside YubiKeys for years.
 
 Password managers and hardware security keys are not mutually exclusive.
 
