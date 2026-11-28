@@ -35,7 +35,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           # audit, not block: artifact upload goes to GitHub's blob storage,
           # whose host name varies per run and cannot be listed without a
@@ -75,6 +75,11 @@ jobs:
       - name: Build
         env:
           HUGO_PARAMS_ENVIRONMENT: staging
+          # Issue 407 and 434: the business-site crosslinks on this dev build point at
+          # the Renegade Penguin LLC root domain. hugo.toml keeps params.businessSiteURL
+          # empty (a test requires it); the PRIVATE production pipeline sets
+          # HUGO_PARAMS_BUSINESSSITEURL to https://renegadepenguinllc.com in its own build.
+          HUGO_PARAMS_BUSINESSSITEURL: https://renegadepenguinllc.com
         run: |
           python3 -I scripts/build-outbound-domains.py
           hugo --minify --gc --buildDrafts
@@ -111,7 +116,7 @@ jobs:
       contents: read
       checks: read
     steps:
-      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           # audit: this job holds no secret and its output is only a pass or
           # fail; the deploy job is the one that blocks.
@@ -148,7 +153,7 @@ jobs:
       WRANGLER_SEND_METRICS: "false"
       CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'no-php-no-cry' }}
     steps:
-      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           # block, with an explicit list (no wildcards). The runner's own
           # infrastructure hosts are allowed by the agent. This list is
@@ -252,7 +257,7 @@ jobs:
       # selects the two. Least privilege is the config itself, a dedicated CI
       # config that holds only these two values (docs/deploy.md).
       - name: Fetch Cloudflare credentials from Doppler
-        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@ff658b7c11a55eea1394af5fd1a3a1b4b09d9cd0 # v1.36.0
+        uses: ChiefGyk3D/git-your-ship-together/.github/actions/doppler-secrets@9e0d7b2e7e8530e2b1bb200ecb4fbf6de021881f # v1.38.0
         with:
           project: ${{ vars.DOPPLER_PROJECT }}
           config: ${{ vars.DOPPLER_CONFIG }}
@@ -309,7 +314,7 @@ jobs:
     env:
       SITE_URL: ${{ vars.SITE_URL || 'https://test-blog.chiefgyk3d.com' }}
     steps:
-      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           # audit, not block: unmeasured (artifact host, and the site host
           # depends on SITE_URL). Tighten after the first run: issue #10.

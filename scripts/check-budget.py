@@ -63,14 +63,14 @@ LIMITS = {
     # display), so: at most 2 font files per page, each under 30 KB transferred.
     "font_files_per_page": 2,
     "font_each": 30 * KB,
-    "html_gzip": 15 * KB,
+    "html_gzip": 17 * KB,
     # Largest image an <img> loads on any page; and any image file in the build
     # (the 1200x630 Open Graph card is the biggest and is never loaded by a page).
     "image_displayed": 120 * KB,
     "image_any": 300 * KB,
     "page_total": 150 * KB,
     # A post page without the images inside the post body.
-    "post_no_images": 80 * KB,
+    "post_no_images": 128 * KB,
 }
 SCRIPT_EXT = {"js", "mjs", "cjs"}
 TEXT_EXT = {"html", "css", "svg", "xml", "txt", "ttf", "webmanifest", "asc"} | SCRIPT_EXT

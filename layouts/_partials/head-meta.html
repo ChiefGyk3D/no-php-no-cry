@@ -80,6 +80,8 @@
 {{- if .IsHome -}}
   {{- $person := dict "@type" "Person" "@id" $personID "name" $name "url" $home -}}
   {{- if $sameAs }}{{ $person = merge $person (dict "sameAs" $sameAs) }}{{ end -}}
+  {{- /* Only while params.businessSiteURL is set: the Organization @id and the jobTitle text equal what the business site's own Person node and Organization node use (renegade-penguin-site layouts/_partials/jsonld.html). The validated business home ends in one slash, so the id is <home>#organization. */ -}}
+  {{- with partial "business-url.html" "/" }}{{ $person = merge $person (dict "jobTitle" "Founder, Renegade Penguin LLC" "worksFor" (dict "@type" "Organization" "@id" (printf "%s#organization" .) "name" "Renegade Penguin LLC" "url" .)) }}{{ end -}}
   {{- $site := dict "@type" "WebSite" "@id" (printf "%s#website" $home) "name" site.Title "url" $home "description" $desc "publisher" (dict "@id" $personID) -}}
   {{- $ld = dict "@context" "https://schema.org" "@graph" (slice $site $person) -}}
 {{- else if $article -}}

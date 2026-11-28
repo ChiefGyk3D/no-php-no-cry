@@ -4,7 +4,7 @@
 # are the body, in order.
 opener: "Hi, I'm Moshe, and I go by ChiefGyk3D online."
 paragraphs:
-  - "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, ham radio operator, open-source builder, and content creator. I’m primarily self-taught. Most of what I know came from curiosity, building things in my homelab, and figuring out why they didn’t work."
+  - "I’m a Senior Cybersecurity Engineer (CISSP), Linux nerd, ham radio operator, open-source builder, and content creator. I’m primarily self-taught. Most of what I know came from curiosity, building things in my homelab, and figuring out why they didn’t work. I work as an independent security advisor, and I’m grateful that my mentor, Elissa Shevinsky, publicly endorsed my work."
   - "My work spans identity and access management, endpoint security, security automation, zero trust, and cloud and network security. I also work with threat modeling, OSINT, telecom security, and SIEM/SOC tooling. That includes IAM, EDR, SOAR, ZTNA, and SASE, along with tools like pfSense, Suricata, Wazuh, and OpenSearch. I’m more than ready for a security architecture role, and that’s where I’m headed."
   - "I run Linux on my desktops and servers, and my homelab is where a lot of my interests come together. It’s a production-style environment built partly from repurposed hardware, with a dual-GPU local AI box and self-hosted services including Mastodon, Matrix, and Pixelfed. Radio is part of that curiosity too, from software-defined radio to Meshtastic and LoRa. I care about end-to-end encryption, zero trust, owning my infrastructure, right to repair, and privacy rights."
 # The speaking sentence: before + link text + after. The link renders only

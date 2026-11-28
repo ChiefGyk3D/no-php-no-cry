@@ -45,7 +45,7 @@
             {{- with site.GetPage "/journal" }}{{ if .RegularPages }}
             <li><a href="{{ "/journal/" | relURL }}"{{ if eq $here ("/journal/" | relURL) }} aria-current="page"{{ end }}>Journal</a></li>
             {{- end }}{{ end }}
-            {{- range slice (dict "path" "/products/" "name" "Gear & tools") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/search/" "name" "Search") }}
+            {{- range slice (dict "path" "/products/" "name" "Gear & tools") (dict "path" "/social/" "name" "Socials") (dict "path" "/support/" "name" "Support") (dict "path" "/about/" "name" "About") (dict "path" "/contact/" "name" "Contact") (dict "path" "/search/" "name" "Search") }}
             <li><a href="{{ .path | relURL }}"{{ if eq $here (.path | relURL) }} aria-current="page"{{ end }}>{{ .name }}</a></li>
             {{- end }}
             <li><a href="https://shop.chiefgyk3d.com" rel="noopener">Shop<span class="visually-hidden"> (external site)</span></a></li>
@@ -63,7 +63,6 @@
     <div class="wrap">
       <ul class="footer-row" aria-label="Footer">
         <li><a href="{{ "/about/" | relURL }}">About</a></li>
-        <li><a href="{{ "/contact/" | relURL }}">Contact</a></li>
         <li><a href="{{ "/privacy/" | relURL }}">Privacy</a></li>
         <li><a href="{{ "/resume/" | relURL }}">Resume</a></li>
         <li><a href="{{ "/feed/index.xml" | relURL }}">RSS</a></li>
@@ -75,6 +74,12 @@
       {{- range site.Data.socials }}{{ if strings.HasPrefix .url "https://" }}{{ $live = $live | append . }}{{ end }}{{ end }}
       <div class="footer-meta">
         <p class="footer-line">You're not dead until you stop learning. Happy Hacking.</p>
+        {{- /* Issue 407: the business-site footer line; the link text sits inside the sentence. Nothing renders while params.businessSiteURL is empty. */}}
+        {{- with partial "business-url.html" "/" }}
+        {{- $parts := split site.Data.business.footer_line site.Data.business.link_text }}
+        {{- if ne (len $parts) 2 }}{{ errorf "data/business.yaml footer_line must contain link_text exactly once" }}{{ end }}
+        <p class="footer-line footer-business">{{ index $parts 0 }}<a href="{{ . }}" rel="noopener">{{ site.Data.business.link_text }}<span class="visually-hidden"> (external site)</span></a>{{ index $parts 1 }}</p>
+        {{- end }}
         {{- with $live }}
         <nav class="footer-social" aria-label="Social profiles">
           <ul class="footer-social-list footer-social-list--per-{{ math.Ceil (div (float (len .)) 2) | int }}">
@@ -84,7 +89,7 @@
           </ul>
         </nav>
         {{- end }}
-        <p class="credit">&copy; {{ now.Year }} Renegade Penguin LLC <span aria-hidden="true">&middot;</span> Powered by <a href="https://github.com/ChiefGyk3D/no-php-no-cry" rel="noopener">No PHP No Cry<span class="visually-hidden"> (external site)</span></a></p>
+        <p class="credit">&copy; {{ now.Year }} {{ with partial "business-url.html" "/" }}<a href="{{ . }}" rel="me noopener">Renegade Penguin LLC<span class="visually-hidden"> (external site)</span></a>{{ else }}Renegade Penguin LLC{{ end }} <span aria-hidden="true">&middot;</span> Powered by <a href="https://github.com/ChiefGyk3D/no-php-no-cry" rel="noopener">No PHP No Cry<span class="visually-hidden"> (external site)</span></a></p>
       </div>
     </div>
   </footer>

@@ -58,8 +58,8 @@ WANT = {
         "A practical list of security gear, privacy services, audio equipment, repair tools, and creator software. Affiliate links are disclosed.",
     ),
     "contact/index.html": (
-        "Contact for Business Inquiries, Discord, and Matrix" + SUFFIX,
-        "Use email for business inquiries, or Discord and Matrix for general correspondence. Chats are bridged in most rooms when working.",
+        "Contact ChiefGyk3D: Email, Discord, Matrix" + SUFFIX,
+        "Email ChiefGyk3D about content, community, or personal matters. Use Discord or Matrix for general correspondence; most active rooms are bridged.",
     ),
     "journal/index.html": (
         "ChiefGyk3D's Technical Journal Index Page" + SUFFIX,
@@ -129,9 +129,9 @@ if fails:
 print("ok: home title, seven inner titles and descriptions: exact, suffixed once, unique, clean")
 PY
 
-# The journal entries (issue 316, plus the QCC lessons entry, issue 389): all nine are published, the synthetic
+# The journal entries (issue 316, plus the QCC lessons entry, issue 389, and the link-priority entry, issue 426): all eleven are published, the synthetic
 # sample entry is gone, and nothing in the repository still points at it.
-expected="a-database-rollout-on-a-test-environment a-threat-model-for-a-static-site borders-and-the-brand-look collectors-and-credential-handling lessons-from-the-qcc-badge-post privacy-engineering-for-analytics prox-and-recreation-dress-rehearsal running-a-fleet-of-ai-agents shipping-reach-around-while-moving-machines support-share-and-post-layouts"
+expected="a-database-rollout-on-a-test-environment a-threat-model-for-a-static-site borders-and-the-brand-look collectors-and-credential-handling lessons-from-the-qcc-badge-post link-priority-manager-and-network-repair privacy-engineering-for-analytics prox-and-recreation-dress-rehearsal running-a-fleet-of-ai-agents shipping-reach-around-while-moving-machines support-share-and-post-layouts what-i-measured-before-i-cut-the-prompt"
 journal_fail=0
 for slug in $expected; do
     if [[ ! -f "$work/public/journal/$slug/index.html" ]]; then

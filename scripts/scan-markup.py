@@ -1,6 +1,6 @@
 """Reads a page, svg or xml file the way a browser reads its tags.
 
-Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] [--cloudflare-beacon] <site-host> <file>
+Usage: python3 -I scripts/scan-markup.py [--markup] [--scripts none|pinned] [--known /a.js,/b.js] [--allow /a.js] [--allow-email ADDRESS] [--cloudflare-beacon] [--cloudflare-precursor] <site-host> <file>
 
 Prints one rule name per line, never page content. Attributes are read from real
 attributes by a quote-aware parser (a ">" or "=" inside a quoted value is just
@@ -26,6 +26,23 @@ A <script type="application/ld+json"> data block (that one attribute, nothing
 else) is not a script in either mode: a browser never runs it and script-src
 does not apply. Its body is judged by scripts/check-seo.py. In --markup mode
 every script element is still refused.
+--cloudflare-precursor (HTML only, used by the smoke test on served pages, never by
+the build check) also permits, at most once per page, the one inline script
+Cloudflare Precursor injects at the edge: a script element with no attribute
+whose whole body fullmatches PRECURSOR_BODY below. A second one is script-count;
+any other body, or any attribute, is script-not-allowed as before. Without --scripts
+it implies --scripts none. A self-closing script tag (<script/>, <SCRIPT />) is
+script-not-allowed in every mode (a browser ignores the slash, this parser does
+not).
+In every mode the file must be plain UTF-8, the one encoding this parser reads
+the way a browser does: a UTF-16 or UTF-32 byte order mark, a NUL byte, bytes that
+are not valid UTF-8, a UTF-8 byte order mark, a control byte other than tab, line
+feed, form feed or carriage return (ESC is how ISO-2022 encodings hide tags), or
+(HTML) a meta with two charset attributes, an http-equiv content-type meta with two
+content attributes (a browser keeps the first; so does this scanner, for every
+tag), a <meta charset> or
+<meta http-equiv=content-type> naming any charset but utf-8 is bad-encoding. A
+file that fails the byte checks is reported as bad-encoding alone and not parsed.
 --cloudflare-beacon requires exactly one Cloudflare Web Analytics tag with a
 versioned Insights URL and a nonempty public token. It permits only that remote
 script; every other script rule remains active.
@@ -34,6 +51,7 @@ mailto: link to exactly that address, from email-shaped-text. The caller passes 
 only for the page that publishes the owner-approved business address (About);
 any other address on that page, or on any other page, is still a finding.
 """
+import base64
 import json
 import re
 import sys
@@ -80,14 +98,90 @@ def share_mailto_ok(v):
     return bool(m) and not any(re.search(r"[^\s@]+@[^\s@]+", unquote(g, errors="replace")) for g in m.groups())
 
 
+# The inline script Cloudflare Precursor injects at the edge (observed
+# 2026-11-20, issue 410): window.__CF$cv$params={...} then a loader that appends
+# <script src=/cdn-cgi/challenge-platform/scripts/precursor/main.js?ray=RAY>.
+# The whole body must match this one shape, byte for byte apart from the
+# per-request values, which are matched by character class and length: the ray
+# (16 lowercase hex, the same in params and loader), t (base64 of a 10 digit
+# timestamp), u (32 hex), ut (token characters) and i (a small integer). No
+# whitespace, statement or URL may be added before, inside or after it.
+PRECURSOR_BODY = re.compile(
+    r"window\.__CF\$cv\$params=\{r:'(?P<ray>[0-9a-f]{16})'"
+    r",t:'(?P<t>[A-Za-z0-9+/]{14}==)'"
+    r",u:'[0-9a-f]{32}'"
+    r",ut:'[A-Za-z0-9._-]{40,300}'"
+    r",i:[0-9]{1,4}\};"
+    r"\(function\(\)\{if\(!document\.body\)return;"
+    r"var l=window\.location,o;"
+    r"try\{o=new URL\(l\.origin\)\.origin\}"
+    r"catch\(e\)\{try\{o=new URL\(new URL\(l\.href\)\.origin\)\.origin\}catch\(e\)\{o=''\}\}"
+    r"var u='/cdn-cgi/challenge-platform/scripts/precursor/main\.js\?ray=(?P<loader>[0-9a-f]{16})',"
+    r"s=document\.createElement\('script'\);"
+    r"s\.src=o\?new URL\(u,o\)\.href:u;"
+    r"document\.head\.appendChild\(s\);\}\)\(\);"
+)
+
+
+def precursor_body_ok(body):
+    m = PRECURSOR_BODY.fullmatch(body)
+    if not m or m.group("ray") != m.group("loader"):
+        return False
+    # t is the base64 of a 10 digit Unix time (observed: MTc5NTE4NTU2Nw== is
+    # 1795185567); strict decoding, ASCII digits only.
+    try:
+        decoded = base64.b64decode(m.group("t"), validate=True)
+    except ValueError:
+        return False
+    return re.fullmatch(rb"[0-9]{10}", decoded) is not None
+
+
+BOMS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")
+
+
+# C0 control bytes other than tab, line feed, form feed and carriage return. ESC
+# is what ISO-2022 style encodings switch state with; no page here carries any.
+CONTROLS = re.compile(rb"[\x00-\x08\x0b\x0e-\x1f]")
+
+
+def first_wins(attrs):
+    """Attributes as a browser keeps them: the FIRST of a duplicated name wins
+    (a dict built in order would keep the last)."""
+    out = {}
+    for name, value in attrs:
+        out.setdefault(name, value)
+    return out
+
+
+def utf8_only(raw):
+    """True if the bytes are plain UTF-8 a browser reads as UTF-8: no byte order
+    mark of any kind (a UTF-16 or UTF-32 one makes a browser decode the whole file
+    differently), no control byte but tab, line feed, form feed and carriage return
+    (this covers NUL and the ESC of ISO-2022), and strictly valid UTF-8."""
+    if raw.startswith(BOMS) or CONTROLS.search(raw):
+        return False
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def charset_ok(name):
+    return name.strip().lower() == "utf-8"
+
+
 class Scan(HTMLParser):
-    def __init__(self, host, markup, scripts, known=(), allow="", allow_email="", cloudflare_beacon=False):
+    def __init__(self, host, markup, scripts, known=(), allow="", allow_email="", cloudflare_beacon=False, precursor=False):
         super().__init__(convert_charrefs=True)
         self.allow_email = allow_email.lower()
         self.host, self.markup, self.scripts = host, markup, scripts
         self.known, self.allow = set(known), allow
         self.cloudflare_beacon = cloudflare_beacon
         self.cloudflare_beacons = 0
+        self.precursor = precursor
+        self.precursors = 0
+        self.precursor_body = None  # the text of an open candidate script, else None
         self.found = set()
         self.pinned_tags = 0
         self.in_script = False
@@ -95,8 +189,19 @@ class Scan(HTMLParser):
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
+        if tag.lower() == "script":
+            # A browser ignores the slash of <script/> and reads script text up to
+            # </script>, but this parser stays in markup mode: what it sees
+            # (a comment, a tag) is not what the browser runs. Refuse the tag
+            # in every mode, and never let it open or satisfy an allowance.
+            self.found.add("script-not-allowed")
+            self.precursor_body = None
+            self.in_script = False
 
     def handle_data(self, data):
+        if self.precursor_body is not None:
+            self.precursor_body.append(data)
+            return
         if self.allow_email:
             data = re.sub(re.escape(self.allow_email), "", data, flags=re.I)
         if not self.markup and not self.in_script and not self.in_style and EMAIL.search(data):
@@ -107,6 +212,15 @@ class Scan(HTMLParser):
     def handle_endtag(self, tag):
         if tag.lower() == "script":
             self.in_script = False
+            if self.precursor_body is not None:
+                body = "".join(self.precursor_body)
+                self.precursor_body = None
+                if not precursor_body_ok(body):
+                    self.found.add("script-not-allowed")
+                else:
+                    self.precursors += 1
+                    if self.precursors > 1:
+                        self.found.add("script-count")
         if tag.lower() == "style":
             self.in_style = False
 
@@ -115,12 +229,26 @@ class Scan(HTMLParser):
         is_cloudflare_beacon = False
         if tag == "style":
             self.in_style = True
+        if tag == "meta" and not self.markup:
+            meta = first_wins([(n.lower(), clean(v)) for n, v in attrs])
+            meta_names = [n.lower() for n, _ in attrs]
+            if "charset" in meta and not charset_ok(meta["charset"]):
+                self.found.add("bad-encoding")
+            if meta_names.count("charset") > 1:
+                # The first one counts in a browser; refuse rather than guess.
+                self.found.add("bad-encoding")
+            if meta.get("http-equiv", "").strip().lower() == "content-type":
+                m = re.search(r"charset\s*=\s*[\"']?\s*([^\s;\"']*)", meta.get("content", ""), re.I)
+                if m and not charset_ok(m.group(1)):
+                    self.found.add("bad-encoding")
+                if meta_names.count("content") > 1:
+                    self.found.add("bad-encoding")
         if tag == "script":
             raw = [(n.lower(), v or "") for n, v in attrs]
-            raw_values = dict(raw)
+            raw_values = first_wins(raw)
             plain = [(n.lower(), clean(v)) for n, v in attrs]
             names = [n for n, _ in plain]
-            values = dict(plain)
+            values = first_wins(plain)
             beacon_src = values.get("src", "")
             beacon_data = values.get("data-cf-beacon", "")
             try:
@@ -141,6 +269,10 @@ class Scan(HTMLParser):
                 self.in_script = True
                 if self.cloudflare_beacons > 1:
                     self.found.add("script-count")
+            elif self.precursor and not self.markup and not attrs:
+                # A bare <script> with no attribute at all is a candidate for
+                # the Precursor snippet; its body is judged at </script>.
+                self.precursor_body = []
             elif not self.markup and [(n.lower(), clean(v).lower()) for n, v in attrs] == [("type", "application/ld+json")]:
                 # A JSON-LD data block: never run, not subject to script-src.
                 # Its body is judged by scripts/check-seo.py.
@@ -174,7 +306,7 @@ class Scan(HTMLParser):
             if is_cloudflare_beacon and name == "src":
                 continue
             # <link rel=me> is an identity claim (Mastodon, GitHub read it); nothing is fetched.
-            if tag == "link" and clean(dict(attrs).get("rel")).lower().split() == ["me"]:
+            if tag == "link" and clean(first_wins(attrs).get("rel")).lower().split() == ["me"]:
                 continue
             urls = []
             if name in URL_ATTRS:
@@ -191,11 +323,14 @@ class Scan(HTMLParser):
 
 def main(argv):
     markup, scripts, known, allow, allow_email, cloudflare_beacon = False, "", [], "", "", False
+    precursor = False
     args = list(argv)
     while args and args[0].startswith("--"):
         opt = args.pop(0)
         if opt == "--markup":
             markup = True
+        elif opt == "--cloudflare-precursor":
+            precursor = True
         elif opt == "--cloudflare-beacon":
             cloudflare_beacon = True
         elif opt == "--scripts" and args:
@@ -210,16 +345,31 @@ def main(argv):
             return 2
     if len(args) != 2:
         return 2
-    if cloudflare_beacon and not scripts:
+    if (cloudflare_beacon or precursor) and not scripts:
         scripts = "none"
     host, path = args[0].lower(), args[1]
-    scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon)
+    scan = Scan(host, markup, scripts, known, allow, allow_email, cloudflare_beacon, precursor)
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            scan.feed(f.read())
+        with open(path, "rb") as f:
+            raw = f.read()
+    except Exception:
+        raw = None
+    if raw is not None and not utf8_only(raw):
+        # What a browser would read from these bytes is not what a UTF-8 reader
+        # sees, so nothing below can be trusted: report only this.
+        print("bad-encoding")
+        return 0
+    try:
+        if raw is None:
+            raise OSError(path)
+        # Universal newlines, as the text-mode read this replaces did.
+        scan.feed(raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n"))
         scan.close()
     except Exception:
         scan.found.add("unparseable-html")
+    if scan.precursor_body is not None:
+        # A candidate script that never closed is not the exact snippet.
+        scan.found.add("script-not-allowed")
     if cloudflare_beacon and scan.cloudflare_beacons == 0:
         scan.found.add("missing-beacon")
     for rule in sorted(scan.found):

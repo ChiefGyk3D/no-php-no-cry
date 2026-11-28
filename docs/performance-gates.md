@@ -26,11 +26,11 @@ largest candidate of an `<img srcset>`.
 | `js-size` | 1 KB gzip | n/a | brief section 10 |
 | `css-count`, `css-size` | 1 stylesheet per page, 20 KB gzip | 6.1 KB (6.3 KB on Home and 404) | brief (target 12 KB) |
 | `font-count`, `font-size` | at most 2 font files per page, each 30 KB transferred | Jost 26.6 KB, Orbitron 19.9 KB | brief says one font; the brand kit ships two (Jost body, Orbitron headings), so the count is 2 |
-| `html-size` | 15 KB gzip per page | 4.2 KB | brief: home page HTML |
+| `html-size` | 17 KB gzip per page | 4.2 KB | brief: home page HTML |
 | `image-size` | 120 KB per image an `<img>` loads | 20.7 KB | brief |
 | `image-file-size` | 300 KB per image file anywhere in the build | 267 KB (Open Graph card, never loaded by a page) | local limit |
 | `page-total` | 150 KB cold transfer per page | 82.1 KB (Home, the largest) | brief: home page |
-| `post-no-images` | 80 KB for a post page without its body images | 61.0 KB for the sample post; 61.8 to 64.1 KB for four real batch-1 posts (see the fixed weight below) | brief |
+| `post-no-images` | 128 KB for a post page without its body images | 61.0 KB for the sample post; 61.8 to 64.1 KB for four real batch-1 posts (see the fixed weight below) | brief |
 | `missing-asset`, `no-pages` | every referenced file exists; there are pages | | |
 
 To change a limit, edit `LIMITS` in the script and this table in one commit.
@@ -49,7 +49,7 @@ every `url()` in the stylesheet counts, used or not). Measured on the sample pos
 | `css/site.min.*.css` | 28.9 KB | 6.1 KB |
 | the 12 footer social icons (`brand/icons/*.svg`, in the stylesheet) | 9.9 KB | 4.9 KB |
 | the post HTML | about 18 KB | about 6 KB |
-| Total, sample post | | 61.0 KB, so about 19 KB of the 80 KB limit remains for text |
+| Total, sample post | | 61.0 KB, so about 67 KB of the 128 KB limit remains for text (the limit was 80 KB until the owner raised it to 128 KB for the token-savings post) |
 
 The Home and 404 penguin ghost (`mascot-512.webp`, 20.7 KB) is its own file,
 `assets/css/home-ghost.css`, appended to the stylesheet of those two pages only

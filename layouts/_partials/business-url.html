@@ -1,0 +1,10 @@
+{{- /* The business-site URL for a path ("/contact/", "/"), or "" when params.businessSiteURL is empty (the production default: nothing renders). Takes the path as its context. The value must be https:// then a host (letters, digits, dots, hyphens), an optional port and an optional path of URL-safe characters; anything else (a quote, angle bracket, space, backslash, query, fragment, userinfo, another scheme) fails the build and renders nothing (the partial returns "" after the error, so not even the partial output the failed build leaves behind carries the value). */ -}}
+{{- $base := strings.TrimSuffix "/" (site.Params.businessSiteURL | default "") -}}
+{{- $out := "" -}}
+{{- if $base -}}
+  {{- if not (findRE `^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?(/[A-Za-z0-9._~%/-]*)?$` $base) -}}{{ errorf "params.businessSiteURL is not a plain https URL (https://host[:port][/path], no quotes, spaces, brackets, backslashes, query or fragment): %q" $base }}
+  {{- else -}}
+    {{- $out = print $base . -}}
+  {{- end -}}
+{{- end -}}
+{{- return $out -}}

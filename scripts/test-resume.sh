@@ -84,7 +84,7 @@ NEW_PROJECT_URLS = [
 MORE_URL = "https://github.com/ChiefGyk3D"
 MORE_LABEL = "More on GitHub"
 SUMMARY = [
-    "Senior Cybersecurity Engineer and CISSP with about 15 years across IT and "
+    "Senior Cybersecurity Engineer and CISSP with about 16 years across IT and "
     "security. I design, build, integrate, and test security systems across "
     "identity, network defense, SIEM engineering, cloud security, zero trust, "
     "and automation. I question unnecessary access and use hands-on testing to "
@@ -510,6 +510,33 @@ print(len(items), bad)
 sys.exit(1 if bad or len(items) != 37 else 0)
 PY
     )" && pass "guard: removing any single skill item is rejected ($n)" || fail "guard: a removed skill item was not flagged"
+fi
+
+# Issue 419: the business-site link stands on its own line (layouts/_partials/business-block.html), so it is
+# a full --tap target like the other standalone links; the browser gate measures it only on a build with
+# params.businessSiteURL set. The rule must list ".business-link a" with min-height: var(--tap).
+tap_rule() {
+    python3 -I - "$1" <<'PY'
+import re, sys
+css = re.sub(r"/\*.*?\*/", "", open(sys.argv[1]).read(), flags=re.S)
+for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+    if ".business-link a" in [x.strip() for x in sel.split(",")] and \
+            re.search(r"min-height:\s*var\(--tap\)", body) and re.search(r"display:\s*inline-flex", body):
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+maincss="$root/assets/css/main.css"
+if tap_rule "$maincss"; then
+    pass "main.css gives .business-link a the --tap target size"
+else
+    fail "main.css does not give .business-link a a min-height of var(--tap)"
+fi
+sed 's/^\.business-link a/.unrelated-link a/' "$maincss" >"$work/main-nobiz.css"
+if tap_rule "$work/main-nobiz.css"; then
+    fail "guard: dropping .business-link a from the tap rule was not flagged"
+else
+    pass "guard: dropping .business-link a from the tap rule is flagged"
 fi
 
 if [[ $failures -ne 0 ]]; then

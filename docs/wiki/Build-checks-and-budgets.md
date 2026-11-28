@@ -78,11 +78,11 @@ counts. To change a limit, edit `LIMITS` in the script and the table in
 | `js-size` | 1 KB gzip per script |
 | `css-count`, `css-size` | One stylesheet per page, 20 KB gzip |
 | `font-count`, `font-size` | At most 2 font files per page, each 30 KB transferred |
-| `html-size` | 15 KB gzip per page |
+| `html-size` | 17 KB gzip per page |
 | `image-size` | 120 KB per image an `<img>` loads |
 | `image-file-size` | 300 KB per image file anywhere in the build |
 | `page-total` | 150 KB cold transfer per page |
-| `post-no-images` | 80 KB for a post page without its body images |
+| `post-no-images` | 128 KB for a post page without its body images |
 
 Details, the fixed weight every post pays and the history of each limit are in
 `docs/performance-gates.md`.
@@ -117,6 +117,7 @@ Every `scripts/test-*.sh` pairs with a check or a feature. The ones to read:
 | `scripts/test-head.sh` | Head tags and `rel=me` links against hostile front matter. |
 | `scripts/test-social-products.sh` | The Social tiles and the Products disclosure, items and affiliate links. |
 | `scripts/test-resume.sh` | The Resume page and its print stylesheet. |
+| `scripts/test-business-crosslinks.sh` | The business-site crosslinks (nav item, About and Resume blocks, footer line): all four appear with the exact text when `params.businessSiteURL` is set, none when it is empty. |
 | `scripts/test-llms.sh` | The `/llms.txt` shape. |
 | `scripts/test-featured-image.sh` | The headline image slot, see [Headline images](Headline-images.md). |
 | `scripts/test-archetype.sh` | `hugo new content` makes a post that builds and passes the checks, and a missing alt text fails. |

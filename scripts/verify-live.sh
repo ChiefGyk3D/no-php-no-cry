@@ -331,6 +331,13 @@ third_party() {
                 bad "third-party" "$1 serves '${rule}' (loads from another host or over http)"
                 bad_any=1
                 ;;
+            "") ;;
+            *)
+                # Any other finding (bad-encoding, an event handler, a script...) is
+                # a page this check cannot vouch for: fail, never read it as clean.
+                bad "third-party" "$1 serves '${rule}' (markup the build check refuses)"
+                bad_any=1
+                ;;
         esac
     done <<<"$found"
     [[ $bad_any -eq 1 ]] || ok "third-party" "$1 loads nothing from another host"

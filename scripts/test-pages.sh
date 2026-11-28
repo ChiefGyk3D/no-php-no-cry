@@ -80,10 +80,10 @@ CREATOR_START = "I am a content creator with over 500,000 followers across platf
 CLOSING = "You’re not dead until you stop learning. Happy hacking."
 FOOTER_LINE = "You're not dead until you stop learning. Happy Hacking."
 ABOUT_POINTER = "Email, Discord, and Matrix are on the contact page."
-CONTACT_INTRO = "Use email for business inquiries. For general correspondence, find me on Discord or Matrix."
+CONTACT_INTRO = "Use email for content, community, or personal messages. For general correspondence, find me on Discord or Matrix."
 CONTACT_GENERAL = ("Use Discord or Matrix for general correspondence. They are bridged, so you can read chats "
                    "from the other side in most rooms unless there is an issue with a bridge.")
-CONTACT_BUSINESS = "The email address here is primarily for business inquiries."
+CONTACT_BUSINESS = "Use this email for content, community, and personal messages, not hiring or consulting requests."
 SPEAKING = ("In 2026, I spoke at BSides Dayton and COISSA. I also volunteer with the "
             "Call Center Village.")
 CONTACT_SOON = "The address will be listed here soon."
@@ -367,6 +367,10 @@ def check_about_data(errs, html_src):
             errs.append("%s paragraph differs from data/about.yaml (issue 264)" % key)
     if not d.get("closing") or d["closing"] != CLOSING or d["closing"] not in ps:
         errs.append("closing line differs from the owner-approved one (issue 225)")
+    # Issue 414: the owner-approved mentor sentence ends the first bio paragraph, verbatim, and is on the page.
+    mentor = "I work as an independent security advisor, and I’m grateful that my mentor, Elissa Shevinsky, publicly endorsed my work."
+    if not d["paragraphs"][0].endswith(" " + mentor) or not any(x.endswith(" " + mentor) for x in ps):
+        errs.append("the first bio paragraph must end with the approved mentor sentence (issue 414)")
     sp = d["speaking"]
     if not any((sp["before"] + sp["link_text"] + sp["after"] + " " + sp.get("role", "")).strip() == x for x in ps):
         errs.append("speaking sentence or role differs from data/about.yaml")
@@ -612,7 +616,7 @@ def contact(p, errs, repo):
         if (a.get("href") or "").startswith("https://") and (a.get("href") or "") != cd["pgp_url"] and not external_ok(a):
             errs.append("an external link without target=_blank and rel=noopener: %s" % a.get("href"))
     if p.count("h2") != 2:
-        errs.append("expected two h2 panels (general correspondence, business inquiries)")
+        errs.append("expected two h2 panels (general correspondence, email)")
     if repo["html"].count("l3") and "bx l3" in repo["html"]:
         errs.append("the page must carry no L3 frame")
     if repo["html"].count("bx l2") != 1:
@@ -694,7 +698,7 @@ if __name__ == "__main__":
             errs.append("footer social icon row missing")
         hrefs = re.findall(r"<a[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", foot, re.S)
         names = [norm(t) for _, t in hrefs]
-        if names != ["About", "Contact", "Privacy", "Resume", "RSS", "Socials", "Support", "No PHP No Cry (external site)"]:
+        if names != ["About", "Privacy", "Resume", "RSS", "Socials", "Support", "No PHP No Cry (external site)"]:
             errs.append("footer links are %r" % names)
         targets = dict((norm(t), h.strip('"')) for h, t in hrefs)
         if not targets.get("Socials", "").endswith("/social/"):
@@ -892,7 +896,7 @@ PYEOF
     build_contact_case email-and-url "chief@chiefgyk3d.com" "" "$KEYURL" incomplete
     build_contact_case both "chief@chiefgyk3d.com" "$FP" "$KEYURL" complete
     # The checker bites: an address injected into an incomplete page is rejected.
-    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "The email address here is primarily for business inquiries."; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "The email address here is <a href=mailto:chief@chiefgyk3d.com>primarily</a> for business inquiries.", 1))' "$work/contact-public-email-only/contact/index.html" "$work/about-mail.html"
+    python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read(); a = "Use this email for content, community, and personal messages, not hiring or consulting requests."; assert a in s; open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, "Use this email for <a href=mailto:chief@chiefgyk3d.com>content</a>, community, and personal messages, not hiring or consulting requests.", 1))' "$work/contact-public-email-only/contact/index.html" "$work/about-mail.html"
     if ABOUT_DATA="$work/contact-email-only/data/about.yaml" python3 -I "$asserter" contact "$work/about-mail.html" >/dev/null 2>&1; then
         fail "guard: a Contact page linking an email with an incomplete config passed"
     else
@@ -1638,6 +1642,63 @@ if [[ "$(nav_first "$pub/support/index.html")" == "Home" ]]; then
 else
     fail "the first nav item on /support/ is '$(nav_first "$pub/support/index.html")', expected 'Home'"
 fi
+# Contact sits in the header nav (issue 416), right after About and before Search, once, and
+# not in the footer. The header nav holds no link to the business site (issue 422), whether or
+# not params.businessSiteURL is set.
+nav_contact_check() { # <html> -> problems, one per line (empty when right)
+    python3 -I - "$1" <<'PY'
+import html, re, sys
+h = open(sys.argv[1], encoding="utf-8").read()
+nav = re.search(r"<nav class=site-nav.*?</nav>|<nav class=\"site-nav\".*?</nav>", h, re.S)
+nav = nav.group(0) if nav else ""
+links = [(m.group(1).strip('"'), html.unescape(re.sub(r"<[^>]+>", "", m.group(2))).strip())
+         for m in re.finditer(r"<a\b[^>]*href=([^\s>]+)[^>]*>(.*?)</a>", nav, re.S)]
+names = [n for _, n in links]
+if names.count("Contact") != 1:
+    print("header nav has Contact %d times, not once" % names.count("Contact"))
+else:
+    i = names.index("Contact")
+    if not links[i][0].endswith("/contact/"):
+        print("header Contact does not point at /contact/")
+    if names[i - 1] != "About":
+        print("header Contact does not follow About (%r)" % names)
+    if i + 1 >= len(names) or names[i + 1] != "Search":
+        print("header Contact is not followed by Search (%r)" % names)
+for href, name in links:
+    if "renegadepenguinllc.com" in href or "staging.example" in href or name.startswith("Work with me"):
+        print("header nav links to the business site: %s (%s)" % (href, name))
+fm = re.search(r"<footer.*?</footer>", h, re.S)
+if fm and re.search(r"<a[^>]*href=\"?[^\s>\"]*/contact/", fm.group(0)):
+    print("footer still links /contact/")
+PY
+}
+if [[ -z "$(nav_contact_check "$pub/index.html")" ]]; then
+    pass "header nav has Contact once, after About, before Search; footer has none"
+else
+    fail "header Contact: $(nav_contact_check "$pub/index.html")"
+fi
+# Negative fixtures: each break must be reported.
+nc="$work/nav-contact"
+mkdir -p "$nc"
+nav_mut() { # <name> <python expr on s>
+    python3 -I - "$pub/index.html" "$nc/$1.html" "$2" <<'PY'
+import sys
+s = open(sys.argv[1], encoding="utf-8").read()
+s = eval(sys.argv[3], {"s": s})
+open(sys.argv[2], "w", encoding="utf-8").write(s)
+PY
+    if [[ -n "$(nav_contact_check "$nc/$1.html")" ]]; then
+        pass "guard: $1 is rejected"
+    else
+        fail "guard: $1 was not rejected"
+    fi
+}
+nav_mut contact-missing-from-header 's.replace("<li><a href=/contact/>Contact</a></li>", "", 1)'
+nav_mut contact-in-footer 's.replace("<li><a href=/privacy/>Privacy</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/privacy/>Privacy</a></li>", 1)'
+nav_mut contact-before-about 's.replace("<li><a href=/about/>About</a></li><li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/about/>About</a></li>", 1)'
+nav_mut work-with-me-returns 's.replace("<li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=https://renegadepenguinllc.com/contact/ rel=noopener>Work with me</a></li>", 1)'
+nav_mut business-link-under-another-label 's.replace("<li><a href=/search/>Search</a></li>", "<li><a href=https://renegadepenguinllc.com/ rel=noopener>Search</a></li>", 1)'
+nav_mut contact-twice-in-header 's.replace("<li><a href=/contact/>Contact</a></li>", "<li><a href=/contact/>Contact</a></li><li><a href=/contact/>Contact</a></li>", 1)'
 if grep -Eq 'aria-current="?page"?' <<<"$(tr '\n' ' ' <<<"$css")"; then
     pass "stylesheet styles [aria-current]"
 else
@@ -1650,7 +1711,7 @@ else
 fi
 
 # Guard self-test: each broken page must fail the asserter.
-good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/about/#contact>Contact</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC <span aria-hidden=true>&middot;</span> Powered by <a href=https://github.com/ChiefGyk3D/no-php-no-cry rel=noopener>No PHP No Cry<span class=visually-hidden> (external site)</span></a></p></footer>'
+good_privacy='<h1>Privacy</h1><p>The code of this site sets no cookies and embeds nothing from other sites. Following a link takes you to another site, which has its own policies.</p> <p>The site is hosted on Cloudflare Pages, and Cloudflare Web Analytics is turned on for it. The content security policy on this site allows that analytics script and nothing else from outside. Cloudflare describes Web Analytics as collecting page-load timing and the country, browser, referring site, and page path of each visit, without cookies and without personal data. This page does not describe what Cloudflare logs on its own, such as request or security records.</p><footer><ul class=footer-row><li><a href=/about/>About</a></li><li><a href=/privacy/>Privacy</a></li><li><a href=/resume/>Resume</a></li><li><a href=/feed/index.xml>RSS</a></li><li><a href=/social/>Socials</a></li><li><a href=/support/>Support</a></li></ul><p class=footer-line>You'"'"'re not dead until you stop learning. Happy Hacking.</p><nav class=footer-social aria-label="Social profiles"><ul><li><a href=https://x.example rel=noopener aria-label=X><span class="social-icon social-icon--x"></span></a></li></ul></nav><p class=credit>&copy; 2026 Renegade Penguin LLC <span aria-hidden=true>&middot;</span> Powered by <a href=https://github.com/ChiefGyk3D/no-php-no-cry rel=noopener>No PHP No Cry<span class=visually-hidden> (external site)</span></a></p></footer>'
 printf '%s\n' "$good_privacy" >"$work/ok-privacy.html"
 if python3 -I "$asserter" privacy "$work/ok-privacy.html" >/dev/null 2>&1; then
     pass "guard: a correct privacy page passes"

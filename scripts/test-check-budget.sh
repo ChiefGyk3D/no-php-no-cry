@@ -78,7 +78,7 @@ mutate big-image image-size 'head -c 130000 /dev/urandom > brand/pic.webp'
 mutate huge-image-file image-file-size 'head -c 310000 /dev/urandom > brand/og.png'
 mutate huge-svg-file image-file-size 'head -c 400000 /dev/urandom | base64 > brand/unreferenced.svg'
 mutate page-over-total page-total 'head -c 100000 /dev/urandom > brand/pic.webp; head -c 29000 /dev/urandom > fonts/j.woff2; printf "%s" "@font-face{src:url(../fonts/j.woff2)}@font-face{src:url(../fonts/k.woff2)}" > css/site.css; head -c 29000 /dev/urandom > fonts/k.woff2'
-mutate post-text-heavy post-no-images 'head -c 28000 /dev/urandom > fonts/j.woff2; head -c 29000 /dev/urandom > fonts/k.woff2; head -c 29000 /dev/urandom > brand/x.bin; printf "%s" "body{background:url(../brand/x.bin)}@font-face{src:url(../fonts/j.woff2)}@font-face{src:url(../fonts/k.woff2)}" > css/site.css'
+mutate post-text-heavy post-no-images 'head -c 28000 /dev/urandom > fonts/j.woff2; head -c 29000 /dev/urandom > fonts/k.woff2; head -c 75000 /dev/urandom > brand/x.bin; printf "%s" "body{background:url(../brand/x.bin)}@font-face{src:url(../fonts/j.woff2)}@font-face{src:url(../fonts/k.woff2)}" > css/site.css'
 mutate missing-file missing-asset 'rm brand/pic.webp'
 
 # The pinned copy script is allowed, on the support page only.

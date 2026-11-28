@@ -46,6 +46,9 @@
 #                 Cloudflare injects it only for browser-like requests, as
 #                 measured on 2026-11-10, so only this request sends fixed
 #                 Firefox desktop and HTML Accept headers.
+#                 One exception, here only (not in scripts/check-output.sh): the
+#                 edge-injected Cloudflare Precursor script, at most once per HTML
+#                 page, in its exact shape (see PRECURSOR_BODY in scan-markup.py).
 # Pages checked, one per template, taken from the build: the home page, the
 # first post and journal entry, the posts and journal lists, the first tag and
 # category page, the feeds (/index.xml and /feed/index.xml) and the 404 page (asked for as
@@ -287,6 +290,29 @@ check_page() {
         echo "wrong-nosniff: ${path} must have exactly one X-Content-Type-Options header with the value nosniff"
         failed=1
     fi
+    # The scanner reads UTF-8 only (it refuses a UTF-16 or UTF-32 byte order mark,
+    # a NUL byte and a meta charset that is not utf-8); a header that names
+    # another charset changes how a browser reads the page just the same.
+    local charset_re='charset[[:space:]]*=[[:space:]]*"?([^;"[:space:]]*)' header_type
+    header_type="$(printf '%s' "$resp" | header_values content-type | head -n 1)"
+    if [[ "${header_type,,}" =~ $charset_re && "${BASH_REMATCH[1]}" != utf-8 ]]; then
+        echo "bad-encoding: ${path} has Content-Type '${header_type}', wanted no charset or utf-8"
+        failed=1
+    fi
+    if [[ "$(printf '%s' "$resp" | header_values content-type | wc -l)" -gt 1 ]]; then
+        echo "bad-encoding: ${path} has more than one Content-Type header, wanted 1"
+        failed=1
+    fi
+    # A browser honors the header's charset over any meta tag, so on a page read
+    # as HTML the header must say utf-8 itself (Cloudflare Pages serves
+    # "text/html; charset=utf-8" for pages and the 404; the xml feeds and scripts
+    # carry no charset, so they are only held to "none or utf-8" above).
+    if [[ "$path" != *.xml && -z "${script_pinned[$path]:-}" && $ok -eq 1 ]]; then
+        if [[ ! "${header_type,,}" =~ ^text/html[[:space:]]*\;[[:space:]]*charset=\"?utf-8\"?$ ]]; then
+            echo "bad-encoding: ${path} has Content-Type '${header_type}', wanted 'text/html; charset=utf-8'"
+            failed=1
+        fi
+    fi
     if [[ -n "${script_pinned[$path]:-}" ]]; then
         got="$(sha256sum <"$body_file" | cut -d' ' -f1)"
         if [[ "$got" != "${script_pinned[$path]}" ]]; then
@@ -305,6 +331,10 @@ check_page() {
             opts=(--scripts pinned --known "$known_csv" --allow "$allow")
         fi
         [[ "$path" == *.xml ]] && opts=(--markup)
+        # The edge injects one Cloudflare Precursor script into HTML pages
+        # (issue 410); only this served-page check allows it, once, in its exact
+        # shape. scripts/check-output.sh does not, and still refuses it.
+        [[ "$path" == *.xml ]] || opts+=(--cloudflare-precursor)
         [[ "$path" == / ]] && opts+=(--cloudflare-beacon)
         if [[ "$path" == /about/ ]]; then
             about_email="$("$(dirname "${BASH_SOURCE[0]}")/about-email.sh")"
