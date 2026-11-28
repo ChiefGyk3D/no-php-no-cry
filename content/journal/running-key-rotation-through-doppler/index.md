@@ -1,7 +1,7 @@
 ---
 title: "How I Run Key Rotation Through Doppler"
 date: 2026-11-16T19:08:00-05:00
-draft: true
+draft: false
 description: "I use Doppler as the source for application credentials and rotate supported vendor access without interrupting deployments. The useful lessons came from permissions, references, and testing the real path."
 slug: "running-key-rotation-through-doppler"
 categories: ["Journal"]
