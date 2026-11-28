@@ -1,7 +1,7 @@
 ---
 title: "Work journal: November 27, 2026"
 date: 2026-11-28T09:30:00-05:00
-draft: true
+draft: false
 description: "What my agents and I merged on November 27, 2026, with the pull request and commit counts, and what those numbers do and do not cover."
 slug: "work-journal-2026-11-27"
 categories: ["Journal"]
@@ -15,11 +15,11 @@ My agents and I merged 183 pull requests and recorded 1,068 unique commits acros
 
 ## What the numbers actually cover
 
-The public project breakdown was 46 merged pull requests in scrum-around-and-find-out, 34 in FAFO, 20 in Strategic-Herding-of-IT-Tasks, 18 in Reach-Around, 11 in siem-docker-stack, eight in department-of-internal-arguments, seven in FrankenLLM, and three in no-php-no-cry. git-your-ship-together and Patch-Gremlin each had active commits but no pull requests merged during the UTC window.
+The public project breakdown was 46 merged pull requests in scrum-around-and-find-out, 34 in FAFO, 20 in Strategic-Herding-of-IT-Tasks, 18 in Reach-Around, 11 in siem-docker-stack, eight in department-of-internal-arguments, seven in FrankenLLM, and three in [the site repository](https://github.com/ChiefGyk3D/no-php-no-cry). git-your-ship-together and Patch-Gremlin each had active commits but no pull requests merged during the UTC window.
 
 Private tooling accounted for another 17, 14, three, one, and one merged pull requests across five repositories. I am deliberately leaving those repository names and their contents private.
 
-The commit side was even more lopsided. SAFO had 301 unique commits and FAFO had 267. Reach-Around had 120, siem-docker-stack had 55, department-of-internal-arguments had 46, FrankenLLM had 35, Strategic-Herding-of-IT-Tasks had 26 on its default branch, Patch-Gremlin had nine, no-php-no-cry had six, and git-your-ship-together had five. Private tooling supplied the remaining 198 commits.
+The commit side was even more lopsided. SAFO had 301 unique commits and FAFO had 267. Reach-Around had 120, siem-docker-stack had 55, department-of-internal-arguments had 46, FrankenLLM had 35, Strategic-Herding-of-IT-Tasks had 26 on its default branch, Patch-Gremlin had nine, [the site repository](https://github.com/ChiefGyk3D/no-php-no-cry) had six, and git-your-ship-together had five. Private tooling supplied the remaining 198 commits.
 
 That is how the day reaches 183 pull requests and 1,068 commits. It was not 1,068 finished features. Merge commits, review rounds, test-first commits, conflict repairs, documentation, release work, and side branches all count. But it is still a useful picture of how much was moving at once.
 
@@ -147,7 +147,7 @@ Its cyber-tier review tools also learned to parse findings, hold a review result
 
 ## The site shipped, and one credential lesson hurt
 
-no-php-no-cry merged three pull requests and recorded six commits. The token-savings blog post and journal entry moved from draft to the fuller merged version with a CC0 image. The development build’s business link was corrected to the root domain, and the corresponding crosslink test was updated. The public site promotion happened through a separate private repository with one merged pull request.
+[The site repository](https://github.com/ChiefGyk3D/no-php-no-cry) merged three pull requests and recorded six commits. The token-savings blog post and journal entry moved from draft to the fuller merged version with a CC0 image. The development build’s business link was corrected to the root domain, and the corresponding crosslink test was updated. The public site promotion happened through a separate private repository with one merged pull request.
 
 There was also a credential-handling failure. A Doppler delete command printed the remaining secrets table into chat, which exposed two credentials. I rotated both.
 
